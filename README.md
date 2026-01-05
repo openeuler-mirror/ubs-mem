@@ -1,37 +1,56 @@
-# ubs-mem
+ # ubs-mem
 
 #### 介绍
-Ubs-mem supports unified memory programming to implement shared memory and pooled memory of UB superpods.
+UBS Memory在超节点上基于UB硬件能力提供Memory高阶服务能力，实现超节点上的内存借用、共享、缓存等能力。
 
-#### 软件架构
-软件架构说明
+#### 环境要求
+操作系统：推荐 openEuler 24.03 LTS SP3或更高版本
+编译工具链： GCC ≥ 10.3
 
+#### 获取源码
+```shell
+git clone https://atomgit.com/openeuler/ubs-mem.git
 
-#### 安装教程
+cd ubs-mem
+```
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+#### 构建项目
+代码仓中提供了统一的编译构建脚本（即build.sh），可以直接执行该脚本编译构建。-p 参数表示打rpm包，-t 表示编译方式如debug、release，示例如下。
+```
+sh build.sh -t release -p
+```
+
+构建产物位于 build/release/output* 目录下，RPM 包输出至 build/release/output。
+
+#### 项目结构
+```
+.
+├── build     // 存放项目中使用的脚本文件
+├── doc       // 存放项目文档，例如《代码架构设计》
+├── src       // 存放项目的功能实现源码，仅该目录参与构建出包
+├── test      // 存放项目的ut和dtfuzz等
+└── build.sh  // 统一的构建入口       
+```
+
+#### 开发者测试
+```
+cd test
+
+# 运行特定测试用例
+./run_dt.sh -- --gtest_filter="TestShmIpcHandler.*"
+
+# 生成代码覆盖率报告（HTML 可视化）
+./run_dt.sh 
+# 启动后终端会输出类似：http://localhost:8000/coverage/index.html
+```
 
 #### 使用说明
+1. 前提：安装并成功启动ubs-engine。
+2. 使用rpm  安装我们的rpm包。
+3. systemctl start ubsmd 启动。 
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+#### License
+ubs-mem 采用 Mulan V2 License.
 
-#### 参与贡献
-
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
-
-
-#### 特技
-
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+#### 贡献指南
+请阅读 贡献指南 CONTRIBUTING.md 以了解如何贡献项目。
