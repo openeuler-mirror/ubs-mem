@@ -1,0 +1,12 @@
+[submodule "3rdparty/secure/huawei_secure_c"]
+	path = 3rdparty/secure/huawei_secure_c
+	url = https://codehub-dg-y.huawei.com/hwsecurec_group/huawei_secure_c.git
+	tag = tag_Huawei_Secure_C_V100R001C01SPC017B001_00001
+[submodule "3rdparty/spdlog"]
+	path = 3rdparty/spdlog
+	url = https://szv-open.codehub.huawei.com/OpenSourceCenter/gabime/spdlog.git
+	branch = v1.15.3
+[submodule "3rdparty/openssl/openssl"]
+	path = 3rdparty/openssl/openssl
+	url = https://szv-open.codehub.huawei.com/OpenSourceCenter/openssl/openssl.git
+	tag = 3.0.9-htrunk6-h7

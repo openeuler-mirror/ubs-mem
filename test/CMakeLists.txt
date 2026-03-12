@@ -1,0 +1,7 @@
+if (DEBUG_UT STREQUAL "ON")
+    add_subdirectory(mxm-unit-tests)
+elseif (DEBUG_FUZZ STREQUAL "ON")
+    add_subdirectory(fuzz)
+else ()
+    add_subdirectory(tools)
+endif ()
