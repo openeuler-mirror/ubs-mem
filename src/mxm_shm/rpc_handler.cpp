@@ -11,7 +11,7 @@
  */
 #include <sys/types.h>
 #include <unistd.h>
-#include "securec.h"
+#include <securec.h>
 #include "rack_mem_functions.h"
 #include "rpc_config.h"
 #include "zen_discovery.h"

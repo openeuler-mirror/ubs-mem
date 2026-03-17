@@ -5,9 +5,9 @@
 # -*- rpm-spec -*-
 %define __strip /bin/true
 Summary:        Matrix Core Memory Package
-Name:           ubs_mem
+Name:           ubs-mem
 Version:        1.0.0
-Release:        1.oe2203sp13
+Release:        1.oe2403sp13
 License:        MIT
 Group:          System Environment/Daemons
 Vendor:         Huawei Technologies Co., Ltd.
@@ -131,7 +131,6 @@ delete_semaphore
 
 %dir %attr(550,ubsmd,ubsmd) /usr/local/ubs_mem/lib
 %attr(550,ubsmd,ubsmd) /usr/local/ubs_mem/lib/libcrypto.so
-%attr(550,ubsmd,ubsmd) /usr/local/ubs_mem/lib/libsecurec.so
 %attr(550,ubsmd,ubsmd) /usr/local/ubs_mem/lib/libssl.so
 %attr(550,ubsmd,ubsmd) /usr/local/ubs_mem/lib/libubsm_sdk.so
 %attr(550,ubsmd,ubsmd) /usr/local/ubs_mem/lib/libubsmd.so

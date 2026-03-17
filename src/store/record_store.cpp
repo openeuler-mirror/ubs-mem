@@ -17,7 +17,7 @@
 
 #include <algorithm>
 
-#include "securec.h"
+#include <securec.h>
 #include "log.h"
 #include "record_store.h"
 

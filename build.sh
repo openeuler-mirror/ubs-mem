@@ -130,7 +130,6 @@ if [ -z "$CI_BUILD" ] && [ ! -d "$BUILD_DIR/output" ];then
     echo "update submodules ... "
     git submodule sync
     git submodule update --init --recursive
-    git submodule update --remote --merge 3rdparty/hcom
 fi
 
 # Setup the build directory
@@ -190,9 +189,10 @@ echo
 cp ${BUILD_DIR}/3rdparty/openssl/output/lib/libcrypto.so ${BUILD_DIR}/output/lib
 cp ${BUILD_DIR}/3rdparty/openssl/output/lib/libssl.so ${BUILD_DIR}/output/lib
 
-cp ${PROJ_DIR}/script/ubs_mem_smoke.sh output/script
-cp ${PROJ_DIR}/script/ubs_mem_start.sh output/script
 cp ${PROJ_DIR}/script/install_and_start_ubsmd.sh output/script
+cd $BUILD_DIR/output/
+# 版本信息
+echo -e "B_Version:$B_Version\nCommitId:$commitId" > VERSION
 
 if [ "$PACKAGING" == "true" ]; then
       RPM_SRC_PATH=~/rpmbuild/matrix-core-memory/daemon/
@@ -200,8 +200,6 @@ if [ "$PACKAGING" == "true" ]; then
 
       echo "start to package matrix memory..."
       cd $BUILD_DIR/output/
-      # 版本信息
-      echo -e "B_Version:$B_Version\nCommitId:$commitId" > VERSION
       tar -czf ubs_mem-tmp.tar.gz ./bin/ ./config/ ./lib/ ./script/ ./include ./VERSION
 
       cd $BUILD_DIR/output_test/
@@ -224,7 +222,7 @@ if [ "$PACKAGING" == "true" ]; then
       echo "Start rpmbuild."
       RPM_BUILD_OUTPUT=$(QA_SKIP_RPATHS=1 rpmbuild -bb --clean ${RPM_SPEC_FILE})
       echo "$RPM_BUILD_OUTPUT" > /dev/null 2>&1
-      cp -f ~/rpmbuild/RPMS/ubs_mem-memfabric-*.rpm $BUILD_DIR/output || {
+      cp -f ~/rpmbuild/RPMS/ubs-mem-memfabric-*.rpm $BUILD_DIR/output || {
           echo "Failed to rpm ubs_mem!"
           exit 1;
       }
@@ -237,9 +235,6 @@ if [ "$PACKAGING_DEB" == "true" ]; then
     cd $BUILD_DIR/output/
 
     # ========== 1. 准备文件 ==========
-    # 生成版本信息
-    echo -e "B_Version:$B_Version\nCommitId:$commitId" > VERSION
-
     # 打包主程序文件（可用于 deb 内部归档或调试）
     tar -czf ubs_mem-tmp.tar.gz ./bin/ ./config/ ./lib/ ./script/ ./include ./VERSION
 

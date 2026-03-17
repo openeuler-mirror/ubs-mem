@@ -157,7 +157,7 @@ public:
         std::lock_guard<std::mutex> guard(dataMutex);
         auto it = name2UdsInfo.find(name);
         if (it == name2UdsInfo.end()) {
-            DBG_LOGWARN("Failed to find udsInfo by name: " << name);
+            DBG_LOGERROR("Failed to find udsInfo by name: " << name);
             return false;
         }
 

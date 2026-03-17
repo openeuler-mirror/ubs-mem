@@ -38,7 +38,7 @@ TARGET_INCLUDE_DIRECTORIES(ubs_mem_common_object PUBLIC ${CMAKE_CURRENT_SOURCE_D
         ${CMAKE_CURRENT_SOURCE_DIR}/app_lib/common
         ${PROJECT_SOURCE_DIR}/src/process/common
         ${PROJECT_SOURCE_DIR}/3rdparty/dlock/
-        ${PROJECT_SOURCE_DIR}/3rdparty/rack_manager/include
+        ${PROJECT_SOURCE_DIR}/3rdparty/ubse/include
 )
 
 set(HDAGGER_INSTALL_DIR ${PROJECT_SOURCE_DIR}/src/common/hdagger/)

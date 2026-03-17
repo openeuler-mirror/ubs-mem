@@ -4,7 +4,7 @@
 #include <string>
 #include <mockcpp/mokc.h>
 #include <gtest/gtest.h>
-#include "securec.h"
+#include <securec.h>
 #include "ubs_cryptor_handler.h"
 
 using namespace ock::ubsm;

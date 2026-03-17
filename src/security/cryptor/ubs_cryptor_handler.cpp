@@ -14,7 +14,7 @@
 #include <sstream>
 #include <dlfcn.h>
 #include <string>
-#include "securec.h"
+#include <securec.h>
 #include "rack_mem_functions.h"
 #include "dg_out_logger.h"
 #include "system_adapter.h"

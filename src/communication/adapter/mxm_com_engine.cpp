@@ -239,6 +239,7 @@ HRESULT MxmComEngine::RegMxmComMsgHandler(const MxmComMsgHandler& handle)
 constexpr uint32_t SEND_RECEIVE_SIZE = 32 * 1024;
 constexpr uint32_t SEND_RECEIVE_COUNT = 128;
 constexpr uint32_t SEND_QUEUE_SIZE = 4096;
+constexpr uint32_t CTX_STORE_CAP = 1024;
 constexpr uint32_t MIN_BLOCK_SIZE = 4096;
 constexpr uint32_t CACHE_TIER_COUNT = 10;
 constexpr uint32_t CACHE_BLOCK_COUNT_PER_TIER = 8;
@@ -268,6 +269,7 @@ static void AssignHcomServiceOptions(const MxmComEngineInfo& engineInfo, UBSHcom
     hcomNetService->SetSendQueueSize(SEND_QUEUE_SIZE);
     hcomNetService->SetRecvQueueSize(QUEUE_SIZE);
     hcomNetService->SetQueuePrePostSize(POST_RECEIVE_SIZE);
+    hcomNetService->SetCtxStoreCapacity(CTX_STORE_CAP);
     hcomNetService->SetMaxConnectionCount(engineInfo.GetMaxHcomConnectNum());
     hcomNetService->SetMaxSendRecvDataCount(MAX_SEND_RECV_DATA_COUNT);
     UBSHcomHeartBeatOptions opt;

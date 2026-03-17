@@ -58,7 +58,6 @@ endif (${CMAKE_HOST_SYSTEM_PROCESSOR} MATCHES "aarch64")
 
 message("CMAKE_ARC is ${CMAKE_ARC}")
 
-set(LIB_HW_SECURE ${PROJECT_BINARY_DIR}/3rdparty/secure/libsecurec.so)
 add_subdirectory(common)
 add_subdirectory(daemon)
 add_subdirectory(monitor)
@@ -75,9 +74,4 @@ install(FILES ${CMAKE_SOURCE_DIR}/src/app_lib/include/ubs_mem.h DESTINATION ${CM
         COMPONENT OCK_DAEMON_COMPONENT)
 install(FILES ${CMAKE_SOURCE_DIR}/src/app_lib/include/ubs_mem_def.h DESTINATION ${CMAKE_INCLUDE_OUTPUT_DIRECTORY}
         PERMISSIONS ${DAEMON_INSTALL_DOC_PERMISSIONS}
-        COMPONENT OCK_DAEMON_COMPONENT)
-# install third party libraries.
-message("OCK_3RDPARTY_BINARY_DIR is ${OCK_3RDPARTY_BINARY_DIR}")
-install(FILES ${LIB_HW_SECURE} DESTINATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
-        PERMISSIONS ${DEAMON_INSTALL_LIB_PERMISSIONS}
         COMPONENT OCK_DAEMON_COMPONENT)

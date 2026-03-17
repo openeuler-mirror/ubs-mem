@@ -110,7 +110,6 @@ IF (COMPILE_UT_CODE)
     message(WARNING "compile mxmd_ut...")
     # 生成目标
     add_executable(mxmd_ut ${MXM_MEM_TEST_SRC} new_gtest_main.cpp)
-    # target_include_directories(mxmd_ut PUBLIC ${PROJECT_SOURCE_DIR}/benchmarks/rack_manager/stub)
     target_include_directories(mxmd_ut PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/app_testcase)
 
     target_link_libraries(mxmd_ut PUBLIC ubs_mem_daemon_object ubs_mem_comm_daemon_object)

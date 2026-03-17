@@ -30,7 +30,7 @@
 #include <algorithm>
 
 #include "defines.h"
-#include "securec.h"
+#include <securec.h>
 
 namespace ock {
 namespace common {

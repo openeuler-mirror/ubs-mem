@@ -1,5 +1,5 @@
 target_include_directories(ubs_mem_daemon_object PUBLIC ${CMAKE_CURRENT_LIST_DIR})
-target_include_directories(ubs_mem_daemon_object PUBLIC ${PROJECT_SOURCE_DIR}/3rdparty/rack_manager/include)
+target_include_directories(ubs_mem_daemon_object PUBLIC ${PROJECT_SOURCE_DIR}/3rdparty/ubse/include)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} UBS_MEM_SRCS)
 if (DEBUG_UT STREQUAL "ON" OR DEBUG_FUZZ STREQUAL "ON")
     target_include_directories(ubs_mem_daemon_object SYSTEM PUBLIC ${PROJECT_SOURCE_DIR}/test/mxm-unit-tests/rack_com_stub)
