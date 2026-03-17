@@ -1,1 +1,83 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" height="390" viewBox="0 0 477 390" xmlns:xlink="http://www.w3.org/1999/xlink" width="477"><defs/><g transform="translate(5.5,5.5)" id="page1"><rect height="380" y="0" fill="none" x="0" width="467"/><g transform="translate(102.048000,119.832600)" id="shape1"><path stroke-linecap="square" stroke="#686d75" stroke-width="1.3333300352096558" fill="none" d="M.0,70.1L259.8,70.1L259.8,.0L.0,.0L.0,70.1z"/><text xml:space="preserve" style="fill:#202329;font-family:Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial;font-size:10.50pt"><tspan y="19.0" x="84.4">UBSMEM-SDK</tspan></text></g><g transform="translate(118.583000,151.180700)" id="shape2"><path fill="#c2d5fe" d="M3.0,28.4L222.6,28.4C224.2,28.4,225.6,27.1,225.6,25.4L225.6,3.0C225.6,1.3,224.2,.0,222.6,.0L3.0,.0C1.3,.0,.0,1.3,.0,3.0L.0,25.4C.0,27.1,1.3,28.4,3.0,28.4z" fill-rule="nonzero"/><text xml:space="preserve" style="fill:#202329;font-family:Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial;font-size:10.50pt"><tspan y="19.7" x="60.8">ubsmem_sdk_lib</tspan></text></g><g transform="translate(90.709000,89.179000)" id="shape3"><path stroke-linecap="square" stroke="#686d75" stroke-width="1.3333300352096558" fill="none" d="M.0,207.4L283.5,207.4L283.5,.0L.0,.0L.0,207.4z"/><text xml:space="preserve" style="fill:#202329;font-family:Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial;font-size:10.50pt"><tspan y="19.0" x="111.2">KSHMEM</tspan></text></g><g transform="translate(118.583300,237.961700)" id="shape4"><path fill="#c2d5fe" d="M3.0,28.4L101.4,28.4C103.1,28.4,104.4,27.1,104.4,25.4L104.4,3.0C104.4,1.3,103.1,.0,101.4,.0L3.0,.0C1.3,.0,.0,1.3,.0,3.0L.0,25.4C.0,27.1,1.3,28.4,3.0,28.4z" fill-rule="nonzero"/><text xml:space="preserve" style="fill:#202329;font-family:Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial;font-size:10.50pt"><tspan y="19.7" x="19.7">ubsmd_lib</tspan></text></g><g transform="translate(239.764300,237.961700)" id="shape5"><path fill="#c2d5fe" d="M3.0,28.4L101.4,28.4C103.1,28.4,104.4,27.1,104.4,25.4L104.4,3.0C104.4,1.3,103.1,.0,101.4,.0L3.0,.0C1.3,.0,.0,1.3,.0,3.0L.0,25.4C.0,27.1,1.3,28.4,3.0,28.4z" fill-rule="nonzero"/><text xml:space="preserve" style="fill:#202329;font-family:Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial;font-size:10.50pt"><tspan y="19.7" x="30.7">ubsmd</tspan></text></g><g transform="translate(90.709000,39.354300)" id="shape6"><path stroke-linecap="square" stroke="#686d75" stroke-width="1.3333300352096558" fill="none" d="M.0,29.3L283.5,29.3L283.5,.0L.0,.0L.0,29.3z"/><text xml:space="preserve" style="fill:#000000;font-family:Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial;font-size:10.50pt"><tspan y="20.2" x="129.2">APP</tspan></text></g><g transform="translate(155.620000,151.181000)" id="shape7"><path stroke="#191919" stroke-width="1" fill="none" d="M.0,-6.0L.0,-82.5"/><path stroke-linecap="round" stroke="#191919" stroke-width="1" fill="#191919" d="M3.0,-6.0L.0,.0L-3.0,-6.0L3.0,-6.0"/></g><g transform="translate(97.876400,311.716200)" id="shape8"><path stroke-linecap="square" stroke="#686d75" stroke-width="1.3333300352096558" fill="none" d="M.0,29.3L51.8,29.3L51.8,.0L.0,.0L.0,29.3z"/><text xml:space="preserve" style="fill:#000000;font-family:Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial;font-size:10.50pt"><tspan y="20.2" x="3.9">HCOM</tspan></text></g><g transform="translate(169.998400,311.716200)" id="shape9"><path stroke-linecap="square" stroke="#686d75" stroke-width="1.3333300352096558" fill="none" d="M.0,29.3L51.8,29.3L51.8,.0L.0,.0L.0,29.3z"/><text xml:space="preserve" style="fill:#000000;font-family:Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial;font-size:10.50pt"><tspan y="20.2" x="9.4">UBSE</tspan></text></g><g transform="translate(242.120400,311.716200)" id="shape10"><path stroke-linecap="square" stroke="#686d75" stroke-width="1.3333300352096558" fill="none" d="M.0,29.3L51.8,29.3L51.8,.0L.0,.0L.0,29.3z"/><text xml:space="preserve" style="fill:#000000;font-family:Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial;font-size:10.50pt"><tspan y="20.2" x="3.4">OBMM</tspan></text></g><g transform="translate(314.242400,311.716200)" id="shape11"><path stroke-linecap="square" stroke="#686d75" stroke-width="1.3333300352096558" fill="none" d="M.0,29.3L51.8,29.3L51.8,.0L.0,.0L.0,29.3z"/><text xml:space="preserve" style="fill:#000000;font-family:Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial;font-size:10.50pt"><tspan y="20.2" x="6.9">DLock</tspan></text></g><g transform="translate(102.048000,202.761300)" id="shape12"><path stroke-linecap="square" stroke="#686d75" stroke-width="1.3333300352096558" fill="none" d="M.0,78.7L259.8,78.7L259.8,.0L.0,.0L.0,78.7z"/><text xml:space="preserve" style="fill:#202329;font-family:Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial;font-size:10.50pt"><tspan y="19.0" x="70.4">UBSMEM-Daemon</tspan></text></g><g transform="translate(123.786000,311.716000)" id="shape13"><path stroke="#191919" stroke-width="1" fill="none" d="M.0,-6.0L.0,-29.5"/><path stroke-linecap="round" stroke="#191919" stroke-width="1" fill="#191919" d="M3.0,-6.0L.0,.0L-3.0,-6.0L3.0,-6.0"/></g><g transform="translate(195.908000,311.716000)" id="shape14"><path stroke="#191919" stroke-width="1" fill="none" d="M.0,-6.0L.0,-29.5"/><path stroke-linecap="round" stroke="#191919" stroke-width="1" fill="#191919" d="M3.0,-6.0L.0,.0L-3.0,-6.0L3.0,-6.0"/></g><g transform="translate(268.030000,311.716000)" id="shape15"><path stroke="#191919" stroke-width="1" fill="none" d="M.0,-6.0L.0,-29.5"/><path stroke-linecap="round" stroke="#191919" stroke-width="1" fill="#191919" d="M3.0,-6.0L.0,.0L-3.0,-6.0L3.0,-6.0"/></g><g transform="translate(340.152000,311.716000)" id="shape16"><path stroke="#191919" stroke-width="1" fill="none" d="M.0,-6.0L-0.0,-29.5"/><path stroke-linecap="round" stroke="#191919" stroke-width="1" fill="#191919" d="M3.0,-6.0L.0,.0L-3.0,-6.0L3.0,-6.0"/></g></g></svg>
+<svg width="476.99999999999994" height="390" xmlns="http://www.w3.org/2000/svg">
+ <g>
+  <title>Layer 1</title>
+  <g id="shape3">
+   <path id="svg_8" d="m96.209,301.6853l283.5,0l0,-207.4l-283.5,0l0,207.4z" fill="none" stroke-width="1.33333" stroke="#686d75" stroke-linecap="square"/>
+   <text id="svg_9" x="96.209" y="94.84085" font-size="10.50pt" font-family="Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial" fill="#202329" xml:space="preserve">
+    <tspan id="svg_10" x="201.909" y="108.34085">KSHMEM</tspan>
+   </text>
+  </g>
+  <path id="svg_1" d="m5.5,5.8937l467,0l0,380l-467,0l0,-380z" opacity="undefined" fill="none"/>
+  <g id="shape1">
+   <path id="svg_2" d="m107.548,195.8263l259.8,0l0,-70.1l-259.8,0l0,70.1z" fill="none" stroke-width="1.33333" stroke="#686d75" stroke-linecap="square"/>
+   <text id="svg_3" x="107.548" y="126.83741" font-size="10.50pt" font-family="Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial" fill="#202329" xml:space="preserve">
+    <tspan id="svg_4" x="186.448" y="140.33741">UBSMEM-SDK</tspan>
+   </text>
+  </g>
+  <g id="shape2">
+   <text id="svg_6" x="127.97187" y="162.07437" font-size="10.50pt" font-family="Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial" fill="#202329" xml:space="preserve">
+    <tspan id="svg_7" x="183.27187" y="176.27437">ubsmem_sdk_lib</tspan>
+   </text>
+   <path id="svg_5" fill-rule="nonzero" d="m127.083,185.47439l219.6,0c1.6,0 3,-1.3 3,-3l0,-22.4c0,-1.7 -1.4,-3 -3,-3l-219.6,0c-1.7,0 -3,1.3 -3,3l0,22.4c0,1.7 1.3,3 3,3z" fill="#c2d5fe"/>
+  </g>
+  <g id="shape12">
+   <path id="svg_34" d="m106.99245,287.35501l259.8,0l0,-78.7l-259.8,0l0,78.7z" fill="none" stroke-width="1.33333" stroke="#686d75" stroke-linecap="square"/>
+   <text id="svg_35" x="107.548" y="210.32167" font-size="10.50pt" font-family="Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial" fill="#202329" xml:space="preserve">
+    <tspan id="svg_36" x="172.448" y="223.82167">UBSMEM-Daemon</tspan>
+   </text>
+  </g>
+  <g id="shape6">
+   <path id="svg_17" d="m96.209,74.548l283.5,0l0,-29.3l-283.5,0l0,29.3z" fill="none" stroke-width="1.33333" stroke="#686d75" stroke-linecap="square"/>
+   <text id="svg_18" x="96.209" y="45.248" font-size="10.50pt" font-family="Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial" fill="#000000" xml:space="preserve">
+    <tspan id="svg_19" x="219.909" y="59.948">APP</tspan>
+   </text>
+  </g>
+  <g id="shape7">
+   <path id="svg_20" d="m161.12,151.0747l0,-76.5" fill="none" stroke="#191919"/>
+   <path id="svg_21" d="m164.12,151.0747l-3,6l-3,-6l6,0" fill="#191919" stroke="#191919" stroke-linecap="round"/>
+  </g>
+  <g id="shape8">
+   <path id="svg_22" d="m103.3764,346.90989l51.8,0l0,-29.3l-51.8,0l0,29.3z" fill="none" stroke-width="1.33333" stroke="#686d75" stroke-linecap="square"/>
+   <text id="svg_23" x="108.49451" y="322.05432" font-size="10.50pt" font-family="Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial" fill="#000000" xml:space="preserve">
+    <tspan id="svg_24" x="106.89451" y="336.75432">HCOM</tspan>
+   </text>
+  </g>
+  <g id="shape9">
+   <path id="svg_25" d="m210.14407,346.90989l51.8,0l0,-29.3l-51.8,0l0,29.3z" fill="none" stroke-width="1.33333" stroke="#686d75" stroke-linecap="square"/>
+   <text id="svg_26" x="213.68738" y="322.60987" font-size="10.50pt" font-family="Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial" fill="#000000" xml:space="preserve">
+    <tspan id="svg_27" x="217.58738" y="337.30987">UBSE</tspan>
+   </text>
+  </g>
+  <g id="shape10">
+   <path id="svg_28" d="m320.45505,346.90989l51.8,0l0,-29.3l-51.8,0l0,29.3z" fill="none" stroke-width="1.33333" stroke="#686d75" stroke-linecap="square"/>
+   <text id="svg_29" x="326.36057" y="322.60987" font-size="10.50pt" font-family="Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial" fill="#000000" xml:space="preserve">
+    <tspan id="svg_30" x="323.86686" y="336.91617">OBMM</tspan>
+   </text>
+  </g>
+  <g id="shape13">
+   <path id="svg_37" d="m129.286,311.6097l0,-23.5" fill="none" stroke="#191919"/>
+   <path id="svg_38" d="m132.286,311.6097l-3,6l-3,-6l6,0" fill="#191919" stroke="#191919" stroke-linecap="round"/>
+  </g>
+  <g id="shape14">
+   <path id="svg_39" d="m236.84107,311.6097l0,-23.5" fill="none" stroke="#191919"/>
+   <path id="svg_40" d="m239.84107,311.6097l-3,6l-3,-6l6,0" fill="#191919" stroke="#191919" stroke-linecap="round"/>
+  </g>
+  <g id="shape16">
+   <path id="svg_43" d="m345.65201,311.6097l0,-23.5" fill="none" stroke="#191919"/>
+   <path id="svg_44" d="m348.65201,311.6097l-3,6l-3,-6l6,0" fill="#191919" stroke="#191919" stroke-linecap="round"/>
+  </g>
+  <g id="shape5">
+   <path id="svg_14" fill-rule="nonzero" d="m248.2643,272.2554l98.4,0c1.7,0 3,-1.3 3,-3l0,-22.4c0,-1.7 -1.3,-3 -3,-3l-98.4,0c-1.7,0 -3,1.3 -3,3l0,22.4c0,1.7 1.3,3 3,3z" fill="#c2d5fe"/>
+   <text id="svg_15" x="250.26428" y="248.29983" font-size="10.50pt" font-family="Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial" fill="#202329" xml:space="preserve">
+    <tspan id="svg_16" x="275.46428" y="262.49983">ubsmd</tspan>
+   </text>
+  </g>
+  <g id="shape4">
+   <path id="svg_11" fill-rule="nonzero" d="m127.0833,272.2554l98.4,0c1.7,0 3,-1.3 3,-3l0,-22.4c0,-1.7 -1.3,-3 -3,-3l-98.4,0c-1.7,0 -3,1.3 -3,3l0,22.4c0,1.7 1.3,3 3,3z" fill="#c2d5fe"/>
+   <text id="svg_12" x="128.52773" y="248.29983" font-size="10.50pt" font-family="Huawei Sans,PingFang SC,Mircrosoft YaHei,Arial" fill="#202329" xml:space="preserve">
+    <tspan id="svg_13" x="142.72773" y="262.49983">ubsmd_lib</tspan>
+   </text>
+  </g>
+ </g>
+
+</svg>

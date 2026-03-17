@@ -21,7 +21,7 @@ int ubsmem_shmem_set_ownership(const char *name, void *start, size_t length, int
 |name|const char *|入参|通过ubsmem_shmem_allocate创建的共享内存的名称。|
 |start|void *|入参|由ubsmem_shmem_map得到的地址。支持刷新某一段地址的共享内存。|
 |length|size_t|入参|共享内存的大小。最小值为内核页的大小，且内存地址需与mmap分配的起始地址保持内核页的大小对齐。|
-|prot|int|入参|内存权限。当前支持的组合值包含：<ul><li>PROT_NONE<li>PROT_READ<li>PROT_READ</ul>|PROT_WRITE|
+|prot|int|入参|内存权限。当前支持的组合值包含：<ul><li>PROT_NONE</li><li>PROT_READ</li><li>PROT_READ</li></ul>|PROT_WRITE|
 
 
 ## 返回值
