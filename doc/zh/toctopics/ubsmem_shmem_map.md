@@ -20,8 +20,8 @@ int ubsmem_shmem_map(void *addr, size_t length, int prot, int flags, const char 
 |--|--|--|--|
 |addr|void *|入参|指定期望的地址。|
 |length|size_t|入参|映射长度。当前仅支持整个共享内存映射，此值必须为共享内存size。|
-|prot|int|入参|映射内存权限。当前支持的组合值包含：<ul><li>PROT_NONE<li>PROT_READ<li>PROT_READ</ul>|PROT_WRITE|
-|flags|int|入参|引用系统mmap的取值，可选如下参数：<ul><li>MAP_SHARED<li>MAP_PRIVATE<li>MAP_FIXED<li>MAP_FIXED_NOREPLACE</ul>|
+|prot|int|入参|映射内存权限。当前支持的组合值包含：<ul><li>PROT_NONE</li><li>PROT_READ</li><li>PROT_READ</li></ul>|PROT_WRITE|
+|flags|int|入参|引用系统mmap的取值，可选如下参数：<ul><li>MAP_SHARED</li><li>MAP_PRIVATE</li><li>MAP_FIXED</li><li>MAP_FIXED_NOREPLACE</li></ul>|
 |name|const char *|入参|通过ubsmem_shmem_allocate创建的共享内存的名称。|
 |offset|off_t|入参|映射的起始偏移。当前仅支持整个共享内存映射，此值必须为0。|
 |local_ptr|void **|出参|映射成功时得到的本地地址。|

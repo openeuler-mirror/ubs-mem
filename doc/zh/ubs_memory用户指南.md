@@ -56,5 +56,4 @@
     -   [配置参数说明](toctopics/配置参数说明.md)
     -   [账户一览表](toctopics/账户一览表.md)
     -   [缩略语](toctopics/缩略语.md)
-    -   [修订记录](toctopics/修订记录.md)
 
