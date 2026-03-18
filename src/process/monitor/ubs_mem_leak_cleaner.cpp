@@ -275,6 +275,7 @@ int UBSMemLeakCleaner::CleanShareMemoryLeakInner(const std::string &name, const 
     auto hr = mxm::UbseMemAdapter::ShmDetach(name);
     if (hr != 0 && hr != MXM_ERR_UBSE_NOT_ATTACH) {
         SHMManager::GetInstance().UpdateShareMemoryRecordState(name, RecordState::FINISH);
+        SHMManager::GetInstance().AddMemoryUserInfo(name, ctx.pid);
         DBG_LOGERROR("get exception when ShmUnimport " << name << "ret: " << hr);
         return hr;
     }

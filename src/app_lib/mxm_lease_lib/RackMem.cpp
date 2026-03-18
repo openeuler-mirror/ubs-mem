@@ -14,7 +14,7 @@
 #include <sys/mman.h>
 #include <numaif.h>
 #include "log.h"
-#include "securec.h"
+#include <securec.h>
 #include "ipc_command.h"
 #include "BorrowAppMetaMgr.h"
 #include "rack_mem_fd_map.h"

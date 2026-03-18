@@ -4,7 +4,6 @@ target_include_directories(ubs_mem_sdk_object PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 target_include_directories(ubs_mem_sdk_object PUBLIC ${PROJECT_SOURCE_DIR}/src/common/hdagger/logger)
 target_compile_definitions(ubs_mem_sdk_object PRIVATE CLIENT_LOG)
 ######################################################################
-TARGET_SECUREC_HEADER_ONLY(ubs_mem_sdk_object)
 TARGET_HCOM_HEADER_ONLY(ubs_mem_sdk_object)
 TARGET_OBMM_HEADER_ONLY(ubs_mem_sdk_object)
 ######################################################################

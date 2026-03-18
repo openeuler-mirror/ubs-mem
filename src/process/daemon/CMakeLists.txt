@@ -16,7 +16,7 @@ target_include_directories(ubs_mem_daemon_object PUBLIC ../../dlock_utils)
 TARGET_LINK_LIBRARIES(ubs_mem_daemon_object PUBLIC pthread)
 TARGET_SPDLOG(ubs_mem_daemon_object)
 TARGET_HCOM(ubs_mem_daemon_object)
-TARGET_SECUREC_STATIC(ubs_mem_daemon_object)
+TARGET_SECUREC_SHARE(ubs_mem_daemon_object)
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie")
 target_link_options(ubsmd_shared PRIVATE -Wl,--allow-multiple-definition)
 ######################################################################

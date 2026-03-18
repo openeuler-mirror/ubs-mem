@@ -6,8 +6,6 @@ endif ()
 target_sources(ubs_mem_daemon_object PRIVATE ${MXM_LEASE_SRCS})
 
 TARGET_SPDLOG_HEADER_ONLY(ubs_mem_daemon_object)
-TARGET_SECUREC_HEADER_ONLY(ubs_mem_daemon_object)
-
 target_include_directories(ubs_mem_daemon_object SYSTEM PUBLIC ${PROJECT_BINARY_DIR}/include)
 target_include_directories(ubs_mem_daemon_object PUBLIC ${PROJECT_SOURCE_DIR}/src/common/hdagger/)
 TARGET_SECUREC_SHARE(ubs_mem_daemon_object)

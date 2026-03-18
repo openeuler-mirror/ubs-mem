@@ -22,7 +22,7 @@
 #include "util/defines.h"
 #include "hcom_service.h"
 #include "mxm_com_error.h"
-#include "securec.h"
+#include <securec.h>
 #include "strings/dg_str_util.h"
 #include "mxm_msg.h"
 #include "ubsm_com_constants.h"

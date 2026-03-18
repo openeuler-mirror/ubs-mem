@@ -10,7 +10,7 @@
 #include <vector>
 #include <unordered_map>
 #include <algorithm>
-#include "securec.h"
+#include <securec.h>
 #include "mx_shm.h"
 #include "under_api/ubse/ubse_mem_adapter.h"
 

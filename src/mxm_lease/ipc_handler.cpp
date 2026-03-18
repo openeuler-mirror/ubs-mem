@@ -11,7 +11,7 @@
  */
 #include <sys/types.h>
 #include <unistd.h>
-#include "securec.h"
+#include <securec.h>
 #include "rack_mem_functions.h"
 #include "ubse_mem_adapter.h"
 #include "mls_manager.h"

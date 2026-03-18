@@ -9,7 +9,6 @@ target_link_libraries(ubs_mem_common_object PUBLIC systemd
                       ${NUMA_LIBRARY})
 
 TARGET_SPDLOG_HEADER_ONLY(ubs_mem_common_object)
-TARGET_SECUREC_HEADER_ONLY(ubs_mem_common_object)
 
 TARGET_LINK_LIBRARIES(ubs_mem_daemon_object PUBLIC
         -Wl,--start-group

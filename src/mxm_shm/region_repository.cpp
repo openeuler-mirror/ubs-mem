@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "ulog/log.h"
-#include "securec.h"
+#include <securec.h>
 #include "record_store.h"
 #include "ubse_mem_adapter.h"
 #include "region_repository.h"

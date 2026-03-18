@@ -32,6 +32,33 @@ using namespace ock::mxmd;
 using namespace ock::com;
 
 std::array<std::mutex, MUTEX_HASH_SIZE> MxmServerMsgHandle::mutexArray;
+std::unordered_set<std::string> creatingNames_;
+std::mutex creatingNamesMutex_;
+class CreateNameGuard {
+public:
+    explicit CreateNameGuard(const std::string &name) : creatingName(name) {}
+    void Insert() const
+    {
+        std::unique_lock<std::mutex> lock(creatingNamesMutex_);
+        DBG_LOGINFO("The creation process starts. name=" << creatingName);
+        creatingNames_.insert(creatingName);
+    }
+    ~CreateNameGuard()
+    {
+        std::unique_lock<std::mutex> lock(creatingNamesMutex_);
+        DBG_LOGINFO("The creation process is complete. name=" << creatingName);
+        creatingNames_.erase(creatingName);
+    }
+
+private:
+    std::string creatingName;
+};
+
+static bool NameIsCreating(const std::string &name)
+{
+    std::unique_lock<std::mutex> lock(creatingNamesMutex_);
+    return creatingNames_.count(name);
+}
 
 int MxmServerMsgHandle::ShmLookRegionList(const MsgBase* req, MsgBase* rsp, const MxmComUdsInfo& udsInfo)
 {
@@ -105,11 +132,13 @@ int MxmServerMsgHandle::ShmCreate(const MsgBase* req, MsgBase* rsp, const MxmCom
     }
 
     DelayRemovedKey queryBusyKey{request->name_};
-    if (UBSMemMonitor::GetInstance().GetDelayRemoveRecord(queryBusyKey)) {
+    if (UBSMemMonitor::GetInstance().GetDelayRemoveRecord(queryBusyKey) || NameIsCreating(request->name_)) {
         DBG_LOGERROR("Name " << request->name_ << " is busy.");
         response->errCode_ = MXM_ERR_NAME_BUSY;
         return MXM_ERR_NAME_BUSY;
     }
+    CreateNameGuard nameGuard{request->name_};
+    nameGuard.Insert();
 
     mxm::CreateShmParam createParam;
     int count = 0;

@@ -80,27 +80,12 @@ MACRO(TARGET_SPDLOG_HEADER_ONLY target)
 ENDMACRO()
 
 ######################################################################
-# huawei_secure_c
+# libboundscheck
 ######################################################################
-add_subdirectory(secure)
-
-SET(SECUREC_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/3rdparty/secure/huawei_secure_c/include PARENT_SCOPE)
-
-MACRO(TARGET_SECUREC_STATIC target)
-    ADD_DEPENDENCIES(${target} securec_static)
-    TARGET_INCLUDE_DIRECTORIES(${target} SYSTEM PUBLIC ${SECUREC_INCLUDE_DIR})
-    TARGET_LINK_LIBRARIES(${target} PUBLIC securec_static)
-ENDMACRO()
-
+SET(SECUREC_INCLUDE_DIR /usr/include/ PARENT_SCOPE)
 MACRO(TARGET_SECUREC_SHARE target)
-    ADD_DEPENDENCIES(${target} securec_share)
     TARGET_INCLUDE_DIRECTORIES(${target} SYSTEM PUBLIC ${SECUREC_INCLUDE_DIR})
-    TARGET_LINK_LIBRARIES(${target} PUBLIC securec_share)
-ENDMACRO()
-
-MACRO(TARGET_SECUREC_HEADER_ONLY target)
-    ADD_DEPENDENCIES(${target} securec_static)
-    TARGET_INCLUDE_DIRECTORIES(${target} SYSTEM PUBLIC ${SECUREC_INCLUDE_DIR})
+    TARGET_LINK_LIBRARIES(${target} PUBLIC boundscheck)
 ENDMACRO()
 
 ######################################################################

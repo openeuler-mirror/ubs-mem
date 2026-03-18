@@ -14,7 +14,7 @@
 #include "dlock_types.h"
 #include "dlock_context.h"
 #include "zen_discovery.h"
-#include "securec.h"
+#include <securec.h>
 #include "mxm_shm/rpc_server.h"
 #include "mxm_message/mxm_msg.h"
 #include "ubs_common_config.h"
