@@ -18,12 +18,6 @@ set(THIRD_PARTY_CMAKE_ARGS
         -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>/)
 message(STATUS "THIRD_PARTY_CMAKE_ARGS:")
 message(STATUS ${THIRD_PARTY_CMAKE_ARGS})
-
-######################################################################
-# openssl
-######################################################################
-add_subdirectory(openssl)
-
 ######################################################################
 # hcom
 ######################################################################

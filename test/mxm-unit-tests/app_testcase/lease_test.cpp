@@ -11,10 +11,6 @@
 #include "mls_manager.h"
 #include "system_adapter.h"
 
-#ifndef MOCKER_CPP
-#define MOCKER_CPP(api, TT) MOCKCPP_NS::mockAPI(#api, reinterpret_cast<TT>(api))
-#endif
-
 using namespace ock::mxmd;
 using namespace ock::ubsm;
 namespace UT {

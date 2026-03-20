@@ -130,8 +130,6 @@ delete_semaphore
 %attr(550,ubsmd,ubsmd) /usr/local/ubs_mem/bin/ubsmd
 
 %dir %attr(550,ubsmd,ubsmd) /usr/local/ubs_mem/lib
-%attr(550,ubsmd,ubsmd) /usr/local/ubs_mem/lib/libcrypto.so
-%attr(550,ubsmd,ubsmd) /usr/local/ubs_mem/lib/libssl.so
 %attr(550,ubsmd,ubsmd) /usr/local/ubs_mem/lib/libubsm_sdk.so
 %attr(550,ubsmd,ubsmd) /usr/local/ubs_mem/lib/libubsmd.so
 
