@@ -7,7 +7,9 @@
 #include "mls_manager.h"
 #include "ubse_mem_adapter_stub.h"
 #include "app_ipc_stub.h"
-
+#ifndef MOCKER_CPP
+#define MOCKER_CPP(api, TT) MOCKCPP_NS::mockAPI(#api, reinterpret_cast<TT>(api))
+#endif
 namespace UT {
 
 static MxmComUdsInfo g_udsInfo = {12345, 0, 0};

@@ -18,6 +18,10 @@
 #include "mxm_shm/ipc_server.h"
 #include "mxm_message/message_op.h"
 
+#ifndef MOCKER_CPP
+#define MOCKER_CPP(api, TT) MOCKCPP_NS::mockAPI(#api, reinterpret_cast<TT>(api))
+#endif
+
 using namespace ock::mxmd;
 namespace UT {
 

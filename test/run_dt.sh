@@ -1,4 +1,68 @@
 #!/bin/bash
+apply_mockcpp_patch() {
+    local mockcpp_src_dir="$1"
+    local patch_file="$2"
+    local result=0
+
+    # 检查参数是否完整
+    if [ -z "${mockcpp_src_dir}" ] || [ -z "${patch_file}" ]; then
+        echo "[ERROR] Usage: apply_mockcpp_patch <mockcpp_source_dir> <patch_file>"
+        return 1
+    fi
+
+    # 检查是否已打过补丁（通过是否存在新增的 ARM64 文件）
+    if [ -e "${mockcpp_src_dir}/src/JmpCodeAARCH64.h" ]; then
+        echo "[STATUS] ARM64 patch already applied, skipping."
+        return 0
+    fi
+
+    # 检查补丁文件是否存在
+    if [ ! -e "${patch_file}" ]; then
+        echo "[WARNING] Patch file not found: ${patch_file}"
+        return 0  # 文件不存在不视为错误
+    fi
+
+    echo "[STATUS] Applying mockcpp patch: ${patch_file}"
+
+    # 读取补丁文件内容，提取所有要修改的文件
+    local patch_content
+    patch_content=$(cat "${patch_file}")
+
+    # 修复grep模式，确保能正确匹配文件路径
+    local matches
+    matches=$(echo "${patch_content}" | grep -o 'diff --git a/[^"]*')
+
+    # Normalize line endings
+    for match in ${matches}; do
+        local file
+        file=$(echo "${match}" | sed -E "s/diff --git a\/(.+)/\1/")
+        if [ -e "${mockcpp_src_dir}/${file}" ]; then
+            sed -i "s/\r\$//" "${mockcpp_src_dir}/${file}"
+        fi
+    done
+
+    # Apply patch with better error handling
+    echo "[INFO] Applying patch..."
+    patch -p1 --verbose -d "${mockcpp_src_dir}" < "${patch_file}"
+    local patch_result=$?
+
+    if [ ${patch_result} -ne 0 ]; then
+        echo "[ERROR] Failed to apply mockcpp patch!"
+        echo "[ERROR] Patch file: ${patch_file}"
+        echo "[ERROR] Exit code: ${patch_result}"
+        return ${patch_result}
+    else
+        echo "[STATUS] Patch applied successfully."
+        return 0
+    fi
+}
+
+update_3rdparty() {
+  git submodule update --init --recursive
+  cd ${CURRENT_PATH}/3rdparty
+  apply_mockcpp_patch ./mockcpp ./mockcpp_support_arm64.patch
+}
+
 
 run_encrypt_tool() {
   cd $BUILD_PATH
@@ -34,8 +98,6 @@ compile_and_run() {
   echo "end make install."
   cp $BUILD_PATH/output/bin/* $BUILD_PATH
   cp $BUILD_PATH/output/lib/* $BUILD_PATH
-  cp $BUILD_PATH/3rdparty/openssl/output/lib/libcrypto.so $BUILD_PATH
-  cp $BUILD_PATH/3rdparty/openssl/output/lib/libssl.so $BUILD_PATH
   run_encrypt_tool
   ASAN_PATH=$(find /usr/lib64/ -name *asan* |head -n 1)
   LD_PRELOAD=$ASAN_PATH:$LD_PRELOAD LD_LIBRARY_PATH=$BUILD_PATH:$LD_LIBRARY_PATH HSECEASY_PATH=$BUILD_PATH ${BUILD_PATH}/mxmd_ut --gtest_break_on_failure --gtest_output=xml:gcover_report/test_detail.xml
@@ -48,7 +110,7 @@ CURRENT_PATH=$(cd "$(dirname "$0")"; pwd)
 BUILD_PATH="${CURRENT_PATH}/build"
 SRC_PATH="${CURRENT_PATH}/../"
 COVERAGE_PATH="${BUILD_PATH}/coverage"
-
+update_3rdparty
 rm -rf "$COVERAGE_PATH"
 
 set -e

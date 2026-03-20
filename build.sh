@@ -186,9 +186,6 @@ echo
 echo "Done building ubsm"
 echo
 
-cp ${BUILD_DIR}/3rdparty/openssl/output/lib/libcrypto.so ${BUILD_DIR}/output/lib
-cp ${BUILD_DIR}/3rdparty/openssl/output/lib/libssl.so ${BUILD_DIR}/output/lib
-
 cp ${PROJ_DIR}/script/install_and_start_ubsmd.sh output/script
 cd $BUILD_DIR/output/
 # 版本信息

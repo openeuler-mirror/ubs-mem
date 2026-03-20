@@ -63,10 +63,10 @@ echo "[INFO] Combining coverage.info..."
 #####################################################################################################################
 coverage_output="$CURRENT_PATH/build/coverage.info"
 
-${LCOV} -q -e $test_output */matrix_shmem/src/* -output-file $coverage_output --rc lcov_branch_coverage=1;
+${LCOV} -q -e $test_output */ubs-mem/src/* -output-file $coverage_output --rc lcov_branch_coverage=1;
 
-${LCOV} -q --remove $coverage_output */matrix_shmem/src/htracer* -o $coverage_output --rc lcov_branch_coverage=1;
-${LCOV} -q --remove $coverage_output */matrix_shmem/src/uc* -o $coverage_output --rc lcov_branch_coverage=1;
+${LCOV} -q --remove $coverage_output */ubs-mem/src/htracer* -o $coverage_output --rc lcov_branch_coverage=1;
+${LCOV} -q --remove $coverage_output */ubs-mem/src/uc* -o $coverage_output --rc lcov_branch_coverage=1;
 
 ${LCOV} --summary $coverage_output --rc lcov_branch_coverage=1;
 #####################################################################################################################

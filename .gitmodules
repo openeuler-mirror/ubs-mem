@@ -1,6 +1,9 @@
 [submodule "3rdparty/spdlog"]
 	path = 3rdparty/spdlog
 	url = https://gitcode.com/GitHub_Trending/sp/spdlog.git
-[submodule "3rdparty/openssl/openssl"]
-	path = 3rdparty/openssl/openssl
-	url = https://gitcode.com/openeuler/openssl.git
+[submodule "test/3rdparty/googletest"]
+	path = test/3rdparty/googletest
+	url = https://gitcode.com/GitHub_Trending/go/googletest.git
+[submodule "test/3rdparty/mockcpp"]
+	path = test/3rdparty/mockcpp
+	url = https://gitcode.com/Ascend/mockcpp.git

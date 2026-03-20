@@ -229,11 +229,11 @@ int InitOpensslDl()
         return 0;
     }
 #ifdef DEBUG_MEM_UT
-    g_cryptoHandle = dlopen("libcrypto.so", RTLD_NOW);
-    g_sslHandle = dlopen("libssl.so", RTLD_NOW);
+    g_cryptoHandle = dlopen("/usr/lib64/libcrypto.so", RTLD_NOW);
+    g_sslHandle = dlopen("/usr/lib64/libssl.so", RTLD_NOW);
 #else
-    g_cryptoHandle = dlopen("/usr/local/ubs_mem/lib/libcrypto.so", RTLD_NOW);
-    g_sslHandle = dlopen("/usr/local/ubs_mem/lib/libssl.so", RTLD_NOW);
+    g_cryptoHandle = dlopen("/usr/lib64/libcrypto.so.3", RTLD_NOW);
+    g_sslHandle = dlopen("/usr/lib64/libssl.so.3", RTLD_NOW);
 #endif
     if (g_cryptoHandle == nullptr || g_sslHandle == nullptr) {
         DBG_LOGERROR("Failed to load OpenSSL: " << dlerror());

@@ -6,7 +6,9 @@
 #include <mockcpp/mockcpp.hpp>
 #include <dlfcn.h>
 
+#define private public
 #include "UbseMemExecutor.h"
+#undef private
 #include "ubs_mem.h"
 #include "mx_shm.h"
 #include "RackMemShm.h"
@@ -979,5 +981,6 @@ TEST_F(UbsmemSecuritiesTest, TestubsmemShmemFaultsRegisterNull)
         .stubs().will(invoke(RegisterFaultMock));
 
     EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_faults_register(nullptr));
+	UbseMemExecutor::GetInstance().handle = nullptr;
 }
 } // namespace UT
