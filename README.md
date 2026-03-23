@@ -1,28 +1,50 @@
- # ubs-mem
+# ubs-mem
 
-#### 介绍
-UBS Memory在超节点上基于UB硬件能力提供Memory高阶服务能力，实现超节点上的内存借用、共享、缓存等能力。
+### 介绍
+UBS Memory(Unified Bus Service Core Memory)在超节点上基于UB硬件能力提供Memory高阶服务能力，实现超节点上的内存借用、共享、缓存等能力。
 
-#### 环境要求
+### 环境要求
+
 操作系统：推荐 openEuler 24.03 LTS SP3或更高版本
-编译工具链： GCC ≥ 10.3
 
-#### 获取源码
+### 软件要求
+
+**构建工具：**
+
+- `rpm-build`：用于生成 RPM 安装包
+- `cmake` (≥ 3.13)：跨平台构建系统
+- `ninja-build`：高速构建工具，替代 make
+
+**编译环境：**
+
+- `gcc`(≥ 10.3.1)：C 语言编译器
+- `gcc-c++`(≥ 10.3.1)：C++ 语言编译器
+
+**依赖库：**
+
+- `numactl-devel`：NUMA (Non-Uniform Memory Access) 支持库
+- `systemd-devel`：systemd 服务管理支持库
+- `openssl-devel`：OpenSSL 开发库
+- `ubs-comm-devel`：UBS 通信库开发库
+- `ubs-comm-lib`：UBS 通信库(ubs-comm-devel依赖)
+
+### 获取源码
 ```shell
-git clone https://atomgit.com/openeuler/ubs-mem.git
+git clone https://gitcode.com/openeuler/ubs-mem.git
 
 cd ubs-mem
 ```
 
-#### 构建项目
+### 构建项目
 代码仓中提供了统一的编译构建脚本（即build.sh），可以直接执行该脚本编译构建。-p 参数表示打rpm包，-t 表示编译方式如debug、release，示例如下。
-```
+
+```shell
 sh build.sh -t release -p
 ```
 
-构建产物位于 build/release/output* 目录下，RPM 包输出至 build/release/output。
+构建产物位于 build/release/output\* 目录下，RPM 包输出至 build/release/output。
 
-#### 项目结构
+### 项目结构
 ```
 .
 ├── build     // 存放项目中使用的脚本文件
@@ -32,25 +54,24 @@ sh build.sh -t release -p
 └── build.sh  // 统一的构建入口       
 ```
 
-#### 开发者测试
-```
+### 开发者测试
+```shell
 cd test
 
-# 运行特定测试用例
-./run_dt.sh -- --gtest_filter="TestShmIpcHandler.*"
-
-# 生成代码覆盖率报告（HTML 可视化）
-./run_dt.sh 
-# 启动后终端会输出类似：http://localhost:8000/coverage/index.html
+# 运行UT测试用例并生成覆盖率报告
+sh run_dt.sh
+# 执行成功后，控制台将打印对于的覆盖率总结信息
+# 详细的覆盖率报告位于build/gcovr_report/，可打开该目录下的index.html查看。
 ```
 
-#### 使用说明
+### 使用说明
 1. 前提：安装并成功启动ubs-engine。
 2. 使用rpm  安装我们的rpm包。
-3. systemctl start ubsmd 启动。 
+3. systemctl start ubsmd 启动。
+4. 更多详细信息请参见[用户指南](doc/zh/ubs_memory用户指南.md)。
 
-#### License
+### License
 ubs-mem 采用 Mulan V2 License.
 
-#### 贡献指南
+### 贡献指南
 请阅读 贡献指南 CONTRIBUTING.md 以了解如何贡献项目。
