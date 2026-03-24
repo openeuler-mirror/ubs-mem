@@ -1,4 +1,7 @@
 function(split_debug_symbols target)
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+        return()
+    endif ()
     string(TIMESTAMP BUILD_TIMESTAMP "%Y%m%d")
     message(STATUS "Build timestamp: ${BUILD_TIMESTAMP}")
     # 定义符号文件路径（与二进制同目录，添加.debug后缀）
