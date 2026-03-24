@@ -24,7 +24,7 @@
         ```
         rpm -ivh ubs-comm-lib-x.x.x-*rpm
         rpm -ivh ubs-comm-devel-x.x.x-*rpm
-        rpm -ivh ubs_mem-memfabric-x.x.x-x.x.*.rpm
+        rpm -ivh ubs-mem-memfabric-x.x.x-x.x.*.rpm
         ```
 
     >[!NOTE]**说明** 
@@ -77,8 +77,6 @@
         ubsm.lock.tls.cert.path = /path/cert.pem
         ubsm.lock.tls.key.path = /path/key.pem
         ubsm.lock.tls.keypass.path = /path/keypass.txt
-        ubsm.lock.tls.ksf.master.path = /path/ksfa
-        ubsm.lock.tls.ksf.standby.path = /path/ksfb
         # Zen discovery
         # election timeout, min is 0, max is 2000
         ubsm.discovery.election.timeout = 1000
@@ -94,8 +92,6 @@
         ubsm.server.tls.cert.path = /path/cert.pem
         ubsm.server.tls.key.path = /path/key.pem
         ubsm.server.tls.keypass.path = /path/keypass.txt
-        ubsm.server.tls.ksf.master.path = /path/ksfa
-        ubsm.server.tls.ksf.standby.path = /path/ksfb
         # max is 8192, default 256
         ubsm.hcom.max.connect.num = 256
         # enable or disable memory lease cache, (on, off)
