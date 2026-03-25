@@ -806,12 +806,14 @@ HRESULT MxmComEngine::ReceivedRequest(UBSHcomServiceContext& context)
     if (hdl == nullptr || hdl->handler == nullptr) {
         DBG_LOGERROR("Engine " << engineName << ", no handler for module " << moduleCode << ", op code " << opCode
                                << ", crc " << crc);
+        msgCtx.FreeMessage();
         return MXM_COM_ERROR_MESSAGE_INVALID_OP_CODE;
     }
     TP_TRACE_END(TP_UBSM_GET_HANDLER, 0);
     if (handlerWork != nullptr) {
         handlerWork(hdl->handler, msgCtx);
     } else {
+        msgCtx.FreeMessage();
         DBG_LOGWARN("Handler is empty, can not response, module code=" << moduleCode << "opcode=" << opCode);
     }
     return HOK;
