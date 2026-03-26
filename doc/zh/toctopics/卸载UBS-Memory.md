@@ -11,6 +11,6 @@
     >- 如需卸载UBS Engine，请参见[UBS Engine 部署说明](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/build_install/%E9%83%A8%E7%BD%B2%E8%AF%B4%E6%98%8E.md)文档。
 
     ```
-    rpm -e ubs_mem
+    rpm -e ubs-mem
     ```
 

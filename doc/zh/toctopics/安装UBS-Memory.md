@@ -14,7 +14,7 @@
     1.  （可选）卸载已存在的UBS Memory、HCOM。
 
         ```
-        rpm -e ubs_mem
+        rpm -e ubs-mem
         rpm -e ubs-comm-lib-x.x.x
         rpm -e ubs-comm-devel-x.x.x
         ```
