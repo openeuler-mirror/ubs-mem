@@ -6,8 +6,8 @@
 
 ## 接口格式
 
-```
-int ubsmem_shmem_allocate_with_provider(const ubs_mem_provider_t *src_loc,, const char *name, size_t size, mode_t mode, uint64_t flags);
+```C++
+int ubsmem_shmem_allocate_with_provider(const ubs_mem_provider_t *src_loc, const char *name, size_t size, mode_t mode, uint64_t flags);
 ```
 
 ## 参数说明
@@ -20,12 +20,9 @@ int ubsmem_shmem_allocate_with_provider(const ubs_mem_provider_t *src_loc,, cons
 |mode|mode_t|入参|访问权限，Unix文件权限位的 *rwx* 权限控制（ *x* 权限暂不支持，忽略）。|
 |flags|uint64_t|入参|创建共享内存的标志信息。flag有效比特位含义请参见[表1](ubsmem_shmem_allocate.md#table005)，各有效比特位组合关系参见[表2](ubsmem_shmem_allocate.md#table006)。|
 
-
 ## 返回值
 
 |返回值|描述|
 |--|--|
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](错误码.md)。|
-
-

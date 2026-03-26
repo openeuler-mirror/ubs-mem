@@ -6,7 +6,7 @@
 
 ## 接口格式
 
-```
+```C++
 int ubsmem_lookup_cluster_statistic(ubsmem_cluster_info_t* info);
 ```
 
@@ -16,10 +16,9 @@ int ubsmem_lookup_cluster_statistic(ubsmem_cluster_info_t* info);
 |--|--|--|--|
 |info|ubsmem_cluster_info_t*|出参|集群的节点内存信息。相关结构体和常量定义如下。|
 
-
 结构体和常量定义：
 
-```
+```C++
 #define MAX_HOST_NUM 16
 #define MAX_NUMA_NUM 32
 #define MAX_NUMA_RESV_LEN 16
@@ -55,5 +54,3 @@ typedef struct {
 |--|--|
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](错误码.md)。|
-
-

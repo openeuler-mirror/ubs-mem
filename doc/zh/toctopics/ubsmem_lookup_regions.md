@@ -6,7 +6,7 @@
 
 ## 接口格式
 
-```
+```C++
 int ubsmem_lookup_regions(ubsmem_regions_t *regions);
 ```
 
@@ -16,10 +16,9 @@ int ubsmem_lookup_regions(ubsmem_regions_t *regions);
 |--|--|--|--|
 |regions|ubsmem_regions_t *|出参|互联节点数以及对应节点的hostname。|
 
-
 相关结构体类型和常量定义。
 
-```
+```C++
 #define MAX_HOST_NAME_DESC_LENGTH 64
 #define MAX_REGION_NODE_NUM 16
 #define MAX_REGIONS_NUM 6
@@ -46,5 +45,3 @@ typedef struct {
 |--|--|
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](错误码.md)。|
-
-

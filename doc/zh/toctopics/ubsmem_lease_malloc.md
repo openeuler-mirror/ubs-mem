@@ -4,12 +4,12 @@
 
 申请内存。
 
->[!NOTE]**说明** 
+>[!NOTE]说明
 >同一节点可以借用内存的个数上限为16384。该值为硬件限制下的理论上限，实际还会受限于物理拓扑、物理资源及分配策略。
 
 ## 接口格式
 
-```
+```C++
 int ubsmem_lease_malloc(const char *region_name, size_t size, ubsmem_distance_t mem_distance, uint64_t flags, void **local_ptr);
 ```
 
@@ -23,12 +23,9 @@ int ubsmem_lease_malloc(const char *region_name, size_t size, ubsmem_distance_t 
 |flags|uint64_t|入参|借用的标志信息。如果为0，默认进行FD借用。当前支持以下flags：<ul><li>UBSM_FLAG_MMAP_HUGETLB_PMD：表示以2MB大页粒度进行映射。</li><li>UBSM_FLAG_MALLOC_WITH_NUMA：表示借用以远端NUMA呈现。与UBSM_FLAG_MMAP_HUGETLB_PMD不可同时指定，设置该flag借用最小值为128MB。</li></ul>|
 |local_ptr|void **|出参|申请后得到的本地地址。|
 
-
 ## 返回值
 
 |返回值|描述|
 |--|--|
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](错误码.md)。|
-
-

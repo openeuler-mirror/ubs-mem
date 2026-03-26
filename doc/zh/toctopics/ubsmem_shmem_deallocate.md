@@ -6,7 +6,7 @@
 
 ## 接口格式
 
-```
+```C++
 int ubsmem_shmem_deallocate(const char *name);
 ```
 
@@ -16,12 +16,9 @@ int ubsmem_shmem_deallocate(const char *name);
 |--|--|--|--|
 |name|const char *|入参|共享内存名称。全局唯一标识，最大有效长度为47字符（不包括“\0”）。|
 
-
 ## 返回值
 
 |返回值|描述|
 |--|--|
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](错误码.md)。|
-
-

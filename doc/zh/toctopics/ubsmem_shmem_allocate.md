@@ -4,13 +4,14 @@
 
 创建共享内存对象。
 
->[!MOTE]**说明** 
+>[!NOTE]说明
+>
 >- 当用户的进程绑定了指定的NUMA节点时，系统会从具有NUMA亲和性的节点申请共享内存。
 >- 如果在指定的NUMA节点上申请内存失败，系统会尝试从其他节点申请内存。若希望通过绑定特定NUMA节点来提升性能，需及时判断内存是否成功从目标节点分配。
 
 ## 接口格式
 
-```
+```C++
 int ubsmem_shmem_allocate(const char *region_name, const char *name, size_t size, mode_t mode, uint64_t flags);
 ```
 
@@ -24,7 +25,6 @@ int ubsmem_shmem_allocate(const char *region_name, const char *name, size_t size
 |mode|mode_t|入参|访问权限，Unix文件权限位的 *rwx* 权限控制（ *x* 权限暂不支持，请忽略）。用于控制不同用户对该共享内存的访问权限，若无权限则映射失败。建议值： **S_IRUSR \| S_IWUSR** （即仅创建该共享内存的用户可以访问该共享内存）。|
 |flags|uint64_t|入参|创建共享内存的标志信息。flag有效比特位含义请参见[表1](#table005)，各有效比特位组合关系参见[表2](#table006)。|
 
-
 **表 1 <a id="table005"></a>**  共享内存的flags详情
 
 |flag|描述|说明|
@@ -35,7 +35,6 @@ int ubsmem_shmem_allocate(const char *region_name, const char *name, size_t size
 |UBSM_FLAG_ONLY_IMPORT_NONCACHE|表示是否开启半NonCache模式，该模式下共享的内存导入方使用NonCache模式，导出方使用Cacheable模式。|该模式下，需要在BIOS的启动参数中配置snoop参数。|
 |UBSM_FLAG_MEM_ANONYMOUS|带有该flag的共享内存，在一段时间内（最少5min）没有任何使用方时，UBSE会自动将其回收。|-|
 |UBSM_FLAG_MMAP_HUGETLB_PMD|带有该flag的共享内存，映射时会以2MB大页为粒度进行。|仅支持指定UBSM_FLAG_ONLY_IMPORT_NONCACHE的情况下使用该flag。|
-
 
 **表 2 <a id="table006"></a>**  共享内存的flags可组合关系
 
@@ -48,12 +47,9 @@ int ubsmem_shmem_allocate(const char *region_name, const char *name, size_t size
 |UBSM_FLAG_MEM_ANONYMOUS|**√**|**√**|-|**√**|-|-|
 |UBSM_FLAG_MMAP_HUGETLB_PMD|-|-|-|**√**|-|-|
 
-
 ## 返回值
 
 |返回值|描述|
 |--|--|
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](错误码.md)。|
-
-
