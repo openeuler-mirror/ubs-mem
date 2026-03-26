@@ -4,13 +4,14 @@
 
 销毁共享域。
 
->[!NOTE]**说明** 
+>[!NOTE]说明
+>
 >- region仅在创建它的节点上有效，只能在该节点上进行删除操作，其他节点无法删除。
 >- region删除后，无法通过该region创建共享内存或借用内存，但之前已创建的共享内存或借用内存仍可继续使用。
 
 ## 接口格式
 
-```
+```C++
 int ubsmem_destroy_region(const char *region_name);
 ```
 
@@ -20,12 +21,9 @@ int ubsmem_destroy_region(const char *region_name);
 |--|--|--|--|
 |region_name|const char *|入参|共享域名称，节点内唯一标识。最大有效长度为47字符（不包括“\0”）。|
 
-
 ## 返回值
 
 |返回值|描述|
 |--|--|
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](错误码.md)。|
-
-

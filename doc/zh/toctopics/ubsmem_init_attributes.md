@@ -6,7 +6,7 @@
 
 ## 接口格式
 
-```
+```C++
 int ubsmem_init_attributes(ubsmem_options_t *ubsm_shmem_opts);
 ```
 
@@ -16,12 +16,9 @@ int ubsmem_init_attributes(ubsmem_options_t *ubsm_shmem_opts);
 |--|--|--|--|
 |ubsm_shmem_opts|ubsmem_options_t *|出参|初始化函数ubsmem_initialize的参数。|
 
-
 ## 返回值
 
 |返回值|描述|
 |--|--|
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](错误码.md)。|
-
-
