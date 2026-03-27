@@ -126,11 +126,6 @@ fi
 if [ -z "$BUILD_DIR" ]; then
   BUILD_DIR=$PROJ_DIR/build/$BUILD_FOLDER
 fi
-if [ -z "$CI_BUILD" ] && [ ! -d "$BUILD_DIR/output" ];then
-    echo "update submodules ... "
-    git submodule sync
-    git submodule update --init --recursive
-fi
 
 # Setup the build directory
 if [[ ! -d "$BUILD_DIR" ]]
