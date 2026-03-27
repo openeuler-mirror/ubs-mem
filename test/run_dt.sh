@@ -58,7 +58,7 @@ apply_mockcpp_patch() {
 }
 
 update_3rdparty() {
-  git submodule update --init --recursive
+  git submodule update --init --recursive --depth 1
   cd ${CURRENT_PATH}/3rdparty
   apply_mockcpp_patch ./mockcpp ./mockcpp_support_arm64.patch
 }
