@@ -18,6 +18,8 @@
 #ifdef __x86_64__
 #include <cmath>
 #include <x86intrin.h>
+#include <cstring>
+#include <vector>
 #endif
 
 namespace ock {
