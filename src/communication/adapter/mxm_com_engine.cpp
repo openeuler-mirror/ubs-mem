@@ -260,7 +260,6 @@ static void AssignServiceOptions(const MxmComEngineInfo& engineInfo, UBSHcomServ
     options.workerGroupMode = static_cast<UBSHcomWorkerMode>(engineInfo.GetWorkerMode());
     options.workerGroupThreadCount = WORKER_THREAD_COUNT;
     options.maxSendRecvDataSize = engineInfo.GetMaxSendReceiveSize() * SEND_RECEIVE_SIZE;
-    options.workerThreadPriority = WORKER_THREAD_PRIORITY;
 }
 
 static void AssignHcomServiceOptions(const MxmComEngineInfo& engineInfo, UBSHcomService* hcomNetService)

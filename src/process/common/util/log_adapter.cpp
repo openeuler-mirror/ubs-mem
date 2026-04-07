@@ -29,7 +29,7 @@ HRESULT LogAdapter::LogServerInit(int minLogLevel, const std::string &path, int 
     std::string hostname = OckGetHostname();
     std::string logFileFullPath = path;
     if (logFileFullPath.empty()) {
-        logFileFullPath = ConfConstant::MXMD_SERVER_AUDIT_LOG_PATH.second;
+        logFileFullPath = ConfConstant::MXMD_SERVER_LOG_PATH.second;
     }
     if (logFileFullPath.at(logFileFullPath.size() - 1) == '/') {
         logFileFullPath += "ubsmd.log";
@@ -54,7 +54,7 @@ HRESULT LogAdapter::AuditLogInit(const std::string &path, int rotationFileSize, 
     std::string hostname = OckGetHostname();
     std::string auditLogFileFullPath = path;
     if (auditLogFileFullPath.empty()) {
-        auditLogFileFullPath = ConfConstant::MXMD_SERVER_LOG_PATH.second;
+        auditLogFileFullPath = ConfConstant::MXMD_SERVER_AUDIT_LOG_PATH.second;
     }
     if (auditLogFileFullPath.at(auditLogFileFullPath.size() - 1) == '/') {
         auditLogFileFullPath += "ubsmd.audit.log";

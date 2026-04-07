@@ -59,12 +59,6 @@ TEST(daemon_common, configuration)
 
     std::string v8 = conf->GetConvertedValue("mxmd.features.log.power");
     EXPECT_EQ(v8, std::string(""));
-
-    std::string dump = conf->DumpStr();
-    auto f1 = dump.find("ubsm.server.log.rotation.file.count");
-    auto f2 = dump.find("mxmd.daemon.binpath");
-    EXPECT_NE(f1, std::string::npos);
-    EXPECT_EQ(f2, std::string::npos);
     conf->Set("ubsm.server.log.path", DaemonTestCommon::CWD() + "/log\n");
     conf->Set("ubsm.server.log.path", false);
     conf->Set("ubsm.server.log.path", (int)100);

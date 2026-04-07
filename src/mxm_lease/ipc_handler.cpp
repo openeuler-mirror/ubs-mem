@@ -32,7 +32,8 @@ static int RollBackReuseCacheMemory(const std::string& name, bool isNuma)
         // 0 means not cached
         auto ret = mxm::UbseMemAdapter::LeaseFree(name, isNuma);
         if (ret != 0 && ret != MXM_ERR_LEASE_NOT_EXIST) {
-            DBG_LOGERROR("Failed to call ubse interface to free lease memory, name=" << name << " ret=" << ret);
+            DBG_LOGERROR("Failed to call ubse interface to free lease memory, name=" << name << " ret="
+                << ConvertErrorToString(ret));
             MLSManager::GetInstance().UpdateMemRecordState(name, RecordState::FINISH);
             return ret;
         }
@@ -51,7 +52,7 @@ static int ReuseCachedLeaseMemory(size_t size, const std::string& regionName, bo
     MLSMemInfo memory;
     auto ret = MLSManager::GetInstance().ReuseBufferedMem(size, isNuma, regionName, user, memory);
     if (ret != 0) {
-        DBG_LOGERROR("Failed to reuse lease memory. ret=" << ret);
+        DBG_LOGWARN("Failed to reuse lease memory. ret=" << ConvertErrorToString(ret));
         return ret;
     }
     DBG_LOGINFO("Reuse from buffered memory success, name=" << memory.name);
@@ -68,7 +69,7 @@ static int ReuseCachedLeaseMemory(size_t size, const std::string& regionName, bo
         auto hr = ock::mxm::UbseMemAdapter::FdPermissionChange(memory.name, user, mode);
         TP_TRACE_END(TP_UBSM_SET_PERMISSION, hr);
         if (hr != 0) {
-            DBG_LOGERROR("FdPermissionChange failed, name= " << memory.name << ", ret=" << hr);
+            DBG_LOGERROR("FdPermissionChange failed, name= " << memory.name << ", ret=" << ConvertErrorToString(hr));
             response.errCode_ = hr;
             DBG_LOGINFO("Try to free memory, name=" << response.name_);
             (void)RollBackReuseCacheMemory(memory.name, response.isNuma_);
@@ -112,7 +113,7 @@ static int BorrowNewMemory(const AppMallocMemoryRequest& request, AppMallocMemor
     auto hr = MLSManager::GetInstance().PreAddUsedMem(param.name, param.size, param.appContext, param.isNuma,
                                                       request.perflevel_);
     if (hr != 0) {
-        DBG_LOGERROR("PreAddUsedMem failed, res is " << hr);
+        DBG_LOGERROR("PreAddUsedMem failed, res is " << ConvertErrorToString(hr));
         response.errCode_ = hr;
         return hr;
     }
@@ -132,7 +133,7 @@ static int BorrowNewMemory(const AppMallocMemoryRequest& request, AppMallocMemor
     hr = MLSManager::GetInstance().FinishAddUsedMem(param.name, result.numaId, unitSize, result.slotId, result.memIds);
     TP_TRACE_END(TP_UBSM_ADD_USED_MEM, hr);
     if (hr != 0) {
-        DBG_LOGERROR("Add used mem failed, res is " << hr);
+        DBG_LOGERROR("Add used mem failed, res is " << ConvertErrorToString(hr));
         response.errCode_ = hr;
         DBG_LOGINFO("Try to free memory, name=" << param.name);
         RollBackBorrowNewMemory(param.name, param.isNuma);
@@ -159,7 +160,7 @@ static int BorrowMemory(const AppMallocMemoryRequest& request, AppMallocMemoryRe
     }
     ret = BorrowNewMemory(request, response, udsInfo);
     if (ret != MXM_OK) {
-        DBG_LOGERROR("BorrowNewMemory failed, res is " << ret);
+        DBG_LOGERROR("BorrowNewMemory failed, res is " << ConvertErrorToString(ret));
         return ret;
     }
     return MXM_OK;
@@ -189,14 +190,14 @@ int MxmServerMsgHandle::AppMallocMemory(const MsgBase* req, MsgBase* rsp, const 
         DBG_LOGERROR("BorrowMemory failed, ret=" << ret);
         DBG_AUDITINFO("AppMallocMemory failed, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
             << ", pid=" << udsInfo.pid << ", name=" << response->name_
-            << ", ret=" << ret);
+            << ", ret=" << ConvertErrorToString(ret));
         return ret;
     }
     DBG_LOGINFO("App malloc success, name=" << response->name_ << ", uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
         << ", pid=" << udsInfo.pid);
     DBG_AUDITINFO("AppMallocMemory successfully, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
         << ", pid=" << udsInfo.pid << ", name=" << response->name_
-        << ", ret=" << response->errCode_);
+        << ", ret=" << ConvertErrorToString(response->errCode_));
     TP_TRACE_END(TP_UBEM_IPC_HANDLER_MALLOC, 0);
     return 0;
 }
@@ -229,7 +230,8 @@ static int BorrowMemoryWithLender(const AppMallocMemoryWithLocRequest& request, 
     DBG_LOGINFO("LeaseMallocWithLoc name=" << param.name << ", numa=" << result.numaId << ", size=" << result.unitSize
         << ", ret=" << ret);
     if (ret != 0) {
-        DBG_LOGERROR("Get exception when LeaseMallocWithLoc, name=" << param.name << ", ret=" << ret);
+        DBG_LOGERROR("Get exception when LeaseMallocWithLoc, name=" << param.name << ", ret="
+            << ConvertErrorToString(ret));
         MLSManager::GetInstance().DeleteUsedMem(param.name);
         response.errCode_ = ret;
         return ret;
@@ -237,7 +239,7 @@ static int BorrowMemoryWithLender(const AppMallocMemoryWithLocRequest& request, 
     ret = MLSManager::GetInstance().FinishAddUsedMem(param.name, result.numaId, result.unitSize, result.slotId,
                                                      result.memIds);
     if (ret != 0) {
-        DBG_LOGERROR("Add used mem failed, ret=" << ret << " name=" << param.name);
+        DBG_LOGERROR("Add used mem failed, ret=" << ConvertErrorToString(ret) << " name=" << param.name);
         response.errCode_ = ret;
         RollBackBorrowNewMemory(param.name, param.isNuma);
         return ret;
@@ -275,16 +277,15 @@ int MxmServerMsgHandle::AppMallocMemoryWithLoc(const MsgBase *req, MsgBase *rsp,
     if (ret != MXM_OK) {
         DBG_LOGERROR("BorrowMemoryWithLender failed, ret=" << ret);
         DBG_AUDITINFO("user info of AppMallocMemoryWithLoc, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                                  << ", pid=" << udsInfo.pid
-                                                                  << ", name=" << response->name_ << ", ret=" << ret);
+            << ", pid=" << udsInfo.pid << ", name=" << response->name_ << ", ret=" << ConvertErrorToString(ret));
         return ret;
     }
 
     DBG_LOGINFO("App malloc with loc success, name=" << response->name_ << ", uid=" << udsInfo.uid
                                                      << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid);
     DBG_AUDITINFO("user info of AppMallocMemoryWithLoc, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                              << ", pid=" << udsInfo.pid << ", name=" << response->name_
-                                                              << ", ret=" << response->errCode_);
+        << ", pid=" << udsInfo.pid << ", name=" << response->name_ << ", ret="
+        << ConvertErrorToString(response->errCode_));
     return 0;
 }
 
@@ -322,8 +323,7 @@ int MxmServerMsgHandle::AppFreeMemory(const MsgBase* req, MsgBase* rsp, const Mx
     if (ret != 0) {
         DBG_LOGERROR("Get lease record failed, " << request->name_ << " is not exist.");
         DBG_AUDITINFO("user info of AppFreeMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                         << ", pid=" << udsInfo.pid << ", name=" << request->name_
-                                                         << ", ret=" << ret);
+            << ", pid=" << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(ret));
         response->errCode_ = ret;
         return ret;
     }
@@ -332,7 +332,8 @@ int MxmServerMsgHandle::AppFreeMemory(const MsgBase* req, MsgBase* rsp, const Mx
         MLSManager::GetInstance().DeleteUsedMem(request->name_);
         DBG_LOGINFO("Free memory successfully. name=" << request->name_);
         DBG_AUDITINFO("user info of AppFreeMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-            << ", pid=" << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ret);
+            << ", pid=" << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(ret));
+        response->errCode_ = MXM_OK;
         return MXM_OK;
     }
     bool isNuma = memory.isNuma;
@@ -349,8 +350,7 @@ int MxmServerMsgHandle::AppFreeMemory(const MsgBase* req, MsgBase* rsp, const Mx
         if (hr != 0) {
             DBG_LOGERROR("FdPermissionChange failed, name= " << request->name_ << ", ret=" << hr);
             DBG_AUDITINFO("user info of AppFreeMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                             << ", pid=" << udsInfo.pid << ", name=" << request->name_
-                                                             << ", ret=" << hr);
+                << ", pid=" << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(hr));
             response->errCode_ = hr;
             return hr;
         }
@@ -371,15 +371,14 @@ int MxmServerMsgHandle::AppFreeMemory(const MsgBase* req, MsgBase* rsp, const Mx
         if (hr != 0 && hr != MXM_ERR_LEASE_NOT_EXIST) {
             DBG_LOGERROR("Get exception when LeaseFree, name=" << request->name_ << ", ret=" << hr);
             DBG_AUDITINFO("user info of AppFreeMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                             << ", pid=" << udsInfo.pid << ", name=" << request->name_
-                                                             << ", ret=" << hr);
+                << ", pid=" << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(hr));
             MLSManager::GetInstance().UpdateMemRecordState(memory.name, ubsm::RecordState::FINISH);
             response->errCode_ = hr;
             return hr;
         }
         hr = MLSManager::GetInstance().DeleteUsedMem(request->name_);
         if (hr != 0) {
-            DBG_LOGERROR("Delete used memory record. ret=" << hr);
+            DBG_LOGERROR("Delete used memory record. ret=" << ConvertErrorToString(hr));
             response->errCode_ = hr;
             return hr;
         }
@@ -388,7 +387,7 @@ int MxmServerMsgHandle::AppFreeMemory(const MsgBase* req, MsgBase* rsp, const Mx
     DBG_LOGINFO("App free success, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
                                          << ", name=" << request->name_);
     DBG_AUDITINFO("user info of AppFreeMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                     << udsInfo.pid << ", name=" << request->name_ << ", ret=" << 0);
+        << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(0));
     return 0;
 }
 
@@ -410,14 +409,14 @@ int MxmServerMsgHandle::AppQueryClusterInfo(const MsgBase* req, MsgBase* rsp, co
     if (hr != 0) {
         DBG_LOGERROR("LookUpClusterStatistic failed, ret:" << hr);
         DBG_AUDITINFO("user info of AppQueryClusterInfo, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                               << ", pid=" << udsInfo.pid << ", ret=" << hr);
+            << ", pid=" << udsInfo.pid << ", ret=" << ConvertErrorToString(hr));
         response->errCode_ = hr;
         return hr;
     }
     response->errCode_ = 0;
     DBG_LOGINFO("AppQueryClusterInfo success");
     DBG_AUDITINFO("user info of AppQueryClusterInfo, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                           << ", pid=" << udsInfo.pid << ", ret=" << hr);
+        << ", pid=" << udsInfo.pid << ", ret=" << ConvertErrorToString(hr));
     return 0;
 }
 
@@ -437,12 +436,12 @@ int MxmServerMsgHandle::AppForceFreeCachedMemory(const MsgBase* req, MsgBase* rs
                                             << ", pid=" << udsInfo.pid);
     auto ret = MLSManager::GetInstance().DeleteAllBufferedMem();
     if (ret != 0) {
-        DBG_LOGERROR("DeleteAllBufferedMem failed, res is " << ret);
+        DBG_LOGERROR("DeleteAllBufferedMem failed, res is " << ConvertErrorToString(ret));
     }
     DBG_LOGINFO("AppForceFreeCachedMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
                                                                 << ", pid=" << udsInfo.pid << ", ret=" << ret);
     DBG_AUDITINFO("user info of AppForceFreeCachedMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                                << ", pid=" << udsInfo.pid << ", ret=" << ret);
+        << ", pid=" << udsInfo.pid << ", ret=" << ConvertErrorToString(ret));
     response->errCode_ = ret;
     return ret;
 }

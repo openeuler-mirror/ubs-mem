@@ -34,6 +34,10 @@ enum class ConfValueType {
     VLONG = 4,
 };
 
+const std::unordered_map<std::string, std::string> ConfigUnitValues = {
+    {ConfConstant::MXMD_LOCK_EXPIRE_TIME.first, "seconds"}
+};
+
 class Configuration;
 using ConfigurationPtr = Ref<Configuration>;
 
@@ -70,7 +74,7 @@ public:
 
     bool SetWithTypeAutoConvert(const std::string &key, const std::string &value);
 
-    std::string DumpStr();
+    void DumpConfig();
     void AddIntConf(const std::pair<std::string, int> &pair, const ValidatorPtr &validator = nullptr,
         uint32_t flag = CONF_MUST);
     void AddStrConf(const std::pair<std::string, std::string> &pair, const ValidatorPtr &validator = nullptr,

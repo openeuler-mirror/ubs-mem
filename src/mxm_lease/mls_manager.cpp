@@ -283,7 +283,8 @@ int32_t MLSManager::PreDeleteUsedMem(const std::string& name)
         DBG_LOGERROR("Delete used mem failed, the name is not exist.");
         return MXM_ERR_LEASE_NOT_FOUND;
     }
-    DBG_LOGINFO("Delete used mem, name=" << name << ", isEnableLeaseBuffered_=" << isEnableLeaseBuffered_);
+    DBG_LOGINFO("Delete used mem, name=" << name << ", isEnableLeaseBuffered_="
+        << mxmd::ConvertBoolToString(isEnableLeaseBuffered_));
     if (isEnableLeaseBuffered_) {
         auto ret = BufferUsedMemory(pos->second);
         if (ret == 1) {

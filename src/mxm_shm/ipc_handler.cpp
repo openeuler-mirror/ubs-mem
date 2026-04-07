@@ -83,7 +83,7 @@ int MxmServerMsgHandle::ShmLookRegionList(const MsgBase* req, MsgBase* rsp, cons
     if (hr != 0) {
         DBG_LOGERROR("Get exception when calling LookupRegionList, hr=" << hr);
         DBG_AUDITINFO("user info of ShmLookRegionList, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                           << udsInfo.pid << ", ret=" << hr);
+                                                           << udsInfo.pid << ", ret=" << ConvertErrorToString(hr));
         response->errCode_ = hr;
         return hr;
     }
@@ -120,7 +120,7 @@ int MxmServerMsgHandle::ShmCreate(const MsgBase* req, MsgBase* rsp, const MxmCom
 
     DBG_AUDITINFO("user info of ShmCreate, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
                                                         << ", pid=" << udsInfo.pid << ", name=" << request->name_);
-    DBG_LOGINFO("Create shared memory, region name=" << request->regionName_ << ", shared name="
+    DBG_LOGINFO("Create shared memory, region_name=" << request->regionName_ << ", shared_name="
                                                      << request->name_ << ", size=" << request->size_
                                                      << ", mode=" << request->mode_ << ", flags="
                                                      << request->flags_);
@@ -150,7 +150,7 @@ int MxmServerMsgHandle::ShmCreate(const MsgBase* req, MsgBase* rsp, const MxmCom
             if (!StrUtil::StrToUint(std::string(regionInfo.nodeId[i]), nodeId)) {
                 DBG_LOGERROR("Invalid node ID, nodeId[" << i << "]=" << regionInfo.nodeId[i]);
                 DBG_AUDITINFO("user info of ShmCreate, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                             << udsInfo.pid << ", ret=" << MXM_ERR_PARAM_INVALID);
+                    << udsInfo.pid << ", ret=" << ConvertErrorToString(MXM_ERR_PARAM_INVALID));
                 response->errCode_ = MXM_ERR_PARAM_INVALID;
                 return MXM_ERR_PARAM_INVALID;
             }
@@ -163,9 +163,9 @@ int MxmServerMsgHandle::ShmCreate(const MsgBase* req, MsgBase* rsp, const MxmCom
         auto ret = ock::share::service::RegionManager::GetInstance().GetRegionInfo(request->regionName_, regionInfo);
         TP_TRACE_END(TP_UBEM_GET_REGION, ret);
         if (!ret) {
-            DBG_LOGERROR("Get exception when calling GetRegionInfo, region name=" << request->regionName_);
+            DBG_LOGERROR("Get exception when calling GetRegionInfo, region_name=" << request->regionName_);
             DBG_AUDITINFO("user info of ShmCreate, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                         << udsInfo.pid << ", ret=" << MXM_ERR_REGION_NOT_EXIST);
+                << udsInfo.pid << ", ret=" << ConvertErrorToString(MXM_ERR_REGION_NOT_EXIST));
             response->errCode_ = MXM_ERR_REGION_NOT_EXIST;
             return MXM_ERR_REGION_NOT_EXIST;
         }
@@ -206,7 +206,7 @@ int MxmServerMsgHandle::ShmCreate(const MsgBase* req, MsgBase* rsp, const MxmCom
         TP_TRACE_END(TP_UBEM_IPC_HANDLER_CREATE_SHMEM, hr);
         DBG_LOGERROR("Get exception when IpcCallShmCreate, name=" << request->name_);
         DBG_AUDITINFO("user info of ShmCreate, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                     << udsInfo.pid << ", name=" << request->name_ << ", ret=" << hr);
+            << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(hr));
         response->errCode_ = hr;
         return hr;
     }
@@ -261,7 +261,7 @@ int MxmServerMsgHandle::ShmCreateWithProvider(const MsgBase* req, MsgBase* rsp, 
         TP_TRACE_END(TP_UBEM_IPC_HANDLER_CREATE_WITH_PROVIDER_SHMEM, hr);
         DBG_LOGERROR("Get exception when IpcCallShmCreate, name=" << request->name_);
         DBG_AUDITINFO("user info of ShmCreateWithProvider, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                     << udsInfo.pid << ", name=" << request->name_ << ", ret=" << hr);
+            << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(hr));
         response->errCode_ = hr;
         return hr;
     }
@@ -289,9 +289,8 @@ static int ShmPermissionCheck(const std::string& name, const MxmComUdsInfo& udsI
                                                                 << " owner gid: " << ubsUserInfo.udsInfo.gid);
         return MXM_ERR_SHM_PERMISSION_DENIED;
     }
-    DBG_LOGINFO("ShmPermissionCheck success, usdInfo uid: " << udsInfo.uid << " udsInfo.gid: " << udsInfo.gid
-                                                            << " owner uid: " << ubsUserInfo.udsInfo.uid
-                                                            << " owner gid: " << ubsUserInfo.udsInfo.gid);
+    DBG_LOGINFO("ShmPermissionCheck success, user.uid=" << udsInfo.uid << " user.gid=" << udsInfo.gid
+        << " owner.uid=" << ubsUserInfo.udsInfo.uid << " owner.gid=" << ubsUserInfo.udsInfo.gid);
     return UBSM_OK;
 }
 
@@ -325,7 +324,7 @@ int MxmServerMsgHandle::ShmDelete(const MsgBase* req, MsgBase* rsp, const MxmCom
         DBG_LOGERROR("Failed to check shm Permission, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
                                                             << ", ret=" << res);
         DBG_AUDITINFO("user info of ShmDelete, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                      << ", pid=" << udsInfo.pid << ", ret=" << res);
+            << ", pid=" << udsInfo.pid << ", ret=" << ConvertErrorToString(res));
         response->errCode_ = res;
         return res;
     }
@@ -339,15 +338,15 @@ int MxmServerMsgHandle::ShmDelete(const MsgBase* req, MsgBase* rsp, const MxmCom
     if (ret != UBSM_OK) {
         DBG_LOGERROR("GetMemoryUsersCountByName fail; " << request->name_ << "ret: " << ret);
         DBG_AUDITINFO("user info of ShmDelete, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                      << ", pid=" << udsInfo.pid << ", ret=" << ret);
+            << ", pid=" << udsInfo.pid << ", ret=" << ConvertErrorToString(ret));
         response->errCode_ = ret;
         return ret;
     }
     if (usrNum > 0) {
         DBG_LOGERROR("memory: " << request->name_ << " is in use by " << usrNum << " usr(s)");
-        DBG_AUDITINFO("user info of ShmDelete, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                     << ", pid=" << udsInfo.pid << ", name=" << request->name_
-                                                     << ", ret=" << MXM_ERR_SHM_IN_USING);
+        DBG_AUDITINFO("user info of ShmDelete, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
+            << udsInfo.pid << ", name=" << request->name_ << ", ret="
+            << ConvertErrorToString(MXM_ERR_SHM_IN_USING));
         response->errCode_ = MXM_ERR_SHM_IN_USING;
         return MXM_ERR_SHM_IN_USING;
     }
@@ -355,7 +354,7 @@ int MxmServerMsgHandle::ShmDelete(const MsgBase* req, MsgBase* rsp, const MxmCom
     if (hr != 0) {
         DBG_LOGERROR("get exception when ShmDelete " << request->name_ << "ret: " << hr);
         DBG_AUDITINFO("user info of ShmDelete, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                     << udsInfo.pid << ", name=" << request->name_ << ", ret=" << hr);
+            << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(hr));
         response->errCode_ = hr;
         return hr;
     }
@@ -385,10 +384,9 @@ int CalculateProvidedPermissions(uid_t caller_uid, gid_t caller_gid, uid_t owner
     bool is_owner = (caller_uid == owner_uid);
     bool in_group = (caller_gid == owner_gid);
 
-    DBG_LOGINFO("User identity - is_owner: " << is_owner << ", in_group: " << in_group  << ", mode: " << mode);
-
-    DBG_LOGINFO("usdInfo uid: " << caller_uid << " udsInfo.gid: " << caller_gid << " owner uid: " << owner_uid
-                                << " owner gid: " << owner_gid);
+    DBG_LOGINFO("Permission check - caller[uid=" << caller_uid << ", gid=" << caller_gid << "], owner[uid=" << owner_uid
+        << ", gid=" << owner_gid << "], is_owner=" << is_owner << ", in_group=" << in_group << ", mode=0" << std::oct
+        << mode << std::dec);
 
     int provided_perms = PROT_NONE;
 
@@ -549,16 +547,15 @@ int HandleExistingShm(const ShmMapRequest *request, ShmMapResponse *response, co
     if (memory.pids.find(udsInfo.pid) != memory.pids.end()) {
         DBG_LOGERROR("Share memory is already in use by process: " << udsInfo.pid);
         DBG_AUDITINFO("user info of ShmMap, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
-                                                  << ", name=" << request->name_
-                                                  << ", ret=" << MXM_ERR_SHM_ALREADY_EXIST);
+            << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(MXM_ERR_SHM_ALREADY_EXIST));
         response->errCode_ = MXM_ERR_SHM_ALREADY_EXIST;
         return MXM_ERR_SHM_ALREADY_EXIST;
     }
     auto ret = SHMManager::GetInstance().AddMemoryUserInfo(request->name_, udsInfo.pid);
     if (ret != UBSM_OK) {
-        DBG_LOGERROR("AddMemoryUserInfo error. ret: " << ret << " name: " << request->name_);
+        DBG_LOGERROR("AddMemoryUserInfo error. ret: " << ConvertErrorToString(ret) << " name: " << request->name_);
         DBG_AUDITINFO("user info of ShmMap, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
-                                                  << ", name=" << request->name_ << ", ret=" << ret);
+            << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(ret));
         response->errCode_ = ret;
         return ret;
     }
@@ -587,7 +584,7 @@ int MxmServerMsgHandle::ShmMap(const MsgBase *req, MsgBase *rsp, const MxmComUds
         return MXM_ERR_NULLPTR;
     }
     DBG_AUDITINFO("user info of ShmMap, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
-                                              << ", name=" << request->name_);
+        << ", name=" << request->name_);
     DelayRemovedKey queryBusyKey{request->name_};
     if (UBSMemMonitor::GetInstance().GetDelayRemoveRecord(queryBusyKey)) {
         DBG_LOGERROR("Name " << request->name_ << " is busy.");
@@ -612,7 +609,7 @@ int MxmServerMsgHandle::ShmMap(const MsgBase *req, MsgBase *rsp, const MxmComUds
         // 删除后重新调用attach接口映射
         ret = SHMManager::GetInstance().RemoveMemoryInfo(memory.name, true);
         if (ret != 0) {
-            DBG_LOGERROR("RemoveMemoryInfo error. ret=" << ret);
+            DBG_LOGERROR("RemoveMemoryInfo error. ret=" << ConvertErrorToString(ret));
             return ret;
         }
     }
@@ -628,10 +625,10 @@ int MxmServerMsgHandle::ShmMap(const MsgBase *req, MsgBase *rsp, const MxmComUds
     ret = ShmMmapInner(importParam, result);
     if (ret != UBSM_OK) {
         TP_TRACE_END(TP_UBEM_IPC_HANDLER_MAP, ret);
-        DBG_LOGERROR("ShmMmapInner error. ret=" << ret << " name=" << importParam.name << ", uid=" << udsInfo.uid
-                                                << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid);
+        DBG_LOGERROR("ShmMmapInner error. ret=" << ConvertErrorToString(ret) << " name=" << importParam.name
+            << ", uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid);
         DBG_AUDITINFO("user info of ShmMap, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
-                                                  << ", name=" << request->name_ << ", ret=" << ret);
+            << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(ret));
         response->errCode_ = ret;
         return ret;
     }
@@ -701,7 +698,7 @@ int MxmServerMsgHandle::ShmUnmap(const MsgBase* req, MsgBase* rsp, const MxmComU
     if (ret != UBSM_OK) {
         DBG_LOGERROR("GetShareMemoryInfo fail. name=" << request->name_);
         DBG_AUDITINFO("user info of ShmUnmap, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
-            << ", name=" << request->name_ << ", ret=" << ret);
+            << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(ret));
         response->errCode_ = ret;
         return ret;
     }
@@ -719,7 +716,7 @@ int MxmServerMsgHandle::ShmUnmap(const MsgBase* req, MsgBase* rsp, const MxmComU
     if (ret != UBSM_OK) {
         DBG_LOGERROR("GetMemoryUsersCountByName fail. name=" << request->name_);
         DBG_AUDITINFO("user info of ShmUnmap, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
-            << ", name=" << request->name_ << ", ret=" << ret);
+            << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(ret));
         response->errCode_ = ret;
         return ret;
     }
@@ -729,8 +726,7 @@ int MxmServerMsgHandle::ShmUnmap(const MsgBase* req, MsgBase* rsp, const MxmComU
         if (ret != UBSM_OK) {
             DBG_LOGERROR("RemoveMemoryUserInfo fail. name=" << request->name_ << " pid=" << udsInfo.pid);
             DBG_AUDITINFO("user info of ShmUnmap, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                << ", pid=" << udsInfo.pid << ", name=" << request->name_
-                << ", ret=" << ret);
+                << ", pid=" << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(ret));
             response->errCode_ = ret;
             return ret;
         }
@@ -741,7 +737,7 @@ int MxmServerMsgHandle::ShmUnmap(const MsgBase* req, MsgBase* rsp, const MxmComU
     if (ret != UBSM_OK) {
         DBG_LOGERROR("ShmUnMapInner fail. name=" << request->name_ << " pid=" << udsInfo.pid);
         DBG_AUDITINFO("user info of ShmUnmap, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
-            << ", name=" << request->name_ << ", ret=" << ret);
+            << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(ret));
         response->errCode_ = ret;
         return ret;
     }
@@ -772,7 +768,7 @@ int MxmServerMsgHandle::RegionLookupRegionList(const MsgBase* req, MsgBase* rsp,
     if (hr != 0) {
         DBG_LOGERROR("Get exception when IpcCallShmLookRegionList, region type=" << request->regionType_);
         DBG_AUDITINFO("user info of RegionLookupRegionList, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                                  << ", pid=" << udsInfo.pid << ", ret=" << hr);
+            << ", pid=" << udsInfo.pid << ", ret=" << ConvertErrorToString(hr));
         response->errCode_ = hr;
         return hr;
     }
@@ -798,7 +794,7 @@ int MxmServerMsgHandle::RegionCreateRegion(const MsgBase* req, MsgBase* rsp, con
     }
 
     DBG_AUDITINFO("user info of RegionCreateRegion, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                          << udsInfo.pid << ", region name=" << request->regionName_);
+                                                          << udsInfo.pid << ", region_name=" << request->regionName_);
     DBG_LOGINFO("Start to create region, name=" << request->regionName_);
     if (request->region_.num > MEM_TOPOLOGY_MAX_HOSTS) {
         DBG_LOGERROR("Region num=" << request->region_.num << " exceeds maximum=" << MEM_TOPOLOGY_MAX_HOSTS);
@@ -815,8 +811,8 @@ int MxmServerMsgHandle::RegionCreateRegion(const MsgBase* req, MsgBase* rsp, con
     if (!ret) {
         DBG_LOGERROR("Get exception when calling CreateRegionInfo, ret=" << ret);
         DBG_AUDITINFO("user info of RegionCreateRegion, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                              << udsInfo.pid << ", region name=" << request->regionName_
-                                                              << ", ret=" << MXM_ERR_REGION_EXIST);
+            << udsInfo.pid << ", region_name=" << request->regionName_ << ", ret="
+            << ConvertErrorToString(MXM_ERR_REGION_EXIST));
         response->errCode_ = MXM_ERR_REGION_EXIST;
         return ret;
     }
@@ -824,7 +820,7 @@ int MxmServerMsgHandle::RegionCreateRegion(const MsgBase* req, MsgBase* rsp, con
     response->errCode_ = 0;
     DBG_LOGINFO("Create region successfully, name=" << request->regionName_);
     DBG_AUDITINFO("user info of RegionCreateRegion, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                          << udsInfo.pid << ", region name=" << request->regionName_
+                                                          << udsInfo.pid << ", region_name=" << request->regionName_
                                                           << ", success.");
     return 0;
 }
@@ -841,31 +837,30 @@ int MxmServerMsgHandle::RegionLookupRegion(const MsgBase* req, MsgBase* rsp, con
         return MXM_ERR_NULLPTR;
     }
     DBG_AUDITINFO("user info of RegionLookupRegion, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                          << udsInfo.pid << ", region name=" << request->regionName_);
-    DBG_LOGINFO("Looking up region, region name=" << request->regionName_);
+                                                          << udsInfo.pid << ", region_name=" << request->regionName_);
+    DBG_LOGINFO("Looking up region, region_name=" << request->regionName_);
     RegionInfo regionInfo{};
     auto ret = ock::share::service::RegionManager::GetInstance().GetRegionInfo(request->regionName_, regionInfo);
     if (!ret) {
         DBG_LOGERROR("Get exception when GetRegionInfo, regionName is " << request->regionName_);
         DBG_AUDITINFO("user info of RegionLookupRegion, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                              << udsInfo.pid << ", region name=" << request->regionName_
-                                                              << ", ret=" << MXM_ERR_REGION_NOT_EXIST);
+            << udsInfo.pid << ", region_name=" << request->regionName_
+            << ", ret=" << ConvertErrorToString(MXM_ERR_REGION_NOT_EXIST));
         response->errCode_ = MXM_ERR_REGION_NOT_EXIST;
         return MXM_ERR_REGION_NOT_EXIST;
     }
 
     response->region_ = regionInfo.region;
     response->errCode_ = 0;
-    DBG_LOGINFO("Get region info successfully, region name=" << regionInfo.name
+    DBG_LOGINFO("Get region info successfully, region_name=" << regionInfo.name
                                                              << ", size=" << regionInfo.size
                                                              << ", number=" << regionInfo.region.num);
     DBG_AUDITINFO("user info of RegionLookupRegion, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                          << udsInfo.pid << ", region name=" << request->regionName_
+                                                          << udsInfo.pid << ", region_name=" << request->regionName_
                                                           << ", success.");
     for (int i = 0; i < regionInfo.region.num; ++i) {
-        DBG_LOGDEBUG("Node id=" << regionInfo.region.nodeId[i]
-                                << ", host name=" << regionInfo.region.hostName[i]
-                                << ", affinity=" << regionInfo.region.affinity[i]);
+        DBG_LOGDEBUG("NodeId=" << regionInfo.region.nodeId[i] << ", host_name=" << regionInfo.region.hostName[i] <<
+            ", affinity=" << regionInfo.region.affinity[i]);
     }
     return 0;
 }
@@ -883,26 +878,26 @@ int MxmServerMsgHandle::RegionDestroyRegion(const MsgBase* req, MsgBase* rsp, co
     }
 
     DBG_AUDITINFO("user info of RegionDestroyRegion, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                           << udsInfo.pid << ", region name=" << request->regionName_);
+                                                           << udsInfo.pid << ", region_name=" << request->regionName_);
 
-    DBG_LOGINFO("Start to delete region info successfully, region name=" << request->regionName_);
+    DBG_LOGINFO("Start to delete region info successfully, region_name=" << request->regionName_);
     TP_TRACE_BEGIN(TP_UBSM_DESTORY_REGION);
     auto ret = ock::share::service::RegionManager::GetInstance().DeleteRegionInfo(request->regionName_);
     TP_TRACE_END(TP_UBSM_DESTORY_REGION, ret);
     if (!ret) {
-        DBG_LOGERROR("Get exception when calling DeleteRegionInfo, ret=" << ret);
-        DBG_AUDITINFO("user info of RegionDestroyRegion, uid="
-                      << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
-                      << ", region name=" << request->regionName_ << ", ret=" << MXM_ERR_REGION_NOT_EXIST);
+        DBG_LOGERROR("Get exception when calling DeleteRegionInfo, ret=" << ConvertErrorToString(ret));
+        DBG_AUDITINFO("user info of RegionDestroyRegion, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
+            << ", pid=" << udsInfo.pid << ", region_name=" << request->regionName_ << ", ret="
+            << ConvertErrorToString(MXM_ERR_REGION_NOT_EXIST));
         response->errCode_ = MXM_ERR_REGION_NOT_EXIST;
         return ret;
     }
 
     response->errCode_ = 0;
-    DBG_LOGINFO("Delete region info successfully, region name=" << request->regionName_);
+    DBG_LOGINFO("Delete region info successfully, region_name=" << request->regionName_);
     DBG_AUDITINFO("user info of RegionDestroyRegion, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
                                                            << ", pid=" << udsInfo.pid
-                                                           << ", region name=" << request->regionName_ << ", success.");
+                                                           << ", region_name=" << request->regionName_ << ", success.");
     return 0;
 }
 
@@ -936,12 +931,12 @@ int MxmServerMsgHandle::RpcQueryNodeInfo(const MsgBase* req, MsgBase* rsp, const
         response->errCode_ = rpcRsp->errCode_;
         response->name_.append(", ").append(rpcRsp->name_);
         if (ret != 0) {
-            DBG_LOGERROR("node: " << node.name << " query info failed, ret = " << ret);
+            DBG_LOGERROR("node: " << node.name << " query info failed, ret = " << ConvertErrorToString(ret));
             DBG_AUDITINFO("user info of RpcQueryNodeInfo, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                                << ", pid=" << udsInfo.pid << ", ret=" << ret);
+                << ", pid=" << udsInfo.pid << ", ret=" << ConvertErrorToString(ret));
             return ret;
         }
-        DBG_LOGINFO("RpcQueryNodeInfo success, node name=" << node.name << ", node ip=" << node.ip);
+        DBG_LOGINFO("RpcQueryNodeInfo success, node_name=" << node.name << ", node_ip=" << node.ip);
     }
     DBG_AUDITINFO("RpcQueryNodeInfo success, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ",pid=" << udsInfo.pid);
     return MXM_OK;
@@ -968,6 +963,8 @@ static int CleanNotUsedRecordShareMemory(const AttachedShareMemory &memory, cons
 
 int MxmServerMsgHandle::AppCheckShareMemoryMap(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo)
 {
+    DBG_AUDITINFO("AppCheckShareMemoryMap start. uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
+        << ", pid=" << udsInfo.pid);
     if (req == nullptr || rsp == nullptr) {
         return MXM_ERR_NULLPTR;
     }
@@ -986,7 +983,8 @@ int MxmServerMsgHandle::AppCheckShareMemoryMap(const MsgBase *req, MsgBase *rsp,
             DBG_LOGINFO("record shm name " << record.name << " not found in user map.");
             auto ret = CleanNotUsedRecordShareMemory(record, udsInfo);
             if (ret != MXM_OK) {
-                DBG_LOGERROR("CleanNotUsedRecordMemory failed. name=" << record.name << ", ret=" << ret);
+                DBG_LOGERROR("CleanNotUsedRecordMemory failed. name=" << record.name << ", ret="
+                    << ConvertErrorToString(ret));
                 continue;
             }
             DBG_LOGINFO("CleanNotUsedRecordMemory successfully. name=" << record.name);
@@ -994,6 +992,8 @@ int MxmServerMsgHandle::AppCheckShareMemoryMap(const MsgBase *req, MsgBase *rsp,
     }
 
     response->errCode_ = MXM_OK;
+    DBG_AUDITINFO("AppCheckShareMemoryMap end. uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
+        << ", pid=" << udsInfo.pid << " ret=" << ConvertErrorToString(response->errCode_));
     return MXM_OK;
 }
 
@@ -1003,7 +1003,7 @@ int MxmServerMsgHandle::LookupLocalSlotId(const MsgBase *req, MsgBase *rsp, cons
         << ", pid=" << udsInfo.pid);
     if (req == nullptr || rsp == nullptr) {
         DBG_AUDITINFO("LookupLocalSlotId end. uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-            << ", pid=" << udsInfo.pid << " ret=" << MXM_ERR_NULLPTR);
+            << ", pid=" << udsInfo.pid << " ret=" << ConvertErrorToString(MXM_ERR_NULLPTR));
         return MXM_ERR_NULLPTR;
     }
     auto request = dynamic_cast<const CommonRequest *>(req);
@@ -1011,7 +1011,7 @@ int MxmServerMsgHandle::LookupLocalSlotId(const MsgBase *req, MsgBase *rsp, cons
     if (request == nullptr || response == nullptr) {
         DBG_LOGERROR("requset or response is nullptr.");
         DBG_AUDITINFO("LookupLocalSlotId end. uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-            << udsInfo.pid << " ret=" << MXM_ERR_NULLPTR);
+            << udsInfo.pid << " ret=" << ConvertErrorToString(MXM_ERR_NULLPTR));
         return MXM_ERR_NULLPTR;
     }
     uint32_t slotId = 0;
@@ -1020,13 +1020,13 @@ int MxmServerMsgHandle::LookupLocalSlotId(const MsgBase *req, MsgBase *rsp, cons
         DBG_LOGERROR("GetLocalNodeId failed. ret=" << ret);
         response->errCode_ = ret;
         DBG_AUDITINFO("LookupLocalSlotId end. uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-            << udsInfo.pid << " ret=" << response->errCode_);
+            << udsInfo.pid << " ret=" << ConvertErrorToString(response->errCode_));
         return ret;
     }
     response->slotId_ = slotId;
     response->errCode_ = MXM_OK;
     DBG_AUDITINFO("LookupLocalSlotId end. uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-        << udsInfo.pid << " ret=" << response->errCode_);
+        << udsInfo.pid << " ret=" << ConvertErrorToString(response->errCode_));
     return MXM_OK;
 }
 
@@ -1043,7 +1043,7 @@ int MxmServerMsgHandle::ShmWriteLock(const MsgBase* req, MsgBase* rsp, const Mxm
         return MXM_ERR_NULLPTR;
     }
     DBG_AUDITINFO("ShmWriteLock, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid);
-    DBG_LOGINFO("ShmWriteLock request region name=" << request->regionName_ << ", shm name=" << request->name_
+    DBG_LOGINFO("ShmWriteLock request region_name=" << request->regionName_ << ", shm_name=" << request->name_
                 << " pid=" << udsInfo.pid << " uid=" << udsInfo.uid << " gid=" << udsInfo.gid);
     dlock_utils::LockUdsInfo info;
     info.pid = udsInfo.pid;
@@ -1051,12 +1051,12 @@ int MxmServerMsgHandle::ShmWriteLock(const MsgBase* req, MsgBase* rsp, const Mxm
     info.gid = udsInfo.gid;
     auto ret = ock::dlock_utils::UbsmLock::Instance().Lock(request->name_, true, info);
     if (ret != 0) {
-        DBG_LOGERROR("WriteLock failed, name=" << request->name_ << " ret is " << ret);
+        DBG_LOGERROR("WriteLock failed, name=" << request->name_ << " ret is " << ConvertErrorToString(ret));
         response->errCode_ = ret;
         return ret;
     }
     response->errCode_ = MXM_OK;
-    DBG_LOGINFO("ShmWriteLock successfully, region name=" << request->regionName_ << ", name=" << request->name_);
+    DBG_LOGINFO("ShmWriteLock successfully, region_name=" << request->regionName_ << ", name=" << request->name_);
     return MXM_OK;
 }
 
@@ -1075,7 +1075,7 @@ int MxmServerMsgHandle::ShmReadLock(const MsgBase* req, MsgBase* rsp, const MxmC
     }
     DBG_AUDITINFO("user info of ShmReadLock, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
                                                    << ", name=" << request->name_);
-    DBG_LOGINFO("ShmReadLock request region name=" << request->regionName_ << ", shm name=" << request->name_ << " pid="
+    DBG_LOGINFO("ShmReadLock request region_name=" << request->regionName_ << ", shm_name=" << request->name_ << " pid="
                                                    << udsInfo.pid << " uid=" << udsInfo.uid << " gid=" << udsInfo.gid);
     dlock_utils::LockUdsInfo info;
     info.pid = udsInfo.pid;
@@ -1086,7 +1086,7 @@ int MxmServerMsgHandle::ShmReadLock(const MsgBase* req, MsgBase* rsp, const MxmC
         DBG_LOGINFO("ShmReadLock failed, name=" << request->name_ << " pid=" << udsInfo.pid << " uid=" << udsInfo.uid
                                                  << " gid=" << udsInfo.gid << " ret=" << ret);
         DBG_AUDITINFO("ShmReadLock, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
-                                          << ", name=" << request->name_ << ", ret=" << ret);
+                                          << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(ret));
         response->errCode_ = ret;
         return ret;
     }
@@ -1112,7 +1112,7 @@ int MxmServerMsgHandle::ShmUnLock(const MsgBase* req, MsgBase* rsp, const MxmCom
     }
     DBG_AUDITINFO("user info of ShmUnLock, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
                                                    << ", name=" << request->name_);
-    DBG_LOGINFO("ShmUnLock request region name=" << request->regionName_ << ", shm name=" << request->name_ << " pid="
+    DBG_LOGINFO("ShmUnLock request region_name=" << request->regionName_ << ", shm_name=" << request->name_ << " pid="
                                                  << udsInfo.pid << " uid=" << udsInfo.uid << " gid=" << udsInfo.gid);
     dlock_utils::LockUdsInfo info;
     info.pid = udsInfo.pid;
@@ -1122,7 +1122,7 @@ int MxmServerMsgHandle::ShmUnLock(const MsgBase* req, MsgBase* rsp, const MxmCom
     if (ret != 0) {
         DBG_LOGERROR("UnLock failed, name=" << request->name_ << " ret=" << ret);
         DBG_AUDITINFO("ShmUnLock, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
-                                        << ", name=" << request->name_ << ", ret=" << ret);
+                                        << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(ret));
         response->errCode_ = ret;
         return ret;
     }
@@ -1219,7 +1219,7 @@ int MxmServerMsgHandle::ShmAttach(const MsgBase *req, MsgBase *rsp, const MxmCom
     if (rt != 0) {
         DBG_LOGERROR("ShmGetUserData fail, name=" << request->name_ << ", ret: " << rt);
         DBG_AUDITINFO("user info of ShmAttach, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                     << udsInfo.pid << ", name=" << request->name_ << ", ret=" << rt);
+            << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(rt));
         response->errCode_ = rt;
         return rt;
     }
@@ -1228,9 +1228,9 @@ int MxmServerMsgHandle::ShmAttach(const MsgBase *req, MsgBase *rsp, const MxmCom
     int oflag = GetMaxOflag(providedPerms);
     if (oflag == -1) {
         DBG_LOGERROR("Required permission not provided");
-        DBG_AUDITINFO("user info of ShmAttach, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                     << ", pid=" << udsInfo.pid << ", name=" << request->name_
-                                                     << ", ret=" << MXM_ERR_SHM_PERMISSION_DENIED);
+        DBG_AUDITINFO("user info of ShmAttach, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
+            << udsInfo.pid << ", name=" << request->name_ << ", ret="
+            << ConvertErrorToString(MXM_ERR_SHM_PERMISSION_DENIED));
         response->errCode_ = MXM_ERR_SHM_PERMISSION_DENIED;
         return MXM_ERR_SHM_PERMISSION_DENIED;
     }
@@ -1240,17 +1240,17 @@ int MxmServerMsgHandle::ShmAttach(const MsgBase *req, MsgBase *rsp, const MxmCom
     gid_t owner_gid = ubsUserInfo.udsInfo.gid;
     if (udsInfo.uid != owner_uid || udsInfo.gid != owner_gid) {
         DBG_LOGERROR("ShmAttach failed, permission denied, name=" << request->name_);
-        DBG_AUDITINFO("user info of ShmAttach, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                     << ", pid=" << udsInfo.pid << ", name=" << request->name_
-                                                     << ", ret=" << MXM_ERR_SHM_PERMISSION_DENIED);
+        DBG_AUDITINFO("user info of ShmAttach, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
+            << udsInfo.pid << ", name=" << request->name_ << ", ret="
+            << ConvertErrorToString(MXM_ERR_SHM_PERMISSION_DENIED));
         response->errCode_ = MXM_ERR_SHM_PERMISSION_DENIED;
         return MXM_ERR_SHM_PERMISSION_DENIED;
     }
     auto hr = mxm::UbseMemAdapter::ShmAttach(request->name_, ubsUserInfo, result);
     if (hr != 0) {
-        DBG_LOGERROR("get exception when ShmAttach " << request->name_ << "ret: " << hr);
+        DBG_LOGERROR("get exception when ShmAttach " << request->name_ << "ret: " << ConvertErrorToString(hr));
         DBG_AUDITINFO("user info of ShmAttach, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                     << udsInfo.pid << ", name=" << request->name_ << ", ret=" << hr);
+            << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(hr));
         response->errCode_ = hr;
         return hr;
     }
@@ -1294,24 +1294,25 @@ int MxmServerMsgHandle::ShmDetach(const MsgBase* req, MsgBase* rsp, const MxmCom
     if (rt != 0) {
         DBG_LOGERROR("ShmGetUserData fail. ret=" << rt << " name=" << request->name_);
         DBG_AUDITINFO("user info of ShmDetach, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                     << udsInfo.pid << ", name=" << request->name_ << ", ret=" << rt);
+            << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(rt));
         return rt;
     }
     uid_t owner_uid = ubsUserInfo.udsInfo.uid;
     gid_t owner_gid = ubsUserInfo.udsInfo.gid;
     if (udsInfo.uid != owner_uid || udsInfo.gid != owner_gid) {
         DBG_LOGERROR("ShmDetach failed, permission denied, name=" << request->name_);
-        DBG_AUDITINFO("user info of ShmDetach, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                     << ", pid=" << udsInfo.pid << ", name=" << request->name_
-                                                     << ", ret=" << MXM_ERR_SHM_PERMISSION_DENIED);
+        DBG_AUDITINFO("user info of ShmDetach, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
+            << udsInfo.pid << ", name=" << request->name_ << ", ret="
+            << ConvertErrorToString(MXM_ERR_SHM_PERMISSION_DENIED));
+        response->errCode_ = MXM_ERR_SHM_PERMISSION_DENIED;
         return MXM_ERR_SHM_PERMISSION_DENIED;
     }
     auto hr = mxm::UbseMemAdapter::ShmDetach(request->name_);
     if (hr != 0) {
-        DBG_LOGERROR("get exception when ShmDetach " << request->name_ << "ret: " << hr);
+        DBG_LOGERROR("get exception when ShmDetach " << request->name_ << "ret: " << ConvertErrorToString(hr));
         DBG_AUDITINFO("user info of ShmDetach, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
                                                      << ", pid=" << udsInfo.pid << ", name=" << request->name_
-                                                     << ", ret=" << hr);
+                                                     << ", ret=" << ConvertErrorToString(hr));
         response->errCode_ = hr;
         return hr;
     }
@@ -1340,10 +1341,9 @@ int MxmServerMsgHandle::ShmListLookup(const MsgBase* req, MsgBase* rsp, const Mx
 
     auto hr = mxm::UbseMemAdapter::ShmListLookup(request->prefix_, response->shmNames_);
     if (hr != 0) {
-        DBG_LOGERROR("get exception when ShmListLookup " << request->prefix_ << "ret: " << hr);
-        DBG_AUDITINFO("user info of ShmListLookup, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                         << ", pid=" << udsInfo.pid
-                                                         << ", prefix name=" << request->prefix_ << ", ret=" << hr);
+        DBG_LOGERROR("get exception when ShmListLookup " << request->prefix_ << "ret: " << ConvertErrorToString(hr));
+        DBG_AUDITINFO("user info of ShmListLookup, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
+            << udsInfo.pid << ", prefix name=" << request->prefix_ << ", ret=" << ConvertErrorToString(hr));
         response->errCode_ = hr;
         return hr;
     }
@@ -1377,7 +1377,7 @@ int MxmServerMsgHandle::ShmLookup(const MsgBase* req, MsgBase* rsp, const MxmCom
     if (hr != 0) {
         DBG_LOGERROR("get exception when ShmLookup " << request->name_ << "ret: " << hr);
         DBG_AUDITINFO("user info of ShmLookup, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                     << udsInfo.pid << ", name=" << request->name_ << ", ret=" << hr);
+            << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(hr));
         response->errCode_ = hr;
         return hr;
     }
