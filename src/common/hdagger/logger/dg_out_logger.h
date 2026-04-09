@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <sstream>
 #include <sys/time.h>
+#include <iomanip>
 #include <sys/syscall.h>
 
 #include "../dg_common.h"
@@ -38,6 +39,11 @@ enum LogLevel : int {
     CRITICAL_LEVEL,
     BUTT_LEVEL
 };
+constexpr int MS_WIDTH = 3;
+constexpr int HOUR_WIDTH = 2;
+constexpr int MINUTE_WIDTH = 2;
+constexpr int MINUTES_PER_HOUR = 60;
+constexpr int SECOND_PER_HOUR = 3600;
 
 class OutLogger {
 public:
@@ -90,6 +96,35 @@ public:
         }
     }
 
+    static std::string GetTimeStamp()
+    {
+        struct timeval tv;
+        gettimeofday(&tv, nullptr);
+        time_t timeStamp = tv.tv_sec;
+        struct tm localTime;
+        localtime_r(&timeStamp, &localTime);
+
+        char timeBuf[32];
+        if (strftime(timeBuf, sizeof timeBuf, "%Y-%m-%d %H:%M:%S", &localTime) == 0) {
+            return "[Invalid Time]";
+        }
+
+        int ms = static_cast<int>(tv.tv_usec / 1000);
+        std::ostringstream oss;
+        oss << timeBuf << "." << std::setfill('0') << std::setw(MS_WIDTH) << ms << " ";
+        long offsetSec = localTime.tm_gmtoff;
+        int offsetHours = static_cast<int>(offsetSec / SECOND_PER_HOUR);
+        int offsetMinutes = static_cast<int>(std::abs(offsetSec % SECOND_PER_HOUR) / MINUTES_PER_HOUR);
+
+        if (offsetHours >= 0) {
+            oss << '+' << std::setfill('0') << std::setw(HOUR_WIDTH) << offsetHours;
+        } else {
+            oss << '-' << std::setfill('0') << std::setw(HOUR_WIDTH) << (-offsetHours);
+        }
+        oss << ':' << std::setfill('0') << std::setw(MINUTE_WIDTH) << offsetMinutes;
+        return oss.str();
+    }
+
     inline void Log(int level, const std::ostringstream &oss)
     {
         if (level < mLogLevel) {
@@ -100,19 +135,8 @@ public:
             return;
         }
 
-        struct timeval tv {};
-        char strTime[24];
-
-        gettimeofday(&tv, nullptr);
-        time_t timeStamp = tv.tv_sec;
-        struct tm localTime {};
-        if (strftime(strTime, sizeof strTime, "%Y-%m-%d %H:%M:%S.", localtime_r(&timeStamp, &localTime)) != 0) {
-            std::cout << strTime << tv.tv_usec << " " << LogLevelDesc(level) << " " << getpid() << " "
-                      << syscall(SYS_gettid) << " " << oss.str() << std::endl;
-        } else {
-            std::cout << " Invalid time " << LogLevelDesc(level) << " " << syscall(SYS_gettid) << " " << oss.str() <<
-                std::endl;
-        }
+        std::cout << "[" << GetTimeStamp() << "][" << LogLevelDesc(level) << "][" << getpid() << "][" << pthread_self()
+                  << "] " << oss.str() << std::endl;
     }
 
     inline void AuditLog(int level, const std::ostringstream &oss)
@@ -126,18 +150,8 @@ public:
             return;
         }
 
-        struct timeval tv {};
-        char strTime[24];
-        gettimeofday(&tv, nullptr);
-        time_t timeStamp = tv.tv_sec;
-        struct tm localTime {};
-        if (strftime(strTime, sizeof strTime, "%Y-%m-%d %H:%M:%S.", localtime_r(&timeStamp, &localTime)) != 0) {
-            std::cout << strTime << tv.tv_usec << " " << LogLevelDesc(level) << " " << syscall(SYS_gettid) << " " <<
-                oss.str() << std::endl;
-        } else {
-            std::cout << " Invalid time " << LogLevelDesc(level) << " " << syscall(SYS_gettid) << " " << oss.str() <<
-                std::endl;
-        }
+        std::cout << "[" << GetTimeStamp() << "][" << LogLevelDesc(level) << "][" << getpid() << "][" << pthread_self()
+                  << "] " << oss.str() << std::endl;
     }
 
     OutLogger(const OutLogger &) = delete;
@@ -162,7 +176,7 @@ private:
     }
 
 private:
-    const std::string mLogLevelDesc[BUTT_LEVEL] = {"debug", "info", "warn", "error"};
+    const std::string mLogLevelDesc[BUTT_LEVEL] = {"DEBUG", "INFO", "WARN", "ERROR"};
 
     LogLevel mLogLevel = DEBUG_LEVEL;
     LogLevel mAuditLogLevel = INFO_LEVEL;

@@ -273,11 +273,13 @@ HRESULT OckDaemon::ServicesInitialize()
         return static_cast<HRESULT>(MXM_ERR_DAEMON_NO_FEATURE_ENABLED);
     }
     if (serviceManager->ServiceProcessArgs() != 0) {
-        DBG_LOGERROR("OckDaemon initialize failed. " << mConf->DumpStr());
+        DBG_LOGERROR("OckDaemon initialize failed. ");
+        mConf->DumpConfig();
         return HFAIL;
     }
     if (serviceManager->ServiceInitialize() != 0) {
-        DBG_LOGERROR("OckDaemon initialize failed. " << mConf->DumpStr());
+        DBG_LOGERROR("OckDaemon initialize failed. ");
+        mConf->DumpConfig();
         return HFAIL;
     }
     return HOK;
@@ -309,7 +311,7 @@ HRESULT OckDaemon::Initialize()
         return InitHr;
     }
     DBG_LOGINFO("UBS Memory Daemon(ubsmd) is initialized.");
-    DBG_LOGINFO("Ubsmd " << mConf->DumpStr());
+    mConf->DumpConfig();
 
     mStatus = ServerStatus::INITIALIZED;
     return InitHr;

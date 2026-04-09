@@ -24,6 +24,39 @@ constexpr int ROTATION_FILE_SIZE_MAX = 100 * 1024 * 1024; // 100MB
 constexpr int ROTATION_FILE_SIZE_MIN = 2 * 1024 * 1024;   // 2MB
 constexpr int ROTATION_FILE_COUNT_MAX = 50;
 
+class CustomLevelFlag : public spdlog::custom_flag_formatter {
+public:
+    void format(const spdlog::details::log_msg& msg, const std::tm&, spdlog::memory_buf_t& dest) override
+    {
+        static const char* levelNames[] = {"TRACE", "DEBUG", "INFO", "WARN", "ERROR", "CRITICAL", "OFF"};
+        int levelIndex = msg.level;
+        if (levelIndex >= 0 && levelIndex <= MAX_LOG_LEVEL) {
+            const char* levelStr = levelNames[levelIndex];
+            fmt::format_to(std::back_inserter(dest), "{}", levelStr);
+        }
+    }
+
+    [[nodiscard]] std::unique_ptr<spdlog::custom_flag_formatter> clone() const override
+    {
+        return std::make_unique<CustomLevelFlag>();
+    }
+};
+
+class CustomThreadIdFlag : public spdlog::custom_flag_formatter {
+public:
+    void format(const spdlog::details::log_msg& msg, const std::tm&, spdlog::memory_buf_t& dest) override
+    {
+        auto threadId = pthread_self();
+        fmt::format_to(std::back_inserter(dest), "{}", threadId);
+    }
+
+    [[nodiscard]] std::unique_ptr<spdlog::custom_flag_formatter> clone() const override
+    {
+        return std::make_unique<CustomThreadIdFlag>();
+    }
+};
+
+
 int ULog::ValidateParams(int logType, int minLogLevel, const char *path, int rotationFileSize, int rotationFileCount)
 {
     if (logType != 0 && logType != 1U && logType != 2U) {
@@ -166,33 +199,31 @@ int ULog::Initialize()
     try {
         // create logger according to the log type
         // stdout mainly use for
+        auto formatter = std::make_unique<spdlog::pattern_formatter>();
+        formatter->add_flag<CustomThreadIdFlag>('t');
+        formatter->add_flag<CustomLevelFlag>('l');
+        formatter->set_pattern("[%Y-%m-%d %H:%M:%S.%e %z][%l][%P][%t][%s:%#] %v");
         if (this->mLogType == STDOUT_TYPE) {
             this->mSPDLogger = spdlog::stdout_logger_mt("console");
-            if (this->mSPDLogger.get() == nullptr) {
+            if (this->mSPDLogger == nullptr) {
                 gLastErrorMessage = "spdlog logger is not created yet";
                 return UERR_LOG_NOT_INITIALIZED;
             }
-            this->mSPDLogger->set_pattern("%Y-%m-%d %H:%M:%S.%f %t %l %v");
+            this->mSPDLogger->set_formatter(std::move(formatter));
         } else if (this->mLogType == FILE_TYPE) {
             std::string logName = "log:" + this->mFilePath;
             this->mSPDLogger = spdlog::rotating_logger_mt(logName.c_str(), this->mFilePath, this->mRotationFileSize,
                                                           this->mRotationFileCount);
-            if (this->mSPDLogger.get() == nullptr) {
+            if (this->mSPDLogger == nullptr) {
                 gLastErrorMessage = "spdlog logger is not created yet";
                 return UERR_LOG_NOT_INITIALIZED;
             }
-            this->mSPDLogger->set_pattern("%v");
-            this->mSPDLogger->info("", "");
-            this->mSPDLogger->set_pattern("%Y-%m-%d %H:%M:%S.%f %t %v");
-            this->mSPDLogger->info("Log started at [{}] level",
-                                   spdlog::level::to_string_view(static_cast<spdlog::level::level_enum>
-                                   (this->mMinLogLevel)).data());
-            this->mSPDLogger->info("Log default format: yyyy-mm-dd hh:mm:ss.uuuuuu threadid loglevel msg");
-            this->mSPDLogger->set_pattern("%Y-%m-%d %H:%M:%S.%f %t %l %v");
+
+            this->mSPDLogger->set_formatter(std::move(formatter));
             spdlog::flush_every(std::chrono::seconds(1));
         } else if (this->mLogType == STDERR_TYPE) {
             this->mSPDLogger = spdlog::stderr_logger_mt("console");
-            this->mSPDLogger->set_pattern("%C/%m/%d %H:%M:%S.%f %t %l %v");
+            this->mSPDLogger->set_formatter(std::move(formatter));
         }
         this->mSPDLogger->set_level(static_cast<spdlog::level::level_enum>(this->mMinLogLevel));
         this->mSPDLogger->flush_on(spdlog::level::err);
@@ -200,7 +231,7 @@ int ULog::Initialize()
         if (this->mMinLogLevel < static_cast<int>(spdlog::level::info)) {
             this->mDebugEnabled = true;
         }
-    } catch (const spdlog::spdlog_ex &ex) {
+    } catch (const spdlog::spdlog_ex& ex) {
         gLastErrorMessage = "Failed to create log: ";
         gLastErrorMessage += ex.what();
         return UERR_LOG_CREATE_FAILED;

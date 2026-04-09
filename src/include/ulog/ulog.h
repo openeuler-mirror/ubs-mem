@@ -136,17 +136,18 @@ inline bool CheckAuditLogger()
 #define ULOG_AUDIT_WARN(fmt, ...) ULOG_AUDIT_INTERNAL(spdlog::level::warn, fmt, ##__VA_ARGS__)
 #define ULOG_AUDIT_INFO(fmt, ...) ULOG_AUDIT_INTERNAL(spdlog::level::info, fmt, ##__VA_ARGS__)
 
-#define ULOG_AUDIT_INTERNAL(level, fmt, ...)                                                       \
-    do {                                                                                           \
-        if (!CheckAuditLogger()) {                                                                 \
-            break;                                                                                 \
-        }                                                                                          \
-        static thread_local std::ostringstream oss;                                                \
-        oss.str("");                                                                               \
-        oss.clear();                                                                               \
-        oss << fmt;                                                                                \
-        ock::utilities::log::ULog::gAuditLogger->mSPDLogger->log(level, oss.str(), ##__VA_ARGS__); \
-        ock::utilities::log::ULog::gAuditLogger->mSPDLogger->flush();                              \
+#define ULOG_AUDIT_INTERNAL(level, fmt, ...)                                                               \
+    do {                                                                                                   \
+        if (!CheckAuditLogger()) {                                                                         \
+            break;                                                                                         \
+        }                                                                                                  \
+        static thread_local std::ostringstream oss;                                                        \
+        oss.str("");                                                                                       \
+        oss.clear();                                                                                       \
+        oss << fmt;                                                                                        \
+        spdlog::source_loc srcLoc{__FILE__, __LINE__, SPDLOG_FUNCTION};                                    \
+        ock::utilities::log::ULog::gAuditLogger->mSPDLogger->log(srcLoc, level, oss.str(), ##__VA_ARGS__); \
+        ock::utilities::log::ULog::gAuditLogger->mSPDLogger->flush();                                      \
     } while (0)
 
 // universal log
@@ -158,33 +159,20 @@ inline bool CheckAuditLogger()
 #define ULOG_UNITY_ERROR(fmt, ...) ULOG_UNITY_ARGS_INTERNAL(spdlog::level::err, fmt, ##__VA_ARGS__)
 #define ULOG_UNITY_WARN(fmt, ...) ULOG_UNITY_ARGS_INTERNAL(spdlog::level::warn, fmt, ##__VA_ARGS__)
 #define ULOG_UNITY_INFO(fmt, ...) ULOG_UNITY_ARGS_INTERNAL(spdlog::level::info, fmt, ##__VA_ARGS__)
+#define ULOG_UNITY_DEBUG(fmt, ...) ULOG_UNITY_ARGS_INTERNAL(spdlog::level::debug, fmt, ##__VA_ARGS__)
 
-#define ULOG_UNITY_ARGS_INTERNAL(level, fmt, ...)                                                               \
-    do {                                                                                                        \
-        if (!CheckLogger() || !ock::utilities::log::ULog::gLogger->IsHigherLevel(level)) {                      \
-            break;                                                                                              \
-        }                                                                                                       \
-        static thread_local std::ostringstream oss;                                                             \
-        oss.str("");                                                                                            \
-        oss.clear();                                                                                            \
-        oss << "[" << std::this_thread::get_id() << "] " << "[" << __ULOG_FILENAME__ << ":" << __LINE__ << "] " \
-            << fmt;                                                                                             \
-        ock::utilities::log::ULog::gLogger->mSPDLogger->log(level, oss.str(), ##__VA_ARGS__);                   \
-        ock::utilities::log::ULog::gLogger->mSPDLogger->flush();                                                \
-    } while (0)
-
-#define ULOG_UNITY_DEBUG(fmt, ...)                                                                              \
-    do {                                                                                                        \
-        if (!CheckLogger() || !ock::utilities::log::ULog::gLogger->IsDebug()) {                                 \
-            break;                                                                                              \
-        }                                                                                                       \
-        static thread_local std::ostringstream oss;                                                             \
-        oss.str("");                                                                                            \
-        oss.clear();                                                                                            \
-        oss << "[" << std::this_thread::get_id() << "] " << "[" << __ULOG_FILENAME__ << ":" << __LINE__ << "] " \
-            << fmt;                                                                                             \
-        ock::utilities::log::ULog::gLogger->mSPDLogger->debug(oss.str(), ##__VA_ARGS__);                        \
-        ock::utilities::log::ULog::gLogger->mSPDLogger->flush();                                                \
+#define ULOG_UNITY_ARGS_INTERNAL(level, fmt, ...)                                                     \
+    do {                                                                                              \
+        if (!CheckLogger() || !ock::utilities::log::ULog::gLogger->IsHigherLevel(level)) {            \
+            break;                                                                                    \
+        }                                                                                             \
+        static thread_local std::ostringstream oss;                                                   \
+        oss.str("");                                                                                  \
+        oss.clear();                                                                                  \
+        oss << fmt;                                                                                   \
+        spdlog::source_loc srcLoc{__FILE__, __LINE__, SPDLOG_FUNCTION};                               \
+        ock::utilities::log::ULog::gLogger->mSPDLogger->log(srcLoc, level, oss.str(), ##__VA_ARGS__); \
+        ock::utilities::log::ULog::gLogger->mSPDLogger->flush();                                      \
     } while (0)
 
 // Frequency limit log function
