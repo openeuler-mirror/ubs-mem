@@ -32,22 +32,33 @@ using namespace ock::mxmd;
 using namespace ock::com;
 
 std::array<std::mutex, MUTEX_HASH_SIZE> MxmServerMsgHandle::mutexArray;
-std::unordered_set<std::string> creatingNames_;
-std::mutex creatingNamesMutex_;
+class CreatingNames {
+public:
+    static std::unordered_set<std::string> &GetCreatingNames()
+    {
+        static std::unordered_set<std::string> creatingNames;
+        return creatingNames;
+    }
+    static std::mutex &GetCreatingNamesMutex()
+    {
+        static std::mutex creatingNamesMutex;
+        return creatingNamesMutex;
+    }
+};
 class CreateNameGuard {
 public:
     explicit CreateNameGuard(const std::string &name) : creatingName(name) {}
     void Insert() const
     {
-        std::unique_lock<std::mutex> lock(creatingNamesMutex_);
+        std::unique_lock<std::mutex> lock(CreatingNames::GetCreatingNamesMutex());
         DBG_LOGINFO("The creation process starts. name=" << creatingName);
-        creatingNames_.insert(creatingName);
+        CreatingNames::GetCreatingNames().insert(creatingName);
     }
     ~CreateNameGuard()
     {
-        std::unique_lock<std::mutex> lock(creatingNamesMutex_);
+        std::unique_lock<std::mutex> lock(CreatingNames::GetCreatingNamesMutex());
         DBG_LOGINFO("The creation process is complete. name=" << creatingName);
-        creatingNames_.erase(creatingName);
+        CreatingNames::GetCreatingNames().erase(creatingName);
     }
 
 private:
@@ -56,8 +67,8 @@ private:
 
 static bool NameIsCreating(const std::string &name)
 {
-    std::unique_lock<std::mutex> lock(creatingNamesMutex_);
-    return creatingNames_.count(name);
+    std::unique_lock<std::mutex> lock(CreatingNames::GetCreatingNamesMutex());
+    return CreatingNames::GetCreatingNames().count(name);
 }
 
 int MxmServerMsgHandle::ShmLookRegionList(const MsgBase* req, MsgBase* rsp, const MxmComUdsInfo& udsInfo)
