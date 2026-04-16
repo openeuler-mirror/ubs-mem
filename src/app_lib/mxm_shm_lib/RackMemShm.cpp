@@ -211,15 +211,15 @@ mode_t convertToFileMode(ShmOwnStatus status)
     return mode;
 }
 
-int RackMemShm::GetPreAllocateAddressAlignTo2M(void *start, size_t length, int flags, void *&result)
+int RackMemShm::GetPreAllocateAddressAligned(void *start, size_t length, int flags, void *&result, size_t align)
 {
     void *mmapAddr = nullptr;
     if (start == nullptr) {  // 未指定地址时，内部预先分配一段地址
         TP_TRACE_BEGIN(TP_UBSM_SHM_MMAP_ADDR);
-        auto ret = RackMemFdMap::MemoryMap2MAligned(length, mmapAddr);
+        auto ret = RackMemFdMap::MemoryMapAligned(length, mmapAddr, align);
         TP_TRACE_END(TP_UBSM_SHM_MMAP_ADDR, ret);
         if (BresultFail(ret)) {
-            DBG_LOGERROR("MemoryMap2MAligned failed, length is " << length);
+            DBG_LOGERROR("MemoryMapAligned failed, length is " << length);
             return MXM_ERR_MMAP_VA_FAILED;
         }
         result = mmapAddr;
@@ -236,19 +236,19 @@ int RackMemShm::GetPreAllocateAddressAlignTo2M(void *start, size_t length, int f
         return MXM_OK;
     }
 
-    // 指定地址，但是不带MAP_FIXED，先尝试能否匿名map这段地址，如果返回的地址是2M对齐，就用这个地址，否则内部重新分配一段地址
+    // 指定地址，但是不带MAP_FIXED，先尝试能否匿名map这段地址，如果返回的地址是align对齐，就用这个地址，否则内部重新分配一段地址
     auto ret = RackMemFdMap::MapAnonymousMemory(start, length, mmapAddr);
     if (BresultFail(ret)) {
         DBG_LOGWARN("MapAnonymousMemory failed, length is " << length);
         return ret;
     }
-    if (reinterpret_cast<uintptr_t>(mmapAddr) % (1 << 21UL) != 0) {
+    if (reinterpret_cast<uintptr_t>(mmapAddr) % align != 0) {
         (void) SystemAdapter::MemoryUnMap(mmapAddr, length);
         TP_TRACE_BEGIN(TP_UBSM_SHM_MMAP_ADDR);
-        ret = RackMemFdMap::MemoryMap2MAligned(length, mmapAddr);
+        ret = RackMemFdMap::MemoryMapAligned(length, mmapAddr, align);
         TP_TRACE_END(TP_UBSM_SHM_MMAP_ADDR, ret);
         if (BresultFail(ret)) {
-            DBG_LOGERROR("MemoryMap2MAligned failed, length is " << length);
+            DBG_LOGERROR("MemoryMapAligned failed, length is " << length);
             return MXM_ERR_MMAP_VA_FAILED;
         }
         result = mmapAddr;
@@ -329,12 +329,17 @@ int RackMemShm::UbsMemShmMmap(void *start, size_t mapSize, int prot, int flags, 
         ShmIpcCommand::IpcCallShmUnMap(name);
         return ret;
     }
+    static uint64_t alignment = GetHugeTlbPmdSize();
+    if ((createFlags & UBSM_FLAG_MMAP_HUGETLB_PMD) == UBSM_FLAG_MMAP_HUGETLB_PMD && mapSize % alignment != 0) {
+        DBG_LOGERROR("The mapSize is not aligned to " << alignment << ", mapSize=" << mapSize);
+        return MXM_ERR_PARAM_INVALID;
+    }
 
     void *mmapAddr = nullptr;
     uint64_t mmapCount = mapSize % unitSize == 0 ? mapSize / unitSize : mapSize / unitSize + 1;
 
     if ((createFlags & UBSM_FLAG_MMAP_HUGETLB_PMD) == UBSM_FLAG_MMAP_HUGETLB_PMD) {
-        ret = GetPreAllocateAddressAlignTo2M(start, mapSize, flags, mmapAddr);
+        ret = GetPreAllocateAddressAligned(start, mapSize, flags, mmapAddr, alignment);
     } else {
         ret = GetPreAllocateAddress(start, mapSize, flags, mmapAddr);
     }
