@@ -330,7 +330,7 @@ int RackMemShm::UbsMemShmMmap(void *start, size_t mapSize, int prot, int flags, 
         return ret;
     }
     static uint64_t alignment = GetHugeTlbPmdSize();
-    if ((createFlags & UBSM_FLAG_MMAP_HUGETLB_PMD) == UBSM_FLAG_MMAP_HUGETLB_PMD && mapSize % alignment == 0) {
+    if ((createFlags & UBSM_FLAG_MMAP_HUGETLB_PMD) == UBSM_FLAG_MMAP_HUGETLB_PMD && mapSize % alignment != 0) {
         DBG_LOGERROR("The mapSize is not aligned to " << alignment << ", mapSize=" << mapSize);
         return MXM_ERR_PARAM_INVALID;
     }
