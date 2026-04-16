@@ -388,6 +388,17 @@ inline std::string ConvertErrorToString(int value) noexcept
     return "UNKNOWN_ERROR(" + std::to_string(value) + ")";
 }
 
+constexpr size_t HUGE_PAGES_2M = 2 * 1024 * 1024;
+constexpr size_t HUGE_PAGES_512M = 512 * 1024 * 1024;
+
+static uint64_t GetAlignment()
+{
+    if (getpagesize() == NO_64 * NO_1024) {
+        return HUGE_PAGES_512M;
+    }
+    return HUGE_PAGES_2M;
+}
+
 }  // namespace ock::mxmd
 
 #endif

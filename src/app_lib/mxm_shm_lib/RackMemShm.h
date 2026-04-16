@@ -20,8 +20,7 @@
 
 namespace ock {
 namespace mxmd {
-constexpr size_t HUGE_PAGES_2M = 2 * 1024 * 1024;
-constexpr size_t HUGE_PAGES_512M = 512 * 1024 * 1024;
+
 class RackMemShm {
 public:
     int32_t UbsMemShmSetOwnerShip(const std::string& name, void* start, size_t length, ShmOwnStatus status);

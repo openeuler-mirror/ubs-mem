@@ -286,14 +286,6 @@ int RackMemShm::GetPreAllocateAddress(void *start, size_t length, int flags, voi
     return MXM_OK;
 }
 
-static uint64_t GetAlignment()
-{
-    if (getpagesize() == NO_64 * NO_1024) {
-        return HUGE_PAGES_512M;
-    }
-    return HUGE_PAGES_2M;
-}
-
 /**
  * 1.参数检查，2.重复map检查，3。从agent获取memid。4.obmm_memid_to_fd.5.poxsi map 6.update meta data
  */
