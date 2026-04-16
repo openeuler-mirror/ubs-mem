@@ -85,13 +85,12 @@ void RackMemFdMap::GetActualMapSize(const uint64_t appMmapSize, const uint64_t u
                                    << ", unit size=" << unitSize << ", mmapCount=" << mmapCount);
 }
 
-int RackMemFdMap::MemoryMap2MAligned(size_t size, void *&result)
+int RackMemFdMap::MemoryMapAligned(size_t size, void *&result, size_t align)
 {
-    constexpr uint64_t ALIGN_2M = 1 << 21;
     void *alignedMemory = nullptr;
-    auto ret = posix_memalign(&alignedMemory, ALIGN_2M, size);
+    auto ret = posix_memalign(&alignedMemory, align, size);
     if (ret != 0) {
-        DBG_LOGERROR("Failed to align memory size, error info=" << std::strerror(errno));
+        DBG_LOGERROR("Failed to align memory size, align=" << align << ", error info=" << std::strerror(errno));
         return MXM_ERR_MALLOC_FAIL;
     }
     result = mmap(alignedMemory, size, PROT_NONE, MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED, -1, 0);

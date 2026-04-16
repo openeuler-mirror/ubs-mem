@@ -35,7 +35,7 @@ public:
 
     void GetActualMapSize(uint64_t appMmapSize, uint64_t unitSize, uint64_t& actualMapSize, uint64_t& mmapCount);
 
-    static int MemoryMap2MAligned(size_t size, void *&result);
+    static int MemoryMapAligned(size_t size, void *&result, size_t align);
 
     DAGGER_DEFINE_REF_COUNT_FUNCTIONS;
 
