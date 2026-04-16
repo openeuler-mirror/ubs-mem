@@ -299,7 +299,11 @@ uint32_t ubsmem_shmem_allocate_impl(const char *region_name, const char *name, s
         DBG_LOGERROR("Invalid flags=" << flags);
         return MXM_ERR_PARAM_INVALID;
     }
-
+    static auto hugePageSize = GetHugeTlbPmdSize();
+    if ((flags & UBSM_FLAG_MMAP_HUGETLB_PMD) == UBSM_FLAG_MMAP_HUGETLB_PMD && size % hugePageSize != 0) {
+        DBG_LOGERROR("The size is not aligned to " << hugePageSize << ", size=" << size);
+        return MXM_ERR_PARAM_INVALID;
+    }
     DBG_LOGINFO("Allocating shared memory, region=" << region_name << ", name=" << name << ", size=" << size);
     std::string regionName = region_name;
     std::string baseNid;

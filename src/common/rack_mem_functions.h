@@ -391,7 +391,7 @@ inline std::string ConvertErrorToString(int value) noexcept
 constexpr size_t HUGE_PAGES_2M = 2 * 1024 * 1024;
 constexpr size_t HUGE_PAGES_512M = 512 * 1024 * 1024;
 
-static uint64_t GetAlignment()
+static uint64_t GetHugeTlbPmdSize()
 {
     if (getpagesize() == NO_64 * NO_1024) {
         return HUGE_PAGES_512M;

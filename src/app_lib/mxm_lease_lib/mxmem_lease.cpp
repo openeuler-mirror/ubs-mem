@@ -54,6 +54,11 @@ uint32_t ubsmem_lease_malloc_impl(const char *region_name, size_t size, ubsmem_d
         DBG_LOGERROR("The flags are invalid, flags=" << flags);
         return MXM_ERR_PARAM_INVALID;
     }
+    static auto hugePagesSize = GetHugeTlbPmdSize();
+    if ((flags & UBSM_FLAG_MMAP_HUGETLB_PMD) == UBSM_FLAG_MMAP_HUGETLB_PMD && size % hugePagesSize != 0) {
+        DBG_LOGERROR("The size is not aligned to " << hugePagesSize << ", size=" << size);
+        return MXM_ERR_PARAM_INVALID;
+    }
     if (mem_distance != ubsmem_distance_t::DISTANCE_DIRECT_NODE) {
         DBG_LOGERROR("The ubsmem_distance_t is " << mem_distance);
         return MXM_ERR_PARAM_INVALID;

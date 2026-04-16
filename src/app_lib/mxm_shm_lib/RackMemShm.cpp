@@ -329,10 +329,14 @@ int RackMemShm::UbsMemShmMmap(void *start, size_t mapSize, int prot, int flags, 
         ShmIpcCommand::IpcCallShmUnMap(name);
         return ret;
     }
+    static uint64_t alignment = GetHugeTlbPmdSize();
+    if ((createFlags & UBSM_FLAG_MMAP_HUGETLB_PMD) == UBSM_FLAG_MMAP_HUGETLB_PMD && mapSize % alignment == 0) {
+        DBG_LOGERROR("The mapSize is not aligned to " << alignment << ", mapSize=" << mapSize);
+        return MXM_ERR_PARAM_INVALID;
+    }
 
     void *mmapAddr = nullptr;
     uint64_t mmapCount = mapSize % unitSize == 0 ? mapSize / unitSize : mapSize / unitSize + 1;
-    static uint64_t alignment = GetAlignment();
 
     if ((createFlags & UBSM_FLAG_MMAP_HUGETLB_PMD) == UBSM_FLAG_MMAP_HUGETLB_PMD) {
         ret = GetPreAllocateAddressAligned(start, mapSize, flags, mmapAddr, alignment);

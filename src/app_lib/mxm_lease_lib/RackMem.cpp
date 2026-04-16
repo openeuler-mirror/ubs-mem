@@ -93,7 +93,7 @@ void *RackMem::MemoryIDUsedByFd(AppBorrowMetaDesc &desc, const std::vector<uint6
     if ((flags & UBSM_FLAG_MMAP_HUGETLB_PMD) == UBSM_FLAG_MMAP_HUGETLB_PMD) {
         offset |= OBMM_MMAP_FLAG_HUGETLB_PMD;
         TP_TRACE_BEGIN(TP_UBSM_MALLOC_FD_MAP);
-        static auto alignment = GetAlignment();
+        static auto alignment = GetHugeTlbPmdSize();
         ret = RackMemFdMap::MemoryMapAligned(totalSize, mmapAddr, alignment);
         TP_TRACE_END(TP_UBSM_MALLOC_FD_MAP, ret);
     } else {
