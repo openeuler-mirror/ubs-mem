@@ -118,7 +118,7 @@ echo 2 >/proc/sys/kernel/randomize_va_space
 
 `ubsm.server.tls.enable`是CC软锁模块选主的通信TLS开关，`ubsm.lock.tls.enable`是锁操作的TLS通信，支持分别配置。
 
-通信加密和认证选项的详情请参见[表 ubsmd.conf配置文件参数说明](../usage/appendixes.md#table003)。
+通信加密和认证选项的详情请参见[表 ubsmd.conf配置文件参数说明](./appendixes.md#table003)。
 
 ### 加密与解密
 
