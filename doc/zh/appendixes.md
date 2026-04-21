@@ -37,7 +37,7 @@
 |`ubsm.server.tls.key.path`|str|符合规范的路径|Server端证书对应的私钥文件的绝对路径，不支持填写相对路径，不支持软链接。默认值：/path/key.pem。|
 |`ubsm.server.tls.keypass.path`|str|符合规范的路径|用户使用加密工具seceasy_encrypt生成的Server端证书对应的私钥的加密密文文件的绝对路径，不支持填写相对路径，不支持软链接。默认值：/path/keypass.txt。|
 |`ubsm.hcom.max.connect.num`|int|(0, 256]|HCOM通信的最大连接数。默认值：128。|
-|u`bsm.server.lease.cache.enable`|str|<ul><li>on</li><li>off</li></ul>|是否启用内存借用后的缓存功能。<ul><li>on：启用</li><li>off：关闭</li></ul>默认值：off。当前支持缓存5个借用内存。|
+|`ubsm.server.lease.cache.enable`|str|<ul><li>on</li><li>off</li></ul>|是否启用内存借用后的缓存功能。<ul><li>on：启用</li><li>off：关闭</li></ul>默认值：off。当前支持缓存5个借用内存。|
 |`ubsm.performance.statistics.enable`|str|<ul><li>on</li><li>off</li></ul>|是否启用性能统计。性能统计日志默认存放在/var/log/ubsm目录。<ul><li>on：启用</li><li>off：关闭</li></ul>默认值：on。|
 
 ## 账户一览表

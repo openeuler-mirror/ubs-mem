@@ -68,8 +68,7 @@ sh run_dt.sh
 ```
 
 ### 使用说明
-
-1. 安装操作请参见[安装部署](https://gitcode.com/openeuler/UnifiedBus-docs/blob/master/docs/zh/installation/ubs_service_core/ubs_memory_installation_deployment.md)。
+1. 安装操作请参见[安装部署](https://gitcode.com/openeuler/UnifiedBus-docs/blob/master/docs/zh/installation/ub_service_core/ubs_memory_installation_deployment.md)。
 2. API相关信息请参见[API接口](doc/zh/api_reference.md)。
 
 ### License
