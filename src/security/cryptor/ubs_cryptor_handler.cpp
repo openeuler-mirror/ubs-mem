@@ -216,6 +216,7 @@ char* DefaultDecrypt(const char* encrypted_data, size_t encrypted_len, size_t* p
     auto ret = memcpy_s(result, encrypted_len, encrypted_data, encrypted_len);
     if (ret != 0) {
         DBG_LOGERROR("memcpy_s failed, ret:" << ret);
+        delete[] result;
         return nullptr;
     }
     *p_out_len = encrypted_len;

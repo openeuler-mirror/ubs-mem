@@ -844,10 +844,13 @@ int ZenDiscovery::SendVoteRequest(const std::string& nodeId, const std::string& 
 int ZenDiscovery::SendBroadcastRequest(const std::map<std::string, ock::rpc::ClusterNode>& nodes,
                                        const std::string& nodeId)
 {
-    auto rpcReq =
-        std::make_shared<BroadcastRequest>(electedMaster_, nodes, dlock_utils::UbsmLock::Instance().IsUbsmLockInit());
-    auto rpcRsp = std::make_shared<RpcQueryInfoResponse>();
-    if (rpcReq == nullptr || rpcRsp == nullptr) {
+    std::shared_ptr<BroadcastRequest> rpcReq;
+    std::shared_ptr<RpcQueryInfoResponse> rpcRsp;
+    try {
+        rpcReq = std::make_shared<BroadcastRequest>(electedMaster_, nodes,
+                                                    dlock_utils::UbsmLock::Instance().IsUbsmLockInit());
+        rpcRsp = std::make_shared<RpcQueryInfoResponse>();
+    } catch (...) {
         DBG_LOGERROR("invalid param.");
         return MXM_ERR_MALLOC_FAIL;
     }
@@ -856,11 +859,8 @@ int ZenDiscovery::SendBroadcastRequest(const std::map<std::string, ock::rpc::Clu
         DBG_LOGERROR("ConnectToRpcNode failed, nodeId=" << nodeId << ", request type=BroadcastRequest");
         return retConnect;
     }
-    auto ret = ock::rpc::service::RpcServer::GetInstance().SendMsg(
-        RPC_BROADCAST_NODE_INFO,
-        rpcReq.get(),
-        rpcRsp.get(),
-        nodeId);
+    auto ret = ock::rpc::service::RpcServer::GetInstance().SendMsg(RPC_BROADCAST_NODE_INFO, rpcReq.get(), rpcRsp.get(),
+                                                                   nodeId);
     if (ret != 0) {
         DBG_LOGERROR("nodeId=" << nodeId << ", Send Broadcast Request failed, ret = " << ret
                                << ", rsp code=" << rpcRsp->errCode_);

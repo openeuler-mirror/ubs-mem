@@ -149,7 +149,7 @@ public:
 
         uint32_t moduleId = GetModuleId(tpId);
         uint32_t traceId = GetTraceId(tpId);
-        if (PTRACER_UNLIKELY(moduleId > MAX_MODULE_COUNT || traceId > MAX_TRACE_ID_COUNT)) {
+        if (PTRACER_UNLIKELY(moduleId >= MAX_MODULE_COUNT || traceId >= MAX_TRACE_ID_COUNT)) {
             return nullptr;
         }
 
@@ -204,7 +204,7 @@ private:
 
         if (ret != 0) {
             for (uint16_t j = 0; j < i; ++j) {
-                delete instance[j];
+                delete[] instance[j];
             }
             delete[] instance;
             return nullptr;
