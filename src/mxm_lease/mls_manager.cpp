@@ -366,7 +366,7 @@ int32_t MLSManager::DeleteAllBufferedMem()
         auto ret = LeaseFreeMemory(pos->second.name, true);
         if (ret != 0) {
             DBG_LOGERROR("LeaseFreeMemory failed, ret: " << ret);
-            return ret;
+            continue;
         }
         pos = numaBufferedMemory_.erase(pos);
     }
@@ -379,7 +379,7 @@ int32_t MLSManager::DeleteAllBufferedMem()
         auto ret = LeaseFreeMemory(pos->second.name, false);
         if (ret != 0) {
             DBG_LOGERROR("LeaseFreeMemory failed, ret: " << ret);
-            return ret;
+            continue;
         }
         pos = fdBufferedMemory_.erase(pos);
     }

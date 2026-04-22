@@ -21,7 +21,11 @@ void* Create()
     if (g_shmService == nullptr) {
         return nullptr;
     }
-    auto* leaseService = new ock::lease::service::MemLeaseService();
+    auto* leaseService = new (std::nothrow) ock::lease::service::MemLeaseService();
+    if (leaseService == nullptr) {
+        ShmDestroy(g_shmService);
+        return nullptr;
+    }
     return leaseService;
 }
 

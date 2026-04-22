@@ -683,6 +683,10 @@ HRESULT MxmComEngine::NewChannel(const std::string& ipPort, const UBSHcomChannel
         return MXM_COM_ERROR_CHANNEL_NULL;
     }
     std::pair<std::string, MxmChannelType> payLoadPair = SplitPayload(payload);
+    if (payLoadPair.first.empty()) {
+        DBG_LOGERROR("Empty payLoad pair name is: " << payload);
+        return MXM_COM_ERROR_INVALID_CHANNEL_TYPE;
+    }
     auto channelId = ch.Get()->GetId();
     DBG_LOGINFO("New channel " << channelId << " from: " << ipPort << ", payload is: " << payload);
     MxmComChannelConnectInfo connectInfo;

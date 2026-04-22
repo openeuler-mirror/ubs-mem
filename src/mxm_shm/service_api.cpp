@@ -15,7 +15,7 @@
 
 void* ShmCreate()
 {
-    auto* leaseService = new ock::share::service::MemShareService();
+    auto* leaseService = new (std::nothrow) ock::share::service::MemShareService();
     return leaseService;
 }
 

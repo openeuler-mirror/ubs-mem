@@ -142,6 +142,9 @@ protected:
 private:
     void RollbackInit(const std::vector<ModuleDesc>::const_iterator &end) noexcept
     {
+        if (end == modules.cbegin()) {
+            return;
+        }
         auto next = end;
         auto pos = end;
         for (--pos; next != modules.cbegin(); --next, --pos) {
@@ -153,6 +156,9 @@ private:
 
     void RollbackStart(const std::vector<ModuleDesc>::const_iterator &end) noexcept
     {
+        if (end == modules.cbegin()) {
+            return;
+        }
         auto next = end;
         auto pos = end;
         for (--pos; next != modules.cbegin(); --next, --pos) {

@@ -348,6 +348,9 @@ std::pair<std::string, MxmChannelType> SplitPayload(const std::string& payload)
     if (payloadPair.empty()) {
         return std::make_pair(payload, MxmChannelType::SINGLE_SIDE);
     }
+    if (payloadPair.size() < 2U) {
+        return {};
+    }
     return std::make_pair(payloadPair[0], StringToChannelType(payloadPair[1]));
 }
 

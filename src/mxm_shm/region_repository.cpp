@@ -21,6 +21,10 @@ using namespace ock::mxmd;
 
 bool ToNodeIds(const SHMRegionDesc &region, std::vector<uint32_t> &nodeIds, std::vector<bool> &affinitys)
 {
+    if (region.num > MEM_TOPOLOGY_MAX_HOSTS) {
+        DBG_AUDITERROR("num is " << region.num << ", max is " << MEM_TOPOLOGY_MAX_HOSTS);
+        return false;
+    }
     for (int i = 0; i < region.num; i++) {
         uint32_t nodeId{1u};
         if (!StrUtil::StrToUint(std::string(region.nodeId[i]), nodeId)) {
