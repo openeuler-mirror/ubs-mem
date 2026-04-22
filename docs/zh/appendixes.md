@@ -54,7 +54,6 @@
 |ASLR|Address Space Layout Randomization，内存地址随机化机制。|
 |CC|Cache Coherence，缓存一致性。|
 |FD|File Descriptor，文件描述符。|
-|HCCS|Huawei Cache Coherence System，华为缓存一致性系统。|
 |OOM|Out Of Memory，内存不足。|
 |TLS|Transport Layer Security，安全传输层协议。|
 |UB|Unified Bus，灵衢总线。|

@@ -1,5 +1,5 @@
 isManual: true
-label: ""
+label: UBS Memory Usage Guidance
 sections:
   - label: API接口
     href: ./api_reference.md
