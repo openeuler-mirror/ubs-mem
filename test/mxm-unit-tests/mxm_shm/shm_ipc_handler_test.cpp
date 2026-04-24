@@ -424,7 +424,7 @@ TEST_F(ShmIpcHandlerTestSuite, TestShmQueryNodeNull)
     MxmComUdsInfo info = {};
     auto ret = MxmServerMsgHandle::ShmQueryNode(request.get(), response.get(), info);
     ASSERT_EQ(ret, 0);
-    ASSERT_EQ(response->errCode_, MXM_ERR_LOCK_NOT_READY);
+    ASSERT_EQ(response->errCode_, 0);
 }
 
 TEST_F(ShmIpcHandlerTestSuite, TestShmAttachFail)

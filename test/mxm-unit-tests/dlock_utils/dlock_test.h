@@ -26,7 +26,6 @@ public:
 
     void TearDown() override
     {
-        ock::zendiscovery::ZenDiscovery::GetInstance()->Stop();
         GlobalMockObject::reset();
     };
 };

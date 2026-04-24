@@ -35,7 +35,6 @@ protected:
 
     void TearDown() override
     {
-        ZenDiscovery::GetInstance()->Stop();
         mockcpp::GlobalMockObject::verify();
         mockcpp::GlobalMockObject::reset();
     }

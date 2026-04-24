@@ -359,26 +359,20 @@ int32_t MLSManager::DeleteAllBufferedMem()
     }
 
     for (auto pos = numaBufferedMemory_.begin(); pos != numaBufferedMemory_.end();) {
-        AppContext appContext;
-        appContext.uid = pos->second.appContext.uid;
-        appContext.gid = pos->second.appContext.gid;
-        appContext.pid = pos->second.appContext.pid;
         auto ret = LeaseFreeMemory(pos->second.name, true);
         if (ret != 0) {
             DBG_LOGERROR("LeaseFreeMemory failed, ret: " << ret);
+            ++pos;
             continue;
         }
         pos = numaBufferedMemory_.erase(pos);
     }
 
     for (auto pos = fdBufferedMemory_.begin(); pos != fdBufferedMemory_.end();) {
-        AppContext appContext;
-        appContext.uid = pos->second.appContext.uid;
-        appContext.gid = pos->second.appContext.gid;
-        appContext.pid = pos->second.appContext.pid;
         auto ret = LeaseFreeMemory(pos->second.name, false);
         if (ret != 0) {
             DBG_LOGERROR("LeaseFreeMemory failed, ret: " << ret);
+            ++pos;
             continue;
         }
         pos = fdBufferedMemory_.erase(pos);
