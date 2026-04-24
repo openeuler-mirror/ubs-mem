@@ -68,10 +68,8 @@ sh run_dt.sh
 ```
 
 ### 使用说明
-1. 前提：安装并成功启动ubs-engine。
-2. 使用rpm  安装我们的rpm包。
-3. systemctl start ubsmd 启动。
-4. 更多详细信息请参见[用户指南](doc/zh/ubs_memory用户指南.md)。
+1. 安装操作请参见[安装部署](https://gitcode.com/openeuler/UnifiedBus-docs/blob/master/docs/zh/installation/ub_service_core/ubs_memory_installation_deployment.md)。
+2. API相关信息请参见[API接口](doc/zh/api_reference.md)。
 
 ### License
 ubs-mem 采用 Mulan V2 License.
