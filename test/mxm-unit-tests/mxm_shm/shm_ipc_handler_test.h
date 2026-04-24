@@ -15,7 +15,6 @@ class ShmIpcHandlerTestSuite : public testing::Test {
 public:
     void SetUp() override
     {
-        ock::zendiscovery::ZenDiscovery::CleanupInstance();
         GlobalMockObject::reset();
     };
 

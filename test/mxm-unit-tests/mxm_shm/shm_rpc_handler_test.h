@@ -16,14 +16,11 @@ class ShmRpcHandlerTestSuite : public testing::Test {
 public:
     void SetUp() override
     {
-        ock::zendiscovery::ZenDiscovery::CleanupInstance();
         GlobalMockObject::reset();
-        ock::zendiscovery::ZenDiscovery::Initialize(1000L, 2000L, 3000L, 1L);
     };
 
     void TearDown() override
     {
-        ock::zendiscovery::ZenDiscovery::CleanupInstance();
         GlobalMockObject::reset();
     };
 };
