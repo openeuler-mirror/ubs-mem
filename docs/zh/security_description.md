@@ -118,7 +118,7 @@ echo 2 >/proc/sys/kernel/randomize_va_space
 
 `ubsm.server.tls.enable`是CC软锁模块选主的通信TLS开关，`ubsm.lock.tls.enable`是锁操作的TLS通信，支持分别配置。
 
-通信加密和认证选项的详情请参见[表 ubsmd.conf配置文件参数说明](./appendixes.md#table003)。
+通信加密和认证选项的详情请参见[表 ubsmd.conf配置文件参数说明](./configuration_description.md#table003)。
 
 ### 加密与解密
 
@@ -171,3 +171,10 @@ chmod 500 /usr/local/ubs_mem/lib/libdecrypt.so
 ```
 
 通过遵循上述规范，用户可安全、可靠地集成自定义密码解密能力，满足不同安全策略或合规性要求。
+
+## 账户一览表
+
+|用户|描述|初始密码|密码修改方法|
+|--|--|--|--|
+|*{UBSM-install-user}*|UBS Memory安装用户。|用户自定义。|使用 **passwd** 命令修改。|
+|ubsmd|UBS Memory服务所属用户。|系统用户，无密码，不可登录。|-|

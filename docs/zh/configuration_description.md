@@ -1,6 +1,4 @@
-# 附录
-
-## 配置参数说明
+# 配置参数说明
 
 **表 1 <a id="table003"></a>**  ubsmd.conf配置文件参数说明
 
@@ -39,22 +37,3 @@
 |`ubsm.hcom.max.connect.num`|int|(0, 256]|HCOM通信的最大连接数。默认值：128。|
 |`ubsm.server.lease.cache.enable`|str|<ul><li>on</li><li>off</li></ul>|是否启用内存借用后的缓存功能。<ul><li>on：启用</li><li>off：关闭</li></ul>默认值：off。当前支持缓存5个借用内存。|
 |`ubsm.performance.statistics.enable`|str|<ul><li>on</li><li>off</li></ul>|是否启用性能统计。性能统计日志默认存放在/var/log/ubsm目录。<ul><li>on：启用</li><li>off：关闭</li></ul>默认值：on。|
-
-## 账户一览表
-
-|用户|描述|初始密码|密码修改方法|
-|--|--|--|--|
-|*{UBSM-install-user}*|UBS Memory安装用户。|用户自定义。|使用 **passwd** 命令修改。|
-|ubsmd|UBS Memory服务所属用户。|系统用户，无密码，不可登录。|-|
-
-## 缩略语
-
-|术语/缩略语|含义|
-|--|--|
-|ASLR|Address Space Layout Randomization，内存地址随机化机制。|
-|CC|Cache Coherence，缓存一致性。|
-|FD|File Descriptor，文件描述符。|
-|OOM|Out Of Memory，内存不足。|
-|TLS|Transport Layer Security，安全传输层协议。|
-|UB|Unified Bus，灵衢总线。|
-|UBSM|UBS Memory，UBS内存子系统。|

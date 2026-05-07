@@ -1,6 +1,8 @@
 # API接口
 
-## 头文件列表
+## 说明
+
+### 头文件列表
 
 开发代码时所需的头文件如[表1](#table004)所示。
 
@@ -11,7 +13,7 @@
 |ubs_mem_def.h|定义公共的错误码和查询类型。|
 |ubs_mem.h|定义了UBS Memory对外接口。|
 
-## 设置进程运行环境
+### 设置进程运行环境
 
 - 应用进程依赖UBS Memory SDK动态库，需要设置环境变量用于查找动态库路径。
 
@@ -31,9 +33,11 @@
     usermod -aG ubsmd {UBSM-install-user}
     ```
 
-## 初始化
+## 接口
 
-### ubsmem\_init\_attributes
+### 初始化
+
+#### ubsmem\_init\_attributes
 
 **接口功能**
 
@@ -58,7 +62,7 @@ int ubsmem_init_attributes(ubsmem_options_t *ubsm_shmem_opts);
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_initialize
+#### ubsmem\_initialize
 
 **接口功能**
 
@@ -83,7 +87,7 @@ int ubsmem_initialize(const ubsmem_options_t *ubsm_shmem_opts);
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_finalize
+#### ubsmem\_finalize
 
 **接口功能**
 
@@ -106,7 +110,7 @@ int ubsmem_finalize(void);
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_set\_logger\_level
+#### ubsmem\_set\_logger\_level
 
 **接口功能**
 
@@ -131,7 +135,7 @@ int ubsmem_set_logger_level(int level);
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_set\_extern\_logger
+#### ubsmem\_set\_extern\_logger
 
 **接口功能**
 
@@ -156,11 +160,11 @@ int ubsmem_set_extern_logger(void (*func)(int level, const char *msg));
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-## 共享域
+### 共享域
 
 共享域（region）是一组节点的组合，内存共享和借用都限制在一个指定的共享域内。
 
-### ubsmem\_lookup\_regions
+#### ubsmem\_lookup\_regions
 
 **接口功能**
 
@@ -172,7 +176,7 @@ int ubsmem_set_extern_logger(void (*func)(int level, const char *msg));
 int ubsmem_lookup_regions(ubsmem_regions_t *regions);
 ```
 
-**参数说明** <a id="parameter01"></a>
+**参数说明<a id="parameter01"></a>**
 
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
@@ -208,7 +212,7 @@ typedef struct {
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_create\_region
+#### ubsmem\_create\_region
 
 **接口功能**
 
@@ -238,7 +242,7 @@ int ubsmem_create_region(const char *region_name, size_t size, const ubsmem_regi
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_lookup\_region
+#### ubsmem\_lookup\_region
 
 **接口功能**
 
@@ -267,7 +271,7 @@ int ubsmem_lookup_region(const char *region_name, ubsmem_region_desc_t *region_d
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_destroy\_region
+#### ubsmem\_destroy\_region
 
 **接口功能**
 
@@ -297,9 +301,9 @@ int ubsmem_destroy_region(const char *region_name);
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-## 内存共享  
+### 内存共享  
 
-### ubsmem\_shmem\_allocate
+#### ubsmem\_shmem\_allocate
 
 **接口功能**
 
@@ -355,7 +359,7 @@ int ubsmem_shmem_allocate(const char *region_name, const char *name, size_t size
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_shmem\_allocate\_with\_provider
+#### ubsmem\_shmem\_allocate\_with\_provider
 
 **接口功能**
 
@@ -384,7 +388,7 @@ int ubsmem_shmem_allocate_with_provider(const ubs_mem_provider_t *src_loc, const
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_shmem\_deallocate
+#### ubsmem\_shmem\_deallocate
 
 **接口功能**
 
@@ -409,7 +413,7 @@ int ubsmem_shmem_deallocate(const char *name);
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_shmem\_map
+#### ubsmem\_shmem\_map
 
 **接口功能**
 
@@ -445,7 +449,7 @@ int ubsmem_shmem_map(void *addr, size_t length, int prot, int flags, const char 
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_shmem\_unmap
+#### ubsmem\_shmem\_unmap
 
 **接口功能**
 
@@ -476,7 +480,7 @@ int ubsmem_shmem_unmap(void *local_ptr, size_t length);
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_lookup\_cluster\_statistic
+#### ubsmem\_lookup\_cluster\_statistic
 
 **接口功能**
 
@@ -533,7 +537,7 @@ typedef struct {
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_shmem\_faults\_register
+#### ubsmem\_shmem\_faults\_register
 
 **接口功能**
 
@@ -561,7 +565,7 @@ int ubsmem_shmem_faults_register(shmem_faults_func registerFunc);
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_local\_nid\_query
+#### ubsmem\_local\_nid\_query
 
 **接口功能**
 
@@ -589,7 +593,7 @@ int ubsmem_local_nid_query(uint32_t* node_id);
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_shmem\_set\_ownership
+#### ubsmem\_shmem\_set\_ownership
 
 **接口功能**
 
@@ -622,7 +626,7 @@ int ubsmem_shmem_set_ownership(const char *name, void *start, size_t length, int
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_shmem\_lookup
+#### ubsmem\_shmem\_lookup
 
 **接口功能**
 
@@ -648,7 +652,7 @@ int ubsmem_shmem_lookup(const char *name, ubsmem_shmem_info_t *shm_info);
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_shmem\_list\_lookup
+#### ubsmem\_shmem\_list\_lookup
 
 **接口功能**
 
@@ -675,9 +679,9 @@ int ubsmem_shmem_list_lookup(const char *prefix, ubsmem_shmem_desc_t shm_list[],
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-## 内存借用
+### 内存借用
 
-### ubsmem\_lease\_malloc
+#### ubsmem\_lease\_malloc
 
 **接口功能**
 
@@ -709,7 +713,7 @@ int ubsmem_lease_malloc(const char *region_name, size_t size, ubsmem_distance_t 
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_lease\_malloc\_with\_location
+#### ubsmem\_lease\_malloc\_with\_location
 
 **接口功能**
 
@@ -737,7 +741,7 @@ int ubsmem_lease_malloc_with_location(const ubs_mem_location_t *src_loc, size_t 
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### ubsmem\_lease\_free
+#### ubsmem\_lease\_free
 
 **接口功能**
 
@@ -768,6 +772,182 @@ int ubsmem_lease_free(void *local_ptr);
 |--|--|
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
+
+## 使用示例
+
+典型代码示例如下所示。
+
+### 初始化
+
+```C++
+#include <iostream>
+#include "ubs_mem_def.h"
+#include "ubs_mem.h"
+
+
+int ubs_mem_initialize_demo()
+{
+    /* Initialize ubs-mem library. */
+    ubsmem_options_t ubsm_shmem_opts;
+    int ret = ubsmem_init_attributes(&ubsm_shmem_opts);
+    if (ret != UBSM_OK) {
+        std::cerr << "Failed to initialize attributes. ret: " << ret << std::endl;
+        return -1;
+    }
+    ret = ubsmem_initialize(&ubsm_shmem_opts);
+    if (ret != UBSM_OK) {
+        std::cerr << "Failed to initialize ubs-mem. ret: " << ret << std::endl;
+        return -1;
+    }
+    /* Initialize ubs-mem library succeeded. */
+
+
+    /* Do your work here... */
+
+
+    /* finalize ubs-mem library. */
+    ret = ubsmem_finalize();
+    if (ret != UBSM_OK) {
+        std::cerr << "Failed to finalize  ubs-mem. ret: " << ret << std::endl;
+        return -1;
+    }
+    return 0;
+}
+```
+
+### 内存借用
+
+大数据和数据库场景使用本接口借入远端内存，对远端内存进行读写。
+
+```C++
+#include <iostream>
+#include "ubs_mem_def.h"
+#include "ubs_mem.h"
+
+int ubs_mem_lease_demo()
+{
+    /* Initialize ubs-mem library... */
+
+    /* Allocate 4M memory from other host in the default region. */
+    std::string region_name = "default";
+    size_t size = 0x400000UL;
+    ubsmem_distance_t mem_distance = DISTANCE_DIRECT_NODE;
+    uint64_t flags = 0;
+    void *addr = nullptr;
+    auto ret = ubsmem_lease_malloc(region_name.c_str(), size, mem_distance, flags, &addr);
+    if (ret != UBSM_OK) {
+        std::cerr << "Failed to allocate remote memory. ret: " << ret << std::endl;
+        return -1;
+    }
+    /* Allocate memory succeeded. */
+
+    /* Do your work here... */
+
+    /* Free memory. */
+    ret = ubsmem_lease_free(addr);
+    if (ret != UBSM_OK) {
+        std::cerr << "Failed to free remote memory. ret: " << ret << std::endl;
+        return -1;
+    }
+    return 0;
+}
+```
+
+### 创建共享内存
+
+大数据和数据库场景使用共享借用一写多读的功能，在多个节点共享数据。
+
+```C++
+#include <iostream>
+#include "ubs_mem_def.h"
+#include "ubs_mem.h"
+#include <cstring>
+
+int ubs_mem_create_share_memory_demo()
+{
+    /* Initialize ubs-mem library... */
+
+    /* Construct region attributes. */
+    ubsmem_region_attributes_t attr{};
+    attr.host_num = 2;
+    (void)strncpy(attr.hosts[0].host_name, "host01", MAX_HOST_NAME_DESC_LENGTH);
+    attr.hosts[0].affinity = true;
+    (void)strncpy(attr.hosts[1].host_name, "host02", MAX_HOST_NAME_DESC_LENGTH);
+    attr.hosts[1].affinity = true;
+
+    /* Create a region. */
+    std::string region_name = "region";
+    auto ret = ubsmem_create_region(region_name.c_str(), 0, &attr);
+    if (ret != UBSM_OK) {
+        std::cerr << "Failed to create region. ret: " << ret << std::endl;
+        return -1;
+    }
+
+    /* Create a 4M shared memory. */
+    std::string shared_name = "shared_mem";
+    size_t size = 0x400000UL;
+    uint64_t flags = UBSM_FLAG_ONLY_IMPORT_NONCACHE | UBSM_FLAG_WR_DELAY_COMP;
+    ret = ubsmem_shmem_allocate(region_name.c_str(), shared_name.c_str(), size, 0600, flags);
+    if (ret != UBSM_OK) {
+        std::cerr << "Failed to create shared memory. ret: " << ret << std::endl;
+        return -1;
+    }
+    /* Create the shared memory succeeded. */
+
+    /* Do your work here... */
+
+    /* Delete the shared memory. */
+    ret = ubsmem_shmem_deallocate(shared_name.c_str());
+    if (ret != UBSM_OK) {
+        std::cerr << "Failed to deallocate shared memory. ret: " << ret << std::endl;
+        return -1;
+    }
+    return 0;
+}
+```
+
+### 映射共享内存
+
+```C++
+#include <iostream>
+#include "ubs_mem_def.h"
+#include "ubs_mem.h"
+#include <sys/mman.h>
+
+int ubs_mem_share_memory_map_demo()
+{
+    /* Create shared memory... */
+
+    /* Map a shared memory. */
+    std::string shared_name = "shared_mem";
+    size_t length = 0x400000UL;
+    void *address = nullptr;
+    auto ret = ubsmem_shmem_map(nullptr, length, PROT_WRITE | PROT_READ, MAP_SHARED, shared_name.c_str(), 0, &address);
+    if (ret != UBSM_OK) {
+        std::cerr << "Failed to map shared memory. ret: " << ret << std::endl;
+        return -1;
+    }
+    /* Map the shared memory succeeded. */
+
+    /* Do your work here... */
+
+    /* Flush and invalidate the data cache after accessing shared memory to ensure coherency. */
+    /* Note: Cache flush/invalidate is invalid for non-cacheable shared memory — skip this step. */
+    ret = ubsmem_shmem_set_ownership(shared_name.c_str(), address, length, PROT_NONE);
+    if (ret != UBSM_OK) {
+        std::cerr << "Failed to set shared memory. ret: " << ret << std::endl;
+        return -1;
+    }
+
+    /* Unmap the shared memory. */
+    ret = ubsmem_shmem_unmap(address, length);
+    if (ret != UBSM_OK) {
+        std::cerr << "Failed to unmap shared memory. ret: " << ret << std::endl;
+        return -1;
+    }
+    return 0;
+}
+```
 
 ## 错误码
 

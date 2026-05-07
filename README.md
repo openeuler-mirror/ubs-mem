@@ -48,7 +48,7 @@ sh build.sh -t release -p
 构建产物位于 build/release/output\* 目录下，RPM 包输出至 build/release/output。
 
 ### 项目结构
-```
+```text
 .
 ├── build     // 存放项目中使用的脚本文件
 ├── doc       // 存放项目文档，例如《代码架构设计》
@@ -63,13 +63,12 @@ cd test
 
 # 运行UT测试用例并生成覆盖率报告
 sh run_dt.sh
-# 执行成功后，控制台将打印对于的覆盖率总结信息
-# 详细的覆盖率报告位于build/gcovr_report/，可打开该目录下的index.html查看。
 ```
+执行成功后，控制台将打印对应的覆盖率总结信息。详细的覆盖率报告位于“build/gcovr_report/”目录，可打开该目录下的index.html文件查看。
 
 ### 使用说明
 1. 安装操作请参见[安装部署](https://gitcode.com/openeuler/UnifiedBus-docs/blob/master/docs/zh/installation/ub_service_core/ubs_memory_installation_deployment.md)。
-2. API相关信息请参见[API接口](doc/zh/api_reference.md)。
+2. API相关信息请参见[接口说明](docs/zh/api_description.md)。
 
 ### License
 ubs-mem 采用 Mulan V2 License.
