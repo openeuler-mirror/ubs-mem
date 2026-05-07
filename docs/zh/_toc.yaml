@@ -1,11 +1,9 @@
 isManual: true
 label: UBS Memory Usage Guidance
 sections:
-  - label: API接口
-    href: ./api_reference.md
-  - label: 附录
-    href: ./appendixes.md
-  - label: 安全管理与加固
-    href: ./security_management_and_hardening.md
-  - label: 使用示例
-    href: ./usage_example.md
+  - label: 接口说明
+    href: ./api_description.md
+  - label: 配置说明
+    href: ./configuration_description.md
+  - label: 安全说明
+    href: ./security_description.md
