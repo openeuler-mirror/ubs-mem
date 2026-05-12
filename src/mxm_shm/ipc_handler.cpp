@@ -250,7 +250,7 @@ int MxmServerMsgHandle::ShmCreateWithProvider(const MsgBase* req, MsgBase* rsp, 
                                                      << ", mode=" << request->mode_ << ", flags=" << request->flags_);
 
     DelayRemovedKey queryBusyKey{request->name_};
-    if (UBSMemMonitor::GetInstance().GetDelayRemoveRecord(queryBusyKey)) {
+    if (UBSMemMonitor::GetInstance().GetDelayRemoveRecord(queryBusyKey) || NameIsCreating(request->name_)) {
         DBG_LOGERROR("Name " << request->name_ << " is busy.");
         response->errCode_ = MXM_ERR_NAME_BUSY;
         return MXM_ERR_NAME_BUSY;
@@ -324,7 +324,7 @@ int MxmServerMsgHandle::ShmDelete(const MsgBase* req, MsgBase* rsp, const MxmCom
                                                  << ", name=" << request->name_);
 
     DelayRemovedKey queryBusyKey{request->name_};
-    if (UBSMemMonitor::GetInstance().GetDelayRemoveRecord(queryBusyKey)) {
+    if (UBSMemMonitor::GetInstance().GetDelayRemoveRecord(queryBusyKey) || NameIsCreating(request->name_)) {
         DBG_LOGERROR("Name " << request->name_ << " is busy.");
         response->errCode_ = MXM_ERR_NAME_BUSY;
         return MXM_ERR_NAME_BUSY;
@@ -597,7 +597,7 @@ int MxmServerMsgHandle::ShmMap(const MsgBase *req, MsgBase *rsp, const MxmComUds
     DBG_AUDITINFO("user info of ShmMap, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
         << ", name=" << request->name_);
     DelayRemovedKey queryBusyKey{request->name_};
-    if (UBSMemMonitor::GetInstance().GetDelayRemoveRecord(queryBusyKey)) {
+    if (UBSMemMonitor::GetInstance().GetDelayRemoveRecord(queryBusyKey) || NameIsCreating(request->name_)) {
         DBG_LOGERROR("Name " << request->name_ << " is busy.");
         response->errCode_ = MXM_ERR_NAME_BUSY;
         return MXM_ERR_NAME_BUSY;
@@ -1293,7 +1293,7 @@ int MxmServerMsgHandle::ShmDetach(const MsgBase* req, MsgBase* rsp, const MxmCom
                                                   << ", pid=" << udsInfo.pid << ", name=" << request->name_);
 
     DelayRemovedKey queryBusyKey{request->name_};
-    if (UBSMemMonitor::GetInstance().GetDelayRemoveRecord(queryBusyKey)) {
+    if (UBSMemMonitor::GetInstance().GetDelayRemoveRecord(queryBusyKey) || NameIsCreating(request->name_)) {
         DBG_LOGERROR("Name " << request->name_ << " is busy.");
         response->errCode_ = MXM_ERR_NAME_BUSY;
         return MXM_ERR_NAME_BUSY;
