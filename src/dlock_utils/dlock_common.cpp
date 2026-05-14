@@ -35,11 +35,11 @@ const std::string& GetReinitStageName(REINIT_STAGES stage)
 DLockLogLevel MapUbsmLogLevel2DLockLevel(int32_t level)
 {
     static const std::unordered_map<int32_t, DLockLogLevel> levelMap = {
-        {static_cast<int32_t>(ock::utilities::log::LogLevel::DEBUG), DLOCK_LOG_LEVEL_DEBUG},
-        {static_cast<int32_t>(ock::utilities::log::LogLevel::INFO), DLOCK_LOG_LEVEL_INFO},
-        {static_cast<int32_t>(ock::utilities::log::LogLevel::WARN), DLOCK_LOG_LEVEL_WARNING},
-        {static_cast<int32_t>(ock::utilities::log::LogLevel::ERROR), DLOCK_LOG_LEVEL_ERR},
-        {static_cast<int32_t>(ock::utilities::log::LogLevel::CRITICAL), DLOCK_LOG_LEVEL_CRIT}};
+        {DBG_LOG_DEBUG, DLOCK_LOG_LEVEL_DEBUG},
+        {DBG_LOG_INFO, DLOCK_LOG_LEVEL_INFO},
+        {DBG_LOG_WARN, DLOCK_LOG_LEVEL_WARNING},
+        {DBG_LOG_ERROR, DLOCK_LOG_LEVEL_ERR},
+        {DBG_LOG_CRITICAL, DLOCK_LOG_LEVEL_CRIT}};
     auto it = levelMap.find(level);
     if (it == levelMap.end()) {
         DBG_LOGWARN("Cannot find loglevel=" << level << ", use dlock info loglevel=" << DLOCK_LOG_LEVEL_INFO);

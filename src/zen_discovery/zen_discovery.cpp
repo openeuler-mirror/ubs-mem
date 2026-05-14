@@ -18,7 +18,7 @@
 #include <future>
 
 #include "election_module.h"
-#include "ulog/log.h"
+#include "log.h"
 #include "mxm_msg.h"
 #include "rpc_server.h"
 #include "ubsm_lock.h"
@@ -165,7 +165,7 @@ void ZenDiscovery::HandlePingRequest(const std::string& fromNodeId)
 {
     UpdateNodeLastSeen(fromNodeId);
     MarkNodeActive(fromNodeId, true);
-    DBG_LOGDEBUG("Get ping request from {}.", fromNodeId);
+    DBG_LOGDEBUG("Get ping request from " << fromNodeId << ".");
 }
 
 void ZenDiscovery::HandlePingResponse(const std::string& fromNodeId)
@@ -178,7 +178,7 @@ ock::rpc::NodeType ZenDiscovery::HandleJoinRequest(const std::string& fromNodeId
 {
     UpdateNodeLastSeen(fromNodeId);
     MarkNodeActive(fromNodeId, true);
-    DBG_LOGDEBUG("Get join request from {}.", fromNodeId);
+    DBG_LOGDEBUG("Get join request from " << fromNodeId << ".");
     return type_;
 }
 
@@ -199,14 +199,15 @@ bool ZenDiscovery::HandleVoteRequest(const std::string& fromNodeId,
     } else {
         granted = false;
     }
-    DBG_LOGDEBUG("Get vote request from {}, chosen grant result={}, candidate is {}", fromNodeId, granted, candidate);
+    DBG_LOGDEBUG("Get vote request from " << fromNodeId << ", chosen grant result=" << granted << ", candidate is " <<
+        candidate);
     return granted;
 }
 
 void ZenDiscovery::HandleVoteResponse(const std::string& fromNodeId,
                                       bool granted)
 {
-    DBG_LOGDEBUG("get vote response from {}, chosen grant is {}", fromNodeId, granted);
+    DBG_LOGDEBUG("get vote response from " << fromNodeId << ", chosen grant is " << granted);
     if (granted) {
         electionModule_->RecordVote(fromNodeId);
     }
@@ -223,7 +224,7 @@ void ZenDiscovery::HandleSendTransElected(const std::string& fromNodeId,
     if (term > electionModule_->GetCurrentTerm()) {
         electionModule_->SetCurrentTerm(term);
     }
-    DBG_LOGDEBUG("Get master election request from {}, masterNode is {}", fromNodeId, nodeId_);
+    DBG_LOGDEBUG("Get master election request from " << fromNodeId << ", masterNode is " << nodeId_);
     // 收到后成为临时主节点
     BecomeTempMaster(nodeList);
 }
@@ -324,7 +325,7 @@ void ZenDiscovery::BecomeTempMaster(const std::vector<std::string>& candidates)
     state_ = NodeState::TEMP_MASTER;
     electedMaster_ = nodeId_;
     tempNodeList_ = candidates;
-    DBG_LOGDEBUG("Node {} becomes temporary master", nodeId_);
+    DBG_LOGDEBUG("Node " << nodeId_ << " becomes temporary master");
 }
 
 void ZenDiscovery::SetMasterToJoin(const std::string& master)
@@ -389,12 +390,12 @@ void ZenDiscovery::PerformPingCycle(const bool needRetry)
     }
     lock.unlock();
     for (const auto& nodeId : activeNodes) {
-        DBG_LOGDEBUG("Send PingRequest to {}", nodeId);
+        DBG_LOGDEBUG("Send PingRequest to " << nodeId);
         auto ret = SendPingRequest(nodeId);
         for (uint32_t i = 0; i < 3u && ret != 0 && needRetry; ++i) {
             std::this_thread::sleep_for(std::chrono::microseconds(500u));
             ret = SendPingRequest(nodeId);
-            DBG_LOGINFO("Send PingRequest to {} failed.", nodeId);
+            DBG_LOGINFO("Send PingRequest to " << nodeId << " failed.");
         }
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(pingTimeoutMs_));
@@ -543,7 +544,7 @@ void ZenDiscovery::LogMaintainAsMaster()
     static int printMasterCnt = 0;
     printMasterCnt++;
     if (printMasterCnt >= LOG_PRINT_INTERVAL) {
-        DBG_LOGINFO("Current node maintain as master, nodeId = {}", nodeId_);
+        DBG_LOGINFO("Current node maintain as master, nodeId = " << nodeId_);
         printMasterCnt = 0;
     }
 }
@@ -611,7 +612,7 @@ void ZenDiscovery::MaintainAsClusterMember()
     static int printClusterCnt = 0;
     printClusterCnt++;
     if (printClusterCnt >= LOG_PRINT_INTERVAL) {
-        DBG_LOGINFO("Current node maintain as ClusterMember, nodeId = {}", nodeId_);
+        DBG_LOGINFO("Current node maintain as ClusterMember, nodeId = " << nodeId_);
         printClusterCnt = 0;
     }
     if (electedMaster_.empty()) {

@@ -34,16 +34,11 @@ uint32_t UbseMemExecutor::Initialize()
     if (UbseLogCallBackRegisterFunc == nullptr) {
         DBG_LOGWARN("Symbol ubse_log_callback_register is not found , reason is" << dlerror());
     } else {
-        auto *instance = ock::dagger::OutLogger::Instance();
-        if (instance == nullptr) {
-            DBG_LOGWARN("Log instance is nullptr");
+        auto logFunc = ubsmem::log::UbsmemLoggerManager::Instance()->GetExternLogCallback();
+        if (logFunc == nullptr) {
+            DBG_LOGWARN("The user has not set an external log function");
         } else {
-            auto *logFunc = instance->GetExternalLogFunction();
-            if (logFunc == nullptr) {
-                DBG_LOGWARN("The user has not set an external log function");
-            } else {
-                UbseLogCallBackRegisterFunc(reinterpret_cast<ubs_engine_log_handler>(logFunc));
-            }
+            UbseLogCallBackRegisterFunc(reinterpret_cast<ubs_engine_log_handler>(logFunc));
         }
     }
 

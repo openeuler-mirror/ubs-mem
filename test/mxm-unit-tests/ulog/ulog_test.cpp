@@ -1,104 +1,61 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2023. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+ *
+ * ubs-mem is licensed under the Mulan PSL v2.
  */
 #include <gtest/gtest.h>
+#include <chrono>
+#include <memory>
+#include <thread>
 
 #include "log.h"
-#include "ulog4c.h"
-static void ClearUlog()
-{
-    // 清除Ulogger示例
-    spdlog::drop_all();
-    if (ock::utilities::log::ULog::gLogger != nullptr) {
-        delete ock::utilities::log::ULog::gLogger;
-        ock::utilities::log::ULog::gLogger = nullptr;
-    }
-    if (ock::utilities::log::ULog::gAuditLogger != nullptr) {
-        delete ock::utilities::log::ULog::gAuditLogger;
-        ock::utilities::log::ULog::gAuditLogger = nullptr;
-    }
-}
+#include "logger/ubsmem_logger_manager.h"
+#include "logger/ubsmem_logger_writer.h"
+
+using namespace ubsmem::log;
 
 namespace UT {
-TEST(ulog, test_printfLog)
+
+TEST(ulog, test_stdout)
 {
-    int ret = ock::utilities::log::ULog::CreateInstance(1, 1, "/tmp/ulog_test.log", 20971520, 20);
-    EXPECT_EQ(0, ret);
+    UbsmemLoggerDefaultWriter writer;
+    UbsmemLoggerOptions opts;
+    opts.bufferMaxItem = 4096;
 
-    int a = 11;
-    DBG_LOGINFO("test INFO");
-    DBG_LOGINFO("test INFO {}", a);
+    auto mgr = UbsmemLoggerManager::Instance();
+    ASSERT_NE(mgr, nullptr);
+    int ret = mgr->Init(opts, std::shared_ptr<UbsmemLoggerWriter>(&writer, [](auto *) {}));
+    ASSERT_EQ(ret, 0);
+    mgr->SetLogLevel(UbsmemLogLevel::DEBUG);
 
-    char c = 'y';
-    DBG_LOGWARN("test WARN {}", c);
-    DBG_LOGWARN("test WARN ");
+    DBG_LOGINFO("test stdout INFO");
+    DBG_LOGDEBUG("test stdout DEBUG");
+    DBG_LOGERROR("test stdout ERROR");
 
-    DBG_LOGDEBUG("test debug?{}", c);
-    DBG_LOGDEBUG("test debug?");
-
-    DBG_LOGERROR("test error?{}", c);
-    DBG_LOGERROR("test error?");
-
-    const char *prefix = "test";
-    const char *message = "LogMessage";
-    ret = ock::utilities::log::ULog::LogMessage(1, prefix, message);
-    EXPECT_EQ(0, ret);
-
-    const char *pattern = "%Y-%m-%d %H:%M:%S.%e %l : %v";
-    ret = ock::utilities::log::ULog::SetInstancePattern(pattern);
-    EXPECT_EQ(0, ret);
-
-    ock::utilities::log::ULog::Flush();
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    mgr->Exit();
+    UbsmemLoggerManager::Destroy();
 }
 
-TEST(ulog, test_limit)
+TEST(ulog, test_file)
 {
-    int ret = ock::utilities::log::ULog::CreateInstance(1, 1, "/tmp/ulog_test.log", 20971520, 20);
-    EXPECT_EQ(0, ret);
-    DBG_LOGERROR_LIMIT("test limit log", 1, 1);
-}
+    const char *path = "/tmp/ulog_test";
+    UbsmemLoggerFilesink sink(path, 20 * 1024 * 1024, 10);
+    sink.Initialize();
 
-TEST(ulog, test_printfAuditLog)
-{
-    int ret = ock::utilities::log::ULog::CreateInstanceAudit("/tmp/ulog_test_audit.log", 20971520, 20);
-    EXPECT_EQ(0, ret);
+    UbsmemLoggerOptions opts;
+    opts.bufferMaxItem = 4096;
 
-    const char *pre = "test";
-    const char *mess = "LogAuditMessage";
-    ret = ock::utilities::log::ULog::LogAuditMessage(1, pre, mess);
-    EXPECT_EQ(0, ret);
-}
+    auto mgr = UbsmemLoggerManager::Instance();
+    ASSERT_NE(mgr, nullptr);
+    int ret = mgr->Init(opts, std::shared_ptr<UbsmemLoggerWriter>(&sink, [](auto *) {}));
+    ASSERT_EQ(ret, 0);
+    mgr->SetLogLevel(UbsmemLogLevel::DEBUG);
 
-TEST(ulog, test_error)
-{
-    ClearUlog();
-    int ret = 0;
-    const char *prefix = "test";
-    const char *message = "LogMessage";
-    ret = ock::utilities::log::ULog::LogMessage(1, prefix, message);
-    EXPECT_EQ(ret, 3);
+    DBG_LOGINFO("test file INFO");
+    DBG_LOGERROR("test file ERROR");
 
-    const char *pattern = "%Y-%m-%d %H:%M:%S.%e %l : %v";
-    ret = ock::utilities::log::ULog::SetInstancePattern(pattern);
-    EXPECT_EQ(ret, 3);
-
-    DBG_LOGERROR(message);
-    DBG_LOGWARN(message);
-    DBG_LOGINFO(message);
-    DBG_LOGDEBUG(message);
-
-    const char *null = nullptr;
-    ret = ock::utilities::log::ULog::LogMessage(1, null, message);
-    EXPECT_EQ(ret, 2);
-    ret = ock::utilities::log::ULog::SetInstancePattern(null);
-    EXPECT_EQ(ret, 2);
-}
-
-TEST(ulog, test_auditlog)
-{
-    int ret = ULOG_AuditLogMessageF(nullptr, nullptr, nullptr, nullptr);
-    EXPECT_EQ(-1, ret);
-    ret = ULOG_AuditLogMessageF("1", "2", "3", "4");
-    EXPECT_EQ(-1, ret);
-}
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    mgr->Exit();
+    UbsmemLoggerManager::Destroy();
 }  // namespace UT

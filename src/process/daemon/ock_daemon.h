@@ -22,7 +22,7 @@
 #include "ock_service_adapter.h"
 #include "util/log_adapter.h"
 #include "util/systemd_wrapper.h"
-#include "ulog/log.h"
+#include "log.h"
 
 namespace ock {
 namespace daemon {

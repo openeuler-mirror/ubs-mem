@@ -19,7 +19,7 @@
 #include "dlock_common.h"
 #include "dlock_config.h"
 #include "ubs_mem_def.h"
-#include "include/ulog/log.h"
+#include "log.h"
 #include "client_desc.h"
 
 namespace ock {

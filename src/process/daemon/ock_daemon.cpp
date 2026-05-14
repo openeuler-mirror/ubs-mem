@@ -14,10 +14,13 @@
 #include <csignal>
 #include <cstring>
 #include <string>
+#include <fcntl.h>
 #include <unistd.h>
 #include <iostream>
 #include <algorithm>
 #include <thread>
+#include <syslog.h>
+#include "logger/ubsmem_logger_manager.h"
 #include "record_store.h"
 #include "dlock_config.h"
 #include "dlock_context.h"
@@ -58,7 +61,9 @@ OckDaemon::OckDaemon()
 OckDaemon::~OckDaemon()
 {
     StoppedKeepAlive();
-    ock::utilities::log::ULog::Flush();
+    ubsmem::log::UbsmemLoggerManager::Destroy();
+    mDaemon->SetRefCount(0);
+    mDaemon = nullptr;
 }
 
 HRESULT OckDaemon::CheckParam(const std::string& binPath)

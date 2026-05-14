@@ -16,7 +16,7 @@
 #include <vector>
 #include "util/common_headers.h"
 #include "service/service.h"
-#include "ulog/log.h"
+#include "log.h"
 
 namespace ock {
 namespace daemon {

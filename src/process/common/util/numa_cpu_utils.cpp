@@ -23,7 +23,7 @@
 #include <unistd.h>
 #include <fstream>
 #include <set>
-#include "ulog/log.h"
+#include "log.h"
 
 namespace ock {
 namespace common {
@@ -36,7 +36,7 @@ NumaCpuUtils::CpuAffinityInfo NumaCpuUtils::SchedGetaffinityGetCpuList(pid_t pid
     cpu_set_t cpu_mask;
     CPU_ZERO(&cpu_mask);
     if (sched_getaffinity(pid, sizeof(cpu_set_t), &cpu_mask) == -1) {
-        DBG_LOGERROR("sched_getaffinity failed for PID {}", std::to_string(pid));
+        DBG_LOGERROR("sched_getaffinity failed for PID " << pid);
         return info;
     }
     static int total_cpus = sysconf(_SC_NPROCESSORS_CONF);
@@ -55,7 +55,7 @@ NumaCpuUtils::CpuAffinityInfo NumaCpuUtils::SchedGetaffinityGetCpuList(pid_t pid
         return info;
     }
     info.hexMask = CpuSetToHexString(&cpu_mask, total_cpus);
-    DBG_LOGINFO("SchedGetaffinityGetCpuList success for PID {}", std::to_string(pid));
+    DBG_LOGINFO("SchedGetaffinityGetCpuList success for PID " << pid);
     return info;
 }
 

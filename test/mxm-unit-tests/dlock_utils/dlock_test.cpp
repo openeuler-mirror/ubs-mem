@@ -60,6 +60,7 @@ TEST_F(DlockTestSuite, TestDLockInitSuccess_TLS)
     void* mockFunc = reinterpret_cast<void*>(MockDLockSuccess);
     MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(&mockHandle)));
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockFunc));
+    MOCKER(SystemAdapter::DlClose).stubs().will(returnValue(0));
     TestDefaultConfig();
     DLockContext::Instance().GetConfig().enableTls = true;
     // when

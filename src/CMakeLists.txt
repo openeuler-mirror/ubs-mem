@@ -13,10 +13,8 @@ add_library(ubs_mem_sdk_object OBJECT)
 target_link_libraries(ubs_mem_common_object PUBLIC ubs_mem_common_compile)
 target_link_libraries(ubs_mem_daemon_object PUBLIC ubs_mem_common_object)
 target_link_libraries(ubs_mem_sdk_object PUBLIC ubs_mem_common_object)
-TARGET_SPDLOG(ubs_mem_common_object)
 TARGET_SECUREC_SHARE(ubs_mem_common_object)
 TARGET_HCOM_HEADER_ONLY(ubs_mem_common_object)
-TARGET_SPDLOG(ubs_mem_common_object)
 
 target_include_directories(ubs_mem_common_object PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} UBS_MEM_SRCS)
@@ -49,6 +47,7 @@ target_include_directories(ubs_mem_common_object PUBLIC ${PROJECT_SOURCE_DIR}/3r
 
 add_subdirectory(under_api)
 add_subdirectory(security)
+add_subdirectory(logger)
 add_subdirectory(ulog)
 add_subdirectory(process)
 add_subdirectory(communication)

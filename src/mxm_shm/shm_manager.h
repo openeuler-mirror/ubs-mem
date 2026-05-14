@@ -15,11 +15,12 @@
 #include <map>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "record_store_def.h"
 #include "ubs_common_types.h"
-#include "ulog/log.h"
+#include "log.h"
 
 namespace ock::share::service {
 

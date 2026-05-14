@@ -19,10 +19,12 @@ generate_coverage_info() {
     local init_flag=$3
 
     if [ "$init_flag" == "true" ]; then
-        ${LCOV} -c -q -i --no-recursion -d "$dir" -o "$output_file" --rc lcov_branch_coverage=1 \
+        ${LCOV} -c -q -i --no-recursion -d "$dir" -o "$output_file" --rc branch_coverage=1 \
+        --ignore-errors mismatch,mismatch,gcov \
         --rc lcov_excl_br_line="LCOV_EXCL_BR_LINE|DAGGER_*|DBG_*|ULOG_*|TP_TRACE*";
     else
-        ${LCOV} -c -q --no-recursion -d "$dir" -o "$output_file" --rc lcov_branch_coverage=1 \
+        ${LCOV} -c -q --no-recursion -d "$dir" -o "$output_file" --rc branch_coverage=1 \
+        --ignore-errors mismatch,mismatch,gcov \
         --rc lcov_excl_br_line="LCOV_EXCL_BR_LINE|DAGGER_*|DBG_*|ULOG_*|TP_TRACE*";
     fi
 }
@@ -44,18 +46,18 @@ echo "[INFO] Combining init info and run info..."
 
 init_output="$CURRENT_PATH/build/coverage/init.info"
 find $CURRENT_PATH/build/coverage/ -name "*.init.info" -size +0 | xargs printf '-a %s ' | xargs \
-${LCOV} -q -o "$init_output" --rc lcov_branch_coverage=1 &
+${LCOV} -q -o "$init_output" --rc branch_coverage=1 --ignore-errors mismatch,mismatch,gcov,unused &
 
 run_output="$CURRENT_PATH/build/coverage/run.info"
 find $CURRENT_PATH/build/coverage/ -name "*.run.info" -size +0 | xargs printf '-a %s ' | xargs \
-${LCOV} -q -o "$run_output" --rc lcov_branch_coverage=1 &
+${LCOV} -q -o "$run_output" --rc branch_coverage=1 --ignore-errors mismatch,mismatch,gcov,unused &
 
 wait
 
 rm -rf  $CURRENT_PATH/build/coverage/*.run.info  $CURRENT_PATH/build/coverage/*.init.info
 
 test_output="$CURRENT_PATH/build/coverage/test.info"
-${LCOV} -q -o "$test_output" -a "$init_output" -a "$run_output"  --rc lcov_branch_coverage=1
+${LCOV} -q -o "$test_output" -a "$init_output" -a "$run_output"  --rc branch_coverage=1 --ignore-errors mismatch,mismatch,gcov,unused
 echo "[INFO] Combining coverage.info..."
 
 #####################################################################################################################
@@ -63,14 +65,11 @@ echo "[INFO] Combining coverage.info..."
 #####################################################################################################################
 coverage_output="$CURRENT_PATH/build/coverage.info"
 
-${LCOV} -q -e $test_output */ubs-mem/src/* -output-file $coverage_output --rc lcov_branch_coverage=1;
+${LCOV} -q -e $test_output '*/src/*' --output-file $coverage_output --rc branch_coverage=1 --ignore-errors mismatch,mismatch,gcov,unused;
 
-${LCOV} -q --remove $coverage_output */ubs-mem/src/htracer* -o $coverage_output --rc lcov_branch_coverage=1;
-${LCOV} -q --remove $coverage_output */ubs-mem/src/uc* -o $coverage_output --rc lcov_branch_coverage=1;
-
-${LCOV} --summary $coverage_output --rc lcov_branch_coverage=1;
+${LCOV} --summary $coverage_output --rc branch_coverage=1 --ignore-errors mismatch,mismatch,gcov,unused;
 #####################################################################################################################
 #####################################################################################################################
 #####################################################################################################################
 
-${GEN_HTML} -q -o $CURRENT_PATH/build/gcovr_report $CURRENT_PATH/build/coverage.info --show-details --legend --rc lcov_branch_coverage=1
+${GEN_HTML} -q -o $CURRENT_PATH/build/gcovr_report $CURRENT_PATH/build/coverage.info --show-details --legend --rc branch_coverage=1 --ignore-errors mismatch,mismatch,unused

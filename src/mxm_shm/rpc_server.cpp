@@ -11,7 +11,7 @@
  */
 #include "rpc_server.h"
 #include "rpc_server_engine.h"
-#include "ulog/log.h"
+#include "log.h"
 
 #include "referable/dg_ref.h"
 

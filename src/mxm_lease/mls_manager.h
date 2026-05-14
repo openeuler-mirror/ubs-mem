@@ -16,7 +16,7 @@
 #include <map>
 #include <mutex>
 #include <string>
-#include "ulog/log.h"
+#include "log.h"
 #include "ubs_common_types.h"
 #include "record_store.h"
 #include "ubse_mem_adapter.h"

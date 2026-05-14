@@ -120,8 +120,9 @@ void ElectionModule::RunElection()
 
     // 没有达到最低选举条件，退出
     if (collections.masterCandidates.size() < ZenDiscovery::GetInstance()->GetMinimumMasterNodes()) {
-        DBG_LOGWARN("Candidate size is {} and is smaller than minimum master node size {}.",
-                    collections.masterCandidates.size(), ZenDiscovery::GetInstance()->GetMinimumMasterNodes());
+        DBG_LOGWARN("Candidate size is " << collections.masterCandidates.size() <<
+            " and is smaller than minimum master node size " <<
+            ZenDiscovery::GetInstance()->GetMinimumMasterNodes() << ".");
         electionInProgress_ = false;
         notifyListeners(ZenElectionEventType::ELECTION_FAILED);
         return;
@@ -299,8 +300,8 @@ void ElectionModule::ProcessVotingResults(const std::string& tempMaster,
     }
 
     if (votesCount < ZenDiscovery::GetInstance()->GetMinimumMasterNodes()) {
-        DBG_LOGINFO("votesCount {} is smaller than minimum master node size {}.", votesCount,
-            ZenDiscovery::GetInstance()->GetMinimumMasterNodes());
+        DBG_LOGINFO("votesCount " << votesCount << " is smaller than minimum master node size " <<
+            ZenDiscovery::GetInstance()->GetMinimumMasterNodes() << ".");
         notifyListeners(ZenElectionEventType::ELECTION_FAILED, "", "");
         return;
     }
@@ -324,7 +325,8 @@ void ElectionModule::BroadcastElectionResult(const std::string& electedMaster)
     auto clusterNodes = ZenDiscovery::GetInstance()->GetClusterNodes();
     for (const auto& node : clusterNodes) {
         if (node.id != ZenDiscovery::GetInstance()->GetNodeId()) {
-        DBG_LOGINFO("ElectionResult has been broadcast , the master is {}, send result to {}", electedMaster, node.id);
+            DBG_LOGINFO("ElectionResult has been broadcast, the master is " << electedMaster
+                        << ", send result to " << node.id);
             ZenDiscovery::GetInstance()->SendMasterElected(
                 node.id,
                 electedMaster,

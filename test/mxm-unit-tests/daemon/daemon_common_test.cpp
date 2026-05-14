@@ -7,7 +7,6 @@
 #include "daemon_test_common.h"
 
 using namespace ock::common;
-using namespace ock::utilities::log;
 using namespace UT::Daemon;
 
 namespace UT {

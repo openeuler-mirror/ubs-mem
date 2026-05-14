@@ -9,12 +9,12 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "ulog/log.h"
 #include <securec.h>
 #include "record_store.h"
 #include "ubse_mem_adapter.h"
-#include "region_repository.h"
+#include "log.h"
 
+#include "region_repository.h"
 namespace ock::share::service {
 using namespace ock::ubsm;
 using namespace ock::mxmd;

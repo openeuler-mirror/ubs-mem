@@ -15,10 +15,11 @@
 #include <string>
 #include <exception>
 #include <iostream>
+#include <vector>
 
 #include "util/defines.h"
 #include "util/ref.h"
-#include "ulog/log.h"
+#include "log.h"
 #include "util/conf_constants.h"
 namespace ock {
 namespace common {

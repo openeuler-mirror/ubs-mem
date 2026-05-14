@@ -11,7 +11,6 @@
 #include "kv_parser.h"
 #include "systemd_wrapper.h"
 #include "util/ref.h"
-#include "ulog4c.h"
 
 using namespace ock::utils;
 
@@ -123,11 +122,8 @@ TEST_F(UtilFileTest, TestVFileAccess)
 
 TEST_F(UtilFileTest, TestAuditLogInit)
 {
-    MOCKER_CPP(&ULOG_AuditInit, int (*)(const char* path, int rotationFileSize, int rotationFileCount))
-        .stubs()
-        .will(returnValue(0));
     auto ret = ock::common::LogAdapter::AuditLogInit("name", 1, 1);
-    EXPECT_EQ(ret, HOK);
+    EXPECT_EQ(ret, HFAIL);
 }
 
 TEST_F(UtilFileTest, TestConLogLevel)

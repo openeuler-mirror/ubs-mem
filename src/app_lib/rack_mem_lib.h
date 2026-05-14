@@ -64,7 +64,7 @@ public:
             GetInstance().Destroy();
             return -1;
         }
-        ock::dagger::OutLogger::Instance()->SetLogLevel(ock::dagger::LogLevel::BUTT_LEVEL);
+        ubsmem::log::UbsmemLoggerManager::Instance()->SetLogLevel(ubsmem::log::UbsmemLogLevel::CRIT);
         return 0;
     }
     
