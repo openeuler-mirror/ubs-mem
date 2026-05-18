@@ -102,6 +102,7 @@ struct MemShareRefRecord {
 struct MemIdRecordPool {
     uint64_t memIds[RECORD_MEM_ID_POOL_LINE_COUNT][RECORD_MEM_ID_POOL_LINE_SIZE];
 };
+
 }
 }
 

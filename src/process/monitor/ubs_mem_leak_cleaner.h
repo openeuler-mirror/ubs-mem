@@ -26,8 +26,11 @@ public:
     int Start() noexcept;
     int CleanLeaseMemoryLeakInner(const std::string &name, const AppContext &ctx,
         bool &changed, bool isTimeOutScene, bool isNumaLease);
-    int CleanShareMemoryLeakInner(const std::string &name, const AppContext &ctx, bool isTimeOutScene);
+    int CleanShareMemoryLeakInner(const std::string &name, const AppContext &ctx, bool isTimeOutScene,
+        bool isAttach, uint64_t createSeqNo);
     int SHMProcessDeadProcess(pid_t pid);
+
+    int TryRollBackTimeoutShmTask(const std::string& name, const AppContext &ctx, bool isAttach, uint64_t createSeqNo);
 private:
     UBSMemLeakCleaner() noexcept = default;
     int CleanLeaseMemoryLeakWhenStart();

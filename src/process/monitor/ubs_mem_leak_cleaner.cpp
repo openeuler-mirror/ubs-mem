@@ -221,7 +221,53 @@ int UBSMemLeakCleaner::CleanLeaseMemoryLeakInner(const std::string &name, const 
     return 0;
 }
 
-int UBSMemLeakCleaner::CleanShareMemoryLeakInner(const std::string &name, const AppContext &ctx, bool isTimeOutScene)
+int UBSMemLeakCleaner::TryRollBackTimeoutShmTask(const std::string &name, const AppContext &ctx, bool isAttach,
+                                                 uint64_t createSeqNo)
+{
+    DBG_LOGINFO("Try to rollback timeout shm task.");
+
+    ubs_mem_stage status = UBSE_END;
+    uint64_t storedSeqNo = UINT32_MAX;
+    auto ret = mxm::UbseMemAdapter::GetTimeOutShmTaskStatus(name, status, isAttach, storedSeqNo);
+    DBG_LOGINFO("GetTimeOutTaskStatus end. name=" << name << " pid=" << ctx.pid << ", ret=" << ret
+                                                  << ",status=" << static_cast<int>(status));
+    if (ret == MXM_ERR_SHM_NOT_EXIST || status == UBSE_NOT_EXIST) { // attach -超时 -返回
+        if (isAttach) {
+            SHMManager::GetInstance().RemoveMemoryInfo(name);
+        }
+        return MXM_OK;
+    }
+    if (ret == MXM_ERR_SHM_IN_USING) {
+        return MXM_OK;
+    }
+    if (ret != MXM_OK || (status == UBSE_CREATING || status == UBSE_DELETING)) {
+        // 返错，外层会重新加入
+        return MXM_TIME_OUT_TASK_NEED_RETRY;
+    }
+    // 调归还， 并删除
+    DBG_LOGINFO("Start to rollback, name=" << name << " isAttach=" << isAttach);
+    if (isAttach) {
+        auto hr = mxm::UbseMemAdapter::ShmDetach(name);
+        if (hr != 0) {
+            DBG_LOGERROR("get exception when ShmDetach " << name << "ret: " << hr);
+        }
+        SHMManager::GetInstance().RemoveMemoryInfo(name);
+        return hr;
+    }
+    if (createSeqNo != storedSeqNo) {
+        DBG_LOGINFO("The createSeqNo is different. No need to delete. createSeqNo=" << createSeqNo <<
+            " storedSeqNo=" << storedSeqNo);
+        return MXM_OK;
+    }
+    auto hr = mxm::UbseMemAdapter::ShmDelete(name, ctx);
+    if (hr != 0) {
+        DBG_LOGERROR("get exception when ShmDelete " << name << "ret: " << hr);
+    }
+    return hr;
+}
+
+int UBSMemLeakCleaner::CleanShareMemoryLeakInner(const std::string &name, const AppContext &ctx, bool isTimeOutScene,
+    bool isAttach, uint64_t createSeqNo)
 {
     DBG_LOGINFO("Start to clean leak share memory. name=" << name << " pid=" << ctx.pid);
     if (name.empty()) {
@@ -230,37 +276,7 @@ int UBSMemLeakCleaner::CleanShareMemoryLeakInner(const std::string &name, const 
     }
 
     if (isTimeOutScene) {
-        ubs_mem_stage status = UBSE_END;
-        bool isAttach = false;
-        auto ret = mxm::UbseMemAdapter::GetTimeOutTaskStatus(name, false, false, status, isAttach);
-        DBG_LOGINFO("GetTimeOutTaskStatus end. name=" << name << " pid=" <<
-            ctx.pid << ", ret=" << ret << ",status=" << static_cast<int>(status));
-        if (ret == MXM_ERR_LEASE_NOT_EXIST || status == UBSE_NOT_EXIST) {
-            if (isAttach) {
-                SHMManager::GetInstance().RemoveMemoryInfo(name);
-            }
-            return MXM_OK;
-        }
-        if (ret != MXM_OK || (status == UBSE_CREATING || status == UBSE_DELETING)) {
-            // 返错，外层会重新加入
-            return MXM_TIME_OUT_TASK_NEED_RETRY;
-        }
-        // 调归还， 并删除
-        DBG_LOGINFO("Start to rollback, name=" << name << " isAttach=" << isAttach);
-        if (isAttach) {
-            auto hr = mxm::UbseMemAdapter::ShmDetach(name);
-            if (hr != 0) {
-                DBG_LOGERROR("get exception when ShmDetach " << name << "ret: " << hr);
-            }
-            SHMManager::GetInstance().RemoveMemoryInfo(name);
-            return hr;
-        } else {
-            auto hr = mxm::UbseMemAdapter::ShmDelete(name, ctx);
-            if (hr != 0) {
-                DBG_LOGERROR("get exception when ShmDelete " << name << "ret: " << hr);
-            }
-            return hr;
-        }
+        return TryRollBackTimeoutShmTask(name, ctx, isAttach, createSeqNo);
     }
     auto ret = SHMManager::GetInstance().RemoveMemoryUserInfo(name, ctx.pid);
     if (ret != HOK && ret != MXM_ERR_SHM_NOT_FOUND) {

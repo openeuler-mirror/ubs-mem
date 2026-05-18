@@ -48,6 +48,7 @@ typedef struct ubse_user_info_t {
     ubse_uds_info udsInfo; /* 使用方进程信息 */
     mode_t mode;
     uint64_t flag;
+    uint64_t seqNo;
 } ubse_user_info_t;
 
 enum MemNodeDistance {
@@ -187,7 +188,8 @@ public:
     static int32_t DlopenLibUbse(const std::string& controllerPath);
     static int LookUpClusterStatistic(ock::ubsm::ubsmemClusterInfo &clusterInfo);
     static int GetTimeOutTaskStatus(const std::string &name, bool isLease,
-        bool isNumaLease, ubs_mem_stage &status, bool &isAttach);
+        bool isNumaLease, ubs_mem_stage &status, bool isAttach);
+    static int GetTimeOutShmTaskStatus(const std::string &name, ubs_mem_stage &status, bool isAttach, uint64_t& seqNo);
     static int ShmAttach(const std::string &name, const ubse_user_info_t &ubsUserInfo,
                          AttachShmResult &result);
     static int ShmDetach(const std::string &name);
@@ -205,7 +207,8 @@ public:
     static int GetLeaseMemoryStage(const std::string &name, bool isNuma, ubs_mem_stage &state);
     static int GetShareMemoryStage(const std::string &name, ubs_mem_stage &state);
     static int GetLocalNodeId(uint32_t &nid);
-
+    static int EnsureGetLocalNodeId(uint32_t &nid);
+    static uint64_t GenerateCreateSeqNo(uint32_t slotId);
 private:
     UbseMemAdapter() = default;
     static void ResetLibUbseDl();
@@ -214,17 +217,18 @@ private:
     static void FreeShmDesc(ubs_mem_shm_desc_t* shmDes);
     static uint32_t GetSocketIdWithNumaNode(int numaNode, uint32_t* socketId);
     static int ShmCreateWithAffinity(const CreateShmParam &param, const ubs_mem_nodes_t &region,
-                                     const uint64_t ubseFlags, const uint8_t *usrInfo);
+                                     const uint64_t ubseFlags, const uint8_t *usrInfo, uint64_t createSeqNo);
     static void UseLog(uint32_t level, const char* str);
     static int32_t CheckAndCopyRegionStatus(SHMRegions& staticRegions, SHMRegions& activeRegion);
     static int GetSlotIdFromHostName(const std::string& hostName, uint32_t* slotId);
     static int PrepareShmCreateWithProviderParams(const CreateShmWithProviderParam& param, uint8_t* usrInfo,
-                                                  uint64_t* ubseFlags, uint32_t* slotId);
+                                                  uint64_t* ubseFlags, uint32_t* slotId, uint64_t& seqNo);
 
 private:
     static std::mutex gMutex;
     static bool initialized_;
     static std::unordered_map<std::string, uint32_t> hostnameMapping_;
+    static std::atomic<uint32_t>  nodeId_;
 
     static UbseClientInitializeFunc pUbseClientInitialize;
     static UbseClientFinalizeFunc pUbseClientFinalize;

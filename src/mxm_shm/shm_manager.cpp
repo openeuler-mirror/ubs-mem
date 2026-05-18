@@ -345,6 +345,7 @@ int SHMManager::RemovePreAddRecord(const ubsm::ShareMemImportInfo& record, bool&
     bool isNuma = false;
     bool changed = false;
     ubsm::DelayRemovedKey key{record.name, ubsm::ONE_MINUTE_MS, isLease, record.appContext, changed, isNuma, timeOut};
+    key.isAttach = true;
     ubsm::UBSMemMonitor::GetInstance().AddDelayRemoveRecord(key);
     return MXM_OK;
 }

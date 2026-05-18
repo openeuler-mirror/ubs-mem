@@ -38,6 +38,8 @@ struct DelayRemovedKey {
     bool changed;
     bool isNumaLease;
     bool timeOutScene;
+    bool isAttach = false;
+    uint64_t createSeqNo = 0;
     DelayRemovedKey(std::string nm, uint64_t delay, bool isLease,
         const AppContext &appCtx, bool changed, bool isNumaLease, bool timeScene) noexcept;
     explicit DelayRemovedKey(const std::string &name) : name(name) {};

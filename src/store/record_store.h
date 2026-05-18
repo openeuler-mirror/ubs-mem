@@ -12,6 +12,7 @@
 #ifndef SIMPLE_SAMPLES_RECORD_STORE_H
 #define SIMPLE_SAMPLES_RECORD_STORE_H
 
+#include <atomic>
 #include <map>
 #include <string>
 #include <vector>
@@ -143,6 +144,7 @@ public:
      * @param name 引用的共享内存名称
      * @return 0表示成功，非0表示失败
      */
+    uint32_t GetCreateSeqNo() const noexcept { return __sync_fetch_and_add(createSeqNo_, 1U); }
     int AddShmRefRecord(pid_t pid, const std::string &name) noexcept;
 
     /**
@@ -201,6 +203,7 @@ private:
     MemShareImportRecord *shmImportRecordBegin_{nullptr};
     MemShareRefRecord *shmRefRecordBegin_{nullptr};
     MemIdRecordPool *memIdRecordPoolBegin_{nullptr};
+    uint32_t *createSeqNo_{nullptr};
 
     mutable std::mutex cachedRecordMutex_;
     std::unordered_map<std::string, RegionRecord *> cachedRegionRecords_;
