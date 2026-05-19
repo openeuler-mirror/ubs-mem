@@ -119,7 +119,8 @@ int RecordStore::Initialize(int fd) noexcept
     shmImportRecordBegin_ = reinterpret_cast<MemShareImportRecord *>(memLeaseRecordBegin_ + MEM_LEASE_MAX_RECORD);
     shmRefRecordBegin_ = reinterpret_cast<MemShareRefRecord *>(shmImportRecordBegin_ + SHM_MAX_ATTACH_RECORD);
     memIdRecordPoolBegin_ = reinterpret_cast<MemIdRecordPool *>(shmRefRecordBegin_ + SHM_MAX_REFERENCE_RECORD);
-
+    createSeqNo_ = reinterpret_cast<uint32_t *>(memIdRecordPoolBegin_ + 1);
+ 
     if (!CheckAllocators()) {
         DBG_LOGERROR("CheckAllocators failed.");
         munmap(mappingAddress_, SHARE_MEM_SIZE);
@@ -159,6 +160,7 @@ void RecordStore::Destroy() noexcept
     shmImportRecordBegin_ = nullptr;
     shmRefRecordBegin_ = nullptr;
     memIdRecordPoolBegin_ = nullptr;
+    createSeqNo_ = nullptr;
 }
 
 int RecordStore::AddRegionRecord(const CreateRegionInput &input) noexcept

@@ -526,6 +526,11 @@ HRESULT OckDaemon::CheckUbseStatus()
         }
     } while (ret != HOK);
 
+    uint32_t nodeId = {UINT32_MAX};
+    ret = mxm::UbseMemAdapter::EnsureGetLocalNodeId(nodeId);
+    if (ret != HOK) {
+        DBG_LOGWARN("Failed to get local node id.");
+    }
     DBG_LOGINFO("UBS Engine is ready.");
     return HOK;
 }

@@ -245,7 +245,7 @@ void UBSMemMonitor::RemoveDelayBorrows() noexcept
                 removedKey.changed, removedKey.timeOutScene, removedKey.isNumaLease);
         } else {
             ret = UBSMemLeakCleaner::GetInstance().CleanShareMemoryLeakInner(removedKey.name,
-                removedKey.appCtx, removedKey.timeOutScene);
+                removedKey.appCtx, removedKey.timeOutScene, removedKey.isAttach, removedKey.createSeqNo);
         }
 
         mutex.lock();

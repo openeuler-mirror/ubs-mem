@@ -22,6 +22,8 @@
 #include "ubs_mem_monitor.h"
 #include "ubse_mem_adapter.h"
 
+#include "record_store.h"
+
 namespace ock {
 namespace mxm {
 using namespace ock::common;
@@ -30,6 +32,7 @@ using namespace ock::ubsm;
 using namespace ock::ubsm::tracer;
 bool UbseMemAdapter::initialized_{false};
 std::mutex UbseMemAdapter::gMutex;
+std::atomic<uint32_t> UbseMemAdapter::nodeId_{UINT32_MAX};
 
 /************** api ************/
 UbseClientInitializeFunc UbseMemAdapter::pUbseClientInitialize = nullptr;
@@ -353,6 +356,26 @@ void UbseMemAdapter::Destroy()
     pUbseClientFinalize();
     ResetLibUbseDl();
     initialized_ = false;
+}
+
+int FillUserInfo(const AppContext& ownner, uint64_t flags, mode_t mode, ubse_user_info_t &ubsUserInfo, uint64_t & seqNo)
+{
+    ubsUserInfo.udsInfo.uid = ownner.uid;
+    ubsUserInfo.udsInfo.gid = ownner.gid;
+    ubsUserInfo.udsInfo.pid = ownner.pid;
+    ubsUserInfo.flag = flags;
+    ubsUserInfo.mode = mode;
+
+    uint32_t nodeId = UINT32_MAX;
+    auto ret = UbseMemAdapter::EnsureGetLocalNodeId(nodeId);
+    if (ret != HOK) {
+        DBG_LOGERROR("Failed to get local nodeId, ret=" << ret);
+        return ret;
+    }
+    ubsUserInfo.seqNo = UbseMemAdapter::GenerateCreateSeqNo(nodeId);
+    seqNo = ubsUserInfo.seqNo;
+    DBG_LOGINFO("GenerateCreateSeqNo successfully. seqNo=" << seqNo);
+    return HOK;
 }
 
 int UbseMemAdapter::GetRegionInfo(const std::string& regionName, std::vector<uint32_t>& slotIds)
@@ -1003,7 +1026,7 @@ uint32_t UbseMemAdapter::GetSocketIdWithNumaNode(int numaNode, uint32_t* socketI
 }
 
 int UbseMemAdapter::ShmCreateWithAffinity(const CreateShmParam &param, const ubs_mem_nodes_t &region,
-                                          const uint64_t ubseFlags, const uint8_t *usrInfo)
+                                          const uint64_t ubseFlags, const uint8_t *usrInfo, uint64_t createSeqNo)
 {
     if (pUbseMemShmCreateWithAffinity == nullptr) {
         DBG_LOGERROR("Ubsm is not initialized.");
@@ -1038,6 +1061,8 @@ int UbseMemAdapter::ShmCreateWithAffinity(const CreateShmParam &param, const ubs
         if (ret == UBS_ERR_TIMED_OUT) {
             DelayRemovedKey removedKey{param.name, ONE_MINUTE_MS, false, {param.appContext.pid,
                 param.appContext.uid, param.appContext.gid}, false, false, true};
+            removedKey.isAttach = false;
+            removedKey.createSeqNo = createSeqNo;
             DBG_LOGERROR("Create share memory fail, errCode=" << ret << " name=" << param.name
                 << " pid=" << param.appContext.pid << ", expires time=" << removedKey.expiresTime);
             UBSMemMonitor::GetInstance().AddDelayRemoveRecord(removedKey);
@@ -1048,6 +1073,11 @@ int UbseMemAdapter::ShmCreateWithAffinity(const CreateShmParam &param, const ubs
     }
     DBG_LOGWARN("Not Found socket id, numa node=" << numaNode << ", ret=" << res);
     return res;
+}
+
+uint64_t UbseMemAdapter::GenerateCreateSeqNo(uint32_t slotId)
+{
+    return (static_cast<uint64_t>(slotId) << 32U) | RecordStore::GetInstance().GetCreateSeqNo();
 }
 
 int PrepareUserInfoAndFlags(const ubse_user_info_t &ubsUserInfo, uint8_t *usrInfo, uint64_t *ubseFlags)
@@ -1098,11 +1128,12 @@ int UbseMemAdapter::ShmCreate(const CreateShmParam &param)
     region.node_cnt = count;
 
     ubse_user_info_t ubsUserInfo{};
-    ubsUserInfo.udsInfo.uid = param.appContext.uid;
-    ubsUserInfo.udsInfo.gid = param.appContext.gid;
-    ubsUserInfo.udsInfo.pid = param.appContext.pid;
-    ubsUserInfo.flag = param.flag;
-    ubsUserInfo.mode = param.mode;
+    uint64_t seqNo = 0;
+    ret = FillUserInfo(param.appContext, param.flag, param.mode, ubsUserInfo, seqNo);
+    if (ret != HOK) {
+        DBG_LOGERROR("FillUserInfo failed, ret=" << ret);
+        return ret;
+    }
     uint8_t usrInfo[UBS_MEM_MAX_USR_INFO_LEN] = {0};
     uint64_t ubseFlags{0};
 
@@ -1115,7 +1146,7 @@ int UbseMemAdapter::ShmCreate(const CreateShmParam &param)
         ubsUserInfo.udsInfo.uid << ", gid=" << ubsUserInfo.udsInfo.gid << ", pid=" << ubsUserInfo.udsInfo.pid <<
         ", flag=" << ubsUserInfo.flag << ", mode=" << ubsUserInfo.mode << ", ubseFlags=" << ubseFlags);
 
-    ret = ShmCreateWithAffinity(param, region, ubseFlags, usrInfo);
+    ret = ShmCreateWithAffinity(param, region, ubseFlags, usrInfo, seqNo);
     if (ret == MXM_OK) {
         DBG_LOGINFO("ShmCreateWithAffinity success, name=" << param.name);
         return ret;
@@ -1137,6 +1168,8 @@ int UbseMemAdapter::ShmCreate(const CreateShmParam &param)
     if (ret == UBS_ERR_TIMED_OUT) {
         DelayRemovedKey removedKey{param.name, ONE_MINUTE_MS, false, {param.appContext.pid,
             param.appContext.uid, param.appContext.gid}, false, false, true};
+        removedKey.isAttach = false;
+        removedKey.createSeqNo = seqNo;
         DBG_LOGERROR("Create share memory fail, errCode=" << ret << " name=" << param.name
             << " pid=" << param.appContext.pid << ", expires time=" << removedKey.expiresTime);
         UBSMemMonitor::GetInstance().AddDelayRemoveRecord(removedKey);
@@ -1192,7 +1225,7 @@ int UbseMemAdapter::GetSlotIdFromHostName(const std::string& hostName, uint32_t*
 }
 
 int UbseMemAdapter::PrepareShmCreateWithProviderParams(const CreateShmWithProviderParam& param, uint8_t* usrInfo,
-                                                       uint64_t* ubseFlags, uint32_t* slotId)
+                                                       uint64_t* ubseFlags, uint32_t* slotId, uint64_t& seqNo)
 {
     int ret = GetSlotIdFromHostName(param.hostName, slotId);
     if (ret != MXM_OK) {
@@ -1200,11 +1233,11 @@ int UbseMemAdapter::PrepareShmCreateWithProviderParams(const CreateShmWithProvid
         return ret;
     }
     ubse_user_info_t ubsUserInfo{};
-    ubsUserInfo.udsInfo.uid = param.appContext.uid;
-    ubsUserInfo.udsInfo.gid = param.appContext.gid;
-    ubsUserInfo.udsInfo.pid = param.appContext.pid;
-    ubsUserInfo.flag = param.flag;
-    ubsUserInfo.mode = param.mode;
+    ret = FillUserInfo(param.appContext, param.flag, param.mode, ubsUserInfo, seqNo);
+    if (ret != HOK) {
+        DBG_LOGERROR("FillUserInfo failed, ret=" << ret);
+        return ret;
+    }
     ret = PrepareUserInfoAndFlags(ubsUserInfo, usrInfo, ubseFlags);
     if (ret != MXM_OK) {
         DBG_LOGERROR("PrepareUserInfoAndFlags failed, name=" << param.name << ", ret=" << ret);
@@ -1228,7 +1261,8 @@ int UbseMemAdapter::ShmCreateWithProvider(const CreateShmWithProviderParam& para
     uint8_t usrInfo[UBS_MEM_MAX_USR_INFO_LEN] = {0};
     uint64_t ubseFlags{0};
     uint32_t slotId = UINT32_MAX;
-    ret = PrepareShmCreateWithProviderParams(param, usrInfo, &ubseFlags, &slotId);
+    uint64_t seqNo = 0;
+    ret = PrepareShmCreateWithProviderParams(param, usrInfo, &ubseFlags, &slotId, seqNo);
     if (ret != MXM_OK) {
         DBG_LOGERROR("PrepareShmCreateWithProviderParams failed, name=" << param.name << ", ret=" << ret);
         return ret;
@@ -1263,6 +1297,8 @@ int UbseMemAdapter::ShmCreateWithProvider(const CreateShmWithProviderParam& para
         DBG_LOGERROR("Create shm with provider fail, errCode=" << ret << " name=" << param.name
                                                                << " pid=" << param.appContext.pid
                                                                << ", expires time=" << removedKey.expiresTime);
+        removedKey.isAttach = false;
+        removedKey.createSeqNo = seqNo;
         UBSMemMonitor::GetInstance().AddDelayRemoveRecord(removedKey);
         return UBS_ERR_TIMED_OUT;
     }
@@ -1346,49 +1382,83 @@ void UbseMemAdapter::FreeShmDesc(ubs_mem_shm_desc_t* shmDes)
     free(shmDes);
     shmDes = nullptr;
 }
+uint64_t GetSeqNoFromUbseUsrInfo(uint8_t userInfo[UBS_MEM_MAX_USR_INFO_LEN])
+{
+    ubse_user_info_t ubsUserInfo;
+    auto ret = memcpy_s(&ubsUserInfo, sizeof(ubsUserInfo), userInfo, UBS_MEM_MAX_USR_INFO_LEN);
+    if (ret != 0) {
+        DBG_LOGERROR("memcpy_s failed when restoring userinfo, ret=" << ret);
+        return UINT32_MAX;
+    }
+    return ubsUserInfo.seqNo;
+}
+
+int UbseMemAdapter::GetTimeOutShmTaskStatus(const std::string &name, ubs_mem_stage &status, bool isAttach,
+                                            uint64_t &seqNo)
+{
+    ubs_mem_shm_desc_t *desc = nullptr;
+    auto ret = pUbseMemShmGet(name.c_str(), &desc);
+    if (ret != UBS_SUCCESS) {
+        DBG_LOGERROR("pUbseMemShmGet failed, ret=" << ret << ", name=" << name.c_str());
+        if (ret == UBS_ENGINE_ERR_NOT_EXIST) { // 可以删除，其他错误码需要重试
+            return MXM_ERR_SHM_NOT_EXIST;
+        }
+        return MXM_ERR_UBSE_INNER;
+    }
+    if (desc == nullptr) {
+        DBG_LOGERROR("pUbseMemShmGet desc is nullptr, name=" << name);
+        return MXM_ERR_UBSE_INNER;
+    }
+    if (desc->import_desc_cnt > UBS_TOPO_MAX_NODE_NUM) {
+        DBG_LOGERROR("pUbseMemShmGet desc import_desc_cnt is invalid, cnt=" << desc->import_desc_cnt);
+        return MXM_ERR_UBSE_INNER;
+    }
+    DBG_LOGINFO("pUbseMemShmGet name=" << name << ", import descCnt=" << desc->import_desc_cnt);
+    ubs_topo_node_t localNode{};
+    ret = pUbseNodeLocalGet(&localNode);
+    if (ret != UBS_SUCCESS) {
+        DBG_LOGERROR("pUbseNodeLocalGet failed, ret: " << ret << " name: " << name.c_str());
+        return MXM_ERR_UBSE_INNER;
+    }
+    if (!isAttach) { // create
+        if (desc->import_desc_cnt != 0) {
+            DBG_LOGINFO("Shred memory is in using. Name=" << name << ", import_desc_cnt=" << desc->import_desc_cnt);
+            return MXM_ERR_SHM_IN_USING; // 如果In using, 则认为用户已经知道创建成功且正在使用，无需再回滚。
+        }
+        status = desc->mem_stage;
+        seqNo = GetSeqNoFromUbseUsrInfo(desc->usr_info);
+        DBG_LOGINFO("Name=" << name << ", mem stage=" << status);
+        return MXM_OK;
+    }
+    // attach
+    if (desc->import_desc_cnt == 0) {
+        DBG_LOGINFO("Name=" << name << ", import_desc_cnt=" << desc->import_desc_cnt);
+        return MXM_ERR_SHM_NOT_EXIST;
+    }
+    bool exist = false;
+    for (int i = 0; i < desc->import_desc_cnt; ++i) {
+        if (desc->import_desc[i].import_node.slot_id == localNode.slot_id) {
+            status = desc->import_desc[i].mem_stage;
+            exist = true;
+            DBG_LOGINFO("NodeId=" << localNode.slot_id << ", name=" << name << ", mem stage=" << status);
+            break;
+        }
+    }
+    if (!exist) {
+        DBG_LOGINFO("Shared memory not attached on current node. name=" << name <<
+            ", import_desc_cnt=" << desc->import_desc_cnt);
+        return MXM_ERR_SHM_NOT_EXIST;
+    }
+
+    return MXM_OK;
+}
 
 int UbseMemAdapter::GetTimeOutTaskStatus(const std::string &name, bool isLease,
-    bool isNumaLease, ubs_mem_stage &status, bool &isAttach)
+    bool isNumaLease, ubs_mem_stage &status, bool isAttach)
 {
     DBG_LOGINFO("GetTimeOutTaskStatus start, name=" << name << ", isLease=" << isLease);
     if (!isLease) {
-        ubs_mem_shm_desc_t *desc = nullptr;
-        auto ret = pUbseMemShmGet(name.c_str(), &desc);
-        if (ret != UBS_SUCCESS) {
-            DBG_LOGERROR("pUbseMemShmGet failed, ret=" << ret << ", name=" << name.c_str());
-            if (ret == UBS_ENGINE_ERR_NOT_EXIST) { // 可以删除，其他错误码需要重试
-                return MXM_ERR_LEASE_NOT_EXIST;
-            }
-            return MXM_ERR_UBSE_INNER;
-        }
-        if (desc == nullptr) {
-            DBG_LOGERROR("pUbseMemShmGet desc is nullptr, name=" << name);
-            return MXM_ERR_UBSE_INNER;
-        }
-        if (desc->import_desc_cnt > UBS_TOPO_MAX_NODE_NUM) {
-            DBG_LOGERROR("pUbseMemShmGet desc import_desc_cnt is invalid, cnt=" << desc->import_desc_cnt);
-            return MXM_ERR_UBSE_INNER;
-        }
-        DBG_LOGINFO("pUbseMemShmGet name=" << name << ", import descCnt=" << desc->import_desc_cnt);
-        ubs_topo_node_t localNode{};
-        ret = pUbseNodeLocalGet(&localNode);
-        if (ret != UBS_SUCCESS) {
-            DBG_LOGERROR("pUbseNodeLocalGet failed, ret: " << ret << " name: " << name.c_str());
-            return MXM_ERR_UBSE_INNER;
-        }
-        if (desc->import_desc_cnt != 0) { // attach
-            for (int i = 0; i < desc->import_desc_cnt; ++i) {
-                if (desc->import_desc[i].import_node.slot_id == localNode.slot_id) {
-                    status = desc->import_desc[i].mem_stage;
-                    DBG_LOGINFO("NodeId=" << localNode.slot_id << ", name=" << name << ", mem stage=" << status);
-                    break;
-                }
-            }
-            isAttach = true;
-        } else { // create
-            status = desc->mem_stage;
-            DBG_LOGINFO("Name=" << name << ", mem stage=" << status);
-        }
+        return MXM_ERR_UNKNOWN; // shm用新的GetTimeOutShmTaskStatus
     } else {
         if (!isNumaLease) {
             ubs_mem_fd_desc_t fdDesc{};
@@ -1443,8 +1513,9 @@ int UbseMemAdapter::ShmAttach(const std::string &name, const ubse_user_info_t &u
         AppContext context{static_cast<uint32_t>(ubsUserInfo.udsInfo.pid),
             ubsUserInfo.udsInfo.uid, ubsUserInfo.udsInfo.gid};
         DelayRemovedKey removedKey{name, ONE_MINUTE_MS, false, context, false, false, true};
-        DBG_LOGERROR("Create share memory fail, errCode=" << ret << " name=" << name
+        DBG_LOGERROR("Attach share memory fail, errCode=" << ret << " name=" << name
             << " pid=" << context.pid << ", expires time=" << removedKey.expiresTime);
+        removedKey.isAttach = true;
         UBSMemMonitor::GetInstance().AddDelayRemoveRecord(removedKey);
         return UBS_ERR_TIMED_OUT;
     }
@@ -1805,5 +1876,22 @@ int UbseMemAdapter::GetLocalNodeId(uint32_t &nid)
     nid = localNode.slot_id;
     return HOK;
 };
+
+int UbseMemAdapter::EnsureGetLocalNodeId(uint32_t &nid)
+{
+    if (nodeId_ != UINT32_MAX) {
+        nid = nodeId_;
+        return HOK;
+    }
+    uint32_t tmpNodeId = UINT32_MAX;
+    auto ret = GetLocalNodeId(tmpNodeId);
+    if (ret != HOK) {
+        DBG_LOGERROR("GetLocalNodeId failed. ret=" << ret);
+        return ret;
+    }
+    nodeId_.store(tmpNodeId);
+    nid = tmpNodeId;
+    return HOK;
+}
 }  // namespace mxm
 }  // namespace ock
