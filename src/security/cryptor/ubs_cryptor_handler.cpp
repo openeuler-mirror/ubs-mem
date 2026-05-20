@@ -16,7 +16,7 @@
 #include <string>
 #include <securec.h>
 #include "rack_mem_functions.h"
-#include "dg_out_logger.h"
+#include "log.h"
 #include "system_adapter.h"
 #include "ubs_cryptor_handler.h"
 
@@ -159,12 +159,8 @@ void ock::ubsm::UbsCryptorHandler::EraseDecryptData(char* data, int len) noexcep
 
 int ock::ubsm::UbsCryptorHandler::SetCryptorLogger(CryptorLogHandler logger) noexcept
 {
-    auto* instance = ock::dagger::OutLogger::Instance();
-    if (instance == nullptr) {
-        DBG_LOGERROR("Get logger instance fail.");
-        return -1;
-    }
-    instance->SetExternalLogFunction(logger);
+    ubsmem::log::UbsmemLoggerManager::Instance()->SetExternLogCallback(
+        reinterpret_cast<void (*)(int, const char *)>(logger));
     return 0;
 }
 

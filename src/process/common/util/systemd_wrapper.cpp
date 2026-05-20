@@ -11,7 +11,7 @@
  */
 #include <systemd/sd-daemon.h>
 
-#include "ulog/ulog.h"
+#include "log.h"
 #include "systemd_wrapper.h"
 
 namespace ock {
@@ -24,12 +24,12 @@ bool GetWatchdogTimeout(std::chrono::microseconds &timeout) noexcept
     uint64_t keepAliveUs = 0;
     auto res = sd_watchdog_enabled(0, &keepAliveUs);
     if (res < 0) {
-        ULOG_UNITY_WARN("Get watch dog status failed({})", res);
+        DBG_LOGWARN("Get watch dog status failed( " << res << ")");
         return false;
     }
 
     if (res == 0) {
-        ULOG_UNITY_INFO("watch dog not enabled.");
+        DBG_LOGINFO("watch dog not enabled.");
         return false;
     }
 
@@ -77,7 +77,7 @@ int LoadFd(const std::string &name, int &fd) noexcept
     char **restores = nullptr;
     auto n = sd_listen_fds_with_names(1, &restores);
     if (n < 0) {
-        ULOG_UNITY_ERROR("sd_listen_fds_with_names failed: " << strerror(-n));
+        DBG_LOGERROR("sd_listen_fds_with_names failed: " << strerror(-n));
         return -1;
     }
 
@@ -91,7 +91,7 @@ int LoadFd(const std::string &name, int &fd) noexcept
     }
 
     free(restores);
-    ULOG_UNITY_INFO("sd_listen_fds_with_names get fd count: " << n << ", not matches " << name);
+    DBG_LOGINFO("sd_listen_fds_with_names get fd count: " << n << ", not matches " << name);
     return -1;
 }
 

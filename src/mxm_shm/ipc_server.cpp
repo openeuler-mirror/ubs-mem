@@ -11,7 +11,7 @@
  */
 #include "ipc_server.h"
 #include "ipc_server_engine.h"
-#include "ulog/log.h"
+#include "log.h"
 
 #include "referable/dg_ref.h"
 #include "shm_manager.h"

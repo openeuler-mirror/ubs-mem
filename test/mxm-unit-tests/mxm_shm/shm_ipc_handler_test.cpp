@@ -1,7 +1,7 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-
+#include <fcntl.h>
 #include "record_store.h"
 #include "region_manager.h"
 #include "region_repository.h"

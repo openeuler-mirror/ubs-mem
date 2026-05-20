@@ -353,9 +353,11 @@ TEST_F(RackMemShmTest, TestUbsMemShmMmapFileMapFailure)
         .will(returnValue(static_cast<uint32_t>(UBSM_OK)));
 
     // 模拟IPC调用成功
+    std::vector<uint64_t> mockMemIds;
+    size_t mockUnitSize = 4096;
     MOCKER(ShmIpcCommand::IpcCallShmMap)
         .stubs()
-        .with(any(), any(), any(), outBound(mapSize), any(), any(), any(), any(), any())
+        .with(any(), any(), outBound(mockMemIds), outBound(mapSize), outBound(mockUnitSize), any(), any(), any(), any())
         .will(returnValue(static_cast<uint32_t>(UBSM_OK)));
 
     // 模拟文件映射失败

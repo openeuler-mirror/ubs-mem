@@ -10,16 +10,18 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include "rack_mem_lib.h"
+
 #include <iostream>
+
 #include "ipc_proxy.h"
 #include "ubsm_ptracer.h"
 #include "rack_mem_functions.h"
 #include "RmLibObmmExecutor.h"
 #include "mx_def.h"
 #include "ubs_mem.h"
-#include "dg_out_logger.h"
+#include "log.h"
 #include "ShmMetaDataMgr.h"
-#include "rack_mem_lib.h"
 
 void __attribute__((constructor)) InitRackMemLib()
 {
@@ -83,6 +85,7 @@ void RackMemLib::Destroy()
         desc.isInitialized = false;
     }
     inited = false;
+    ubsmem::log::UbsmemLoggerManager::Destroy();
 }
 
 uint32_t RackMemLib::InitHtrace() const
@@ -155,12 +158,12 @@ int ubsmem_finalize(void)
 
 int ubsmem_set_logger_level(int level)
 {
-    if (level < static_cast<int>(ock::dagger::LogLevel::DEBUG_LEVEL) ||
-        level >= static_cast<int>(ock::dagger::LogLevel::BUTT_LEVEL)) {
+    if (level < static_cast<int>(ubsmem::log::UbsmemLogLevel::DEBUG) ||
+        level >= static_cast<int>(ubsmem::log::UbsmemLogLevel::COUNT)) {
         DBG_LOGERROR("Level error, level=" << level);
         return UBSM_ERR_PARAM_INVALID;
     }
-    ock::dagger::OutLogger::Instance()->SetLogLevel(static_cast<ock::dagger::LogLevel>(level));
+    ubsmem::log::UbsmemLoggerManager::Instance()->SetLogLevel(static_cast<ubsmem::log::UbsmemLogLevel>(level));
     DBG_LOGINFO("Set log level successfully, level=" << level);
     return UBSM_OK;
 }
@@ -171,7 +174,7 @@ int ubsmem_set_extern_logger(void (*func)(int level, const char* msg))
         DBG_LOGERROR("The function is empty");
         return UBSM_ERR_PARAM_INVALID;
     }
-    ock::dagger::OutLogger::Instance()->SetExternalLogFunction(func);
+    ubsmem::log::UbsmemLoggerManager::Instance()->SetExternLogCallback(func);
     DBG_LOGINFO("Set extern log successfully");
     return UBSM_OK;
 }

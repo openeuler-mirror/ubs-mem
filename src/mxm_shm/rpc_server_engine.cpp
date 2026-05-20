@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "rpc_server_engine.h"
-#include "ulog/log.h"
+#include "log.h"
 
 using namespace ock::common;
 using namespace ock::com::rpc;

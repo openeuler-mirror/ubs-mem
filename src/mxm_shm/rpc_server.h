@@ -16,7 +16,7 @@
 #include "mxm_rpc_server_interface.h"
 #include "mxm_msg.h"
 
-#include "ulog/log.h"
+#include "log.h"
 #include "rpc_server_engine.h"
 
 using namespace ock::com::rpc;

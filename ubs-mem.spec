@@ -15,8 +15,8 @@ Prefix:         /usr/local/ubs_mem
 # generate tarball: git archive -o ubs-mem-1.0.0.tar.gz --format=tar.gz HEAD
 Source:        %{name}-%{version}.tar.gz
 BuildRequires:  rpm-build, make, cmake, gcc, gcc-c++, ninja-build
-BuildRequires:  libboundscheck, ubs-comm-devel, numactl-devel, systemd-devel spdlog-devel
-Requires:       glibc libgcc libstdc++ libboundscheck ubs-comm-lib openssl-libs spdlog
+BuildRequires:  libboundscheck, ubs-comm-devel, numactl-devel, systemd-devel
+Requires:       glibc libgcc libstdc++ libboundscheck ubs-comm-lib openssl-libs
 
 %define _unpackaged_files_terminate_build 0
 
@@ -145,7 +145,7 @@ delete_semaphore
 * Thu Apr 16 2026 Yang Qi <yangqi124@h-partners.com> - 1.0.0-5
 - Bugfix
 * Fri Mar 27 2026 Yang Qi <yangqi124@h-partners.com> - 1.0.0-4
-- Remove source code dependency on spdlog
+- Remove source code dependency on
 * Wed Mar 25 2026 Yang Qi <yangqi124@h-partners.com> - 1.0.0-3
 - Remove os_type
 * Wed Mar 25 2026 Yang Qi <yangqi124@h-partners.com> - 1.0.0-2

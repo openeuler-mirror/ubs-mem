@@ -17,7 +17,7 @@
 #include <mutex>
 #include <string>
 
-#include "ulog/log.h"
+#include "log.h"
 #include "region_repository.h"
 
 namespace ock::share::service {
