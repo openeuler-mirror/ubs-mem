@@ -158,7 +158,7 @@ private:
     void EncodeData(T data)
     {
         *reinterpret_cast<T *>(GetBuffer()) = data;
-        currentSize += sizeof(T);
+        currentSize_ += sizeof(T);
     }
 
     template <typename T>
@@ -182,19 +182,19 @@ private:
     const char *DecodeDouble(std::ostream &os, const char *buffer) const;
     const char *DecodeString(std::ostream &os, const char *buffer) const;
 
-    uint64_t timeStamp = 0;
-    pid_t pid = 0;
-    unsigned long tid = 0;
-    UbsmemLogLevel level = UbsmemLogLevel::INFO;
-    const char *file = nullptr;
-    const char *func = nullptr;
-    uint32_t line = 0;
+    uint64_t timeStamp_ = 0;
+    pid_t pid_ = 0;
+    unsigned long tid_ = 0;
+    UbsmemLogLevel level_ = UbsmemLogLevel::INFO;
+    const char *file_ = nullptr;
+    const char *func_ = nullptr;
+    uint32_t line_ = 0;
     bool isAudit_ = false;
 
-    size_t maxSize = 0;
-    char logEntryBuffer[512] = {0};
-    std::unique_ptr<char[]> heapBuffer{};
-    size_t currentSize = 0;
+    size_t maxSize_ = 0;
+    char logEntryBuffer_[512] = {0};
+    std::unique_ptr<char[]> heapBuffer_{};
+    size_t currentSize_ = 0;
 };
 
 bool UbsmemLogEnabled(UbsmemLogLevel level);

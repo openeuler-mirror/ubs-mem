@@ -112,43 +112,43 @@ std::string FormatRetCode(uint32_t retCode)
 
 UbsmemLoggerEntry::UbsmemLoggerEntry(UbsmemLogLevel level, const char *file, const char *func, uint32_t line,
                                      bool isAudit)
-    : level(level),
-      file(file),
-      func(func),
-      line(line),
+    : level_(level),
+      file_(file),
+      func_(func),
+      line_(line),
       isAudit_(isAudit),
-      maxSize(sizeof(logEntryBuffer)),
-      currentSize(0)
+      maxSize_(sizeof(logEntryBuffer_)),
+      currentSize_(0)
 {
-    timeStamp = GetTimeStamp();
-    pid = GetProcessId();
-    tid = GetThreadId();
+    timeStamp_ = GetTimeStamp();
+    pid_ = GetProcessId();
+    tid_ = GetThreadId();
 }
 
 UbsmemLoggerEntry::UbsmemLoggerEntry(const UbsmemLoggerEntry &other)
-    : timeStamp(other.timeStamp),
-      pid(other.pid),
-      tid(other.tid),
-      level(other.level),
-      file(other.file),
-      func(other.func),
-      line(other.line),
+    : timeStamp_(other.timeStamp_),
+      pid_(other.pid_),
+      tid_(other.tid_),
+      level_(other.level_),
+      file_(other.file_),
+      func_(other.func_),
+      line_(other.line_),
       isAudit_(other.isAudit_),
-      maxSize(other.maxSize),
-      currentSize(other.currentSize)
+      maxSize_(other.maxSize_),
+      currentSize_(other.currentSize_)
 {
-    if (other.heapBuffer) {
-        heapBuffer.reset(new (std::nothrow) char[maxSize]);
-        if (heapBuffer == nullptr) {
+    if (other.heapBuffer_) {
+        heapBuffer_.reset(new (std::nothrow) char[maxSize_]);
+        if (heapBuffer_ == nullptr) {
             return;
         }
-        errno_t ret = memcpy_s(heapBuffer.get(), currentSize, other.heapBuffer.get(), currentSize);
+        errno_t ret = memcpy_s(heapBuffer_.get(), currentSize_, other.heapBuffer_.get(), currentSize_);
         if (EOK != ret) {
-            heapBuffer.reset();
+            heapBuffer_.reset();
             std::cerr << "Failed to copy heapBuffer." << std::endl;
         }
     } else {
-        errno_t ret = memcpy_s(logEntryBuffer, currentSize, other.logEntryBuffer, currentSize);
+        errno_t ret = memcpy_s(logEntryBuffer_, currentSize_, other.logEntryBuffer_, currentSize_);
         if (EOK != ret) {
             std::cerr << "Failed to copy logEntryBuffer." << std::endl;
         }
@@ -161,30 +161,30 @@ UbsmemLoggerEntry &UbsmemLoggerEntry::operator=(const UbsmemLoggerEntry &other)
         return *this;
     }
 
-    timeStamp = other.timeStamp;
-    pid = other.pid;
-    tid = other.tid;
-    level = other.level;
-    file = other.file;
-    func = other.func;
-    line = other.line;
+    timeStamp_ = other.timeStamp_;
+    pid_ = other.pid_;
+    tid_ = other.tid_;
+    level_ = other.level_;
+    file_ = other.file_;
+    func_ = other.func_;
+    line_ = other.line_;
     isAudit_ = other.isAudit_;
-    maxSize = other.maxSize;
-    currentSize = other.currentSize;
+    maxSize_ = other.maxSize_;
+    currentSize_ = other.currentSize_;
 
-    if (other.heapBuffer) {
-        heapBuffer.reset(new (std::nothrow) char[maxSize]);
-        if (heapBuffer == nullptr) {
+    if (other.heapBuffer_) {
+        heapBuffer_.reset(new (std::nothrow) char[maxSize_]);
+        if (heapBuffer_ == nullptr) {
             return *this;
         }
-        errno_t ret = memcpy_s(heapBuffer.get(), currentSize, other.heapBuffer.get(), currentSize);
+        errno_t ret = memcpy_s(heapBuffer_.get(), currentSize_, other.heapBuffer_.get(), currentSize_);
         if (EOK != ret) {
-            heapBuffer.reset();
+            heapBuffer_.reset();
             std::cerr << "ERROR: failed to copy." << std::endl;
         }
     } else {
-        heapBuffer.reset();
-        errno_t ret = memcpy_s(logEntryBuffer, currentSize, other.logEntryBuffer, currentSize);
+        heapBuffer_.reset();
+        errno_t ret = memcpy_s(logEntryBuffer_, currentSize_, other.logEntryBuffer_, currentSize_);
         if (EOK != ret) {
             std::cerr << "ERROR: failed to copy." << std::endl;
         }
@@ -196,12 +196,12 @@ UbsmemLoggerEntry &UbsmemLoggerEntry::operator=(const UbsmemLoggerEntry &other)
 void UbsmemLoggerEntry::OutPutLog(std::ostream &os) const
 {
     std::ostringstream oss;
-    const char *start = !heapBuffer ? &logEntryBuffer[0] : &(heapBuffer.get())[0];
-    const char *end = start + currentSize;
+    const char *start = !heapBuffer_ ? &logEntryBuffer_[0] : &(heapBuffer_.get())[0];
+    const char *end = start + currentSize_;
 
-    FormatTimestamp(oss, timeStamp);
-    oss << '[' << LogLevelToString(level) << "][" << pid << "][" << tid << "]";
-    oss << "[" << file << ':' << line << "]";
+    FormatTimestamp(oss, timeStamp_);
+    oss << '[' << LogLevelToString(level_) << "][" << pid_ << "][" << tid_ << "]";
+    oss << "[" << file_ << ':' << line_ << "]";
     if (isAudit_) {
         oss << "[AUDIT]";
     }
@@ -212,36 +212,36 @@ void UbsmemLoggerEntry::OutPutLog(std::ostream &os) const
 void UbsmemLoggerEntry::FormatSyslog(std::ostream &os) const
 {
     std::ostringstream oss;
-    const char *start = !heapBuffer ? &logEntryBuffer[0] : &(heapBuffer.get())[0];
-    const char *end = start + currentSize;
-    oss << "[" << file << ':' << line << "] ";
+    const char *start = !heapBuffer_ ? &logEntryBuffer_[0] : &(heapBuffer_.get())[0];
+    const char *end = start + currentSize_;
+    oss << "[" << file_ << ':' << line_ << "] ";
     DecodeData(oss, start, end);
     os << oss.str() << std::endl;
 }
 
 const char *UbsmemLoggerEntry::GetFile()
 {
-    return file;
+    return file_;
 }
 
 uint32_t UbsmemLoggerEntry::GetLine()
 {
-    return line;
+    return line_;
 }
 
 UbsmemLogLevel UbsmemLoggerEntry::GetLogLevel()
 {
-    return level;
+    return level_;
 }
 uint64_t UbsmemLoggerEntry::GetEntryTimeStamp()
 {
-    return timeStamp;
+    return timeStamp_;
 }
 
 void UbsmemLoggerEntry::DecodePayload(std::ostream &os) const
 {
-    const char *start = !heapBuffer ? &logEntryBuffer[0] : &(heapBuffer.get())[0];
-    const char *end = start + currentSize;
+    const char *start = !heapBuffer_ ? &logEntryBuffer_[0] : &(heapBuffer_.get())[0];
+    const char *end = start + currentSize_;
     DecodeData(os, start, end);
 }
 
@@ -295,41 +295,41 @@ UbsmemLoggerEntry &UbsmemLoggerEntry::operator<<(const char *data)
 
 uint32_t UbsmemLoggerEntry::ResizeBuffer(size_t addSize)
 {
-    size_t const newSize = currentSize + addSize;
-    if (newSize <= maxSize) {
+    size_t const newSize = currentSize_ + addSize;
+    if (newSize <= maxSize_) {
         return 0;
     }
 
-    maxSize = std::max(static_cast<size_t>(2 * maxSize), newSize); // 重新分配2倍大小buffer
-    if (!heapBuffer) {
-        heapBuffer.reset(new (std::nothrow) char[maxSize]);
-        if (heapBuffer == nullptr) {
+    maxSize_ = std::max(static_cast<size_t>(2 * maxSize_), newSize); // 重新分配2倍大小buffer
+    if (!heapBuffer_) {
+        heapBuffer_.reset(new (std::nothrow) char[maxSize_]);
+        if (heapBuffer_ == nullptr) {
             return -1;
         }
-        auto err = memcpy_s(heapBuffer.get(), maxSize, logEntryBuffer, currentSize);
+        auto err = memcpy_s(heapBuffer_.get(), maxSize_, logEntryBuffer_, currentSize_);
         if (err != EOK) {
             return -1;
         }
         return 0;
     } else {
-        std::unique_ptr<char[]> newHeapBuffer(new (std::nothrow) char[maxSize]);
+        std::unique_ptr<char[]> newHeapBuffer(new (std::nothrow) char[maxSize_]);
         if (newHeapBuffer == nullptr) {
             return -1;
         }
-        if (memcpy_s(newHeapBuffer.get(), maxSize, heapBuffer.get(), currentSize) != EOK) {
+        if (memcpy_s(newHeapBuffer.get(), maxSize_, heapBuffer_.get(), currentSize_) != EOK) {
             return -1;
         }
-        heapBuffer.swap(newHeapBuffer);
+        heapBuffer_.swap(newHeapBuffer);
         return 0;
     }
 }
 
 char *UbsmemLoggerEntry::GetBuffer()
 {
-    if (!heapBuffer) {
-        return &logEntryBuffer[currentSize];
+    if (!heapBuffer_) {
+        return &logEntryBuffer_[currentSize_];
     }
-    return &(heapBuffer.get())[currentSize];
+    return &(heapBuffer_.get())[currentSize_];
 }
 
 void UbsmemLoggerEntry::EncodeString(const char *data, size_t length)
@@ -346,7 +346,7 @@ void UbsmemLoggerEntry::EncodeString(const char *data, size_t length)
     if (memcpy_s(buffer, length + 1, data, length + 1) != EOK) {
         return;
     }
-    currentSize += sizeof(UbsmemLoggerTypeId) + length + 1;
+    currentSize_ += sizeof(UbsmemLoggerTypeId) + length + 1;
 }
 
 void UbsmemLoggerEntry::EncodeData(const char *data)
