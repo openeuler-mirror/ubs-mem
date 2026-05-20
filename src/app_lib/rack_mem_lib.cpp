@@ -85,6 +85,7 @@ void RackMemLib::Destroy()
         desc.isInitialized = false;
     }
     inited = false;
+    ubsmem::log::UbsmemLoggerManager::Destroy();
 }
 
 uint32_t RackMemLib::InitHtrace() const
