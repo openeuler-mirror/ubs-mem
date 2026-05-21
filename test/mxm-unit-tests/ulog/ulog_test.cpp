@@ -15,7 +15,6 @@
 using namespace ubsmem::log;
 
 namespace UT {
-
 TEST(ulog, test_stdout)
 {
     UbsmemLoggerDefaultWriter writer;
@@ -59,3 +58,4 @@ TEST(ulog, test_file)
     mgr->Exit();
     UbsmemLoggerManager::Destroy();
 }  // namespace UT
+}
