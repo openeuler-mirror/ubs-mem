@@ -99,10 +99,11 @@ compile_and_run() {
   cp $BUILD_PATH/output/bin/* $BUILD_PATH
   cp $BUILD_PATH/output/lib/* $BUILD_PATH
   run_encrypt_tool
-  echo "LD_LIBRARY_PATH=$BUILD_PATH HSECEASY_PATH=$BUILD_PATH ${BUILD_PATH}/mxmd_ut --gtest_break_on_failure --gtest_output=xml:gcover_report/test_detail.xml"
-  LD_LIBRARY_PATH=$BUILD_PATH HSECEASY_PATH=$BUILD_PATH ${BUILD_PATH}/mxmd_ut --gtest_break_on_failure --gtest_output=xml:gcover_report/test_detail.xml
+  ASAN_PATH=$(find /usr/lib64/ -name *asan* |head -n 1)
+  echo "LD_PRELOAD=$ASAN_PATH:$LD_PRELOAD LD_LIBRARY_PATH=$BUILD_PATH HSECEASY_PATH=$BUILD_PATH ${BUILD_PATH}/mxmd_ut --gtest_break_on_failure --gtest_output=xml:gcover_report/test_detail.xml"
+  LD_PRELOAD=$ASAN_PATH:$LD_PRELOAD LD_LIBRARY_PATH=$BUILD_PATH HSECEASY_PATH=$BUILD_PATH ${BUILD_PATH}/mxmd_ut --gtest_break_on_failure --gtest_output=xml:gcover_report/test_detail.xml
   if [ ${DEBUG_FUZZ} = ON ]; then
-    LD_LIBRARY_PATH=$BUILD_PATH:$LD_LIBRARY_PATH HSECEASY_PATH=$BUILD_PATH ${BUILD_PATH}/mxmd_fuzz --gtest_output=xml:gcover_report/test_fuzz_detail.xml
+    LD_PRELOAD=$ASAN_PATH:$LD_PRELOAD LD_LIBRARY_PATH=$BUILD_PATH:$LD_LIBRARY_PATH HSECEASY_PATH=$BUILD_PATH ${BUILD_PATH}/mxmd_fuzz --gtest_output=xml:gcover_report/test_fuzz_detail.xml
   fi
 }
 
