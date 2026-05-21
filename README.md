@@ -25,8 +25,6 @@ UBS Memory(Unified Bus Service Core Memory)在超节点上基于UB硬件能力�
 - `numactl-devel`: NUMA (Non-Uniform Memory Access) 支持库
 - `systemd-devel`: systemd 服务管理支持库
 - `openssl-devel`: OpenSSL 开发库
-- `spdlog-devel`: C++ 快速日志库开发依赖
-- `spdlog`: C++ 快速日志库运行时依赖
 - `libboundscheck`: 安全函数库
 - `ubs-comm-lib`: UBS 通信库
 
