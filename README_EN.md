@@ -74,10 +74,12 @@ After execution, the console will display a summary of the coverage results. A d
 - **Installation and Deployment**
     ```bash
     # (Optional) Uninstall UBS Memory
-    rpm -e ubs-mem-shmem
+    yum remove ubs-mem-shmem                    # openEuler 24.03 LTS SP3
+    rpm -e ubs-mem-shmem                        # Other OS
 
     # Install UBS Memory
-    rpm -ivh ubs-mem-shmem-x.x.x-x.x.*.rpm
+    yum remove ubs-mem-shmem                    # openEuler 24.03 LTS SP3
+    rpm -ivh ubs-mem-shmem-x.x.x-x.x.*.rpm      # Other OS
 
     # (Optional) Modify configuration parameters of ubsmd.conf
     vim /usr/local/ubs_mem/config/ubsmd.conf
