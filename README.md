@@ -25,11 +25,8 @@ UBS Memory(Unified Bus Service Core Memory)在超节点上基于UB硬件能力�
 - `numactl-devel`: NUMA (Non-Uniform Memory Access) 支持库
 - `systemd-devel`: systemd 服务管理支持库
 - `openssl-devel`: OpenSSL 开发库
-- `spdlog-devel`: C++ 快速日志库开发依赖
-- `spdlog`: C++ 快速日志库运行时依赖
 - `libboundscheck`: 安全函数库
-- `ubs-comm-devel`: UBS 通信库开发库
-- `ubs-comm-lib`: UBS 通信库(ubs-comm-devel依赖)
+- `ubs-comm-lib`: UBS 通信库
 
 ### 获取源码
 ```shell
@@ -67,8 +64,30 @@ sh run_dt.sh
 执行成功后，控制台将打印对应的覆盖率总结信息。详细的覆盖率报告位于“build/gcovr_report/”目录，可打开该目录下的index.html文件查看。
 
 ### 使用说明
-1. 安装操作请参见[安装部署](https://gitcode.com/openeuler/UnifiedBus-docs/blob/master/docs/zh/installation/ub_service_core/ubs_memory_installation_deployment.md)。
-2. API相关信息请参见[接口说明](docs/zh/api_description.md)。
+- **安装部署**
+
+    ```bash
+    # （可选）卸载已存在的UBS Memory
+    rpm -e ubs-mem-shmem
+
+    # 安装UBS Memory
+    rpm -ivh ubs-mem-shmem-x.x.x-x.x.*.rpm
+
+    # （可选）修改ubsmd.conf配置文件
+    vim /usr/local/ubs_mem/config/ubsmd.conf
+
+    # 启动UBS Engine服务
+    systemctl start ubse.service
+
+    # 启动ubsmd
+    systemctl start ubsmd
+
+    # 查看ubsmd状态
+    systemctl status ubsmd
+    ```
+
+- **API接口**
+    API相关内容请参见 [接口说明](docs/zh/api_description.md)。
 
 ### License
 ubs-mem 采用 Mulan V2 License.
