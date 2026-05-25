@@ -68,6 +68,7 @@ typedef enum {
     UBSM_ERR_MALLOC_FAIL = 6022,
     UBSM_ERR_RECORD = 6023,
     UBSM_ERR_IN_USING = 6024, // shm is in use (usrNum > 0)
+    UBSM_ERR_NOT_SUPPORTED = 6025, // operation not support
 
     // net error
     UBSM_ERR_NET = 6040,

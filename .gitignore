@@ -26,3 +26,5 @@ __pycache__
 /test/build/
 /test/UT/data_sync/test_logtest/3rdparty/build/
 test/config/
+/test/3rdparty/build/
+q

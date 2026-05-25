@@ -106,6 +106,7 @@ typedef enum {
     MXM_ERR_UBSE_INNER = 800,
     MXM_ERR_UBSE_LIB,
     MXM_ERR_UBSE_NOT_ATTACH,
+    MXM_ERR_UBSE_NOT_SUPPORTED,
 
     // obmm
     MXM_ERR_OBMM_INNER = 900,

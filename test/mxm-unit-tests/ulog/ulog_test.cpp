@@ -57,5 +57,5 @@ TEST(ulog, test_file)
     std::this_thread::sleep_for(std::chrono::seconds(1));
     mgr->Exit();
     UbsmemLoggerManager::Destroy();
-}  // namespace UT
 }
+}  // namespace UT

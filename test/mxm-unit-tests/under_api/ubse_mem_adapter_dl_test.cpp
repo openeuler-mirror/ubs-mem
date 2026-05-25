@@ -30,6 +30,9 @@ protected:
     }
 };
 
+static constexpr size_t TEST_SHM_SIZE = 128UL * 1024UL * 1024UL;
+static constexpr mode_t TEST_SHM_MODE = 0600;
+
 TEST_F(UbseMemAdapterDlTest, UbseMemAdapterLoadLibrary_WhenUbseMemAdapterInitSuccess)
 {
     int ret = UbseMemAdapter::Initialize();
@@ -448,6 +451,335 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmCreateWithProvider)
     appContext.pid = 0;
     hr = ock::mxm::UbseMemAdapter::ShmDelete(createParam.name, appContext);
     EXPECT_EQ(hr, 0);
+    UbseMemAdapter::Destroy();
+}
+TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_LeaseMalloc_NumaCreateNotSupported)
+{
+    int ret = UbseMemAdapter::Initialize();
+    EXPECT_EQ(ret, 0);
+
+    SHMRegions regions;
+    ret = ock::mxm::UbseMemAdapter::LookupRegionList(regions);
+    EXPECT_EQ(ret, 0);
+
+    std::string regionName = "LeaseMalloc_NumaNotSupported_region";
+    ock::share::service::RegionInfo regionInfo{regionName, 1, regions.region[0]};
+    regionInfo.region.affinity[0] = true;
+    ret = ock::share::service::RegionManager::GetInstance().CreateRegionInfo(regionInfo);
+    EXPECT_EQ(ret, true);
+
+    ock::mxm::LeaseMallocParam param;
+    param.name = "UbseMemAdapter_LeaseMalloc_NumaNotSupported_NOT_SUPPORTED";
+    param.regionName = regionName;
+    param.size = TEST_SHM_SIZE;
+    param.isNuma = true;
+    param.distance = ock::mxm::MEM_DISTANCE_L0;
+    param.appContext.uid = 0;
+    param.appContext.gid = 0;
+    param.appContext.pid = 0;
+
+    ock::ubsm::LeaseMallocResult result{};
+    auto hr = ock::mxm::UbseMemAdapter::LeaseMalloc(param, result);
+    EXPECT_EQ(hr, MXM_ERR_UBSE_NOT_SUPPORTED);
+
+    ret = ock::share::service::RegionManager::GetInstance().DeleteRegionInfo(regionName);
+    EXPECT_EQ(ret, true);
+    UbseMemAdapter::Destroy();
+}
+
+TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_LeaseMalloc_FdCreateNotSupported)
+{
+    int ret = UbseMemAdapter::Initialize();
+    EXPECT_EQ(ret, 0);
+
+    SHMRegions regions;
+    ret = ock::mxm::UbseMemAdapter::LookupRegionList(regions);
+    EXPECT_EQ(ret, 0);
+
+    std::string regionName = "LeaseMalloc_FdNotSupported_region";
+    ock::share::service::RegionInfo regionInfo{regionName, 1, regions.region[0]};
+    regionInfo.region.affinity[0] = true;
+    ret = ock::share::service::RegionManager::GetInstance().CreateRegionInfo(regionInfo);
+    EXPECT_EQ(ret, true);
+
+    ock::mxm::LeaseMallocParam param;
+    param.name = "UbseMemAdapter_LeaseMalloc_FdNotSupported_NOT_SUPPORTED";
+    param.regionName = regionName;
+    param.size = TEST_SHM_SIZE;
+    param.isNuma = false;
+    param.distance = ock::mxm::MEM_DISTANCE_L0;
+    param.appContext.uid = 0;
+    param.appContext.gid = 0;
+    param.appContext.pid = 0;
+
+    ock::ubsm::LeaseMallocResult result{};
+    auto hr = ock::mxm::UbseMemAdapter::LeaseMalloc(param, result);
+    EXPECT_EQ(hr, MXM_ERR_UBSE_NOT_SUPPORTED);
+
+    ret = ock::share::service::RegionManager::GetInstance().DeleteRegionInfo(regionName);
+    EXPECT_EQ(ret, true);
+    UbseMemAdapter::Destroy();
+}
+
+TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_LeaseMallocWithLoc_NumaNotSupported)
+{
+    int ret = UbseMemAdapter::Initialize();
+    EXPECT_EQ(ret, 0);
+
+    ock::mxm::LeaseMallocWithLocParam param;
+    param.name = "UbseMemAdapter_LeaseMallocWithLoc_NumaNotSupported_NOT_SUPPORTED";
+    param.regionName = "default";
+    param.size = TEST_SHM_SIZE;
+    param.isNuma = true;
+
+    param.appContext.uid = 0;
+    param.appContext.gid = 0;
+    param.appContext.pid = 0;
+    param.slotId = 1;
+    param.socketId = 1;
+    param.numaId = 0;
+    param.portId = 1;
+
+    ock::ubsm::LeaseMallocResult result{};
+    auto hr = ock::mxm::UbseMemAdapter::LeaseMallocWithLoc(param, result);
+    EXPECT_EQ(hr, MXM_ERR_UBSE_NOT_SUPPORTED);
+    UbseMemAdapter::Destroy();
+}
+
+TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_LeaseMallocWithLoc_FdNotSupported)
+{
+    int ret = UbseMemAdapter::Initialize();
+    EXPECT_EQ(ret, 0);
+
+    ock::mxm::LeaseMallocWithLocParam param;
+    param.name = "UbseMemAdapter_LeaseMallocWithLoc_FdNotSupported_NOT_SUPPORTED";
+    param.regionName = "default";
+    param.size = TEST_SHM_SIZE;
+    param.isNuma = false;
+
+    param.appContext.uid = 0;
+    param.appContext.gid = 0;
+    param.appContext.pid = 0;
+    param.slotId = 1;
+    param.socketId = 1;
+    param.numaId = 0;
+    param.portId = 1;
+
+    ock::ubsm::LeaseMallocResult result{};
+    auto hr = ock::mxm::UbseMemAdapter::LeaseMallocWithLoc(param, result);
+    EXPECT_EQ(hr, MXM_ERR_UBSE_NOT_SUPPORTED);
+    UbseMemAdapter::Destroy();
+}
+
+TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmCreateNotSupported)
+{
+    ock::mxm::CreateShmParam createParam;
+    createParam.privider.slot_ids[0] = 1;
+    createParam.privider.node_cnt = 1;
+    createParam.name = "UbseMemAdapter_ShmCreateNotSupported_NOT_SUPPORTED";
+    createParam.size = TEST_SHM_SIZE;
+    createParam.appContext.uid = 0;
+    createParam.appContext.gid = 0;
+    createParam.appContext.pid = 0;
+
+    createParam.flag = UBSM_FLAG_CACHE;
+    createParam.mode = TEST_SHM_MODE;
+
+    SHMRegions regions;
+    auto ret = ock::mxm::UbseMemAdapter::LookupRegionList(regions);
+    EXPECT_EQ(ret, 0);
+    createParam.desc = regions.region[0];
+
+    auto hr = ock::mxm::UbseMemAdapter::ShmCreate(createParam);
+    EXPECT_EQ(hr, MXM_ERR_UBSE_NOT_SUPPORTED);
+    UbseMemAdapter::Destroy();
+}
+
+TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmCreateWithProviderNotSupported)
+{
+    ock::mxm::CreateShmWithProviderParam createParam("node2", 1, 1, UINT32_MAX);
+    createParam.name = "UbseMemAdapter_ShmCreateWithProviderNotSupported_NOT_SUPPORTED";
+    createParam.size = TEST_SHM_SIZE;
+    createParam.appContext.uid = 0;
+    createParam.appContext.gid = 0;
+    createParam.appContext.pid = 0;
+
+    createParam.flag = UBSM_FLAG_CACHE;
+    createParam.mode = TEST_SHM_MODE;
+
+    auto hr = ock::mxm::UbseMemAdapter::ShmCreateWithProvider(createParam);
+    EXPECT_EQ(hr, MXM_ERR_UBSE_NOT_SUPPORTED);
+    UbseMemAdapter::Destroy();
+}
+
+TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmDeleteNotSupported)
+{
+    ock::mxm::CreateShmParam createParam;
+    createParam.privider.slot_ids[0] = 1;
+    createParam.privider.node_cnt = 1;
+    createParam.name = "UbseMemAdapter_ShmDeleteNotSupported_Normal";
+    createParam.size = TEST_SHM_SIZE;
+    createParam.appContext.uid = 0;
+    createParam.appContext.gid = 0;
+    createParam.appContext.pid = 0;
+
+    createParam.flag = UBSM_FLAG_CACHE;
+    createParam.mode = TEST_SHM_MODE;
+
+    SHMRegions regions;
+    auto ret = ock::mxm::UbseMemAdapter::LookupRegionList(regions);
+    EXPECT_EQ(ret, 0);
+    createParam.desc = regions.region[0];
+
+    auto hr = ock::mxm::UbseMemAdapter::ShmCreate(createParam);
+    EXPECT_EQ(hr, 0);
+
+    ock::ubsm::AppContext appContext;
+    appContext.uid = 0;
+    appContext.gid = 0;
+    appContext.pid = 0;
+
+    hr = ock::mxm::UbseMemAdapter::ShmDelete(
+        "UbseMemAdapter_ShmDeleteNotSupported_NOT_SUPPORTED", appContext);
+    EXPECT_EQ(hr, MXM_ERR_UBSE_NOT_SUPPORTED);
+
+    hr = ock::mxm::UbseMemAdapter::ShmDelete(createParam.name, appContext);
+    EXPECT_EQ(hr, 0);
+    UbseMemAdapter::Destroy();
+}
+
+TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmAttachNotSupported)
+{
+    ock::mxm::CreateShmParam createParam;
+    createParam.privider.slot_ids[0] = 1;
+    createParam.privider.node_cnt = 1;
+    createParam.name = "UbseMemAdapter_ShmAttachNotSupported_Normal";
+    createParam.size = TEST_SHM_SIZE;
+    createParam.appContext.uid = 0;
+    createParam.appContext.gid = 0;
+    createParam.appContext.pid = 0;
+
+    createParam.flag = UBSM_FLAG_CACHE;
+    createParam.mode = TEST_SHM_MODE;
+
+    SHMRegions regions;
+    auto ret = ock::mxm::UbseMemAdapter::LookupRegionList(regions);
+    EXPECT_EQ(ret, 0);
+    createParam.desc = regions.region[0];
+
+    auto hr = ock::mxm::UbseMemAdapter::ShmCreate(createParam);
+    EXPECT_EQ(hr, 0);
+
+    ock::mxm::ImportShmParam importParam;
+    importParam.name = createParam.name;
+    importParam.length = TEST_SHM_SIZE;
+    importParam.appContext.uid = 0;
+    importParam.appContext.gid = 0;
+    importParam.appContext.pid = 0;
+    importParam.mode = TEST_SHM_MODE;
+
+    ock::mxm::ubse_user_info_t ubsUserInfo{};
+    hr = ock::mxm::UbseMemAdapter::ShmGetUserData(importParam.name, ubsUserInfo);
+    EXPECT_EQ(hr, 0);
+
+    ock::mxm::AttachShmResult result;
+    hr = ock::mxm::UbseMemAdapter::ShmAttach(
+        "UbseMemAdapter_ShmAttachNotSupported_NOT_SUPPORTED", ubsUserInfo, result);
+    EXPECT_EQ(hr, MXM_ERR_UBSE_NOT_SUPPORTED);
+
+    hr = ock::mxm::UbseMemAdapter::ShmAttach(createParam.name, ubsUserInfo, result);
+    EXPECT_EQ(hr, 0);
+    hr = ock::mxm::UbseMemAdapter::ShmDetach(createParam.name);
+    EXPECT_EQ(hr, 0);
+
+    ock::ubsm::AppContext appContext;
+    appContext.uid = 0;
+    appContext.gid = 0;
+    appContext.pid = 0;
+    hr = ock::mxm::UbseMemAdapter::ShmDelete(createParam.name, appContext);
+    EXPECT_EQ(hr, 0);
+    UbseMemAdapter::Destroy();
+}
+
+TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_LeaseFree_FdDeleteNotSupported)
+{
+    int ret = UbseMemAdapter::Initialize();
+    EXPECT_EQ(ret, 0);
+
+    SHMRegions regions;
+    ret = ock::mxm::UbseMemAdapter::LookupRegionList(regions);
+    EXPECT_EQ(ret, 0);
+
+    std::string regionName = "LeaseFree_FdNotSupported_region";
+    ock::share::service::RegionInfo regionInfo{regionName, 1, regions.region[0]};
+    regionInfo.region.affinity[0] = true;
+    ret = ock::share::service::RegionManager::GetInstance().CreateRegionInfo(regionInfo);
+    EXPECT_EQ(ret, true);
+
+    ock::mxm::LeaseMallocParam param;
+    param.name = "UbseMemAdapter_LeaseFree_FdNotSupported_Normal";
+    param.regionName = regionName;
+    param.size = TEST_SHM_SIZE;
+    param.isNuma = false;
+    param.distance = ock::mxm::MEM_DISTANCE_L0;
+    param.appContext.uid = 0;
+    param.appContext.gid = 0;
+    param.appContext.pid = 0;
+
+    ock::ubsm::LeaseMallocResult mallocResult{};
+    auto hr = ock::mxm::UbseMemAdapter::LeaseMalloc(param, mallocResult);
+    EXPECT_EQ(hr, 0);
+
+    hr = ock::mxm::UbseMemAdapter::LeaseFree(
+        "UbseMemAdapter_LeaseFree_FdNotSupported_NOT_SUPPORTED", false);
+    EXPECT_EQ(hr, MXM_ERR_UBSE_NOT_SUPPORTED);
+
+    hr = ock::mxm::UbseMemAdapter::LeaseFree(param.name, param.isNuma);
+    EXPECT_EQ(hr, 0);
+
+    ret = ock::share::service::RegionManager::GetInstance().DeleteRegionInfo(regionName);
+    EXPECT_EQ(ret, true);
+    UbseMemAdapter::Destroy();
+}
+
+TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_LeaseFree_NumaDeleteNotSupported)
+{
+    int ret = UbseMemAdapter::Initialize();
+    EXPECT_EQ(ret, 0);
+
+    SHMRegions regions;
+    ret = ock::mxm::UbseMemAdapter::LookupRegionList(regions);
+    EXPECT_EQ(ret, 0);
+
+    std::string regionName = "LeaseFree_NumaNotSupported_region";
+    ock::share::service::RegionInfo regionInfo{regionName, 1, regions.region[0]};
+    regionInfo.region.affinity[0] = true;
+    ret = ock::share::service::RegionManager::GetInstance().CreateRegionInfo(regionInfo);
+    EXPECT_EQ(ret, true);
+
+    ock::mxm::LeaseMallocParam param;
+    param.name = "UbseMemAdapter_LeaseFree_NumaNotSupported_Normal";
+    param.regionName = regionName;
+    param.size = TEST_SHM_SIZE;
+    param.isNuma = true;
+    param.distance = ock::mxm::MEM_DISTANCE_L0;
+    param.appContext.uid = 0;
+    param.appContext.gid = 0;
+    param.appContext.pid = 0;
+
+    ock::ubsm::LeaseMallocResult mallocResult{};
+    auto hr = ock::mxm::UbseMemAdapter::LeaseMalloc(param, mallocResult);
+    EXPECT_EQ(hr, 0);
+
+    hr = ock::mxm::UbseMemAdapter::LeaseFree(
+        "UbseMemAdapter_LeaseFree_NumaNotSupported_NOT_SUPPORTED", true);
+    EXPECT_EQ(hr, MXM_ERR_UBSE_NOT_SUPPORTED);
+
+    hr = ock::mxm::UbseMemAdapter::LeaseFree(param.name, param.isNuma);
+    EXPECT_EQ(hr, 0);
+
+    ret = ock::share::service::RegionManager::GetInstance().DeleteRegionInfo(regionName);
+    EXPECT_EQ(ret, true);
     UbseMemAdapter::Destroy();
 }
 }  // namespace UT

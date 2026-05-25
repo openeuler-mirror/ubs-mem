@@ -118,6 +118,13 @@ int32_t ubs_engine_client_initialize(const char *ubse_uds_path)
 
 void ubs_engine_client_finalize() {}
 
+static constexpr const char *NOT_SUPPORTED_TRIGGER = "_NOT_SUPPORTED";
+
+static bool IsNotSupportedName(const char *name)
+{
+    return name != nullptr && strstr(name, NOT_SUPPORTED_TRIGGER) != nullptr;
+}
+
 // 预设节点列表
 static ubs_topo_node_t mock_nodes[2];
 // 初始化函数
@@ -327,6 +334,10 @@ int32_t ubs_mem_fd_create_with_candidate(const char *name, uint64_t size, const 
         return UBS_ERR_NULL_POINTER;
     }
 
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
+    }
+
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
         return UBS_ENGINE_ERR_OUT_OF_RANGE;
     }
@@ -396,6 +407,10 @@ int32_t ubs_mem_fd_create_with_lender(const char *name, const ubs_mem_fd_owner_t
 {
     if (!name || !lender || !fd_desc) {
         return UBS_ERR_NULL_POINTER;
+    }
+
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
     }
 
     if (lender->lender_size == 0) {
@@ -478,6 +493,10 @@ int32_t ubs_mem_fd_delete(const char *name)
 {
     if (!name) {
         return UBS_ERR_NULL_POINTER;
+    }
+
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
     }
 
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
@@ -601,6 +620,10 @@ int32_t ubs_mem_numa_create_with_candidate(const char *name, uint64_t size, cons
         return UBS_ERR_NULL_POINTER;
     }
 
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
+    }
+
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
         return UBS_ENGINE_ERR_OUT_OF_RANGE;
     }
@@ -641,6 +664,10 @@ int32_t ubs_mem_numa_create_with_lender(const char *name, const ubs_mem_lender_t
 {
     if (!name || !lender || !numa_desc) {
         return UBS_ERR_NULL_POINTER;
+    }
+
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
     }
 
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
@@ -705,6 +732,9 @@ int32_t ubs_mem_numa_delete(const char *name)
     if (!name) {
         return UBS_ERR_NULL_POINTER;
     }
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
+    }
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
         return UBS_ENGINE_ERR_OUT_OF_RANGE;
     }
@@ -721,6 +751,10 @@ int32_t ubs_mem_shm_create(const char *name, uint64_t size, uint8_t usr_info[32]
     printf("in ubse_mem_shm_create1\n");
     if (!name || !region || !usr_info) {
         return UBS_ERR_NULL_POINTER;
+    }
+
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
     }
 
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
@@ -772,6 +806,10 @@ int32_t ubs_mem_shm_create_with_lender(const char *name, uint8_t usr_info[UBS_ME
 {
     if (!name || !usr_info || !lender) {
         return UBS_ERR_NULL_POINTER;
+    }
+
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
     }
 
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
@@ -840,6 +878,10 @@ int32_t ubs_mem_shm_create_with_affinity(const char *name, uint64_t size, uint32
     printf("in ubs_mem_shm_create_with_affinity\n");
     if (!name || !region || !usr_info) {
         return UBS_ERR_NULL_POINTER;
+    }
+
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
     }
 
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
@@ -912,6 +954,9 @@ int32_t ubs_mem_shm_attach(const char *name, const ubs_mem_fd_owner_t *owner, mo
 {
     if (!name || !shm_desc) {
         return UBS_ERR_NULL_POINTER;
+    }
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
     }
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
         return UBS_ENGINE_ERR_OUT_OF_RANGE;
@@ -1005,6 +1050,9 @@ int32_t ubs_mem_shm_detach(const char *name)
     if (!name) {
         return UBS_ERR_NULL_POINTER;
     }
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
+    }
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
         return UBS_ENGINE_ERR_OUT_OF_RANGE;
     }
@@ -1019,6 +1067,10 @@ int32_t ubs_mem_shm_delete(const char *name)
 {
     if (!name) {
         return UBS_ERR_NULL_POINTER;
+    }
+
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
     }
 
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
