@@ -307,6 +307,7 @@ static const std::unordered_map<uint32_t, int> errorMapping = {
         {MXM_ERR_UBSE_INNER, UBSM_ERR_UBSE},
         {MXM_ERR_UBSE_LIB, UBSM_ERR_UBSE},
         {MXM_ERR_UBSE_NOT_ATTACH, UBSM_ERR_UBSE},
+        {MXM_ERR_UBSE_NOT_SUPPORTED, UBSM_ERR_NOT_SUPPORTED},
         // obmm
         {MXM_ERR_OBMM_INNER, UBSM_ERR_OBMM},
         {MXM_ERR_SHM_OBMM_OPEN, UBSM_ERR_OBMM},

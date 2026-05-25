@@ -478,6 +478,10 @@ int UbseMemAdapter::LeaseMalloc(const ock::mxm::LeaseMallocParam& param, ock::ub
         if (hr != UBS_SUCCESS && hr != UBS_ERR_TIMED_OUT) {
             DBG_LOGERROR("pUbseMemNumaCreateWithCandidate failed, ret: " << hr);
             SAFE_DELETE_ARRAY(slotIdsPtr);
+            if (hr == UBS_ERR_NOT_SUPPORTED) {
+                DBG_LOGERROR("pUbseMemNumaCreateWithCandidate not supported.");
+                return MXM_ERR_UBSE_NOT_SUPPORTED;
+            }
             return MXM_ERR_UBSE_INNER;
         }
         if (hr == UBS_ERR_TIMED_OUT) {
@@ -505,8 +509,12 @@ int UbseMemAdapter::LeaseMalloc(const ock::mxm::LeaseMallocParam& param, ock::ub
                                       slotIdsPtr, slotCnt, &fdDesc);
         TP_TRACE_END(TP_UBSM_CREATE_FD_MEM, hr);
         if (hr != UBS_SUCCESS && hr != UBS_ERR_TIMED_OUT) {
-            DBG_LOGERROR("pUbseMemFdCreateWithCandidate failed, ret: " << hr);
+            DBG_LOGERROR("MemFdCreateWithCandidate failed, ret: " << hr);
             SAFE_DELETE_ARRAY(slotIdsPtr);
+            if (hr == UBS_ERR_NOT_SUPPORTED) {
+                DBG_LOGERROR("MemFdCreateWithCandidate not supported.");
+                return MXM_ERR_UBSE_NOT_SUPPORTED;
+            }
             return MXM_ERR_UBSE_INNER;
         }
         if (hr == UBS_ERR_TIMED_OUT) {
@@ -567,6 +575,10 @@ int UbseMemAdapter::LeaseMallocWithLoc(const LeaseMallocWithLocParam &param, ock
         TP_TRACE_END(TP_UBSM_CREATE_NUMA_MEM_WITH_LOC, ret);
         if (ret != UBS_SUCCESS && ret != UBS_ERR_TIMED_OUT) {
             DBG_LOGERROR("pUbseMemNumaCreateWithLender failed, ret=" << ret);
+            if (ret == UBS_ERR_NOT_SUPPORTED) {
+                DBG_LOGERROR("pUbseMemNumaCreateWithLender not supported.");
+                return MXM_ERR_UBSE_NOT_SUPPORTED;
+            }
             return MXM_ERR_UBSE_INNER;
         }
         if (ret == UBS_ERR_TIMED_OUT) {
@@ -594,7 +606,11 @@ int UbseMemAdapter::LeaseMallocWithLoc(const LeaseMallocWithLocParam &param, ock
         ret = MemFdCreateWithLender(param.name.c_str(), &owner, mode, &lender, 1, &fdDesc);
         TP_TRACE_END(TP_UBSM_CREATE_FD_MEM_WITH_LOC, ret);
         if (ret != UBS_SUCCESS && ret != UBS_ERR_TIMED_OUT) {
-            DBG_LOGERROR("pUbseMemFdCreateWithLender failed, ret=" << ret);
+            DBG_LOGERROR("MemFdCreateWithLender failed, ret=" << ret);
+            if (ret == UBS_ERR_NOT_SUPPORTED) {
+                DBG_LOGERROR("MemFdCreateWithLender not supported.");
+                return MXM_ERR_UBSE_NOT_SUPPORTED;
+            }
             return MXM_ERR_UBSE_INNER;
         }
         if (ret == UBS_ERR_TIMED_OUT) {
@@ -1056,6 +1072,10 @@ int UbseMemAdapter::ShmCreateWithAffinity(const CreateShmParam &param, const ubs
         TP_TRACE_END(TP_UBSE_MEM_SHM_CREATE_WITH_AFFINITY, ret);
         if (ret != UBS_SUCCESS && ret != UBS_ERR_TIMED_OUT) {  // 失败打warning
             DBG_LOGERROR("pUbseMemShmCreateWithAffinity failed, ret=" << ret << ", name=" << param.name);
+            if (ret == UBS_ERR_NOT_SUPPORTED) {
+                DBG_LOGERROR("pUbseMemShmCreateWithAffinity not support.");
+                return MXM_ERR_UBSE_NOT_SUPPORTED;
+            }
             return MXM_ERR_UBSE_INNER;
         }
         if (ret == UBS_ERR_TIMED_OUT) {
@@ -1162,6 +1182,10 @@ int UbseMemAdapter::ShmCreate(const CreateShmParam &param)
         DBG_LOGERROR("pUbseMemShmCreate failed, ret=" << ret << ", name=" << param.name);
         if (ret == UBS_ENGINE_ERR_EXISTED) {
             return MXM_ERR_SHM_ALREADY_EXIST;
+        }
+        if (ret == UBS_ERR_NOT_SUPPORTED) {
+            DBG_LOGERROR("pUbseMemShmCreate not support.");
+            return MXM_ERR_UBSE_NOT_SUPPORTED;
         }
         return MXM_ERR_UBSE_INNER;
     }
@@ -1288,6 +1312,10 @@ int UbseMemAdapter::ShmCreateWithProvider(const CreateShmWithProviderParam& para
         if (ret == UBS_ENGINE_ERR_EXISTED) {
             return MXM_ERR_SHM_ALREADY_EXIST;
         }
+        if (ret == UBS_ERR_NOT_SUPPORTED) {
+            DBG_LOGERROR("pUbseMemShmCreateWithLender not support.");
+            return MXM_ERR_UBSE_NOT_SUPPORTED;
+        }
         return MXM_ERR_UBSE_INNER;
     }
     if (ret == UBS_ERR_TIMED_OUT) {
@@ -1328,6 +1356,10 @@ int UbseMemAdapter::ShmDelete(const std::string &name, const ubsm::AppContext &a
         }
         if (ret == UBS_ENGINE_ERR_NOT_EXIST) {
             return MXM_ERR_SHM_NOT_EXIST;
+        }
+        if (ret == UBS_ERR_NOT_SUPPORTED) {
+            DBG_LOGERROR("pUbseMemShmDelete not support.");
+            return MXM_ERR_UBSE_NOT_SUPPORTED;
         }
         return MXM_ERR_UBSE_INNER;
     }
@@ -1521,6 +1553,10 @@ int UbseMemAdapter::ShmAttach(const std::string &name, const ubse_user_info_t &u
     }
     if (ret != UBS_SUCCESS && ret != UBS_ENGINE_ERR_EXISTED) {
         DBG_LOGERROR("pUbseMemShmAttach failed, ret: " << ret);
+        if (ret == UBS_ERR_NOT_SUPPORTED) {
+            DBG_LOGERROR("pUbseMemShmAttach not support.");
+            return MXM_ERR_UBSE_NOT_SUPPORTED;
+        }
         return MXM_ERR_UBSE_INNER;
     }
     if (shmDes == nullptr) {
@@ -1574,6 +1610,10 @@ int UbseMemAdapter::ShmDetach(const std::string &name)
         DBG_LOGERROR("pUbseMemShmDetach failed, ret=" << ret);
         if (ret == UBS_ENGINE_ERR_SHM_NO_ATTACH) {
             return MXM_ERR_UBSE_NOT_ATTACH;
+        }
+        if (ret == UBS_ERR_NOT_SUPPORTED) {
+            DBG_LOGERROR("pUbseMemShmDetach not support.");
+            return MXM_ERR_UBSE_NOT_SUPPORTED;
         }
         return MXM_ERR_UBSE_INNER;
     }
@@ -1731,6 +1771,10 @@ int UbseMemAdapter::LeaseFree(const std::string &name, bool isNuma)
             if (res == UBS_ENGINE_ERR_NOT_EXIST) {
                 return MXM_ERR_LEASE_NOT_EXIST;
             }
+            if (res == UBS_ERR_NOT_SUPPORTED) {
+                DBG_LOGERROR("pUbseMemFdDelete not support.");
+                return MXM_ERR_UBSE_NOT_SUPPORTED;
+            }
             return MXM_ERR_UBSE_INNER;
         }
     } else {
@@ -1745,6 +1789,10 @@ int UbseMemAdapter::LeaseFree(const std::string &name, bool isNuma)
             DBG_LOGERROR("pUbseMemNumaDelete failed, name " << name << " res " << res);
             if (res == UBS_ENGINE_ERR_NOT_EXIST) {
                 return MXM_ERR_LEASE_NOT_EXIST;
+            }
+            if (res == UBS_ERR_NOT_SUPPORTED) {
+                DBG_LOGERROR("pUbseMemNumaDelete not support.");
+                return MXM_ERR_UBSE_NOT_SUPPORTED;
             }
             return MXM_ERR_UBSE_INNER;
         }
