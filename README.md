@@ -68,11 +68,11 @@ sh run_dt.sh
 
     ```bash
     # （可选）卸载已存在的UBS Memory
-    yum remove ubs-mem-shmem                    # openEuler 24.03 LTS SP3 操作系统
+    yum remove ubs-mem-shmem                    # openEuler 操作系统
     rpm -e ubs-mem-shmem                        # 其他操作系统
 
     # 安装UBS Memory
-    yum remove ubs-mem-shmem                    # openEuler 24.03 LTS SP3 操作系统
+    yum remove ubs-mem-shmem                    # openEuler 操作系统
     rpm -ivh ubs-mem-shmem-x.x.x-x.x.*.rpm      # 其他操作系统
 
     # （可选）修改ubsmd.conf配置文件
