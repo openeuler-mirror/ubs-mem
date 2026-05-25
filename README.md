@@ -64,28 +64,30 @@ sh run_dt.sh
 执行成功后，控制台将打印对应的覆盖率总结信息。详细的覆盖率报告位于“build/gcovr_report/”目录，可打开该目录下的index.html文件查看。
 
 ### 使用说明
-- **安装部署**
-
+- **安装卸载**
+    安装：
     ```bash
-    # （可选）卸载已存在的UBS Memory
-    yum remove ubs-mem-shmem                    # openEuler 操作系统
-    rpm -e ubs-mem-shmem                        # 其他操作系统
-
-    # 安装UBS Memory
+    # 1. 安装UBS Memory
     yum remove ubs-mem-shmem                    # openEuler 操作系统
     rpm -ivh ubs-mem-shmem-x.x.x-x.x.*.rpm      # 其他操作系统
 
-    # （可选）修改ubsmd.conf配置文件
+    # 2.（可选）修改ubsmd.conf配置文件
     vim /usr/local/ubs_mem/config/ubsmd.conf
 
-    # 启动UBS Engine服务
+    # 3. 启动UBS Engine服务
     systemctl start ubse.service
 
-    # 启动ubsmd
+    # 4. 启动ubsmd
     systemctl start ubsmd
 
-    # 查看ubsmd状态
+    # 5. 查看ubsmd状态
     systemctl status ubsmd
+    ```
+    
+    卸载：
+    ```bash
+    yum remove ubs-mem-shmem                    # openEuler 操作系统
+    rpm -e ubs-mem-shmem                        # 其他操作系统
     ```
 
 - **API接口**
