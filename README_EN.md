@@ -71,32 +71,8 @@ After execution, the console will display a summary of the coverage results. A d
 
 ## Instruction
 
-- **Installation and Uninstallation**
-    Installation:
-    ```bash
-    # 1. Install UBS Memory
-    yum remove ubs-mem-shmem                    # openEuler OS
-    rpm -ivh ubs-mem-shmem-x.x.x-x.x.*.rpm      # Other OS
-
-    # 2. (Optional) Modify configuration parameters of ubsmd.conf
-    vim /usr/local/ubs_mem/config/ubsmd.conf
-
-    # 3. Start UBS Engine
-    systemctl start ubse.service
-
-    # 4. Start ubsmd
-    systemctl start ubsmd
-
-    # 5. Check ubsmd status
-    systemctl status ubsmd
-    ```
-
-    Uninstallation:
-    ```bash
-    yum remove ubs-mem-shmem                    # openEuler OS
-    rpm -e ubs-mem-shmem                        # Other OS
-    ```
-
+- **Installation and Deployment**
+    For details about the installation and deployment, see [Installation and Deployment](docs/zh/installation_deployment.md).
 - **API Reference**
     For details about the API, see [API Description](docs/zh/api_description.md).
 
