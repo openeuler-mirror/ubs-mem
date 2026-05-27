@@ -65,27 +65,7 @@ sh run_dt.sh
 
 ### 使用说明
 - **安装部署**
-
-    ```bash
-    # （可选）卸载已存在的UBS Memory
-    rpm -e ubs-mem-shmem
-
-    # 安装UBS Memory
-    rpm -ivh ubs-mem-shmem-x.x.x-x.x.*.rpm
-
-    # （可选）修改ubsmd.conf配置文件
-    vim /usr/local/ubs_mem/config/ubsmd.conf
-
-    # 启动UBS Engine服务
-    systemctl start ubse.service
-
-    # 启动ubsmd
-    systemctl start ubsmd
-
-    # 查看ubsmd状态
-    systemctl status ubsmd
-    ```
-
+    安装部署相关内容请参见 [安装部署](docs/zh/installation_deployment.md)。
 - **API接口**
     API相关内容请参见 [接口说明](docs/zh/api_description.md)。
 

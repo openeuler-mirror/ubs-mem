@@ -72,26 +72,7 @@ After execution, the console will display a summary of the coverage results. A d
 ## Instruction
 
 - **Installation and Deployment**
-    ```bash
-    # (Optional) Uninstall UBS Memory
-    rpm -e ubs-mem-shmem
-
-    # Install UBS Memory
-    rpm -ivh ubs-mem-shmem-x.x.x-x.x.*.rpm
-
-    # (Optional) Modify configuration parameters of ubsmd.conf
-    vim /usr/local/ubs_mem/config/ubsmd.conf
-
-    # Start UBS Engine
-    systemctl start ubse.service
-
-    # Start ubsmd
-    systemctl start ubsmd
-
-    # Check ubsmd status
-    systemctl status ubsmd
-    ```
-
+    For details about the installation and deployment, see [Installation and Deployment](docs/zh/installation_deployment.md).
 - **API Reference**
     For details about the API, see [API Description](docs/zh/api_description.md).
 
