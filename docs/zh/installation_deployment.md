@@ -2,7 +2,7 @@
 
 ## 安装前准备
 
-### 硬件环境
+**硬件环境**
 
 安装前，需要检查以下硬件配置，如[表1](#table001)所示。
 
@@ -12,50 +12,23 @@
 |-----|-----|
 | 服务器 | <ul><li>TaiShan 500 2280</li> <li>其他配备支持UB的CPU的服务器</li></ul> |
 
-### 软件环境
-
-在安装UBS Memory之前，需要准备以下软件环境：
-
-- **安装系统依赖**
-
-    ```shell
-    # 安装基础依赖包
-    yum install -y spdlog openssl-libs libboundscheck
-    ```
-
-- **安装 ubs-core**
-
-    ```shell
-    # 安装 ubs-comm
-    yum install -y ubs-comm-lib
-
-    # 安装 ubs-engine
-    yum install -y ubs-engine ubs-engine-client-libs
-    ```
-
 ## 安装UBS Memory
 
-### 前提条件
-
-- 已获取UBS Memory安装包：`ubs-mem-shmem-*x.x.x-x.x*.aarch64.rpm`。
-- 已完成[软件环境](#软件环境)章节所示的各项依赖的安装，包括ubs-comm、ubs-engine等。
-
-### 操作步骤
+**操作步骤**
 
 1. 使用root用户登录服务器。
-2. 将获取的所有软件包上传到任意目录，并进入该目录。
-3. 安装UBS Memory。
+2. 安装UBS Memory。
 
-    - openEuler 操作系统
+    - 在线安装
     
         ```bash
-        yum install -y ubs-mem-shmem
+        dnf install -y ubs-mem-shmem
         ```
 
-    - 其他操作系统
+    - 离线安装
     
         ```bash
-        rpm -ivh ubs-mem-shmem-x.x.x-x.x.*.rpm
+        dnf install -y ubs-mem-shmem-x.x.x-x.x.*.rpm
         ```
 
     >[!NOTE]说明
@@ -65,13 +38,13 @@
     >- 配置环境变量 **UBSM\_SDK\_TRACE\_ENABLE = 1**，开启性能打点统计，会在默认的日志路径（/var/log/ubsm）生成对应的打点数据。
     >- 配置环境变量 **MXM\_CHANNEL\_TIMEOUT= xx**，控制IPC通信的channel超时时间（单位s），当大块内存操作耗时较久时，可以配置较长时间，默认为60s。
 
-4. 启动UBS Engine服务。
+3. 启动UBS Engine服务。
 
     ```bash
     systemctl start ubse.service
     ```
 
-5. （可选）修改ubsmd.conf配置文件。
+4. （可选）修改ubsmd.conf配置文件。
 
     a. 打开“/usr/local/ubs\_mem/config/ubsmd.conf”配置文件。
 
@@ -138,7 +111,7 @@
 
     c. 按“Esc”键，输入**:wq!**，按“Enter”保存并退出编辑。
 
-6. 启动ubsmd。
+5. 启动ubsmd。
 
     ```bash
     systemctl start ubsmd
@@ -147,7 +120,7 @@
     >[!NOTE]说明
     >ubsmd进程启动依赖UBSE，该服务启动成功方可加载成功。
 
-7. 查看ubsmd状态。
+6. 查看ubsmd状态。
 
     ```bash
     systemctl status ubsmd
@@ -173,20 +146,12 @@
 1. 使用root用户登录服务器。
 2. 卸载UBS Memory。
 
+    ```bash
+    dnf remove ubs-mem-shmem
+    ```
+
     >[!CAUTION]注意
     >
     >- 卸载会自动停止ubsmd并释放占用的远端内存，因此在卸载ubsmd时，应确保UBSE正常运行且无业务正在进行。
     >- 为了避免权限问题，卸载后用户和用户组ubsmd将会保留。
     >- 如需卸载UBS Engine，请参见[UBS Engine 部署说明](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/build_install/%E9%83%A8%E7%BD%B2%E8%AF%B4%E6%98%8E.md)文档。
-
-    - openEuler 操作系统
-        
-        ```bash
-        yum remove ubs-mem-shmem
-        ```
-
-    - 其他操作系统
-
-        ```bash
-        rpm -e ubs-mem-shmem
-        ```
