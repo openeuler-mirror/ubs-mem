@@ -39,7 +39,10 @@ static std::unordered_map<int16_t, TEST_MsgBaseFunc> gTestRequestMap = {
     {RPC_AGENT_QUERY_NODE_INFO, []() { return new(std::nothrow) CommonRequest(); }},
     {RPC_DLOCK_CLIENT_REINIT, []() { return new(std::nothrow) DLockClientReinitRequest(); }},
     {IPC_RACKMEMSHM_QUERY_NODE, []() { return new(std::nothrow) QueryNodeRequest(); }},
-    {IPC_RACKMEMSHM_QUERY_DLOCK_STATUS, []() { return new(std::nothrow) CommonRequest(); }}
+    {IPC_RACKMEMSHM_QUERY_DLOCK_STATUS, []() { return new(std::nothrow) CommonRequest(); }},
+    {IPC_CHECK_MEMORY_LEASE, []() { return new(std::nothrow) CheckMemoryLeaseRequest(); }},
+    {IPC_CHECK_SHARE_MEMORY, []() { return new(std::nothrow) CheckShareMemoryMapRequest(); }},
+    {IPC_RACKMEMSHM_QUERY_SLOT_ID, []() { return new(std::nothrow) CommonRequest(); }}
 };
 static std::unordered_map<int16_t, TEST_MsgBaseFunc> gTestResponseMap = {
     {MXM_MSG_SHM_ALLOCATE, []() { return new(std::nothrow) CommonResponse(); }},
@@ -63,7 +66,10 @@ static std::unordered_map<int16_t, TEST_MsgBaseFunc> gTestResponseMap = {
     {RPC_AGENT_QUERY_NODE_INFO, []() { return new(std::nothrow) RpcQueryInfoResponse(); }},
     {RPC_DLOCK_CLIENT_REINIT, []() { return new(std::nothrow) DLockClientReinitResponse(); }},
     {IPC_RACKMEMSHM_QUERY_NODE, []() { return new(std::nothrow) QueryNodeResponse(); }},
-    {IPC_RACKMEMSHM_QUERY_DLOCK_STATUS, []() { return new(std::nothrow) QueryDlockStatusResponse(); }}
+    {IPC_RACKMEMSHM_QUERY_DLOCK_STATUS, []() { return new(std::nothrow) QueryDlockStatusResponse(); }},
+    {IPC_CHECK_MEMORY_LEASE, []() { return new(std::nothrow) CommonResponse(); }},
+    {IPC_CHECK_SHARE_MEMORY, []() { return new(std::nothrow) CommonResponse(); }},
+    {IPC_RACKMEMSHM_QUERY_SLOT_ID, []() { return new(std::nothrow) LookupSlotIdResponse(); }}
 };
 
 
@@ -108,6 +114,63 @@ TEST_F(MxmMessageTest, TestSerialize_ShmemAllocateRequest_Success)
 {
     auto ret = TestSerializeDeserialize<ShmemAllocateRequest>();
     EXPECT_EQ(ret, true);
+    ShmemAllocateRequest req("region1", "shm1", 4096, 0600, 0);
+    EXPECT_EQ(req.regionName_, "region1");
+    EXPECT_EQ(req.shmName_, "shm1");
+    EXPECT_EQ(req.size_, 4096);
+}
+
+TEST_F(MxmMessageTest, TestSerialize_AppMallocMemoryWithLocRequest_Success)
+{
+    auto ret = TestSerializeDeserialize<AppMallocMemoryWithLocRequest>();
+    EXPECT_EQ(ret, true);
+    AppMallocMemoryWithLocRequest req(1024, true, 0, 1, 2, 3);
+    EXPECT_EQ(req.size_, 1024);
+    EXPECT_EQ(req.isNuma_, 1);
+    EXPECT_EQ(req.slotId_, 0);
+    EXPECT_EQ(req.socketId_, 1);
+    EXPECT_EQ(req.numaId_, 2);
+    EXPECT_EQ(req.portId_, 3);
+}
+
+TEST_F(MxmMessageTest, TestSerialize_ShmCreateWithProviderRequest_Success)
+{
+    auto ret = TestSerializeDeserialize<ShmCreateWithProviderRequest>();
+    EXPECT_EQ(ret, true);
+    ShmCreateWithProviderRequest req("host1", 0, 1, 2, "shm1", 4096, 0, 0600);
+    EXPECT_EQ(req.hostName_, "host1");
+    EXPECT_EQ(req.socketId_, 0);
+    EXPECT_EQ(req.numaId_, 1);
+    EXPECT_EQ(req.portId_, 2);
+    EXPECT_EQ(req.name_, "shm1");
+    EXPECT_EQ(req.size_, 4096);
+}
+
+TEST_F(MxmMessageTest, TestSerialize_CheckMemoryLeaseRequest_Success)
+{
+    auto ret = TestSerializeDeserialize<CheckMemoryLeaseRequest>();
+    EXPECT_EQ(ret, true);
+    std::vector<std::string> names{"lease1", "lease2"};
+    CheckMemoryLeaseRequest req(names);
+    EXPECT_EQ(req.names_.size(), 2);
+}
+
+TEST_F(MxmMessageTest, TestSerialize_CheckShareMemoryMapRequest_Success)
+{
+    auto ret = TestSerializeDeserialize<CheckShareMemoryMapRequest>();
+    EXPECT_EQ(ret, true);
+    std::vector<std::string> names{"shm1", "shm2"};
+    CheckShareMemoryMapRequest req(names);
+    EXPECT_EQ(req.names_.size(), 2);
+}
+
+TEST_F(MxmMessageTest, TestSerialize_LookupSlotIdResponse_Success)
+{
+    auto ret = TestSerializeDeserialize<LookupSlotIdResponse>();
+    EXPECT_EQ(ret, true);
+    LookupSlotIdResponse rsp(UBSM_OK, 42);
+    EXPECT_EQ(rsp.errCode_, UBSM_OK);
+    EXPECT_EQ(rsp.slotId_, 42);
 }
 
 
@@ -436,6 +499,8 @@ TEST_F(MxmMessageTest, TestCreateRequestByOpCodeInner_Success)
         EXPECT_NE(ret, nullptr);
         SafeDelete(ret);
     }
+    auto ret = CreateRequestByOpCodeInner(-1);
+    EXPECT_EQ(ret, nullptr);
 }
 
 
@@ -451,5 +516,158 @@ TEST_F(MxmMessageTest, CreateResponseByOpCodeInner_Success)
         EXPECT_NE(ret, nullptr);
         SafeDelete(ret);
     }
+    auto ret = CreateResponseByOpCodeInner(-1);
+    EXPECT_EQ(ret, nullptr);
+}
+
+TEST_F(MxmMessageTest, TestCommonRequestWithInput)
+{
+    CommonRequest req(42);
+    EXPECT_EQ(req.input_, 42);
+    NetMsgPacker packer;
+    EXPECT_EQ(req.Serialize(packer), UBSM_OK);
+    NetMsgUnpacker unpacker(packer.String());
+    CommonRequest req2;
+    EXPECT_EQ(req2.Deserialize(unpacker), UBSM_OK);
+    EXPECT_EQ(req2.input_, 42);
+}
+
+TEST_F(MxmMessageTest, TestCommonResponseWithInput)
+{
+    CommonResponse rsp(UBSM_ERR_MEMLIB);
+    EXPECT_EQ(rsp.errCode_, UBSM_ERR_MEMLIB);
+}
+
+TEST_F(MxmMessageTest, TestBroadcastRequestWithValues)
+{
+    std::map<std::string, ock::rpc::ClusterNode> nodes;
+    ock::rpc::ClusterNode node;
+    node.id = "node1";
+    nodes["node1"] = node;
+    BroadcastRequest req("node1", nodes, true);
+    EXPECT_EQ(req.nodeId_, "node1");
+    EXPECT_EQ(req.isSeverInited_, true);
+    EXPECT_EQ(req.nodes_.size(), 1);
+}
+
+TEST_F(MxmMessageTest, TestQueryNodeResponseWithValues)
+{
+    QueryNodeResponse rsp(UBSM_OK, "node1", true);
+    EXPECT_EQ(rsp.errCode_, UBSM_OK);
+    EXPECT_EQ(rsp.nodeId_, "node1");
+    EXPECT_EQ(rsp.nodeIsReady_, true);
+}
+
+TEST_F(MxmMessageTest, TestShmMapResponseWithValues)
+{
+    std::vector<uint64_t> ids{100, 200};
+    ShmMapResponse rsp(UBSM_OK, ids, 4096, 512, 0, 0);
+    EXPECT_EQ(rsp.errCode_, UBSM_OK);
+    EXPECT_EQ(rsp.memIds_.size(), 2);
+    EXPECT_EQ(rsp.shmSize_, 4096);
+    EXPECT_EQ(rsp.unitSize_, 512);
+}
+
+TEST_F(MxmMessageTest, TestShmCreateRequestWithValues)
+{
+    SHMRegionDesc desc;
+    ShmCreateRequest req("region1", "shm1", 4096, "nid1", desc, 0, 0600);
+    EXPECT_EQ(req.regionName_, "region1");
+    EXPECT_EQ(req.name_, "shm1");
+    EXPECT_EQ(req.size_, 4096);
+    EXPECT_EQ(req.baseNid_, "nid1");
+}
+
+TEST_F(MxmMessageTest, TestVoteRequestWithValues)
+{
+    VoteRequest req("node1", "master1", 3);
+    EXPECT_EQ(req.nodeId_, "node1");
+    EXPECT_EQ(req.masterNode_, "master1");
+    EXPECT_EQ(req.term_, 3);
+}
+
+TEST_F(MxmMessageTest, TestLockRequestWithValues)
+{
+    LockRequest req("mem1", true, 100, 200, 300);
+    EXPECT_EQ(req.memName_, "mem1");
+    EXPECT_EQ(req.isExclusive_, true);
+    EXPECT_EQ(req.pid_, 100);
+    EXPECT_EQ(req.uid_, 200);
+    EXPECT_EQ(req.gid_, 300);
+}
+
+TEST_F(MxmMessageTest, TestUnLockRequestWithValues)
+{
+    UnLockRequest req("mem1", 100, 200, 300);
+    EXPECT_EQ(req.memName_, "mem1");
+    EXPECT_EQ(req.pid_, 100);
+    EXPECT_EQ(req.uid_, 200);
+    EXPECT_EQ(req.gid_, 300);
+}
+
+TEST_F(MxmMessageTest, TestDLockResponseWithValues)
+{
+    DLockResponse rsp(UBSM_OK, 0);
+    EXPECT_EQ(rsp.errCode_, UBSM_OK);
+    EXPECT_EQ(rsp.dLockCode_, 0);
+}
+
+TEST_F(MxmMessageTest, TestRpcJoinInfoResponseWithValues)
+{
+    RpcJoinInfoResponse rsp(UBSM_OK, 1);
+    EXPECT_EQ(rsp.errCode_, UBSM_OK);
+    EXPECT_EQ(rsp.nodetype_, 1);
+}
+
+TEST_F(MxmMessageTest, TestRpcVoteInfoResponseWithValues)
+{
+    RpcVoteInfoResponse rsp(UBSM_OK, "node1", true);
+    EXPECT_EQ(rsp.errCode_, UBSM_OK);
+    EXPECT_EQ(rsp.name_, "node1");
+    EXPECT_EQ(rsp.isGranted_, true);
+}
+
+TEST_F(MxmMessageTest, TestShmQueryMemFaultStatusResponseWithValues)
+{
+    ShmQueryMemFaultStatusResponse rsp(UBSM_OK, true);
+    EXPECT_EQ(rsp.errCode_, UBSM_OK);
+    EXPECT_EQ(rsp.isMemFault_, true);
+}
+
+TEST_F(MxmMessageTest, TestTransElectedRequestWithValues)
+{
+    std::vector<std::string> nodes{"node1", "node2"};
+    TransElectedRequest req("master", nodes, 5);
+    EXPECT_EQ(req.nodeId_, "master");
+    EXPECT_EQ(req.nodes_.size(), 2);
+    EXPECT_EQ(req.term_, 5);
+}
+
+TEST_F(MxmMessageTest, TestDLockClientReinitResponseWithValues)
+{
+    DLockClientReinitResponse rsp(UBSM_OK, 0);
+    EXPECT_EQ(rsp.errCode_, UBSM_OK);
+    EXPECT_EQ(rsp.dLockCode_, 0);
+}
+
+TEST_F(MxmMessageTest, TestShmLookupResponseWithValues)
+{
+    ubsmem_shmem_info_t info;
+    ShmLookupResponse rsp(UBSM_OK, info);
+    EXPECT_EQ(rsp.errCode_, UBSM_OK);
+}
+
+TEST_F(MxmMessageTest, TestShmCreateRegionRequestWithValues)
+{
+    SHMRegionDesc desc;
+    ShmCreateRegionRequest req("region1", desc);
+    EXPECT_EQ(req.regionName_, "region1");
+}
+
+TEST_F(MxmMessageTest, TestQueryDlockStatusResponseWithValues)
+{
+    QueryDlockStatusResponse rsp(UBSM_OK, true);
+    EXPECT_EQ(rsp.errCode_, UBSM_OK);
+    EXPECT_EQ(rsp.isReady_, true);
 }
 }

@@ -38,6 +38,7 @@ include_directories(
         ${CMAKE_SOURCE_DIR}/src/dlock_utils
         ${CMAKE_SOURCE_DIR}/src/store
         ${CMAKE_SOURCE_DIR}/src/under_api/ubse
+        ${CMAKE_SOURCE_DIR}/src/under_api/openssl
         ${CMAKE_SOURCE_DIR}/src/zen_discovery
 )
 
