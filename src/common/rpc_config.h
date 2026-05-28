@@ -28,11 +28,7 @@ struct RpcNode {
     uint16_t port;
 };
 
-enum class NodeType
-{
-    ELIGIBLE_NODE = 0,
-    VOTING_ONLY_NODE = 1
-};
+enum class NodeType { ELIGIBLE_NODE = 0, VOTING_ONLY_NODE = 1 };
 
 struct ClusterNode {
     std::string id;

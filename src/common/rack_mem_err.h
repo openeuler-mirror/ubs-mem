@@ -48,8 +48,7 @@ inline bool BresultFail(uint32_t res)
 
 namespace ock {
 namespace common {
-typedef enum
-{
+typedef enum {
     MXM_OK = 0,
     // common error
     MXM_ERR_MEMLIB = 100,

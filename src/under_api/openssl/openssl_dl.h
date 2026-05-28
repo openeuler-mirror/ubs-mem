@@ -12,8 +12,8 @@
 #ifndef OPENSSL_DL_H
 #define OPENSSL_DL_H
 
-#include <cstdint>
 #include <unistd.h>
+#include <cstdint>
 
 #ifdef __cplusplus
 extern "C" {

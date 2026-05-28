@@ -22,21 +22,15 @@
 extern "C" {
 #endif
 
-typedef enum RackMemShmRegionType
-{
+typedef enum RackMemShmRegionType {
     ALL2ALL_SHARE = 0, /* *SHM域类型为域内任何节点提供内存都可以被域内所有节点共享访问 */
     ONE2ALL_SHARE,     /* *SHM域类型为域内单一节点作为提供方都可以被域内所有节点共享访问 */
     INCLUDE_ALL_TYPE,  /* *请求所有类型 */
 } ShmRegionType;
 
-typedef enum RackMemShmCacheOptType
-{
-    RACK_FLUSH = 0,
-    RACK_INVALID
-} ShmCacheOpt;
+typedef enum RackMemShmCacheOptType { RACK_FLUSH = 0, RACK_INVALID } ShmCacheOpt;
 
-typedef enum RackMemShmOwnStatus
-{
+typedef enum RackMemShmOwnStatus {
     UNACCESS = 0,
     WRITE,
     READ,

@@ -40,7 +40,7 @@ AllowShortLambdasOnASingleLine: Inline   # 仅内联lambda可放在同一行
 AllowShortCaseLabelsOnASingleLine: false
 AllowShortIfStatementsOnASingleLine: Never  # 不允许短if单行
 AllowShortLoopsOnASingleLine: false
-AllowShortEnumsOnASingleLine: false
+AllowShortEnumsOnASingleLine: true
 
 # --- 对齐 ---
 AlignAfterOpenBracket: Align

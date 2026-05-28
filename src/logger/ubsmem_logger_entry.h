@@ -76,15 +76,7 @@ namespace ubsmem::log {
 #define UBSMEM_AUDIT_WARN UBSMEM_AUDIT_LOGGER(ubsmem::log::UbsmemLogLevel::WARN)
 #define UBSMEM_AUDIT_INFO UBSMEM_AUDIT_LOGGER(ubsmem::log::UbsmemLogLevel::INFO)
 
-enum class UbsmemLogLevel : uint32_t
-{
-    DEBUG = 0,
-    INFO = 1,
-    WARN = 2,
-    ERROR = 3,
-    CRIT = 4,
-    COUNT = 5
-};
+enum class UbsmemLogLevel : uint32_t { DEBUG = 0, INFO = 1, WARN = 2, ERROR = 3, CRIT = 4, COUNT = 5 };
 
 /**
  * @brief 格式化错误码
@@ -93,16 +85,7 @@ enum class UbsmemLogLevel : uint32_t
  */
 std::string FormatRetCode(uint32_t retCode);
 
-enum class UbsmemLoggerTypeId : uint8_t
-{
-    CHAR = 0,
-    UINT32,
-    UINT64,
-    INT32,
-    INT64,
-    DOUBLE,
-    STRING
-};
+enum class UbsmemLoggerTypeId : uint8_t { CHAR = 0, UINT32, UINT64, INT32, INT64, DOUBLE, STRING };
 
 class UbsmemLoggerEntry {
 public:

@@ -16,8 +16,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-typedef enum RackMemPerfLevel
-{
+typedef enum RackMemPerfLevel {
     L0, /* *L0对应直连节点 */
     L1, /* *L1对应通过1跳节点，暂不支持 */
     L2  /* *L2对应过超过1跳节点 ，暂不支持 */

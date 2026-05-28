@@ -25,8 +25,7 @@
 
 namespace ock {
 namespace dagger {
-enum RunnableType
-{
+enum RunnableType {
     NORMAL = 0,
     STOP = 1,
 };

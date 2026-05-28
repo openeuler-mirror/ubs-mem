@@ -38,8 +38,7 @@ namespace ock::com {
 using namespace ock::hcom;
 using namespace ock::mxmd;
 
-enum class MxmModuleCode
-{
+enum class MxmModuleCode {
     COLLECTOR = 0,
     MEM = 1,
     VM = 2,

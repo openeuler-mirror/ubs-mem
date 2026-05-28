@@ -29,8 +29,7 @@ class ZenDiscovery;
 class ElectionModule {
 public:
     ~ElectionModule();
-    enum class ZenElectionEventType
-    {
+    enum class ZenElectionEventType {
         ELECTION_STARTED,
         VOTING_COMPLETED,
         MASTER_ELECTED,

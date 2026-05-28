@@ -32,8 +32,7 @@ struct MsgBase;
 }
 
 namespace ock::zendiscovery {
-enum NodeState : int
-{
+enum NodeState : int {
     UNINITIALIZED = 0,
     INITIAL = 1,
     JOINING_MASTER = 2,

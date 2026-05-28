@@ -40,35 +40,18 @@ using namespace ock::rpc;
 // 消息回复钩子函数
 using ReplyFuncHook = std::function<HRESULT(const UBSHcomRequest &msg, const Callback *done)>;
 
-enum class MxmEngineType
-{
-    CLIENT = 0,
-    SERVER
-};
+enum class MxmEngineType { CLIENT = 0, SERVER };
 
-enum class MxmProtocol
-{
-    TCP = 1,
-    UDS,
-    HCCS,
-    UB
-};
+enum class MxmProtocol { TCP = 1, UDS, HCCS, UB };
 
-enum class MxmWorkerMode
-{
+enum class MxmWorkerMode {
     NET_BUSY_POLLING = 0, // Worker保持空转，CPU占用高，性能高。
     NET_EVENT_POLLING     // Worker采用事件驱动，CPU占用低，性能相比略低。
 };
 
-enum class MxmLinkState
-{
-    LINK_UP = 0,
-    LINK_DOWN,
-    LINK_STATE_UNKNOWN
-};
+enum class MxmLinkState { LINK_UP = 0, LINK_DOWN, LINK_STATE_UNKNOWN };
 
-enum class MxmChannelType
-{
+enum class MxmChannelType {
     SINGLE_SIDE = 0, // 单向通道，客户端向服务端发送数据流单向通道
     NORMAL,          // 双向通道
     EMERGENCY,       // 紧急消息通道

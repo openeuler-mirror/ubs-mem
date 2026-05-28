@@ -51,8 +51,7 @@ typedef struct ubse_user_info_t {
     uint64_t seqNo;
 } ubse_user_info_t;
 
-enum MemNodeDistance
-{
+enum MemNodeDistance {
     MEM_DISTANCE_L0, /* *L0对应直连节点 */
     MEM_DISTANCE_L1, /* *L1对应通过1跳节点，暂不支持 */
     MEM_DISTANCE_L2  /* *L2对应过超过1跳节点 ，暂不支持 */

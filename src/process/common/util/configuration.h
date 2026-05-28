@@ -26,8 +26,7 @@ namespace ock {
 namespace common {
 constexpr uint32_t CONF_MUST = 1;
 
-enum class ConfValueType
-{
+enum class ConfValueType {
     VINT = 0,
     VFLOAT = 1,
     VSTRING = 2,

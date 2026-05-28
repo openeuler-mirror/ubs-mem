@@ -14,8 +14,7 @@
 
 #include "ptracer.h"
 
-enum UBSM_MEM_MOD
-{
+enum UBSM_MEM_MOD {
     TP_UBSM_START = PTRACER_ID(0, 0U),
     TP_UBSM_MEM_SHM_CREATE,
 

@@ -51,8 +51,7 @@ extern "C" {
 #define UBSM_FLAG_MALLOC_WITH_NUMA 0x40UL // create a remote numa when malloc
 #define FOUR_KB 4096
 
-typedef enum
-{
+typedef enum {
     UBSM_OK = 0,
     // common error
     UBSM_ERR_PARAM_INVALID = 6010,
@@ -88,8 +87,7 @@ typedef enum
 /**
  * Memory distance, describes the physical memory resource distance relative to the current PE.
  */
-typedef enum
-{
+typedef enum {
     /** direct connect node is provided, same as PerfLevel::L0 */
     DISTANCE_DIRECT_NODE = 0,
     /** one hop connect node is provided, same as PerfLevel::L1, not support 930 */
@@ -157,8 +155,7 @@ typedef struct {
     uint64_t mem_id_list[MAX_MEMID_NUM];
 } ubsmem_shmem_info_t;
 
-typedef enum
-{
+typedef enum {
     UBMEM_ATOMIC_DATA_ERR = 0,
     UBMEM_READ_DATA_ERR,
     UBMEM_FLOW_POISON,

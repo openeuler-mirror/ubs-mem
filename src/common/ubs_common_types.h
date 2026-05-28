@@ -21,8 +21,7 @@
 namespace ock {
 namespace ubsm {
 
-enum class RecordState : int16_t
-{
+enum class RecordState : int16_t {
     PRE_ADD,
     FINISH,
     PRE_DEL,

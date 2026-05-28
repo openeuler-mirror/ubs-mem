@@ -30,8 +30,7 @@ struct MsgBase {
     virtual ~MsgBase() = default;
 };
 
-enum MXM_MSG_OPCODE : int16_t
-{
+enum MXM_MSG_OPCODE : int16_t {
     MXM_MSG_SHM_ALLOCATE = 66,
     MXM_MSG_SHM_DEALLOCATE,
 

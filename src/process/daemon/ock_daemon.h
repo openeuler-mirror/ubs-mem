@@ -59,19 +59,13 @@ private:
     int32_t InitRpcTlsConfig();
     int32_t InitLockTlsConfig();
 
-    enum class ServerStatus
-    {
-        UNINITIALIZED = 0,
-        INITIALIZED = 1,
-        WAITING = 2
-    };
+    enum class ServerStatus { UNINITIALIZED = 0, INITIALIZED = 1, WAITING = 2 };
 
     HpcServiceManagerPtr serviceManager = nullptr;
     ock::common::ConfigurationPtr mConf = nullptr;
     std::string mHomePath = "";
 
-    enum KeepAliveStatus : int
-    {
+    enum KeepAliveStatus : int {
         KEEP_ALIVE_IDLE,
         KEEP_ALIVE_RUNNING,
         KEEP_ALIVE_STOPPING,

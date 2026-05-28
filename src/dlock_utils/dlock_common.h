@@ -18,17 +18,11 @@
 namespace ock {
 namespace dlock_utils {
 
-enum class REINIT_STAGES
-{
-    CLIENT_REINIT = 0,
-    UPDATE_LOCK,
-    CLIENT_REINIT_DONE
-};
+enum class REINIT_STAGES { CLIENT_REINIT = 0, UPDATE_LOCK, CLIENT_REINIT_DONE };
 
 const std::string &GetReinitStageName(REINIT_STAGES stage);
 
-enum DLockLogLevel
-{
+enum DLockLogLevel {
     DLOCK_LOG_LEVEL_EMERG = 0,
     DLOCK_LOG_LEVEL_ALERT = 1,
     DLOCK_LOG_LEVEL_CRIT = 2,
