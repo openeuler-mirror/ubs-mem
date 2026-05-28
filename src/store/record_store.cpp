@@ -12,8 +12,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include <cstring>
 #include <cerrno>
+#include <cstring>
 
 #include <algorithm>
 
@@ -53,7 +53,7 @@ std::shared_ptr<BaseRecordAllocator<RecordType>> CreateAllocator(RecordType *bas
 {
     return std::make_shared<BaseRecordAllocator<RecordType>>(base, capacity, idleFun, clearFun);
 }
-}
+} // namespace
 
 RecordStore::RecordStore() noexcept : shmFd_{-1} {}
 
@@ -72,7 +72,7 @@ bool RecordStore::CheckAllocators()
 {
     regionAllocator_ = CreateAllocator<RegionRecord>(regionRecordBegin_, REGION_MAX_RECORD, RegionIdle, ClearRegion);
     memLeaseAllocator_ =
-            CreateAllocator<MemLeaseRecord>(memLeaseRecordBegin_, MEM_LEASE_MAX_RECORD, MemLeaseIdle, ClearMemLease);
+        CreateAllocator<MemLeaseRecord>(memLeaseRecordBegin_, MEM_LEASE_MAX_RECORD, MemLeaseIdle, ClearMemLease);
     shmImportAllocator_ = CreateAllocator<MemShareImportRecord>(shmImportRecordBegin_, SHM_MAX_ATTACH_RECORD,
                                                                 MemShareImportIdle, ClearMemShareImport);
     shmRefAllocator_ = CreateAllocator<MemShareRefRecord>(shmRefRecordBegin_, SHM_MAX_REFERENCE_RECORD, MemShareRefIdle,
@@ -120,7 +120,7 @@ int RecordStore::Initialize(int fd) noexcept
     shmRefRecordBegin_ = reinterpret_cast<MemShareRefRecord *>(shmImportRecordBegin_ + SHM_MAX_ATTACH_RECORD);
     memIdRecordPoolBegin_ = reinterpret_cast<MemIdRecordPool *>(shmRefRecordBegin_ + SHM_MAX_REFERENCE_RECORD);
     createSeqNo_ = reinterpret_cast<uint32_t *>(memIdRecordPoolBegin_ + 1);
- 
+
     if (!CheckAllocators()) {
         DBG_LOGERROR("CheckAllocators failed.");
         munmap(mappingAddress_, SHARE_MEM_SIZE);
@@ -372,7 +372,7 @@ int RecordStore::DelMemLeaseRecord(const std::string &name) noexcept
     return 0;
 }
 
-int RecordStore::AddMemLeaseInput(const LeaseMallocInput& input) noexcept
+int RecordStore::AddMemLeaseInput(const LeaseMallocInput &input) noexcept
 {
     if (input.name.size() >= RECORD_NAME_SIZE) {
         DBG_LOGERROR("input lease memory name(" << input.name << ") too long.");
@@ -417,7 +417,7 @@ int RecordStore::AddMemLeaseInput(const LeaseMallocInput& input) noexcept
     return 0;
 }
 
-int RecordStore::AddMemLeaseResult(const std::string& name, const LeaseMallocResult& result) noexcept
+int RecordStore::AddMemLeaseResult(const std::string &name, const LeaseMallocResult &result) noexcept
 {
     if (mappingAddress_ == nullptr) {
         DBG_LOGERROR("not initialized!");
@@ -449,7 +449,7 @@ int RecordStore::AddMemLeaseResult(const std::string& name, const LeaseMallocRes
     return 0;
 }
 
-int RecordStore::UpdateMemLeaseRecordState(const std::string& name, RecordState state) noexcept
+int RecordStore::UpdateMemLeaseRecordState(const std::string &name, RecordState state) noexcept
 {
     if (mappingAddress_ == nullptr) {
         DBG_LOGERROR("not initialized!");
@@ -675,7 +675,7 @@ int RecordStore::AddShmImportResult(const std::string &name, const ShareMemImpor
     return 0;
 }
 
-int RecordStore::UpdateShmImportRecordState(const std::string& name, RecordState state) noexcept
+int RecordStore::UpdateShmImportRecordState(const std::string &name, RecordState state) noexcept
 {
     if (mappingAddress_ == nullptr) {
         DBG_LOGERROR("not initialized!");
@@ -965,7 +965,7 @@ void RecordStore::RestoreShmImport() noexcept
     std::unique_lock<std::mutex> uniqueLock{cachedRecordMutex_};
     for (auto &share : shares) {
         WithMemIdsRecord<MemShareImportRecord> record{share};
-        if (share->memIdCount !=0 && poolAllocator_.FillAllocated(share->memIdBuffer, record.memIds) != 0) {
+        if (share->memIdCount != 0 && poolAllocator_.FillAllocated(share->memIdBuffer, record.memIds) != 0) {
             continue;
         }
         cachedImportShmRecords_.emplace(share->name, record);
@@ -1000,5 +1000,5 @@ void RecordStore::ConvertMemLease(const WithMemIdsRecord<MemLeaseRecord> &record
     info.second.slotId = record.record->slotId;
 }
 
-}
-}
+} // namespace ubsm
+} // namespace ock

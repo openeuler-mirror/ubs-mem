@@ -3,13 +3,13 @@
  */
 #include <gtest/gtest.h>
 #include <mockcpp/mokc.h>
-#include <mockcpp/mockcpp.hpp>
 #include <systemd/sd-daemon.h>
-#include "fstream"
-#include "ubsm_file_util.h"
+#include <mockcpp/mockcpp.hpp>
 #include "configuration.h"
+#include "fstream"
 #include "kv_parser.h"
 #include "systemd_wrapper.h"
+#include "ubsm_file_util.h"
 #include "util/ref.h"
 
 using namespace ock::utils;
@@ -90,7 +90,7 @@ TEST_F(UtilFileTest, TestConfigurationFail)
 
 TEST_F(UtilFileTest, TestConfigurationFail01)
 {
-    MOCKER_CPP(&ock::common::KVParser::FromFile, HRESULT(*)(const std::string& filePath)).stubs().will(returnValue(0));
+    MOCKER_CPP(&ock::common::KVParser::FromFile, HRESULT(*)(const std::string &filePath)).stubs().will(returnValue(0));
     MOCKER_CPP(&ock::common::KVParser::Size, uint32_t(*)()).stubs().will(returnValue(101));
     std::string filePath = "/path";
     auto ConfigPtr = ock::common::Configuration::FromFile(filePath);
@@ -133,4 +133,4 @@ TEST_F(UtilFileTest, TestConLogLevel)
 
     EXPECT_EQ(level, "2");
 }
-}  // namespace UT
+} // namespace UT

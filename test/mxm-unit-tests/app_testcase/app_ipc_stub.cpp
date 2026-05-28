@@ -1,12 +1,12 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
  */
+#include "app_ipc_stub.h"
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
 #include "RmLibObmmExecutor.h"
 #include "mls_manager.h"
 #include "ubse_mem_adapter_stub.h"
-#include "app_ipc_stub.h"
 #ifndef MOCKER_CPP
 #define MOCKER_CPP(api, TT) MOCKCPP_NS::mockAPI(#api, reinterpret_cast<TT>(api))
 #endif
@@ -24,14 +24,13 @@ int ClientIpcLeaseMallocMemStub(MsgBase *request, MsgBase *response)
 {
     printf("MxmComIpcClientSendStub: receive IPC_MALLOC_MEMORY\n");
     MOCKER_CPP(&ock::mxm::UbseMemAdapter::MemFdCreateWithCandidate,
-               int (*)(const char* name, uint64_t size, const ubs_mem_fd_owner_t* owner,
-                       mode_t mode, const uint32_t* slot_ids, uint32_t slot_cnt,
-                       ubs_mem_fd_desc_t* fd_desc))
+               int (*)(const char *name, uint64_t size, const ubs_mem_fd_owner_t *owner, mode_t mode,
+                       const uint32_t *slot_ids, uint32_t slot_cnt, ubs_mem_fd_desc_t *fd_desc))
         .stubs()
         .will(invoke(MemFdCreateWithCandidateStub));
 
-    ock::lease::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_MALLOC_MEMORY, request, response, ock::lease::service::MxmServerMsgHandle::AppMallocMemory);
+    ock::lease::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_MALLOC_MEMORY, request, response,
+                                                            ock::lease::service::MxmServerMsgHandle::AppMallocMemory);
     return 0;
 }
 
@@ -39,19 +38,18 @@ int ClientIpcLeaseMallocMemWithLocationStub(MsgBase *request, MsgBase *response)
 {
     printf("ClientIpcLeaseMallocMemWithLocationStub: receive IPC_MALLOC_MEMORY_LOC\n");
     MOCKER_CPP(&ock::mxm::UbseMemAdapter::MemFdCreateWithLender,
-               int32_t (*)(const char *name, const ubs_mem_fd_owner_t *owner, mode_t mode,
-                           const ubs_mem_lender_t *lender, uint32_t lender_cnt,
-                           ubs_mem_fd_desc_t *fd_desc))
+               int32_t(*)(const char *name, const ubs_mem_fd_owner_t *owner, mode_t mode,
+                          const ubs_mem_lender_t *lender, uint32_t lender_cnt, ubs_mem_fd_desc_t *fd_desc))
         .stubs()
         .will(invoke(MemFdCreateWithLenderStub));
     MOCKER_CPP(&ock::lease::service::MLSManager::PreAddUsedMem,
-               int32_t(*)(const std::string& name, size_t size, const AppContext& usr, bool isNuma, uint16_t perfLevel))
+               int32_t(*)(const std::string &name, size_t size, const AppContext &usr, bool isNuma, uint16_t perfLevel))
         .stubs()
         .will(returnValue(0));
 
     MOCKER_CPP(&ock::lease::service::MLSManager::FinishAddUsedMem,
                int32_t(*)(const std::string &name, int64_t numaId, size_t unitSize, uint32_t slotId,
-                   const std::vector<uint64_t> &memIds))
+                          const std::vector<uint64_t> &memIds))
         .stubs()
         .will(returnValue(0));
 
@@ -68,8 +66,8 @@ int ClientIpcLeaseFreeMemStub(MsgBase *request, MsgBase *response)
                int (*)(const std::string &name, const ock::ubsm::AppContext &appContext, mode_t mode))
         .stubs()
         .will(invoke(FdPermissionChangeStub));
-    ock::lease::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_FREE_RACKMEM, request, response, ock::lease::service::MxmServerMsgHandle::AppFreeMemory);
+    ock::lease::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_FREE_RACKMEM, request, response,
+                                                            ock::lease::service::MxmServerMsgHandle::AppFreeMemory);
     return 0;
 }
 
@@ -85,72 +83,65 @@ int ClientIpcAppCheckLeaseMemoryResourceStub(MsgBase *request, MsgBase *response
 int ClientIpcShmLookRegionListStub(MsgBase *request, MsgBase *response)
 {
     printf("ClientIpcShmLookRegionListStub: receive IPC_RACKMEMSHM_LOOKUP_SHAREREGIONS\n");
-    ock::share::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_RACKMEMSHM_LOOKUP_SHAREREGIONS, request, response,
-        ock::share::service::MxmServerMsgHandle::ShmLookRegionList);
+    ock::share::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_RACKMEMSHM_LOOKUP_SHAREREGIONS, request,
+                                                            response,
+                                                            ock::share::service::MxmServerMsgHandle::ShmLookRegionList);
     return 0;
 }
 
 int ClientIpcShmCreateStub(MsgBase *request, MsgBase *response)
 {
     printf("ClientIpcShmCreateStub: receive IPC_RACKMEMSHM_CREATE\n");
-    ock::share::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_RACKMEMSHM_CREATE, request, response,
-        ock::share::service::MxmServerMsgHandle::ShmCreate);
+    ock::share::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_RACKMEMSHM_CREATE, request, response,
+                                                            ock::share::service::MxmServerMsgHandle::ShmCreate);
     return 0;
 }
 
 int ClientIpcShmDeleteStub(MsgBase *request, MsgBase *response)
 {
     printf("ClientIpcShmDeleteStub: receive IPC_RACKMEMSHM_DELETE\n");
-    ock::share::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_RACKMEMSHM_DELETE, request, response,
-        ock::share::service::MxmServerMsgHandle::ShmDelete);
+    ock::share::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_RACKMEMSHM_DELETE, request, response,
+                                                            ock::share::service::MxmServerMsgHandle::ShmDelete);
     return 0;
 }
 
 int ClientIpcShmMmapStub(MsgBase *request, MsgBase *response)
 {
     printf("ClientIpcShmMmapStub: receive IPC_RACKMEMSHM_MMAP\n");
-    ock::share::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_RACKMEMSHM_MMAP, request, response,
-        ock::share::service::MxmServerMsgHandle::ShmMap);
+    ock::share::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_RACKMEMSHM_MMAP, request, response,
+                                                            ock::share::service::MxmServerMsgHandle::ShmMap);
     return 0;
 }
 
 int ClientIpcShmWriteStub(MsgBase *request, MsgBase *response)
 {
     printf("ClientIpcShmWriteStub: receive IPC_RACKMEMSHM_WRITELOCK\n");
-    ock::share::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_RACKMEMSHM_WRITELOCK, request, response,
-        ock::share::service::MxmServerMsgHandle::ShmWriteLock);
+    ock::share::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_RACKMEMSHM_WRITELOCK, request, response,
+                                                            ock::share::service::MxmServerMsgHandle::ShmWriteLock);
     return 0;
 }
 
 int ClientIpcShmReadStub(MsgBase *request, MsgBase *response)
 {
     printf("ClientIpcShmReadStub: receive IPC_RACKMEMSHM_READLOCK\n");
-    ock::share::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_RACKMEMSHM_READLOCK, request, response,
-        ock::share::service::MxmServerMsgHandle::ShmReadLock);
+    ock::share::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_RACKMEMSHM_READLOCK, request, response,
+                                                            ock::share::service::MxmServerMsgHandle::ShmReadLock);
     return 0;
 }
 
 int ClientIpcShmUnLockStub(MsgBase *request, MsgBase *response)
 {
     printf("ClientIpcShmUNLockStub: receive IPC_RACKMEMSHM_UNLOCK\n");
-    ock::share::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_RACKMEMSHM_UNLOCK, request, response,
-        ock::share::service::MxmServerMsgHandle::ShmUnLock);
+    ock::share::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_RACKMEMSHM_UNLOCK, request, response,
+                                                            ock::share::service::MxmServerMsgHandle::ShmUnLock);
     return 0;
 }
 
 int ClientIpcShmUnmmapStub(MsgBase *request, MsgBase *response)
 {
     printf("ClientIpcShmUnmmapStub: receive IPC_RACKMEMSHM_UNMMAP\n");
-    ock::share::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_RACKMEMSHM_UNMMAP, request, response,
-        ock::share::service::MxmServerMsgHandle::ShmUnmap);
+    ock::share::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_RACKMEMSHM_UNMMAP, request, response,
+                                                            ock::share::service::MxmServerMsgHandle::ShmUnmap);
     return 0;
 }
 
@@ -197,10 +188,9 @@ int ClientIpcForceFreeCachedMemoryStub(MsgBase *request, MsgBase *response)
 int ClientIpcShmQueryNodeStub(MsgBase *request, MsgBase *response)
 {
     printf("MxmComIpcClientSendStub: receive IPC_RACKMEMSHM_QUERY_NODE\n");
-    ock::share::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_RACKMEMSHM_QUERY_NODE, request, response,
-        ock::share::service::MxmServerMsgHandle::ShmQueryNode);
-    auto rsp = dynamic_cast<QueryNodeResponse*>(response);
+    ock::share::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_RACKMEMSHM_QUERY_NODE, request, response,
+                                                            ock::share::service::MxmServerMsgHandle::ShmQueryNode);
+    auto rsp = dynamic_cast<QueryNodeResponse *>(response);
     if (rsp == nullptr) {
         return -1;
     }
@@ -238,19 +228,17 @@ int ClientIpcDestroyRegionStub(MsgBase *request, MsgBase *response)
 int ClientIpcShmAttachStub(MsgBase *request, MsgBase *response)
 {
     printf("ClientIpcShmAttachStub: receive IPC_RACKMEMSHM_ATTACH\n");
-    ock::share::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_RACKMEMSHM_ATTACH, request, response,
-        ock::share::service::MxmServerMsgHandle::ShmAttach);
+    ock::share::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_RACKMEMSHM_ATTACH, request, response,
+                                                            ock::share::service::MxmServerMsgHandle::ShmAttach);
     return 0;
 }
 
 int ClientRpcQueryNodeStub(MsgBase *request, MsgBase *response)
 {
     printf("ClientRpcQueryNodeStub: receive RPC_AGENT_QUERY_NODE_INFO\n");
-    ock::share::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, RPC_AGENT_QUERY_NODE_INFO, request, response,
-        ock::share::service::MxmServerMsgHandle::RpcQueryNodeInfo);
-    auto rsp = dynamic_cast<RpcQueryInfoResponse*>(response);
+    ock::share::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, RPC_AGENT_QUERY_NODE_INFO, request, response,
+                                                            ock::share::service::MxmServerMsgHandle::RpcQueryNodeInfo);
+    auto rsp = dynamic_cast<RpcQueryInfoResponse *>(response);
     rsp->errCode_ = 0;
     return 0;
 }
@@ -258,9 +246,8 @@ int ClientRpcQueryNodeStub(MsgBase *request, MsgBase *response)
 int ClientIpcShmDetachStub(MsgBase *request, MsgBase *response)
 {
     printf("ClientIpcShmDetachStub: receive IPC_RACKMEMSHM_DETACH\n");
-    ock::share::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_RACKMEMSHM_DETACH, request, response,
-        ock::share::service::MxmServerMsgHandle::ShmDetach);
+    ock::share::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_RACKMEMSHM_DETACH, request, response,
+                                                            ock::share::service::MxmServerMsgHandle::ShmDetach);
     return 0;
 }
 
@@ -285,18 +272,16 @@ int ClientIpcCreateRegionStub(MsgBase *request, MsgBase *response)
 int ClientIpcShmListLookupStub(MsgBase *request, MsgBase *response)
 {
     printf("ClientIpcShmListLookupStub: receive IPC_RACKMEMSHM_LOOKUP_LIST\n");
-    ock::share::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_RACKMEMSHM_LOOKUP_LIST, request, response,
-        ock::share::service::MxmServerMsgHandle::ShmListLookup);
+    ock::share::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_RACKMEMSHM_LOOKUP_LIST, request, response,
+                                                            ock::share::service::MxmServerMsgHandle::ShmListLookup);
     return 0;
 }
 
 int ClientIpcShmLookupStub(MsgBase *request, MsgBase *response)
 {
     printf("ClientIpcShmLookupStub: receive IPC_RACKMEMSHM_LOOKUP\n");
-    ock::share::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_RACKMEMSHM_LOOKUP, request, response,
-        ock::share::service::MxmServerMsgHandle::ShmLookup);
+    ock::share::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_RACKMEMSHM_LOOKUP, request, response,
+                                                            ock::share::service::MxmServerMsgHandle::ShmLookup);
     return 0;
 }
 
@@ -372,4 +357,4 @@ int MxmShmIpcClientSendStub(uint16_t opCode, MsgBase *request, MsgBase *response
     return 0;
 }
 
-}
+} // namespace UT

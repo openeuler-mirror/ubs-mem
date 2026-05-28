@@ -13,46 +13,46 @@
 #define OCK_HPCIPCSERVER_LEASE_H
 #include <unordered_set>
 
+#include "ipc_server_engine.h"
+#include "log.h"
 #include "mxm_ipc_server_interface.h"
 #include "mxm_msg.h"
-#include "log.h"
-#include "ipc_server_engine.h"
 
 using namespace ock::com;
 using namespace ock::common;
 using namespace ock::mxmd;
 
 namespace ock::lease::service {
-using MsgExecFuc = std::function<int(const MsgBase*, MsgBase*, const MxmComUdsInfo&)>;
+using MsgExecFuc = std::function<int(const MsgBase *, MsgBase *, const MxmComUdsInfo &)>;
 class IpcServer {
     DAGGER_DEFINE_REF_COUNT_FUNCTIONS
 public:
     uint32_t InitExecMap();
-    const std::unordered_map<int, HcomServiceHandle>& GetIpcCallbackTable();
+    const std::unordered_map<int, HcomServiceHandle> &GetIpcCallbackTable();
     static uint32_t RackMemConBaseInitialize();
     uint32_t Stop();
 
-    void Handle(const MxmComUdsInfo& udsInfo, uint16_t opCode, const MsgBase* req, MsgBase* rsp,
-                const MsgExecFuc& exePtr);
+    void Handle(const MxmComUdsInfo &udsInfo, uint16_t opCode, const MsgBase *req, MsgBase *rsp,
+                const MsgExecFuc &exePtr);
 
-    void MsgHandle(const MxmComUdsInfo& udsInfo, uint16_t opCode, const MsgBase* req, MsgBase* rsp, MsgExecFuc exePtr)
+    void MsgHandle(const MxmComUdsInfo &udsInfo, uint16_t opCode, const MsgBase *req, MsgBase *rsp, MsgExecFuc exePtr)
     {
         Handle(udsInfo, opCode, req, rsp, exePtr);
     }
-    static IpcServer& GetInstance()
+    static IpcServer &GetInstance()
     {
         static IpcServer instance;
         return instance;
     }
-    IpcServer(const IpcServer& other) = delete;
-    IpcServer(IpcServer&& other) = delete;
-    IpcServer& operator=(const IpcServer& other) = delete;
-    IpcServer& operator=(IpcServer&& other) noexcept = delete;
+    IpcServer(const IpcServer &other) = delete;
+    IpcServer(IpcServer &&other) = delete;
+    IpcServer &operator=(const IpcServer &other) = delete;
+    IpcServer &operator=(IpcServer &&other) noexcept = delete;
     DAGGER_DEFINE_REF_COUNT_VARIABLE;
 
 private:
     uint32_t InitializeIpcCallbackTable();
     IpcServer() = default;
 };
-}  // namespace ock::lease::service
+} // namespace ock::lease::service
 #endif

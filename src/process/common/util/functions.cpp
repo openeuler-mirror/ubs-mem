@@ -12,12 +12,12 @@
 
 #include "functions.h"
 
-#include <cstdio>
-#include <string>
-#include <iostream>
 #include <sys/stat.h>
 #include <sys/utsname.h>
 #include <unistd.h>
+#include <cstdio>
+#include <iostream>
+#include <string>
 #include "dirent.h"
 #include "log_adapter.h"
 
@@ -180,7 +180,7 @@ HRESULT CreateArgs(int &newArgc, char **&newArgv, const std::vector<std::string>
         return HFAIL;
     }
     newArgc = static_cast<int>(values.size());
-    newArgv = new (std::nothrow) char* [newArgc];
+    newArgv = new (std::nothrow) char *[newArgc];
     if (newArgv == nullptr) {
         return HFAIL;
     }
@@ -206,10 +206,10 @@ void DeleteStrArray(int count, char **&array)
     if (array != nullptr) {
         for (int i = 0; i < count; i++) {
             if (array[i] != nullptr) {
-                delete [] array[i];
+                delete[] array[i];
             }
         }
-        delete [] array;
+        delete[] array;
         array = nullptr;
     }
 }

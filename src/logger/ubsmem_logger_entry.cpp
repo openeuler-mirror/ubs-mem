@@ -82,8 +82,8 @@ static void FormatTimestamp(std::ostringstream &oss, uint64_t timestamp)
     // 计算时间戳中的毫秒部分
     uint64_t milliseconds = (timestamp % microsecondsPerSecond) / microsecondsPerMillisecond;
     // 时间戳格式为：[YYYY-MM-DD HH:MM:SS.mmm +HH:MM]
-    oss << '[' << dateTimeBuffer << std::setw(millisecondWidth) << std::setfill('0') << milliseconds <<
-        ' ' << tzBuffer << ']';
+    oss << '[' << dateTimeBuffer << std::setw(millisecondWidth) << std::setfill('0') << milliseconds << ' ' << tzBuffer
+        << ']';
 }
 
 static const char *LogLevelToString(UbsmemLogLevel level)

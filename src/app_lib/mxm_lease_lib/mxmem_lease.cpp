@@ -12,9 +12,9 @@
 
 #include <mutex>
 #include "ubs_mem.h"
-#include "rack_mem_lib.h"
-#include "log.h"
 #include "RackMem.h"
+#include "log.h"
+#include "rack_mem_lib.h"
 #include "ubsm_ptracer.h"
 
 using namespace ock::mxmd;
@@ -29,8 +29,8 @@ static bool ubsmem_lease_validate_flags(uint64_t flags)
     return true;
 }
 
-uint32_t ubsmem_lease_malloc_impl(const char *region_name, size_t size, ubsmem_distance_t mem_distance,
-    uint64_t flags, void **local_ptr)
+uint32_t ubsmem_lease_malloc_impl(const char *region_name, size_t size, ubsmem_distance_t mem_distance, uint64_t flags,
+                                  void **local_ptr)
 {
     if (region_name == nullptr) {
         DBG_LOGERROR("region_name is nullptr");
@@ -64,9 +64,8 @@ uint32_t ubsmem_lease_malloc_impl(const char *region_name, size_t size, ubsmem_d
         return MXM_ERR_PARAM_INVALID;
     }
 
-    DBG_LOGINFO("Appling remote memory, region name=" << region_name << ", size=" << size
-                                                      << " distance=" << static_cast<int>(mem_distance)
-                                                      << " flags=" << flags);
+    DBG_LOGINFO("Appling remote memory, region name=" << region_name << ", size=" << size << " distance="
+                                                      << static_cast<int>(mem_distance) << " flags=" << flags);
     auto perfLevel = static_cast<PerfLevel>(mem_distance);
     std::string regionName = region_name;
     void *localPtr = nullptr;
@@ -100,9 +99,9 @@ uint32_t ubsmem_lease_malloc_with_location_impl(const ubs_mem_location_t *src_lo
         return MXM_ERR_PARAM_INVALID;
     }
 
-    DBG_LOGINFO("Applying remote memory with loc,  size=" << size << ", flags=" << flags << ", location slotId="
-                                                << src_loc->slot_id << ", socketId=" << src_loc->socket_id
-                                                << ", numaId=" << src_loc->numa_id << ", portId=" << src_loc->port_id);
+    DBG_LOGINFO("Applying remote memory with loc,  size="
+                << size << ", flags=" << flags << ", location slotId=" << src_loc->slot_id << ", socketId="
+                << src_loc->socket_id << ", numaId=" << src_loc->numa_id << ", portId=" << src_loc->port_id);
     void *localPtr = nullptr;
     auto ret = RackMem::GetInstance().UbsMemMallocWithLoc(src_loc, size, flags, &localPtr);
     if (ret != MXM_OK) {
@@ -122,8 +121,8 @@ uint32_t ubsmem_lease_malloc_with_location_impl(const ubs_mem_location_t *src_lo
     return MXM_OK;
 }
 
-SHMEM_API int ubsmem_lease_malloc(const char *region_name, size_t size, ubsmem_distance_t mem_distance,
-    uint64_t flags, void **local_ptr)
+SHMEM_API int ubsmem_lease_malloc(const char *region_name, size_t size, ubsmem_distance_t mem_distance, uint64_t flags,
+                                  void **local_ptr)
 {
     TP_TRACE_BEGIN(TP_UBSM_MALLOC);
     const auto ret = ubsmem_lease_malloc_impl(region_name, size, mem_distance, flags, local_ptr);
@@ -157,7 +156,7 @@ SHMEM_API int ubsmem_lease_free(void *local_ptr)
     return GetErrCode(hr);
 }
 
-int ubsmem_lookup_cluster_statistic_impl(ubsmem_cluster_info_t* info)
+int ubsmem_lookup_cluster_statistic_impl(ubsmem_cluster_info_t *info)
 {
     if (info == nullptr) {
         DBG_LOGERROR("Param info is invalid.");
@@ -167,7 +166,7 @@ int ubsmem_lookup_cluster_statistic_impl(ubsmem_cluster_info_t* info)
     return RackMem::GetInstance().RackMemLookupClusterStatistic(info);
 }
 
-SHMEM_API int ubsmem_lookup_cluster_statistic(ubsmem_cluster_info_t* info)
+SHMEM_API int ubsmem_lookup_cluster_statistic(ubsmem_cluster_info_t *info)
 {
     return GetErrCode(ubsmem_lookup_cluster_statistic_impl(info));
 }

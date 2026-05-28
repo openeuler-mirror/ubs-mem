@@ -30,5 +30,5 @@ public:
     };
 };
 
-}  // namespace UT
-#endif  // UBSM_TEST_DLOCK_TEST_H
+} // namespace UT
+#endif // UBSM_TEST_DLOCK_TEST_H

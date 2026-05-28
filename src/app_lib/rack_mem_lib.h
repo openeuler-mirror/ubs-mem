@@ -13,12 +13,12 @@
 #ifndef MEMORYFABRIC_RACK_MEM_LIB_H
 #define MEMORYFABRIC_RACK_MEM_LIB_H
 
-#include <functional>
-#include <condition_variable>
 #include <atomic>
+#include <condition_variable>
+#include <functional>
+#include <mutex>
 #include <utility>
 #include <vector>
-#include <mutex>
 #include "log.h"
 #include "rack_mem_err.h"
 
@@ -67,21 +67,21 @@ public:
         ubsmem::log::UbsmemLoggerManager::Instance()->SetLogLevel(ubsmem::log::UbsmemLogLevel::CRIT);
         return 0;
     }
-    
+
     bool GetIsInitilized()
     {
         return inited;
     }
 
-    static RackMemLib& GetInstance()
+    static RackMemLib &GetInstance()
     {
         static RackMemLib instance;
         return instance;
     }
-    RackMemLib(const RackMemLib& other) = delete;
-    RackMemLib(RackMemLib&& other) = delete;
-    RackMemLib& operator=(const RackMemLib& other) = delete;
-    RackMemLib& operator=(RackMemLib&& other) noexcept = delete;
+    RackMemLib(const RackMemLib &other) = delete;
+    RackMemLib(RackMemLib &&other) = delete;
+    RackMemLib &operator=(const RackMemLib &other) = delete;
+    RackMemLib &operator=(RackMemLib &&other) noexcept = delete;
 
 private:
     [[nodiscard]] uint32_t InitHtrace() const;
@@ -99,6 +99,6 @@ private:
     std::atomic_bool inited{false};
     RackMemLib() = default;
 };
-}  // namespace ock::mxmd
+} // namespace ock::mxmd
 
-#endif  // MEMORYFABRIC_RACK_MEM_LIB_H
+#endif // MEMORYFABRIC_RACK_MEM_LIB_H

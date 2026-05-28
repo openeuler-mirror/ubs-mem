@@ -12,13 +12,13 @@
 #ifndef HDAGGER_DAGGER_FILE_H
 #define HDAGGER_DAGGER_FILE_H
 
-#include <cstring>
 #include <dirent.h>
-#include <string>
 #include <sys/stat.h>
+#include <unistd.h>
+#include <cstring>
 #include <fstream>
 #include <iostream>
-#include <unistd.h>
+#include <string>
 
 namespace ock {
 namespace utils {
@@ -64,7 +64,7 @@ public:
      */
     static bool CanonicalPath(std::string &path);
 
-     /*
+    /*
      * @brief 检查文件大小，失败后不会关闭文件流
      */
     static bool CheckFileSize(std::ifstream &inConfFile, int maxSize);
@@ -188,14 +188,15 @@ inline bool FileUtil::CanonicalPath(std::string &path)
 
 inline bool FileUtil::CheckFileIsREG(std::string &file)
 {
-    struct stat st {};
+    struct stat st {
+    };
     if (lstat(file.c_str(), &st) < 0) {
         return false;
     }
     return S_ISREG(st.st_mode);
 }
 
-}
-}
+} // namespace utils
+} // namespace ock
 
 #endif // HDAGGER_DAGGER_FILE_H

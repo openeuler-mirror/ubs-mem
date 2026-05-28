@@ -28,5 +28,5 @@ public:
     };
 };
 
-}  // namespace UT
-#endif  // UBSM_TEST_SHM_MANAGER_TEST_H
+} // namespace UT
+#endif // UBSM_TEST_SHM_MANAGER_TEST_H

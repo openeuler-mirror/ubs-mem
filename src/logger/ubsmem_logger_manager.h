@@ -37,7 +37,10 @@ public:
 
     int EnsureInited();
 
-    bool IsInited() const { return logBuffer_ != nullptr; }
+    bool IsInited() const
+    {
+        return logBuffer_ != nullptr;
+    }
 
     void Exit();
 
@@ -52,7 +55,10 @@ public:
 
     void SetLogLevel(UbsmemLogLevel level);
 
-    void SetExternLogCallback(void (*func)(int, const char *)) { externLogCallback_ = func; }
+    void SetExternLogCallback(void (*func)(int, const char *))
+    {
+        externLogCallback_ = func;
+    }
     void (*GetExternLogCallback() const)(int, const char *)
     {
         auto *target = externLogCallback_.target<void (*)(int, const char *)>();
@@ -60,7 +66,10 @@ public:
     }
 
     bool InitializeAuditSink(const std::string &basePath, uint32_t maxFileSize, uint32_t maxFileCount);
-    bool IsAuditConfigured() const { return auditConfigured_; }
+    bool IsAuditConfigured() const
+    {
+        return auditConfigured_;
+    }
 
     static UbsmemLogLevel StringToLogLevel(const std::string &level);
 

@@ -12,9 +12,9 @@
 #ifndef UBSM_DLOCK_DLOCK_EXECUTOR_H
 #define UBSM_DLOCK_DLOCK_EXECUTOR_H
 
-#include "log.h"
-#include "dlock_types.h"
 #include "dlock_common.h"
+#include "dlock_types.h"
+#include "log.h"
 #include "rack_mem_err.h"
 
 namespace ock {
@@ -101,6 +101,6 @@ private:
     void *serverHandle = nullptr;
     void *clientHandle = nullptr;
 };
-}  // namespace dlock_utils
-}  // namespace ock
-#endif  // UBSM_DLOCK_DLOCK_EXECUTOR_H
+} // namespace dlock_utils
+} // namespace ock
+#endif // UBSM_DLOCK_DLOCK_EXECUTOR_H

@@ -9,23 +9,23 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include "ipc_handler.h"
+#include <securec.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <securec.h>
-#include "rack_mem_functions.h"
-#include "ubse_mem_adapter.h"
 #include "mls_manager.h"
-#include "ubsm_ptracer.h"
-#include "ubs_mem_monitor.h"
-#include "ipc_handler.h"
+#include "rack_mem_functions.h"
 #include "record_store_def.h"
+#include "ubs_mem_monitor.h"
+#include "ubse_mem_adapter.h"
+#include "ubsm_ptracer.h"
 
 namespace ock::lease::service {
 using namespace ock::mxmd;
 using namespace ock::com;
 using namespace ock::ubsm;
 
-static int RollBackReuseCacheMemory(const std::string& name, bool isNuma)
+static int RollBackReuseCacheMemory(const std::string &name, bool isNuma)
 {
     auto hr = MLSManager::GetInstance().PreDeleteUsedMem(name);
     if (hr == 0) {
@@ -33,7 +33,7 @@ static int RollBackReuseCacheMemory(const std::string& name, bool isNuma)
         auto ret = mxm::UbseMemAdapter::LeaseFree(name, isNuma);
         if (ret != 0 && ret != MXM_ERR_LEASE_NOT_EXIST) {
             DBG_LOGERROR("Failed to call ubse interface to free lease memory, name=" << name << " ret="
-                << ConvertErrorToString(ret));
+                                                                                     << ConvertErrorToString(ret));
             MLSManager::GetInstance().UpdateMemRecordState(name, RecordState::FINISH);
             return ret;
         }
@@ -46,8 +46,8 @@ static int RollBackReuseCacheMemory(const std::string& name, bool isNuma)
     return MXM_OK;
 }
 
-static int ReuseCachedLeaseMemory(size_t size, const std::string& regionName, bool isNuma, const AppContext& user,
-                                  AppMallocMemoryResponse& response)
+static int ReuseCachedLeaseMemory(size_t size, const std::string &regionName, bool isNuma, const AppContext &user,
+                                  AppMallocMemoryResponse &response)
 {
     MLSMemInfo memory;
     auto ret = MLSManager::GetInstance().ReuseBufferedMem(size, isNuma, regionName, user, memory);
@@ -80,7 +80,7 @@ static int ReuseCachedLeaseMemory(size_t size, const std::string& regionName, bo
     return MXM_OK;
 }
 
-static void RollBackBorrowNewMemory(const std::string&name, bool isNuma)
+static void RollBackBorrowNewMemory(const std::string &name, bool isNuma)
 {
     auto ret = MLSManager::GetInstance().UpdateMemRecordState(name, RecordState::PRE_DEL);
     if (ret != 0) {
@@ -99,8 +99,8 @@ static void RollBackBorrowNewMemory(const std::string&name, bool isNuma)
     }
 }
 
-static int BorrowNewMemory(const AppMallocMemoryRequest& request, AppMallocMemoryResponse& response,
-                           const MxmComUdsInfo& udsInfo)
+static int BorrowNewMemory(const AppMallocMemoryRequest &request, AppMallocMemoryResponse &response,
+                           const MxmComUdsInfo &udsInfo)
 {
     ock::mxm::LeaseMallocParam param;
     param.name = MLSManager::GetInstance().GenerateMemName(request.size_);
@@ -128,7 +128,7 @@ static int BorrowNewMemory(const AppMallocMemoryRequest& request, AppMallocMemor
         return hr;
     }
     // ubs_mem_numa_create没有返回memId，需将unitSize置为requestSize用于计算缓存。
-    size_t unitSize = request.isNuma_? request.size_ : result.unitSize;
+    size_t unitSize = request.isNuma_ ? request.size_ : result.unitSize;
     TP_TRACE_BEGIN(TP_UBSM_ADD_USED_MEM);
     hr = MLSManager::GetInstance().FinishAddUsedMem(param.name, result.numaId, unitSize, result.slotId, result.memIds);
     TP_TRACE_END(TP_UBSM_ADD_USED_MEM, hr);
@@ -149,8 +149,8 @@ static int BorrowNewMemory(const AppMallocMemoryRequest& request, AppMallocMemor
     return MXM_OK;
 }
 
-static int BorrowMemory(const AppMallocMemoryRequest& request, AppMallocMemoryResponse& response,
-                        const MxmComUdsInfo& udsInfo)
+static int BorrowMemory(const AppMallocMemoryRequest &request, AppMallocMemoryResponse &response,
+                        const MxmComUdsInfo &udsInfo)
 {
     AppContext user = {udsInfo.pid, udsInfo.uid, udsInfo.gid};
     auto ret = ReuseCachedLeaseMemory(request.size_, request.regionName_, request.isNuma_, user, response);
@@ -166,44 +166,44 @@ static int BorrowMemory(const AppMallocMemoryRequest& request, AppMallocMemoryRe
     return MXM_OK;
 }
 
-int MxmServerMsgHandle::AppMallocMemory(const MsgBase* req, MsgBase* rsp, const MxmComUdsInfo& udsInfo)
+int MxmServerMsgHandle::AppMallocMemory(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo)
 {
     if (req == nullptr || rsp == nullptr) {
         DBG_LOGERROR("Invalid param.");
         return MXM_ERR_NULLPTR;
     }
     TP_TRACE_BEGIN(TP_UBEM_IPC_HANDLER_MALLOC);
-    auto request = dynamic_cast<const AppMallocMemoryRequest*>(req);
-    auto response = dynamic_cast<AppMallocMemoryResponse*>(rsp);
+    auto request = dynamic_cast<const AppMallocMemoryRequest *>(req);
+    auto response = dynamic_cast<AppMallocMemoryResponse *>(rsp);
     if (request == nullptr || response == nullptr) {
         DBG_LOGERROR("Invalid param.");
         return MXM_ERR_NULLPTR;
     }
 
     DBG_AUDITINFO("user info of AppMallocMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-        << ", pid=" << udsInfo.pid);
+                                                       << ", pid=" << udsInfo.pid);
     DBG_LOGINFO("App Malloc Memory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
-        << ", size=" << request->size_ << ", isNuma=" << request->isNuma_);
+                                          << ", size=" << request->size_ << ", isNuma=" << request->isNuma_);
 
     auto ret = BorrowMemory(*request, *response, udsInfo);
     if (ret != MXM_OK) {
         DBG_LOGERROR("BorrowMemory failed, ret=" << ret);
         DBG_AUDITINFO("AppMallocMemory failed, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-            << ", pid=" << udsInfo.pid << ", name=" << response->name_
-            << ", ret=" << ConvertErrorToString(ret));
+                                                     << ", pid=" << udsInfo.pid << ", name=" << response->name_
+                                                     << ", ret=" << ConvertErrorToString(ret));
         return ret;
     }
     DBG_LOGINFO("App malloc success, name=" << response->name_ << ", uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-        << ", pid=" << udsInfo.pid);
+                                            << ", pid=" << udsInfo.pid);
     DBG_AUDITINFO("AppMallocMemory successfully, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-        << ", pid=" << udsInfo.pid << ", name=" << response->name_
-        << ", ret=" << ConvertErrorToString(response->errCode_));
+                                                       << ", pid=" << udsInfo.pid << ", name=" << response->name_
+                                                       << ", ret=" << ConvertErrorToString(response->errCode_));
     TP_TRACE_END(TP_UBEM_IPC_HANDLER_MALLOC, 0);
     return 0;
 }
 
-static int BorrowMemoryWithLender(const AppMallocMemoryWithLocRequest& request, AppMallocMemoryResponse& response,
-                                  const MxmComUdsInfo& udsInfo)
+static int BorrowMemoryWithLender(const AppMallocMemoryWithLocRequest &request, AppMallocMemoryResponse &response,
+                                  const MxmComUdsInfo &udsInfo)
 {
     ock::mxm::LeaseMallocWithLocParam param;
     param.name = MLSManager::GetInstance().GenerateMemName(request.size_);
@@ -228,10 +228,10 @@ static int BorrowMemoryWithLender(const AppMallocMemoryWithLocRequest& request, 
     ret = ock::mxm::UbseMemAdapter::LeaseMallocWithLoc(param, result);
     TP_TRACE_END(TP_UBSM_LEASE_MALLOC_WITH_LOC, ret);
     DBG_LOGINFO("LeaseMallocWithLoc name=" << param.name << ", numa=" << result.numaId << ", size=" << result.unitSize
-        << ", ret=" << ret);
+                                           << ", ret=" << ret);
     if (ret != 0) {
-        DBG_LOGERROR("Get exception when LeaseMallocWithLoc, name=" << param.name << ", ret="
-            << ConvertErrorToString(ret));
+        DBG_LOGERROR("Get exception when LeaseMallocWithLoc, name=" << param.name
+                                                                    << ", ret=" << ConvertErrorToString(ret));
         MLSManager::GetInstance().DeleteUsedMem(param.name);
         response.errCode_ = ret;
         return ret;
@@ -276,27 +276,28 @@ int MxmServerMsgHandle::AppMallocMemoryWithLoc(const MsgBase *req, MsgBase *rsp,
     auto ret = BorrowMemoryWithLender(*request, *response, udsInfo);
     if (ret != MXM_OK) {
         DBG_LOGERROR("BorrowMemoryWithLender failed, ret=" << ret);
-        DBG_AUDITINFO("user info of AppMallocMemoryWithLoc, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-            << ", pid=" << udsInfo.pid << ", name=" << response->name_ << ", ret=" << ConvertErrorToString(ret));
+        DBG_AUDITINFO("user info of AppMallocMemoryWithLoc, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
+                                                                  << udsInfo.pid << ", name=" << response->name_
+                                                                  << ", ret=" << ConvertErrorToString(ret));
         return ret;
     }
 
     DBG_LOGINFO("App malloc with loc success, name=" << response->name_ << ", uid=" << udsInfo.uid
                                                      << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid);
     DBG_AUDITINFO("user info of AppMallocMemoryWithLoc, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-        << ", pid=" << udsInfo.pid << ", name=" << response->name_ << ", ret="
-        << ConvertErrorToString(response->errCode_));
+                                                              << ", pid=" << udsInfo.pid << ", name=" << response->name_
+                                                              << ", ret=" << ConvertErrorToString(response->errCode_));
     return 0;
 }
 
-int MxmServerMsgHandle::AppFreeMemory(const MsgBase* req, MsgBase* rsp, const MxmComUdsInfo& udsInfo)
+int MxmServerMsgHandle::AppFreeMemory(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo)
 {
     if (req == nullptr || rsp == nullptr) {
         DBG_LOGERROR("invalid param.");
         return MXM_ERR_NULLPTR;
     }
-    auto request = dynamic_cast<const AppFreeMemoryRequest*>(req);
-    auto response = dynamic_cast<CommonResponse*>(rsp);
+    auto request = dynamic_cast<const AppFreeMemoryRequest *>(req);
+    auto response = dynamic_cast<CommonResponse *>(rsp);
     if (request == nullptr || response == nullptr) {
         DBG_LOGERROR("Invalid param.");
         return MXM_ERR_NULLPTR;
@@ -309,7 +310,7 @@ int MxmServerMsgHandle::AppFreeMemory(const MsgBase* req, MsgBase* rsp, const Mx
     }
     DBG_LOGINFO("App Free Memory name=" << request->name_);
     DBG_AUDITINFO("user info of AppFreeMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                            << ", pid=" << udsInfo.pid);
+                                                     << ", pid=" << udsInfo.pid);
 
     DelayRemovedKey queryBusyKey{request->name_};
     if (UBSMemMonitor::GetInstance().GetDelayRemoveRecord(queryBusyKey)) {
@@ -323,7 +324,8 @@ int MxmServerMsgHandle::AppFreeMemory(const MsgBase* req, MsgBase* rsp, const Mx
     if (ret != 0) {
         DBG_LOGERROR("Get lease record failed, " << request->name_ << " is not exist.");
         DBG_AUDITINFO("user info of AppFreeMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-            << ", pid=" << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(ret));
+                                                         << ", pid=" << udsInfo.pid << ", name=" << request->name_
+                                                         << ", ret=" << ConvertErrorToString(ret));
         response->errCode_ = ret;
         return ret;
     }
@@ -332,7 +334,8 @@ int MxmServerMsgHandle::AppFreeMemory(const MsgBase* req, MsgBase* rsp, const Mx
         MLSManager::GetInstance().DeleteUsedMem(request->name_);
         DBG_LOGINFO("Free memory successfully. name=" << request->name_);
         DBG_AUDITINFO("user info of AppFreeMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-            << ", pid=" << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(ret));
+                                                         << ", pid=" << udsInfo.pid << ", name=" << request->name_
+                                                         << ", ret=" << ConvertErrorToString(ret));
         response->errCode_ = MXM_OK;
         return MXM_OK;
     }
@@ -350,7 +353,8 @@ int MxmServerMsgHandle::AppFreeMemory(const MsgBase* req, MsgBase* rsp, const Mx
         if (hr != 0) {
             DBG_LOGERROR("FdPermissionChange failed, name= " << request->name_ << ", ret=" << hr);
             DBG_AUDITINFO("user info of AppFreeMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                << ", pid=" << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(hr));
+                                                             << ", pid=" << udsInfo.pid << ", name=" << request->name_
+                                                             << ", ret=" << ConvertErrorToString(hr));
             response->errCode_ = hr;
             return hr;
         }
@@ -371,7 +375,8 @@ int MxmServerMsgHandle::AppFreeMemory(const MsgBase* req, MsgBase* rsp, const Mx
         if (hr != 0 && hr != MXM_ERR_LEASE_NOT_EXIST) {
             DBG_LOGERROR("Get exception when LeaseFree, name=" << request->name_ << ", ret=" << hr);
             DBG_AUDITINFO("user info of AppFreeMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                << ", pid=" << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(hr));
+                                                             << ", pid=" << udsInfo.pid << ", name=" << request->name_
+                                                             << ", ret=" << ConvertErrorToString(hr));
             MLSManager::GetInstance().UpdateMemRecordState(memory.name, ubsm::RecordState::FINISH);
             response->errCode_ = hr;
             return hr;
@@ -386,21 +391,22 @@ int MxmServerMsgHandle::AppFreeMemory(const MsgBase* req, MsgBase* rsp, const Mx
     response->errCode_ = 0;
     DBG_LOGINFO("App free success, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
                                          << ", name=" << request->name_);
-    DBG_AUDITINFO("user info of AppFreeMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-        << udsInfo.pid << ", name=" << request->name_ << ", ret=" << ConvertErrorToString(0));
+    DBG_AUDITINFO("user info of AppFreeMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
+                                                     << ", pid=" << udsInfo.pid << ", name=" << request->name_
+                                                     << ", ret=" << ConvertErrorToString(0));
     return 0;
 }
 
-int MxmServerMsgHandle::AppQueryClusterInfo(const MsgBase* req, MsgBase* rsp, const MxmComUdsInfo& udsInfo)
+int MxmServerMsgHandle::AppQueryClusterInfo(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo)
 {
     DBG_LOGINFO("AppQueryClusterInfo start");
     DBG_AUDITINFO("user info of AppQueryClusterInfo, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                             << ", pid=" << udsInfo.pid);
+                                                           << ", pid=" << udsInfo.pid);
     if (req == nullptr || rsp == nullptr) {
         DBG_LOGERROR("param is invalid.");
         return MXM_ERR_NULLPTR;
     }
-    auto response = dynamic_cast<AppQueryClusterInfoResponse*>(rsp);
+    auto response = dynamic_cast<AppQueryClusterInfoResponse *>(rsp);
     if (response == nullptr) {
         DBG_LOGERROR("Invalid param.");
         return MXM_ERR_NULLPTR;
@@ -408,58 +414,59 @@ int MxmServerMsgHandle::AppQueryClusterInfo(const MsgBase* req, MsgBase* rsp, co
     auto hr = ock::mxm::UbseMemAdapter::LookUpClusterStatistic(response->info_);
     if (hr != 0) {
         DBG_LOGERROR("LookUpClusterStatistic failed, ret:" << hr);
-        DBG_AUDITINFO("user info of AppQueryClusterInfo, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-            << ", pid=" << udsInfo.pid << ", ret=" << ConvertErrorToString(hr));
+        DBG_AUDITINFO("user info of AppQueryClusterInfo, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
+                                                               << udsInfo.pid << ", ret=" << ConvertErrorToString(hr));
         response->errCode_ = hr;
         return hr;
     }
     response->errCode_ = 0;
     DBG_LOGINFO("AppQueryClusterInfo success");
-    DBG_AUDITINFO("user info of AppQueryClusterInfo, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-        << ", pid=" << udsInfo.pid << ", ret=" << ConvertErrorToString(hr));
+    DBG_AUDITINFO("user info of AppQueryClusterInfo, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
+                                                           << udsInfo.pid << ", ret=" << ConvertErrorToString(hr));
     return 0;
 }
 
-int MxmServerMsgHandle::AppForceFreeCachedMemory(const MsgBase* req, MsgBase* rsp, const MxmComUdsInfo& udsInfo)
+int MxmServerMsgHandle::AppForceFreeCachedMemory(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo)
 {
     if (req == nullptr || rsp == nullptr) {
         return MXM_ERR_NULLPTR;
     }
-    auto request = dynamic_cast<const CommonRequest*>(req);
-    auto response = dynamic_cast<CommonResponse*>(rsp);
+    auto request = dynamic_cast<const CommonRequest *>(req);
+    auto response = dynamic_cast<CommonResponse *>(rsp);
     if (request == nullptr || response == nullptr) {
         DBG_LOGERROR("Invalid param.");
         return MXM_ERR_NULLPTR;
     }
     DBG_LOGINFO("AppForceFreeCachedMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid);
     DBG_AUDITINFO("user info of AppForceFreeCachedMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                            << ", pid=" << udsInfo.pid);
+                                                                << ", pid=" << udsInfo.pid);
     auto ret = MLSManager::GetInstance().DeleteAllBufferedMem();
     if (ret != 0) {
         DBG_LOGERROR("DeleteAllBufferedMem failed, res is " << ConvertErrorToString(ret));
     }
-    DBG_LOGINFO("AppForceFreeCachedMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                                << ", pid=" << udsInfo.pid << ", ret=" << ret);
+    DBG_LOGINFO("AppForceFreeCachedMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
+                                                 << ", ret=" << ret);
     DBG_AUDITINFO("user info of AppForceFreeCachedMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-        << ", pid=" << udsInfo.pid << ", ret=" << ConvertErrorToString(ret));
+                                                                << ", pid=" << udsInfo.pid
+                                                                << ", ret=" << ConvertErrorToString(ret));
     response->errCode_ = ret;
     return ret;
 }
 
-int MxmServerMsgHandle::AppQueryCachedMemory(const MsgBase* req, MsgBase* rsp, const MxmComUdsInfo& udsInfo)
+int MxmServerMsgHandle::AppQueryCachedMemory(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo)
 {
     if (req == nullptr || rsp == nullptr) {
         return MXM_ERR_NULLPTR;
     }
-    auto request = dynamic_cast<const CommonRequest*>(req);
-    auto response = dynamic_cast<AppQueryCachedMemoryResponse*>(rsp);
+    auto request = dynamic_cast<const CommonRequest *>(req);
+    auto response = dynamic_cast<AppQueryCachedMemoryResponse *>(rsp);
     if (request == nullptr || response == nullptr) {
         DBG_LOGERROR("Invalid param.");
         return MXM_ERR_NULLPTR;
     }
     DBG_LOGINFO("AppQueryCachedMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid);
     DBG_AUDITINFO("user info of AppQueryCachedMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                           << ", pid=" << udsInfo.pid);
+                                                            << ", pid=" << udsInfo.pid);
     auto memoryVec = MLSManager::GetInstance().ListAllMem();
     if (memoryVec.empty()) {
         DBG_LOGINFO("No buffered cache found.");
@@ -468,13 +475,13 @@ int MxmServerMsgHandle::AppQueryCachedMemory(const MsgBase* req, MsgBase* rsp, c
         return 0;
     }
 
-    for (auto& memory : memoryVec) {
+    for (auto &memory : memoryVec) {
         std::string name = memory.name;
         std::string group = memory.appContext.GetString();
         std::string unitSize = std::to_string(memory.unitSize);
         std::string numaId = std::to_string(memory.numaId);
         std::string memIds = "";
-        for (auto& memId : memory.memIds) {
+        for (auto &memId : memory.memIds) {
             memIds += std::to_string(memId) + ",";
         }
         std::string record = name + "|" + group + "|" + unitSize + "|" + numaId + "|" + memIds;
@@ -524,7 +531,7 @@ int MxmServerMsgHandle::AppCheckMemoryLease(const MsgBase *req, MsgBase *rsp, co
     auto records = MLSManager::GetInstance().GetUsedMemByPid(udsInfo.pid);
     std::unordered_set<std::string> names(request->names_.begin(), request->names_.end());
     for (const auto &record : records) {
-        if (names.find(record.name) == names.end()) {  // ubsmd记录了该应用未使用的内存借用记录，需要释放
+        if (names.find(record.name) == names.end()) { // ubsmd记录了该应用未使用的内存借用记录，需要释放
             DBG_LOGINFO("record lease name " << record.name << " not found in user map.");
             auto ret = CleanNotUsedRecordLeaseMemory(record);
             if (ret != MXM_OK) {
@@ -537,4 +544,4 @@ int MxmServerMsgHandle::AppCheckMemoryLease(const MsgBase *req, MsgBase *rsp, co
     response->errCode_ = MXM_OK;
     return MXM_OK;
 }
-}  // namespace ock::lease::service
+} // namespace ock::lease::service

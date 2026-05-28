@@ -95,6 +95,6 @@ int LoadFd(const std::string &name, int &fd) noexcept
     return -1;
 }
 
-}  // namespace systemd
-}  // namespace common
-}  // namespace ock
+} // namespace systemd
+} // namespace common
+} // namespace ock

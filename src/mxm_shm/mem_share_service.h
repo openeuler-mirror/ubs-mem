@@ -37,7 +37,8 @@ struct ModuleDesc {
           start(std::move(startFunc)),
           shutdown(std::move(shutdownFunc)),
           exit(std::move(exitFunc))
-    {}
+    {
+    }
 };
 
 class MemShareService : public ock::common::Service {
@@ -49,7 +50,10 @@ public:
         modules.clear();
     }
 
-    static inline bool Inited() { return inited.load(); }
+    static inline bool Inited()
+    {
+        return inited.load();
+    }
 
 protected:
     HRESULT OnServiceProcessArgs(int argc, char *argv[]) override;
@@ -166,7 +170,6 @@ private:
     std::vector<ModuleDesc> modules;
     static std::atomic_bool inited;
 };
-} // namespace ock::lease::service {
-
+} // namespace ock::share::service
 
 #endif // IOFWD_FORWARD_SERVICE_H

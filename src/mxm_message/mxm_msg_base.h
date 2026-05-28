@@ -37,7 +37,7 @@ enum MXM_MSG_OPCODE : int16_t {
     MXM_MSG_BUTT,
 };
 
-}  // namespace mxmd
-}  // namespace ock
+} // namespace mxmd
+} // namespace ock
 
-#endif  // MXMD_MSG_BASE_H
+#endif // MXMD_MSG_BASE_H

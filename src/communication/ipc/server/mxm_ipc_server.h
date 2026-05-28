@@ -38,8 +38,8 @@ public:
     void Stop() override;
 
 private:
-    std::string udsPath;  // 监听路径
-    uint16_t udsMode;  // UDS 文件权限，默认推荐使用 600
+    std::string udsPath; // 监听路径
+    uint16_t udsMode;    // UDS 文件权限，默认推荐使用 600
 };
-}  // namespace ock::com::ipc
-#endif  // MXM_IPC_SERVER_H
+} // namespace ock::com::ipc
+#endif // MXM_IPC_SERVER_H

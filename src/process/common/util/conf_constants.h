@@ -58,12 +58,12 @@ const auto UBSMD_SERVER_TLS_KEYPASS_PATH = std::make_pair("ubsm.server.tls.keypa
 
 const auto MXMD_SERVER_LEASE_CACHE_ENABLE = std::make_pair("ubsm.server.lease.cache.enable", "on");
 
-constexpr int MIN_LOG_FILE_SIZE = 2;  // MB
-constexpr int MAX_LOG_FILE_SIZE = 100;  // MB
+constexpr int MIN_LOG_FILE_SIZE = 2;   // MB
+constexpr int MAX_LOG_FILE_SIZE = 100; // MB
 constexpr int MIN_LOG_FILE_COUNT = 1;
 constexpr int MAX_LOG_FILE_COUNT = 50;
-constexpr int MIN_AUDIT_LOG_FILE_SIZE = 2;  // MB
-constexpr int MAX_AUDIT_LOG_FILE_SIZE = 100;  // MB
+constexpr int MIN_AUDIT_LOG_FILE_SIZE = 2;   // MB
+constexpr int MAX_AUDIT_LOG_FILE_SIZE = 100; // MB
 constexpr int MIN_AUDIT_LOG_FILE_COUNT = 1;
 constexpr int MAX_AUDIT_LOG_FILE_COUNT = 50;
 constexpr int MAX_HCOM_CONNECT_NUM = 256;
@@ -75,7 +75,7 @@ constexpr int MAX_DISCOVERY_MIN_NODES = 30;
 constexpr int MIN_LOCK_EXPIRE_TIME = 30;
 constexpr int MAX_LOCK_EXPIRE_TIME = 86400;
 
-}  // namespace ConfConstant
-}  // namespace common
-}  // namespace ock
+} // namespace ConfConstant
+} // namespace common
+} // namespace ock
 #endif

@@ -2,9 +2,9 @@
 * Copyright (c) Huawei Technologies Co., Ltd. 2023. All rights reserved.
  */
 #include <gtest/gtest.h>
-#include <thread>
 #include <chrono>
 #include <memory>
+#include <thread>
 
 #define private public
 #include "election_module.h"
@@ -113,11 +113,8 @@ TEST_F(ElectionModuleTest, TestNotifyListeners)
 {
     bool listenerCalled = false;
     int listenerId = electionModule->AddElectionListener(
-        [&listenerCalled](ElectionModule::ZenElectionEventType event,
-                         const std::string& masterId,
-                         const std::string& voteOnlyId) {
-            listenerCalled = true;
-        });
+        [&listenerCalled](ElectionModule::ZenElectionEventType event, const std::string &masterId,
+                          const std::string &voteOnlyId) { listenerCalled = true; });
 
     electionModule->notifyListeners(ElectionModule::ZenElectionEventType::ELECTION_STARTED, "master1", "vote1");
 
@@ -177,14 +174,10 @@ TEST_F(ElectionModuleTest, TestListenerLoopShutdown)
 TEST_F(ElectionModuleTest, TestElectionEventTypes)
 {
     std::vector<ElectionModule::ZenElectionEventType> eventTypes = {
-        ElectionModule::ZenElectionEventType::ELECTION_STARTED,
-        ElectionModule::ZenElectionEventType::VOTING_COMPLETED,
-        ElectionModule::ZenElectionEventType::MASTER_ELECTED,
-        ElectionModule::ZenElectionEventType::ELECTION_FAILED,
-        ElectionModule::ZenElectionEventType::BECOME_VOTE_NODE,
-        ElectionModule::ZenElectionEventType::NODE_DEMOTED,
-        ElectionModule::ZenElectionEventType::HAVE_JOINED
-    };
+        ElectionModule::ZenElectionEventType::ELECTION_STARTED, ElectionModule::ZenElectionEventType::VOTING_COMPLETED,
+        ElectionModule::ZenElectionEventType::MASTER_ELECTED,   ElectionModule::ZenElectionEventType::ELECTION_FAILED,
+        ElectionModule::ZenElectionEventType::BECOME_VOTE_NODE, ElectionModule::ZenElectionEventType::NODE_DEMOTED,
+        ElectionModule::ZenElectionEventType::HAVE_JOINED};
 
     for (auto eventType : eventTypes) {
         EXPECT_NO_THROW(electionModule->notifyListeners(eventType, "master1", "vote1"));
@@ -207,25 +200,17 @@ TEST_F(ElectionModuleTest, TestListenerLoopWithEmptyQueueAndStop)
 TEST_F(ElectionModuleTest, TestNotifyListenerParamWithException)
 {
     int listenerId = electionModule->AddElectionListener(
-        [](ElectionModule::ZenElectionEventType event,
-           const std::string& masterId,
-           const std::string& voteOnlyId) {
+        [](ElectionModule::ZenElectionEventType event, const std::string &masterId, const std::string &voteOnlyId) {
             throw std::runtime_error("Test exception");
         });
 
     bool normalCalled = false;
     int normalListenerId = electionModule->AddElectionListener(
-        [&normalCalled](ElectionModule::ZenElectionEventType event,
-                        const std::string& masterId,
-                        const std::string& voteOnlyId) {
-            normalCalled = true;
-        });
+        [&normalCalled](ElectionModule::ZenElectionEventType event, const std::string &masterId,
+                        const std::string &voteOnlyId) { normalCalled = true; });
 
     ElectionModule::ListenerParam param{
-        .event = ElectionModule::ZenElectionEventType::ELECTION_STARTED,
-        .masterId = "master1",
-        .voteOnlyId = "vote1"
-    };
+        .event = ElectionModule::ZenElectionEventType::ELECTION_STARTED, .masterId = "master1", .voteOnlyId = "vote1"};
 
     EXPECT_NO_THROW(electionModule->NotifyListenerParam(param));
     EXPECT_TRUE(normalCalled);
@@ -239,10 +224,7 @@ TEST_F(ElectionModuleTest, TestNotifyListenerParamWithNullListener)
     electionModule->electionListeners_.emplace_back(999, nullptr);
 
     ElectionModule::ListenerParam param{
-        .event = ElectionModule::ZenElectionEventType::ELECTION_STARTED,
-        .masterId = "master1",
-        .voteOnlyId = "vote1"
-    };
+        .event = ElectionModule::ZenElectionEventType::ELECTION_STARTED, .masterId = "master1", .voteOnlyId = "vote1"};
     EXPECT_NO_THROW(electionModule->NotifyListenerParam(param));
     electionModule->electionListeners_.pop_back();
 }
@@ -270,8 +252,7 @@ TEST_F(ElectionModuleTest, TestConductVotingTimeout)
     collections.masterCandidates = {"node1", "node2", "node3"};
     collections.voteOnlyNode = "vote1";
 
-    electionModule->electionStartTime_ = std::chrono::steady_clock::now() -
-                                        std::chrono::milliseconds(5000);
+    electionModule->electionStartTime_ = std::chrono::steady_clock::now() - std::chrono::milliseconds(5000);
 
     electionModule->electionInProgress_ = true;
     bool result = electionModule->ConductVoting("temp_master", collections);
@@ -347,15 +328,13 @@ TEST_F(ElectionModuleTest, TestConcurrentListenerQueueAccess)
     for (int i = 0; i < numThreads; i++) {
         threads.emplace_back([this, i]() {
             for (int j = 0; j < 10; j++) {
-                electionModule->notifyListeners(
-                    ElectionModule::ZenElectionEventType::ELECTION_STARTED,
-                    "master_" + std::to_string(i),
-                    "vote_" + std::to_string(j));
+                electionModule->notifyListeners(ElectionModule::ZenElectionEventType::ELECTION_STARTED,
+                                                "master_" + std::to_string(i), "vote_" + std::to_string(j));
             }
         });
     }
 
-    for (auto& thread : threads) {
+    for (auto &thread : threads) {
         thread.join();
     }
 
@@ -368,10 +347,7 @@ TEST_F(ElectionModuleTest, TestCurrentTermAtomicity)
     EXPECT_EQ(electionModule->currentTerm_.load(std::memory_order_relaxed), 5);
 
     ElectionModule::ListenerParam param{
-        .event = ElectionModule::ZenElectionEventType::ELECTION_STARTED,
-        .masterId = "master1",
-        .voteOnlyId = "vote1"
-    };
+        .event = ElectionModule::ZenElectionEventType::ELECTION_STARTED, .masterId = "master1", .voteOnlyId = "vote1"};
 
     electionModule->currentTerm_.store(10, std::memory_order_relaxed);
     EXPECT_NO_THROW(electionModule->NotifyListenerParam(param));
@@ -444,12 +420,11 @@ TEST_F(ElectionModuleTest, TestConductVotingWithVoteOnlyNode)
 
     electionModule->electionInProgress_ = true;
 
-    electionModule->electionStartTime_ = std::chrono::steady_clock::now() -
-                                        std::chrono::milliseconds(5000);
+    electionModule->electionStartTime_ = std::chrono::steady_clock::now() - std::chrono::milliseconds(5000);
 
     auto now = std::chrono::steady_clock::now();
     bool timeout = (now - electionModule->electionStartTime_) >
-                  std::chrono::milliseconds(discovery->GetElectionTimeoutMs());
+                   std::chrono::milliseconds(discovery->GetElectionTimeoutMs());
 
     EXPECT_TRUE(timeout);
     electionModule->electionInProgress_ = false;
@@ -547,4 +522,4 @@ TEST_F(ElectionModuleTest, TestBroadcastElectionResult)
 
     EXPECT_EQ(electionModule->GetElectedMaster(), "elected_master");
 }
-}
+} // namespace UT

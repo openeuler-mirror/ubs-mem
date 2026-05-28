@@ -12,18 +12,18 @@
 
 #include "RackMemShm.h"
 #include <sys/mman.h>
-#include "rack_mem_lib_common.h"
-#include "shm_ipc_command.h"
-#include "ShmMetaDataMgr.h"
-#include "rack_mem_macros.h"
-#include "rack_mem_functions.h"
-#include "log.h"
-#include "rack_mem_fd_map.h"
 #include "ubs_mem_def.h"
-#include "ubsm_ptracer.h"
-#include "system_adapter.h"
 #include "ubs_mem.h"
+#include "ShmMetaDataMgr.h"
+#include "log.h"
 #include "obmm.h"
+#include "rack_mem_fd_map.h"
+#include "rack_mem_functions.h"
+#include "rack_mem_lib_common.h"
+#include "rack_mem_macros.h"
+#include "shm_ipc_command.h"
+#include "system_adapter.h"
+#include "ubsm_ptracer.h"
 
 namespace ock::mxmd {
 using namespace ock::common;
@@ -49,7 +49,7 @@ uint32_t RackMemShm::UbsMemShmCreate(const std::string &regionName, const std::s
     return UBSM_OK;
 }
 
-uint32_t RackMemShm::UbsMemShmCreateWithProvider(const ubs_mem_provider_t* srcLoc, const std::string& name,
+uint32_t RackMemShm::UbsMemShmCreateWithProvider(const ubs_mem_provider_t *srcLoc, const std::string &name,
                                                  uint64_t size, uint64_t flags, mode_t mode)
 {
     DBG_LOGDEBUG("Start to create share memory with provider, memory name="
@@ -144,8 +144,7 @@ uint32_t RackMemShmMmapByMemID(void *mmapAddr, size_t unitSize, uint64_t mmapCou
     }
     for (uint64_t i = 0; i < mmapCount; i++) {
         const int fd = ObmmOpenInternal(memIds[i], open_flag, oflag);
-        DBG_LOGINFO("It is " << i << "th mmap, mem id=" << memIds[i] << ", fd=" << fd << ", open_flag="
-                             << open_flag);
+        DBG_LOGINFO("It is " << i << "th mmap, mem id=" << memIds[i] << ", fd=" << fd << ", open_flag=" << open_flag);
         if (fd < 0) {
             DBG_LOGERROR("Obmm open error fd is " << fd);
             shmAppMetaData.CloseAllFd();
@@ -153,7 +152,7 @@ uint32_t RackMemShmMmapByMemID(void *mmapAddr, size_t unitSize, uint64_t mmapCou
         }
         shmAppMetaData.AddFds(fd);
 
-        auto startAddr = reinterpret_cast<void*>(reinterpret_cast<uint64_t>(mmapAddr) + i * unitSize);
+        auto startAddr = reinterpret_cast<void *>(reinterpret_cast<uint64_t>(mmapAddr) + i * unitSize);
         if (i == mmapCount - 1) {
             size_t tmpLength = shmAppMetaData.mapSize - (mmapCount - 1) * unitSize;
             ret = RackMemFdMap::GetInstance().MapForEachFd(startAddr, tmpLength, fd, prot, flags, offset);
@@ -214,7 +213,7 @@ mode_t convertToFileMode(ShmOwnStatus status)
 int RackMemShm::GetPreAllocateAddressAligned(void *start, size_t length, int flags, void *&result, size_t align)
 {
     void *mmapAddr = nullptr;
-    if (start == nullptr) {  // 未指定地址时，内部预先分配一段地址
+    if (start == nullptr) { // 未指定地址时，内部预先分配一段地址
         TP_TRACE_BEGIN(TP_UBSM_SHM_MMAP_ADDR);
         auto ret = RackMemFdMap::MemoryMapAligned(length, mmapAddr, align);
         TP_TRACE_END(TP_UBSM_SHM_MMAP_ADDR, ret);
@@ -243,7 +242,7 @@ int RackMemShm::GetPreAllocateAddressAligned(void *start, size_t length, int fla
         return ret;
     }
     if (reinterpret_cast<uintptr_t>(mmapAddr) % align != 0) {
-        (void) SystemAdapter::MemoryUnMap(mmapAddr, length);
+        (void)SystemAdapter::MemoryUnMap(mmapAddr, length);
         TP_TRACE_BEGIN(TP_UBSM_SHM_MMAP_ADDR);
         ret = RackMemFdMap::MemoryMapAligned(length, mmapAddr, align);
         TP_TRACE_END(TP_UBSM_SHM_MMAP_ADDR, ret);
@@ -261,7 +260,7 @@ int RackMemShm::GetPreAllocateAddressAligned(void *start, size_t length, int fla
 int RackMemShm::GetPreAllocateAddress(void *start, size_t length, int flags, void *&result)
 {
     void *mmapAddr = nullptr;
-    if (start == nullptr) {  // 未指定地址时，内部预先分配一段地址
+    if (start == nullptr) { // 未指定地址时，内部预先分配一段地址
         TP_TRACE_BEGIN(TP_UBSM_SHM_MMAP_ADDR);
         auto ret = RackMemFdMap::MapAnonymousMemory(nullptr, length, mmapAddr);
         TP_TRACE_END(TP_UBSM_SHM_MMAP_ADDR, ret);
@@ -519,7 +518,8 @@ int32_t RackMemShm::UbsMemShmSetOwnerShipOpt(ShmAppMetaData &meta, void *start, 
 
         if ((meta.unitSize == 0) || (offset > std::numeric_limits<size_t>::max() / meta.unitSize)) {
             DBG_LOGERROR("Overflow in offset * meta.unitSize, unitSize=" << meta.unitSize << ", offset=" << offset
-                         << "indices[i]=" << indices[i] << "indices[0]=" << indices[0]);
+                                                                         << "indices[i]=" << indices[i]
+                                                                         << "indices[0]=" << indices[0]);
             return MXM_ERR_PARAM_INVALID;
         }
         size_t totalOffset = offset * meta.unitSize;
@@ -572,7 +572,7 @@ int32_t RackMemShm::UbsMemShmSetOwnerShip(const std::string &name, void *start, 
     }
 
     if ((meta.flag & UBSM_FLAG_ONLY_IMPORT_NONCACHE) != 0 || (meta.flag & UBSM_FLAG_NONCACHE) != 0) {
-        DBG_LOGERROR("shm name( " << name <<  ") allocate flag is invalid, flag: " << meta.flag);
+        DBG_LOGERROR("shm name( " << name << ") allocate flag is invalid, flag: " << meta.flag);
         return MXM_ERR_PARAM_INVALID;
     }
     auto ret = UbsMemShmSetOwnerShipOpt(meta, start, length, status, usedFirst, indices);
@@ -755,7 +755,7 @@ int32_t RackMemShm::UbsMemShmUnLock(const std::string &name)
     }
 
     if (meta.isLocked <= 0) {
-        DBG_LOGERROR("shm name(" << name <<  ") is not locked. ");
+        DBG_LOGERROR("shm name(" << name << ") is not locked. ");
         return MXM_ERR_LOCK_NOT_FOUND;
     }
 
@@ -861,5 +861,5 @@ int32_t RackMemShm::UbsMemQueryDlockStatus(bool &isReady)
     }
     return 0;
 }
-}  // namespace ock::mxmd
-   // ock
+} // namespace ock::mxmd
+  // ock

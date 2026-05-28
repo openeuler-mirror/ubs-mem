@@ -13,6 +13,7 @@
 #define OPENSSL_DL_H
 
 #include <unistd.h>
+#include <cstdint>
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,7 +24,7 @@ int InitOpensslDl();
 void CleanupOpensslDl();
 
 int VerifyCertificate(const char *caPath, const char *certPath, const char *crlPath, const char *caFileName,
-    const char *certFileName, int64_t expireThreshold);
+                      const char *certFileName, int64_t expireThreshold);
 
 #ifdef __cplusplus
 }

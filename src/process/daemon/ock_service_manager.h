@@ -13,8 +13,8 @@
 #ifndef OCK_OCK_SERVICE_MANAGER_H
 #define OCK_OCK_SERVICE_MANAGER_H
 
-#include <vector>
 #include <set>
+#include <vector>
 #include "ock_service.h"
 #include "ock_service_adapter.h"
 namespace ock {
@@ -25,10 +25,10 @@ public:
     OckServiceManager() = default;
     ~OckServiceManager();
 
-    using Service::ServiceProcessArgs;
     using Service::ServiceInitialize;
-    using Service::ServiceStart;
+    using Service::ServiceProcessArgs;
     using Service::ServiceShutdown;
+    using Service::ServiceStart;
     using Service::ServiceUninitialize;
 
     HRESULT ServicePut(const std::vector<std::string> &services, const std::string &libHomePath);
@@ -69,6 +69,6 @@ private:
     std::map<std::string, OckServiceAdapter *> serviceAdapterMap{};
 };
 using HpcServiceManagerPtr = ock::common::Ref<OckServiceManager>;
-}
-}
+} // namespace daemon
+} // namespace ock
 #endif

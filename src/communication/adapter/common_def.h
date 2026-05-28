@@ -17,7 +17,7 @@
 #include <utility>
 
 template <typename T>
-void SafeFree(T& ptr)
+void SafeFree(T &ptr)
 {
     if (ptr) {
         free(ptr);
@@ -26,7 +26,7 @@ void SafeFree(T& ptr)
 }
 
 template <typename T>
-void SafeDelete(T& ptr)
+void SafeDelete(T &ptr)
 {
     if (ptr) {
         delete ptr;
@@ -35,7 +35,7 @@ void SafeDelete(T& ptr)
 }
 
 template <typename T>
-void SafeDeleteArray(T*& ptr, size_t ptrLen = 1)
+void SafeDeleteArray(T *&ptr, size_t ptrLen = 1)
 {
     if (ptr && ptrLen != 0) {
         delete[] ptr;
@@ -45,7 +45,7 @@ void SafeDeleteArray(T*& ptr, size_t ptrLen = 1)
 
 template <typename T1, typename T2>
 struct PairHash {
-    size_t operator()(const std::pair<T1, T2>& p) const noexcept
+    size_t operator()(const std::pair<T1, T2> &p) const noexcept
     {
         static_assert(sizeof(T1) + sizeof(T2) <= sizeof(uint64_t),
                       "Types are too large to combine into a single hash value");
@@ -57,4 +57,4 @@ struct PairHash {
 template <typename Key1, typename Key2, typename Value>
 using PairMap = std::unordered_map<std::pair<Key1, Key2>, Value, PairHash<Key1, Key2>>;
 
-#endif  // COMMON_DEF_H
+#endif // COMMON_DEF_H

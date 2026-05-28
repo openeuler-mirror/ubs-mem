@@ -11,19 +11,25 @@
  */
 
 #include "ShmMetaDataMgr.h"
-#include "rack_mem_err.h"
-#include "log.h"
-#include "system_adapter.h"
 #include "ubs_mem_def.h"
+#include "log.h"
+#include "rack_mem_err.h"
+#include "system_adapter.h"
 
 namespace ock::mxmd {
 using namespace ock::common;
 using namespace ock::ubsm;
-uint32_t ShmMetaDataMgr::Init() { return UBSM_OK; }
+uint32_t ShmMetaDataMgr::Init()
+{
+    return UBSM_OK;
+}
 
-uint32_t ShmMetaDataMgr::Destroy() { return UBSM_OK; }
+uint32_t ShmMetaDataMgr::Destroy()
+{
+    return UBSM_OK;
+}
 
-void* ShmMetaDataMgr::GetAddr(const std::string& name)
+void *ShmMetaDataMgr::GetAddr(const std::string &name)
 {
     const auto key = StrToSegment(name);
     Locker<Lock> spinLocker(&mNameLock[key]);
@@ -34,8 +40,8 @@ void* ShmMetaDataMgr::GetAddr(const std::string& name)
     return find->second.addr;
 }
 
-uint32_t GetSegmentsAndFirstUsage(ShmAppMetaData& shmAppMetaData, void* checkAddr, uint64_t checkLen,
-    uint64_t& usedFirst, std::vector<int> &indices)
+uint32_t GetSegmentsAndFirstUsage(ShmAppMetaData &shmAppMetaData, void *checkAddr, uint64_t checkLen,
+                                  uint64_t &usedFirst, std::vector<int> &indices)
 {
     if (checkAddr == nullptr || checkLen == 0) {
         DBG_LOGERROR("Invalid param, checkLen=" << checkLen);
@@ -66,8 +72,9 @@ uint32_t GetSegmentsAndFirstUsage(ShmAppMetaData& shmAppMetaData, void* checkAdd
     }
 
     if (queryEnd > base + shmAppMetaData.mapSize) {
-        DBG_LOGERROR("queryEnd < base + mapSize, invalid param, start " << queryStart << ", end " <<
-            queryEnd <<", base " << base << ", mapSize " << shmAppMetaData.mapSize);
+        DBG_LOGERROR("queryEnd < base + mapSize, invalid param, start " << queryStart << ", end " << queryEnd
+                                                                        << ", base " << base << ", mapSize "
+                                                                        << shmAppMetaData.mapSize);
         return MXM_ERR_PARAM_INVALID;
     }
 
@@ -77,7 +84,7 @@ uint32_t GetSegmentsAndFirstUsage(ShmAppMetaData& shmAppMetaData, void* checkAdd
     }
 
     // 起始段索引
-    int64_t  startIdx = static_cast<int64_t >((queryStart - base) / shmAppMetaData.unitSize);
+    int64_t startIdx = static_cast<int64_t>((queryStart - base) / shmAppMetaData.unitSize);
     // 结束段索引 (query_end 是开区间)
     int64_t endIdx = static_cast<int64_t>((queryEnd - 1 - base) / shmAppMetaData.unitSize);
 
@@ -92,8 +99,8 @@ uint32_t GetSegmentsAndFirstUsage(ShmAppMetaData& shmAppMetaData, void* checkAdd
     return UBSM_OK;
 }
 
-int32_t ShmMetaDataMgr::CheckAddr(std::string name, void *start, size_t length, ShmAppMetaData& shmAppMetaData,
-    uint64_t& usedFirst, std::vector<int> &indices)
+int32_t ShmMetaDataMgr::CheckAddr(std::string name, void *start, size_t length, ShmAppMetaData &shmAppMetaData,
+                                  uint64_t &usedFirst, std::vector<int> &indices)
 {
     const auto key = StrToSegment(name);
     mNameLock[key].DoLock();
@@ -115,7 +122,7 @@ int32_t ShmMetaDataMgr::CheckAddr(std::string name, void *start, size_t length, 
     return MXM_ERR_PARAM_INVALID;
 }
 
-int32_t ShmMetaDataMgr::CheckNameExistAndGet(void* start, size_t mapSize, ShmAppMetaData& shmAppMetaData)
+int32_t ShmMetaDataMgr::CheckNameExistAndGet(void *start, size_t mapSize, ShmAppMetaData &shmAppMetaData)
 {
     if (start == nullptr) {
         DBG_LOGERROR("Param start is nullptr.");
@@ -143,7 +150,7 @@ int32_t ShmMetaDataMgr::CheckNameExistAndGet(void* start, size_t mapSize, ShmApp
     if (findMeta->second.mapSize != mapSize) {
         mNameLock[key].UnLock();
         DBG_LOGERROR("Map size not match, name=" << name << " lenth=" << mapSize
-            << " found mapSize=" << findMeta->second.mapSize);
+                                                 << " found mapSize=" << findMeta->second.mapSize);
         return MXM_ERR_PARAM_INVALID;
     }
     shmAppMetaData = findMeta->second;
@@ -151,7 +158,7 @@ int32_t ShmMetaDataMgr::CheckNameExistAndGet(void* start, size_t mapSize, ShmApp
     return UBSM_OK;
 }
 
-int32_t ShmMetaDataMgr::GetShmMetaFromName(const std::string& name, ShmAppMetaData& shmAppMetaData)
+int32_t ShmMetaDataMgr::GetShmMetaFromName(const std::string &name, ShmAppMetaData &shmAppMetaData)
 {
     const auto key = StrToSegment(name);
     mNameLock[key].DoLock();
@@ -247,7 +254,7 @@ bool ShmMetaDataMgr::HasOverlapWithKnownVmas(uintptr_t start, uintptr_t end)
         return false;
     }
 
-    const auto firstIterGreaterThanStart = mMappedMemoryAddress.upper_bound(start);  // 二分查找 O(log(N))
+    const auto firstIterGreaterThanStart = mMappedMemoryAddress.upper_bound(start); // 二分查找 O(log(N))
     if (firstIterGreaterThanStart != mMappedMemoryAddress.begin()) {
         auto prevIter = std::prev(firstIterGreaterThanStart);
         uintptr_t prevVmaStart = prevIter->first;
@@ -270,7 +277,7 @@ bool ShmMetaDataMgr::HasOverlapWithKnownVmas(uintptr_t start, uintptr_t end)
     return false;
 }
 
-int32_t ShmMetaDataMgr::AddMappedMemoryRange(void* start, size_t length)
+int32_t ShmMetaDataMgr::AddMappedMemoryRange(void *start, size_t length)
 {
     auto VmaStart = reinterpret_cast<uintptr_t>(start);
     if (length == 0) {
@@ -303,7 +310,7 @@ int32_t ShmMetaDataMgr::RemoveMappedMemoryRange(void *start)
     return MXM_OK;
 }
 
-uint32_t ShmMetaDataMgr::RemoveMetaData(void* start, const std::string& name)
+uint32_t ShmMetaDataMgr::RemoveMetaData(void *start, const std::string &name)
 {
     if (start == nullptr) {
         DBG_LOGERROR("Param start is nullptr.");
@@ -339,7 +346,7 @@ uint32_t ShmMetaDataMgr::RemoveMetaData(void* start, const std::string& name)
     return UBSM_OK;
 }
 
-uint32_t ShmMetaDataMgr::AddMetaData(const std::string& name, void* mAddr, ShmAppMetaData& shmAppMetaData)
+uint32_t ShmMetaDataMgr::AddMetaData(const std::string &name, void *mAddr, ShmAppMetaData &shmAppMetaData)
 {
     if (mAddr == nullptr) {
         DBG_LOGERROR("Param mAddr is nullptr.");
@@ -366,11 +373,11 @@ uint32_t ShmMetaDataMgr::AddMetaData(const std::string& name, void* mAddr, ShmAp
     mPtrLock[pkey].DoLock();
     mAddr2NameMap[pkey][mAddr] = name;
     mPtrLock[pkey].UnLock();
-    DBG_LOGDEBUG("Adding meta data successfully, name=" << name << ", data="<<shmAppMetaData);
+    DBG_LOGDEBUG("Adding meta data successfully, name=" << name << ", data=" << shmAppMetaData);
     return UBSM_OK;
 }
 
-int32_t ShmMetaDataMgr::UpdateMetaData(const std::string& name, const ShmAppMetaData& shmAppMetaData)
+int32_t ShmMetaDataMgr::UpdateMetaData(const std::string &name, const ShmAppMetaData &shmAppMetaData)
 {
     const auto key = StrToSegment(name);
     mNameLock[key].DoLock();
@@ -387,5 +394,5 @@ int32_t ShmMetaDataMgr::UpdateMetaData(const std::string& name, const ShmAppMeta
     return UBSM_OK;
 }
 
-}  // namespace ock::mxmd
-// ock
+} // namespace ock::mxmd
+  // ock

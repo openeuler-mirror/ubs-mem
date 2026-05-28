@@ -18,33 +18,34 @@
 #include <list>
 #include <memory>
 #include <mutex>
-#include <vector>
 #include <thread>
+#include <vector>
 
 namespace ock {
 namespace ubsm {
 class UBSMThreadPool {
 public:
-UBSMThreadPool(int thCount, std::string name) noexcept;
-~UBSMThreadPool() noexcept;
+    UBSMThreadPool(int thCount, std::string name) noexcept;
+    ~UBSMThreadPool() noexcept;
 
-int Start() noexcept;
-void Push(const std::function<void()> &task) noexcept;
-void Stop() noexcept;
-static UBSMThreadPool &GetInstance() noexcept;
+    int Start() noexcept;
+    void Push(const std::function<void()> &task) noexcept;
+    void Stop() noexcept;
+    static UBSMThreadPool &GetInstance() noexcept;
 
 private:
-void ThreadWork(int threadId) noexcept;
+    void ThreadWork(int threadId) noexcept;
+
 private:
-std::atomic<bool> running;
-int threadNum;
-std::vector<std::shared_ptr<std::thread>> threads;
-std::list<std::function<void()>> tasks;
-std::string poolName;
-std::mutex mtx;
-std::condition_variable cond;
+    std::atomic<bool> running;
+    int threadNum;
+    std::vector<std::shared_ptr<std::thread>> threads;
+    std::list<std::function<void()>> tasks;
+    std::string poolName;
+    std::mutex mtx;
+    std::condition_variable cond;
 };
-    }
-}
+} // namespace ubsm
+} // namespace ock
 
 #endif // UBSM_THREAD_POOL_H

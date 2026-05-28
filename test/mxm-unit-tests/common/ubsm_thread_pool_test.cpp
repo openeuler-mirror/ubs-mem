@@ -1,6 +1,6 @@
+#include "ubsm_thread_pool.h"
 #include <gtest/gtest.h>
 #include <atomic>
-#include "ubsm_thread_pool.h"
 
 using namespace ock::ubsm;
 

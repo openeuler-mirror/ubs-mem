@@ -13,9 +13,9 @@
 #ifndef SYSTEM_ADAPTER_H
 #define SYSTEM_ADAPTER_H
 
-#include <sys/mman.h>
 #include <dlfcn.h>
 #include <fcntl.h>
+#include <sys/mman.h>
 #include <unistd.h>
 namespace ock::ubsm {
 class SystemAdapter {
@@ -47,6 +47,6 @@ public:
     // dlclose
     static int DlClose(void *handle);
 };
-}
+} // namespace ock::ubsm
 
-#endif  // SYSTEM_ADAPTER_H
+#endif // SYSTEM_ADAPTER_H

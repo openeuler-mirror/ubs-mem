@@ -1,22 +1,22 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <sys/mman.h>
-#include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
 #include <dlfcn.h>
+#include <gtest/gtest.h>
+#include <sys/mman.h>
+#include <mockcpp/mockcpp.hpp>
 
 #define private public
 #include "UbseMemExecutor.h"
 #undef private
 #include "ubs_mem.h"
-#include "mx_shm.h"
 #include "RackMemShm.h"
+#include "app_ipc_stub.h"
+#include "mx_shm.h"
+#include "rack_mem_err.h"
 #include "rack_mem_lib.h"
 #include "shm_ipc_command.h"
-#include "rack_mem_err.h"
 #include "system_adapter.h"
-#include "app_ipc_stub.h"
 
 #define MOCKER_CPP(api, TT) (MOCKCPP_NS::mockAPI((#api), (reinterpret_cast<TT>(api))))
 namespace UT {
@@ -49,27 +49,26 @@ protected:
 
 TEST_F(UbsmemShmemAllocateTest, NormalCase)
 {
-    MOCKER_CPP(&MxmComIpcClientSend,
-               int (*)(uint16_t opCode, MsgBase* request, MsgBase* response))
+    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase * request, MsgBase * response))
         .stubs()
         .will(invoke(MxmShmIpcClientSendStub));
     MOCKER_CPP(&RackMemShm::UbsMemShmCreate,
-               uint32_t(*)(const std::string& regionName, const std::string& name, uint64_t size,
-                   const std::string& baseNid, const SHMRegionDesc& shmRegion, int flags, mode_t mode)).stubs().will(
-        returnValue(0));
+               uint32_t(*)(const std::string &regionName, const std::string &name, uint64_t size,
+                           const std::string &baseNid, const SHMRegionDesc &shmRegion, int flags, mode_t mode))
+        .stubs()
+        .will(returnValue(0));
     EXPECT_EQ(UBSM_OK, ubsmem_shmem_allocate(valid_region_name.c_str(), valid_name.c_str(), valid_size, valid_mode,
-        valid_flags));
+                                             valid_flags));
 }
 
 TEST_F(UbsmemShmemAllocateTest, NormalCaseIpcStub)
 {
-    MOCKER_CPP(&MxmComIpcClientSend,
-               int (*)(uint16_t opCode, MsgBase* request, MsgBase* response))
+    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase * request, MsgBase * response))
         .stubs()
         .will(invoke(MxmShmIpcClientSendStub));
 
     EXPECT_EQ(UBSM_OK, ubsmem_shmem_allocate(valid_region_name.c_str(), valid_name.c_str(), valid_size, valid_mode,
-        valid_flags));
+                                             valid_flags));
 }
 
 TEST_F(UbsmemShmemAllocateTest, RegionNameNullptr)
@@ -108,15 +107,13 @@ TEST_F(UbsmemShmemAllocateTest, NameTooLong)
 TEST_F(UbsmemShmemAllocateTest, FlagsInvalid)
 {
     uint64_t invalid_flags = 0xFFFFFFFF; // 无效的标志
-    EXPECT_EQ(UBSM_ERR_PARAM_INVALID,
-              ubsmem_shmem_allocate(valid_region_name.c_str(), valid_name.c_str(), valid_size, valid_mode,
-                                    invalid_flags));
+    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_allocate(valid_region_name.c_str(), valid_name.c_str(), valid_size,
+                                                            valid_mode, invalid_flags));
 }
 
 class UbsmemShmemDeallocateTest : public ::testing::Test {
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
     void TearDown() override
     {
@@ -130,9 +127,10 @@ protected:
 TEST_F(UbsmemShmemDeallocateTest, NormalCase)
 {
     MOCKER_CPP(&RackMemShm::UbsMemShmDelete,
-               uint32_t(*)(const std::string& regionName, const std::string& name, uint64_t size,
-                   const std::string& baseNid, const SHMRegionDesc& shmRegion, int flags, mode_t mode)).stubs().will(
-        returnValue(0));
+               uint32_t(*)(const std::string &regionName, const std::string &name, uint64_t size,
+                           const std::string &baseNid, const SHMRegionDesc &shmRegion, int flags, mode_t mode))
+        .stubs()
+        .will(returnValue(0));
     EXPECT_EQ(UBSM_OK, ubsmem_shmem_deallocate(validName.c_str()));
 }
 
@@ -155,10 +153,10 @@ TEST_F(UbsmemShmemDeallocateTest, NameTooLong)
 TEST_F(UbsmemShmemDeallocateTest, DeleteFailed)
 {
     MOCKER_CPP(&RackMemShm::UbsMemShmDelete,
-               uint32_t(*)(const std::string& regionName, const std::string& name, uint64_t size,
-                   const std::string& baseNid, const SHMRegionDesc& shmRegion, int flags, mode_t mode))
-        .stubs().will(
-        returnValue(static_cast<int>(MXM_ERR_MALLOC_FAIL)));
+               uint32_t(*)(const std::string &regionName, const std::string &name, uint64_t size,
+                           const std::string &baseNid, const SHMRegionDesc &shmRegion, int flags, mode_t mode))
+        .stubs()
+        .will(returnValue(static_cast<int>(MXM_ERR_MALLOC_FAIL)));
     EXPECT_EQ(UBSM_ERR_MALLOC_FAIL, ubsmem_shmem_deallocate(validName.c_str())); // 6022 是预期的返回值
 }
 
@@ -184,33 +182,31 @@ protected:
 
 TEST_F(UbsmemShmemMapTest, NormalCaseLocalPtrIsNil)
 {
-    void* result_ptr;
+    void *result_ptr;
     size_t valid_length = 1024;
     off_t valid_offset = 0;
     int valid_prot = PROT_READ | PROT_WRITE;
     int valid_flags = MAP_SHARED;
 
-    MOCKER_CPP(&RackMemShm::UbsMemShmMmap, int(*)
-        (void * start, size_t mapSize, int prot, int flags, const std::string& name, off_t off, void * *local_ptr))
+    MOCKER_CPP(&RackMemShm::UbsMemShmMmap, int (*)(void *start, size_t mapSize, int prot, int flags,
+                                                   const std::string &name, off_t off, void **local_ptr))
         .stubs()
         .will(returnValue(0));
 
-    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_map(
-        nullptr, valid_length, valid_prot, valid_flags,
-        valid_name.c_str(), valid_offset, &result_ptr));
+    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_map(nullptr, valid_length, valid_prot, valid_flags,
+                                                       valid_name.c_str(), valid_offset, &result_ptr));
 }
 
 TEST_F(UbsmemShmemMapTest, NameNullptr)
 {
-    void* result_ptr;
+    void *result_ptr;
     size_t valid_length = 1024;
     off_t valid_offset = 0;
     int valid_prot = PROT_READ | PROT_WRITE;
     int valid_flags = MAP_SHARED;
 
-    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_map(
-        nullptr, valid_length, valid_prot, valid_flags,
-        nullptr, valid_offset, &result_ptr));
+    EXPECT_EQ(UBSM_ERR_PARAM_INVALID,
+              ubsmem_shmem_map(nullptr, valid_length, valid_prot, valid_flags, nullptr, valid_offset, &result_ptr));
 }
 
 TEST_F(UbsmemShmemMapTest, LocalPtrNullptr)
@@ -220,65 +216,60 @@ TEST_F(UbsmemShmemMapTest, LocalPtrNullptr)
     int valid_prot = PROT_READ | PROT_WRITE;
     int valid_flags = MAP_SHARED;
 
-    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_map(
-        nullptr, valid_length, valid_prot, valid_flags,
-        valid_name.c_str(), valid_offset, nullptr));
+    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_map(nullptr, valid_length, valid_prot, valid_flags,
+                                                       valid_name.c_str(), valid_offset, nullptr));
 }
 
 TEST_F(UbsmemShmemMapTest, LengthInvalid)
 {
-    void* result_ptr;
+    void *result_ptr;
     off_t valid_offset = 0;
     int valid_prot = PROT_READ | PROT_WRITE;
     int valid_flags = MAP_SHARED;
 
-    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_map(
-        nullptr, 0, valid_prot, valid_flags,
-        valid_name.c_str(), valid_offset, &result_ptr));
+    EXPECT_EQ(UBSM_ERR_PARAM_INVALID,
+              ubsmem_shmem_map(nullptr, 0, valid_prot, valid_flags, valid_name.c_str(), valid_offset, &result_ptr));
 }
 
 TEST_F(UbsmemShmemMapTest, NameZeroLength)
 {
-    void* result_ptr;
+    void *result_ptr;
     size_t valid_length = 1024;
     off_t valid_offset = 0;
     int valid_prot = PROT_READ | PROT_WRITE;
     int valid_flags = MAP_SHARED;
     std::string empty_name = "";
 
-    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_map(
-        nullptr, valid_length, valid_prot, valid_flags,
-        empty_name.c_str(), valid_offset, &result_ptr));
+    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_map(nullptr, valid_length, valid_prot, valid_flags,
+                                                       empty_name.c_str(), valid_offset, &result_ptr));
 }
 
 TEST_F(UbsmemShmemMapTest, NameTooLong)
 {
-    void* result_ptr;
+    void *result_ptr;
     size_t valid_length = 1024;
     off_t valid_offset = 0;
     int valid_prot = PROT_READ | PROT_WRITE;
     int valid_flags = MAP_SHARED;
     std::string too_long_name = std::string(MAX_SHM_NAME_LENGTH, 'a');
 
-    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_map(
-        nullptr, valid_length, valid_prot, valid_flags,
-        too_long_name.c_str(), valid_offset, &result_ptr));
+    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_map(nullptr, valid_length, valid_prot, valid_flags,
+                                                       too_long_name.c_str(), valid_offset, &result_ptr));
 }
 
 TEST_F(UbsmemShmemMapTest, MapFailed)
 {
-    void* result_ptr;
+    void *result_ptr;
     size_t valid_length = 1024;
     off_t valid_offset = 0;
     int valid_prot = PROT_READ | PROT_WRITE;
     int valid_flags = MAP_SHARED;
-    MOCKER_CPP(&RackMemShm::UbsMemShmMmap, int(*)
-        (void * start, size_t mapSize, int prot, int flags, const std::string& name, off_t off, void * *local_ptr))
+    MOCKER_CPP(&RackMemShm::UbsMemShmMmap, int (*)(void *start, size_t mapSize, int prot, int flags,
+                                                   const std::string &name, off_t off, void **local_ptr))
         .stubs()
         .will(returnValue(static_cast<int>(MXM_ERR_SHM_NOT_FOUND)));
-    EXPECT_EQ(UBSM_ERR_NOT_FOUND, ubsmem_shmem_map(
-        nullptr, valid_length, valid_prot, valid_flags,
-        fail_name.c_str(), valid_offset, &result_ptr));
+    EXPECT_EQ(UBSM_ERR_NOT_FOUND, ubsmem_shmem_map(nullptr, valid_length, valid_prot, valid_flags, fail_name.c_str(),
+                                                   valid_offset, &result_ptr));
 }
 
 class UbsmemShmemUnmapTest : public ::testing::Test {
@@ -287,7 +278,7 @@ protected:
     {
         // 分配一个有效的内存指针用于测试
         valid_ptr = malloc(PAGE_SIZE);
-        fail_ptr = reinterpret_cast<void*>(0xDEADBEEF); // 特殊指针，模拟失败
+        fail_ptr = reinterpret_cast<void *>(0xDEADBEEF); // 特殊指针，模拟失败
     }
 
     void TearDown() override
@@ -300,16 +291,14 @@ protected:
         mockcpp::GlobalMockObject::reset();
     }
 
-    void* valid_ptr;
-    void* fail_ptr;
+    void *valid_ptr;
+    void *fail_ptr;
 };
 
 TEST_F(UbsmemShmemUnmapTest, NormalCase)
 {
     size_t valid_length = 1024;
-    MOCKER_CPP(&RackMemShm::UbsMemShmUnmmap, uint32_t(*)(void * start, size_t size))
-        .stubs()
-        .will(returnValue(0));
+    MOCKER_CPP(&RackMemShm::UbsMemShmUnmmap, uint32_t(*)(void *start, size_t size)).stubs().will(returnValue(0));
     EXPECT_EQ(UBSM_OK, ubsmem_shmem_unmap(valid_ptr, valid_length));
 }
 
@@ -327,7 +316,7 @@ TEST_F(UbsmemShmemUnmapTest, LengthZero)
 TEST_F(UbsmemShmemUnmapTest, UnmapFailed)
 {
     size_t valid_length = 1024;
-    MOCKER_CPP(&RackMemShm::UbsMemShmUnmmap, uint32_t(*)(void * start, size_t size))
+    MOCKER_CPP(&RackMemShm::UbsMemShmUnmmap, uint32_t(*)(void *start, size_t size))
         .stubs()
         .will(returnValue(static_cast<int>(MXM_ERR_PARAM_INVALID)));
     EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_unmap(fail_ptr, valid_length));
@@ -336,9 +325,7 @@ TEST_F(UbsmemShmemUnmapTest, UnmapFailed)
 TEST_F(UbsmemShmemUnmapTest, LengthNeedsRounding)
 {
     size_t need_round_length = 100;
-    MOCKER_CPP(&RackMemShm::UbsMemShmUnmmap, uint32_t(*)(void * start, size_t size))
-        .stubs()
-        .will(returnValue(0));
+    MOCKER_CPP(&RackMemShm::UbsMemShmUnmmap, uint32_t(*)(void *start, size_t size)).stubs().will(returnValue(0));
 
     EXPECT_EQ(UBSM_OK, ubsmem_shmem_unmap(valid_ptr, need_round_length));
 }
@@ -365,7 +352,7 @@ protected:
         mockcpp::GlobalMockObject::reset();
     }
 
-    void* valid_ptr;
+    void *valid_ptr;
     std::string valid_name;
     std::string fail_name;
 };
@@ -374,79 +361,73 @@ TEST_F(UbsmemShmemSetOwnershipTest, NormalCaseProtNone)
 {
     size_t valid_length = PAGE_SIZE;
     MOCKER_CPP(&RackMemShm::UbsMemShmSetOwnerShip,
-               int32_t(*)(const std::string& name, void* start, size_t length, ShmOwnStatus status))
+               int32_t(*)(const std::string &name, void *start, size_t length, ShmOwnStatus status))
         .stubs()
         .will(returnValue(0));
-    EXPECT_EQ(UBSM_OK, ubsmem_shmem_set_ownership(
-        valid_name.c_str(), valid_ptr, valid_length, PROT_NONE));
+    EXPECT_EQ(UBSM_OK, ubsmem_shmem_set_ownership(valid_name.c_str(), valid_ptr, valid_length, PROT_NONE));
 }
 
 TEST_F(UbsmemShmemSetOwnershipTest, NameNullptr)
 {
     size_t valid_length = PAGE_SIZE;
-    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_set_ownership(
-        nullptr, valid_ptr, valid_length, PROT_READ));
+    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_set_ownership(nullptr, valid_ptr, valid_length, PROT_READ));
 }
 
 TEST_F(UbsmemShmemSetOwnershipTest, NameZeroLength)
 {
     size_t valid_length = PAGE_SIZE;
     std::string empty_name = "";
-    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_set_ownership(
-        empty_name.c_str(), valid_ptr, valid_length, PROT_READ));
+    EXPECT_EQ(UBSM_ERR_PARAM_INVALID,
+              ubsmem_shmem_set_ownership(empty_name.c_str(), valid_ptr, valid_length, PROT_READ));
 }
 
 TEST_F(UbsmemShmemSetOwnershipTest, NameTooLong)
 {
     size_t valid_length = PAGE_SIZE;
     std::string too_long_name = std::string(MAX_SHM_NAME_LENGTH, 'a');
-    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_set_ownership(
-        too_long_name.c_str(), valid_ptr, valid_length, PROT_READ));
+    EXPECT_EQ(UBSM_ERR_PARAM_INVALID,
+              ubsmem_shmem_set_ownership(too_long_name.c_str(), valid_ptr, valid_length, PROT_READ));
 }
 
 TEST_F(UbsmemShmemSetOwnershipTest, StartNullptr)
 {
     size_t valid_length = PAGE_SIZE;
-    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_set_ownership(
-        valid_name.c_str(), nullptr, valid_length, PROT_READ));
+    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_set_ownership(valid_name.c_str(), nullptr, valid_length, PROT_READ));
 }
 
 TEST_F(UbsmemShmemSetOwnershipTest, LengthZero)
 {
-    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_set_ownership(
-        valid_name.c_str(), valid_ptr, 0, PROT_READ));
+    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_set_ownership(valid_name.c_str(), valid_ptr, 0, PROT_READ));
 }
 
 TEST_F(UbsmemShmemSetOwnershipTest, LengthNotMultipleOfPageSize)
 {
     size_t invalid_length = PAGE_SIZE + 1;
-    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_set_ownership(
-        valid_name.c_str(), valid_ptr, invalid_length, PROT_READ));
+    EXPECT_EQ(UBSM_ERR_PARAM_INVALID,
+              ubsmem_shmem_set_ownership(valid_name.c_str(), valid_ptr, invalid_length, PROT_READ));
 }
 
 TEST_F(UbsmemShmemSetOwnershipTest, ProtInvalid)
 {
     size_t valid_length = PAGE_SIZE;
     int invalid_prot = PROT_WRITE; // 单独的PROT_WRITE是无效的
-    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_set_ownership(
-        valid_name.c_str(), valid_ptr, valid_length, invalid_prot));
+    EXPECT_EQ(UBSM_ERR_PARAM_INVALID,
+              ubsmem_shmem_set_ownership(valid_name.c_str(), valid_ptr, valid_length, invalid_prot));
 }
 
 TEST_F(UbsmemShmemSetOwnershipTest, SetOwnershipFailed)
 {
     size_t valid_length = PAGE_SIZE;
     MOCKER_CPP(&RackMemShm::UbsMemShmSetOwnerShip,
-               int32_t(*)(const std::string& name, void* start, size_t length, ShmOwnStatus status))
+               int32_t(*)(const std::string &name, void *start, size_t length, ShmOwnStatus status))
         .stubs()
         .will(returnValue(static_cast<int>(MXM_ERR_SHM_NOT_FOUND)));
-    EXPECT_EQ(UBSM_ERR_NOT_FOUND, ubsmem_shmem_set_ownership(
-        fail_name.c_str(), valid_ptr, valid_length, PROT_READ));
+    EXPECT_EQ(UBSM_ERR_NOT_FOUND, ubsmem_shmem_set_ownership(fail_name.c_str(), valid_ptr, valid_length, PROT_READ));
 }
 
 class UbsmLookupRegionsTest : public ::testing::Test {
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
     void TearDown() override
     {
@@ -458,11 +439,9 @@ protected:
 TEST_F(UbsmLookupRegionsTest, NormalCase)
 {
     ubsmem_regions_t regions;
-    MOCKER_CPP(&RackMemLib::StartRackMem, int(*)())
-        .stubs()
-        .will(returnValue(0));
+    MOCKER_CPP(&RackMemLib::StartRackMem, int (*)()).stubs().will(returnValue(0));
     MOCKER_CPP(&RackMemShm::RackMemLookupResourceRegions,
-               uint32_t(*)(const std::string& baseNid, ShmRegionType type, SHMRegions & list))
+               uint32_t(*)(const std::string &baseNid, ShmRegionType type, SHMRegions &list))
         .stubs()
         .will(returnValue(0));
     EXPECT_EQ(UBSM_OK, ubsmem_lookup_regions(&regions));
@@ -476,20 +455,16 @@ TEST_F(UbsmLookupRegionsTest, RegionsNullptr)
 TEST_F(UbsmLookupRegionsTest, StartRackMemFailed)
 {
     ubsmem_regions_t regions;
-    MOCKER_CPP(&RackMemLib::StartRackMem, int(*)())
-        .stubs()
-        .will(returnValue(-1));
+    MOCKER_CPP(&RackMemLib::StartRackMem, int (*)()).stubs().will(returnValue(-1));
     EXPECT_EQ(UBSM_ERR_MEMLIB, ubsmem_lookup_regions(&regions));
 }
 
 TEST_F(UbsmLookupRegionsTest, LookupResourceRegionsFailed)
 {
     ubsmem_regions_t regions;
-    MOCKER_CPP(&RackMemLib::StartRackMem, int(*)())
-        .stubs()
-        .will(returnValue(0));
+    MOCKER_CPP(&RackMemLib::StartRackMem, int (*)()).stubs().will(returnValue(0));
     MOCKER_CPP(&RackMemShm::RackMemLookupResourceRegions,
-               uint32_t(*)(const std::string& baseNid, ShmRegionType type, SHMRegions & list))
+               uint32_t(*)(const std::string &baseNid, ShmRegionType type, SHMRegions &list))
         .stubs()
         .will(returnValue(static_cast<int>(MXM_ERR_MEMLIB)));
     EXPECT_EQ(UBSM_ERR_MEMLIB, ubsmem_lookup_regions(&regions));
@@ -511,15 +486,11 @@ protected:
         mockcpp::GlobalMockObject::reset();
     }
 
-    const char* valid_region_name{};
+    const char *valid_region_name{};
     size_t valid_size{};
-    ubsmem_region_attributes_t valid_reg_attr{.host_num = 2,
-        .hosts = {
-            {"host1"},
-            {"host2"}
-        }};
+    ubsmem_region_attributes_t valid_reg_attr{.host_num = 2, .hosts = {{"host1"}, {"host2"}}};
 
-    const char* empty_region_name{};
+    const char *empty_region_name{};
 };
 
 TEST_F(UbsmemCreateRegionTest, RegionNameNullptr)
@@ -549,11 +520,7 @@ TEST_F(UbsmemCreateRegionTest, RegAttrNullptr)
 
 TEST_F(UbsmemCreateRegionTest, RegAttrInvalid)
 {
-    ubsmem_region_attributes_t invalid_reg_attr{.host_num = 2,
-        .hosts = {
-            {""},
-            {"host2"}
-        }};
+    ubsmem_region_attributes_t invalid_reg_attr{.host_num = 2, .hosts = {{""}, {"host2"}}};
     EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_create_region("name", valid_size, &invalid_reg_attr));
 }
 
@@ -564,21 +531,16 @@ TEST_F(UbsmemCreateRegionTest, LibNotInit)
 
 TEST_F(UbsmemCreateRegionTest, CreateRegionNetError)
 {
-    MOCKER_CPP(&RackMemLib::StartRackMem, int(*)())
-        .stubs()
-        .will(returnValue(0));
-    
+    MOCKER_CPP(&RackMemLib::StartRackMem, int (*)()).stubs().will(returnValue(0));
+
     EXPECT_EQ(UBSM_ERR_NET, ubsmem_create_region("name", valid_size, &valid_reg_attr));
 }
 
 TEST_F(UbsmemCreateRegionTest, CreateRegion2)
 {
-    MOCKER_CPP(&RackMemLib::StartRackMem, int(*)())
-        .stubs()
-        .will(returnValue(0));
-    
-    MOCKER_CPP(&MxmComIpcClientSend,
-               int (*)(uint16_t opCode, MsgBase* request, MsgBase* response))
+    MOCKER_CPP(&RackMemLib::StartRackMem, int (*)()).stubs().will(returnValue(0));
+
+    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase * request, MsgBase * response))
         .stubs()
         .will(invoke(MxmShmIpcClientSendStub));
     EXPECT_EQ(UBSM_CHECK_RESOURCE_ERROR, ubsmem_create_region("name", valid_size, &valid_reg_attr));
@@ -610,11 +572,9 @@ protected:
 
 TEST_F(UbsmemLookupRegionTest, NormalCase)
 {
-    MOCKER_CPP(&RackMemLib::StartRackMem, int(*)())
-        .stubs()
-        .will(returnValue(0));
+    MOCKER_CPP(&RackMemLib::StartRackMem, int (*)()).stubs().will(returnValue(0));
     MOCKER_CPP(&RackMemShm::RackMemLookupResourceRegion,
-               uint32_t(*)(const std::string& regionName, SHMRegionDesc&region))
+               uint32_t(*)(const std::string &regionName, SHMRegionDesc &region))
         .stubs()
         .will(returnValue(0));
     EXPECT_EQ(UBSM_OK, ubsmem_lookup_region(valid_region_name.c_str(), &valid_region_desc));
@@ -642,19 +602,15 @@ TEST_F(UbsmemLookupRegionTest, RegionNameTooLong)
 
 TEST_F(UbsmemLookupRegionTest, StartRackMemFailed)
 {
-    MOCKER_CPP(&RackMemLib::StartRackMem, int(*)())
-        .stubs()
-        .will(returnValue(-1));
+    MOCKER_CPP(&RackMemLib::StartRackMem, int (*)()).stubs().will(returnValue(-1));
     EXPECT_EQ(UBSM_ERR_MEMLIB, ubsmem_lookup_region(valid_region_name.c_str(), &valid_region_desc));
 }
 
 TEST_F(UbsmemLookupRegionTest, LookupResourceRegionFailed)
 {
-    MOCKER_CPP(&RackMemLib::StartRackMem, int(*)())
-        .stubs()
-        .will(returnValue(0));
+    MOCKER_CPP(&RackMemLib::StartRackMem, int (*)()).stubs().will(returnValue(0));
     MOCKER_CPP(&RackMemShm::RackMemLookupResourceRegion,
-               uint32_t(*)(const std::string& regionName, SHMRegionDesc&region))
+               uint32_t(*)(const std::string &regionName, SHMRegionDesc &region))
         .stubs()
         .will(returnValue(static_cast<int>(MXM_ERR_SHM_NOT_FOUND)));
     EXPECT_EQ(UBSM_ERR_NOT_FOUND, ubsmem_lookup_region(valid_region_name.c_str(), &valid_region_desc));
@@ -685,11 +641,8 @@ protected:
 
 TEST_F(UbsmemDestroyRegionTest, NormalCase)
 {
-    MOCKER_CPP(&RackMemLib::StartRackMem, int(*)())
-        .stubs()
-        .will(returnValue(0));
-    MOCKER_CPP(&RackMemShm::RackMemDestroyResourceRegion,
-               uint32_t(*)(const std::string& regionName))
+    MOCKER_CPP(&RackMemLib::StartRackMem, int (*)()).stubs().will(returnValue(0));
+    MOCKER_CPP(&RackMemShm::RackMemDestroyResourceRegion, uint32_t(*)(const std::string &regionName))
         .stubs()
         .will(returnValue(0));
     EXPECT_EQ(UBSM_OK, ubsmem_destroy_region(valid_region_name.c_str()));
@@ -712,19 +665,14 @@ TEST_F(UbsmemDestroyRegionTest, RegionNameTooLong)
 
 TEST_F(UbsmemDestroyRegionTest, StartRackMemFailed)
 {
-    MOCKER_CPP(&RackMemLib::StartRackMem, int(*)())
-        .stubs()
-        .will(returnValue(static_cast<int>(MXM_ERR_MEMLIB)));
+    MOCKER_CPP(&RackMemLib::StartRackMem, int (*)()).stubs().will(returnValue(static_cast<int>(MXM_ERR_MEMLIB)));
     EXPECT_EQ(UBSM_ERR_MEMLIB, ubsmem_destroy_region(valid_region_name.c_str()));
 }
 
 TEST_F(UbsmemDestroyRegionTest, DestroyResourceRegionFailed)
 {
-    MOCKER_CPP(&RackMemLib::StartRackMem, int(*)())
-        .stubs()
-        .will(returnValue(0));
-    MOCKER_CPP(&RackMemShm::RackMemDestroyResourceRegion,
-               uint32_t(*)(const std::string& regionName))
+    MOCKER_CPP(&RackMemLib::StartRackMem, int (*)()).stubs().will(returnValue(0));
+    MOCKER_CPP(&RackMemShm::RackMemDestroyResourceRegion, uint32_t(*)(const std::string &regionName))
         .stubs()
         .will(returnValue(static_cast<int>(MXM_ERR_SHM_NOT_FOUND)));
     EXPECT_EQ(UBSM_ERR_NOT_FOUND, ubsmem_destroy_region(valid_region_name.c_str()));
@@ -755,10 +703,7 @@ protected:
 
 TEST_F(UbsmemShmemWriteLockTest, NormalCase)
 {
-    MOCKER_CPP(&RackMemShm::UbsMemShmWriteLock,
-               uint32_t(*)(const std::string& name))
-        .stubs()
-        .will(returnValue(0));
+    MOCKER_CPP(&RackMemShm::UbsMemShmWriteLock, uint32_t(*)(const std::string &name)).stubs().will(returnValue(0));
     EXPECT_EQ(UBSM_OK, ubsmem_shmem_write_lock(valid_name.c_str()));
 }
 
@@ -779,8 +724,7 @@ TEST_F(UbsmemShmemWriteLockTest, NameTooLong)
 
 TEST_F(UbsmemShmemWriteLockTest, WriteLockFailed)
 {
-    MOCKER_CPP(&RackMemShm::UbsMemShmWriteLock,
-               uint32_t(*)(const std::string& name))
+    MOCKER_CPP(&RackMemShm::UbsMemShmWriteLock, uint32_t(*)(const std::string &name))
         .stubs()
         .will(returnValue(static_cast<int>(MXM_ERR_SHM_NOT_FOUND)));
     EXPECT_EQ(UBSM_ERR_NOT_FOUND, ubsmem_shmem_write_lock(valid_name.c_str()));
@@ -811,10 +755,7 @@ protected:
 
 TEST_F(UbsmemShmemReadLockTest, NormalCase)
 {
-    MOCKER_CPP(&RackMemShm::UbsMemShmReadLock,
-               uint32_t(*)(const std::string& name))
-        .stubs()
-        .will(returnValue(0));
+    MOCKER_CPP(&RackMemShm::UbsMemShmReadLock, uint32_t(*)(const std::string &name)).stubs().will(returnValue(0));
     EXPECT_EQ(UBSM_OK, ubsmem_shmem_read_lock(valid_name.c_str()));
 }
 
@@ -835,8 +776,7 @@ TEST_F(UbsmemShmemReadLockTest, NameTooLong)
 
 TEST_F(UbsmemShmemReadLockTest, ReadLockFailed)
 {
-    MOCKER_CPP(&RackMemShm::UbsMemShmReadLock,
-               uint32_t(*)(const std::string& name))
+    MOCKER_CPP(&RackMemShm::UbsMemShmReadLock, uint32_t(*)(const std::string &name))
         .stubs()
         .will(returnValue(static_cast<int>(MXM_ERR_SHM_NOT_FOUND)));
     EXPECT_EQ(UBSM_ERR_NOT_FOUND, ubsmem_shmem_read_lock(valid_name.c_str()));
@@ -867,10 +807,7 @@ protected:
 
 TEST_F(UbsmemShmemUnLockTest, NormalCase)
 {
-    MOCKER_CPP(&RackMemShm::UbsMemShmUnLock,
-               uint32_t(*)(const std::string& name))
-        .stubs()
-        .will(returnValue(0));
+    MOCKER_CPP(&RackMemShm::UbsMemShmUnLock, uint32_t(*)(const std::string &name)).stubs().will(returnValue(0));
     EXPECT_EQ(UBSM_OK, ubsmem_shmem_unlock(valid_name.c_str()));
 }
 
@@ -891,8 +828,7 @@ TEST_F(UbsmemShmemUnLockTest, NameTooLong)
 
 TEST_F(UbsmemShmemUnLockTest, UnLockFailed)
 {
-    MOCKER_CPP(&RackMemShm::UbsMemShmUnLock,
-               uint32_t(*)(const std::string& name))
+    MOCKER_CPP(&RackMemShm::UbsMemShmUnLock, uint32_t(*)(const std::string &name))
         .stubs()
         .will(returnValue(static_cast<int>(MXM_ERR_SHM_NOT_FOUND)));
     EXPECT_EQ(UBSM_ERR_NOT_FOUND, ubsmem_shmem_unlock(valid_name.c_str()));
@@ -913,10 +849,15 @@ protected:
     }
 };
 
-
-int32_t UbseFaultEventRegisterStub(ubs_mem_shm_fault_handler registerFunc) { return 0; }
-int32_t shmemFaultsFuncStub(const char* shm_name, ubsmem_fault_type_t fault_type) { return 0; }
-void engine_log_callback_register(ubs_engine_log_handler handler){ }
+int32_t UbseFaultEventRegisterStub(ubs_mem_shm_fault_handler registerFunc)
+{
+    return 0;
+}
+int32_t shmemFaultsFuncStub(const char *shm_name, ubsmem_fault_type_t fault_type)
+{
+    return 0;
+}
+void engine_log_callback_register(ubs_engine_log_handler handler) {}
 
 void *RegisterFaultMock(void *handle, const char *name)
 {
@@ -925,16 +866,16 @@ void *RegisterFaultMock(void *handle, const char *name)
         nameStr = name;
     }
     if (nameStr == "ubs_mem_shm_fault_register") {
-        return (void*)UbseFaultEventRegisterStub;
+        return (void *)UbseFaultEventRegisterStub;
     } else if (nameStr == "ubs_engine_log_callback_register") {
-        return (void*)engine_log_callback_register;
+        return (void *)engine_log_callback_register;
     }
     return nullptr;
 }
 
 TEST_F(UbsmemSecuritiesTest, TestUbsmemLocalNidQueryNull)
 {
-    uint32_t* nid = nullptr;
+    uint32_t *nid = nullptr;
     EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_local_nid_query(nid));
 }
 
@@ -962,25 +903,27 @@ TEST_F(UbsmemSecuritiesTest, TestUbsmemLocalNidQuery)
 
 TEST_F(UbsmemSecuritiesTest, TestubsmemShmemFaultsRegister)
 {
-    const char* shmFaultRegister = "ubs_mem_shm_fault_register";
+    const char *shmFaultRegister = "ubs_mem_shm_fault_register";
     int mockHandle = 0;
-    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(&mockHandle)));
-    MOCKER_CPP(&SystemAdapter::DlSym, void* (*)(void* handle, const char* name))
-        .stubs().will(invoke(RegisterFaultMock));
+    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
+    MOCKER_CPP(&SystemAdapter::DlSym, void *(*)(void *handle, const char *name))
+        .stubs()
+        .will(invoke(RegisterFaultMock));
 
     EXPECT_EQ(0, ubsmem_shmem_faults_register(shmemFaultsFuncStub));
 }
 
 TEST_F(UbsmemSecuritiesTest, TestubsmemShmemFaultsRegisterNull)
 {
-    const char* shmFaultRegister = "ubs_mem_shm_fault_register";
+    const char *shmFaultRegister = "ubs_mem_shm_fault_register";
     int mockHandle = 0;
-    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(&mockHandle)));
+    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
 
-    MOCKER_CPP(&SystemAdapter::DlSym, void* (*)(void* handle, const char* name))
-        .stubs().will(invoke(RegisterFaultMock));
+    MOCKER_CPP(&SystemAdapter::DlSym, void *(*)(void *handle, const char *name))
+        .stubs()
+        .will(invoke(RegisterFaultMock));
 
     EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_faults_register(nullptr));
-	UbseMemExecutor::GetInstance().handle = nullptr;
+    UbseMemExecutor::GetInstance().handle = nullptr;
 }
 } // namespace UT

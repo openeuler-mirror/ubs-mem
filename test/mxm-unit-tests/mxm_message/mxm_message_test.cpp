@@ -18,60 +18,205 @@ constexpr auto TEST_SHM_FLAG = 0;
 
 using TEST_MsgBaseFunc = std::function<MsgBase *()>;
 static std::unordered_map<int16_t, TEST_MsgBaseFunc> gTestRequestMap = {
-    {MXM_MSG_SHM_ALLOCATE, []() { return new(std::nothrow) ShmemAllocateRequest(); }},
-    {MXM_MSG_SHM_DEALLOCATE, []() { return new(std::nothrow) ShmemDeallocateRequest(); }},
-    {IPC_MALLOC_MEMORY, []() { return new(std::nothrow) AppMallocMemoryRequest(); }},
-    {IPC_FREE_RACKMEM, []() { return new(std::nothrow) AppFreeMemoryRequest(); }},
-    {IPC_QUERY_CLUSTERINFO, []() { return new(std::nothrow) CommonRequest(); }},
-    {IPC_RACKMEMSHM_LOOKUP_SHAREREGIONS, []() { return new(std::nothrow) ShmLookRegionListRequest(); }},
-    {IPC_RACKMEMSHM_CREATE, []() { return new(std::nothrow) ShmCreateRequest(); }},
-    {IPC_RACKMEMSHM_DELETE, []() { return new(std::nothrow) ShmDeleteRequest(); }},
-    {IPC_RACKMEMSHM_MMAP, []() { return new(std::nothrow) ShmMapRequest(); }},
-    {IPC_RACKMEMSHM_UNMMAP, []() { return new(std::nothrow) ShmUnmapRequest(); }},
-    {IPC_RACKMEMSHM_QUERY_MEM_FAULT_STATUS, []() { return new(std::nothrow) ShmQueryMemFaultStatusRequest(); }},
-    {IPC_RACKMEMSHM_WRITELOCK, []() { return new(std::nothrow) ShmWriteLockRequest(); }},
-    {IPC_RACKMEMSHM_READLOCK, []() { return new(std::nothrow) ShmReadLockRequest(); }},
-    {IPC_RACKMEMSHM_UNLOCK, []() { return new(std::nothrow) ShmUnLockRequest(); }},
-    {IPC_RACKMEMSHM_ATTACH, []() { return new(std::nothrow) ShmAttachRequest(); }},
-    {IPC_RACKMEMSHM_DETACH, []() { return new(std::nothrow) ShmDetachRequest(); }},
-    {IPC_RACKMEMSHM_LOOKUP_LIST, []() { return new(std::nothrow) ShmListLookupRequest(); }},
-    {IPC_RACKMEMSHM_LOOKUP, []() { return new(std::nothrow) ShmLookupRequest(); }},
-    {RPC_AGENT_QUERY_NODE_INFO, []() { return new(std::nothrow) CommonRequest(); }},
-    {RPC_DLOCK_CLIENT_REINIT, []() { return new(std::nothrow) DLockClientReinitRequest(); }},
-    {IPC_RACKMEMSHM_QUERY_NODE, []() { return new(std::nothrow) QueryNodeRequest(); }},
-    {IPC_RACKMEMSHM_QUERY_DLOCK_STATUS, []() { return new(std::nothrow) CommonRequest(); }},
-    {IPC_CHECK_MEMORY_LEASE, []() { return new(std::nothrow) CheckMemoryLeaseRequest(); }},
-    {IPC_CHECK_SHARE_MEMORY, []() { return new(std::nothrow) CheckShareMemoryMapRequest(); }},
-    {IPC_RACKMEMSHM_QUERY_SLOT_ID, []() { return new(std::nothrow) CommonRequest(); }}
-};
+    {MXM_MSG_SHM_ALLOCATE,
+     []() {
+         return new (std::nothrow) ShmemAllocateRequest();
+     }},
+    {MXM_MSG_SHM_DEALLOCATE,
+     []() {
+         return new (std::nothrow) ShmemDeallocateRequest();
+     }},
+    {IPC_MALLOC_MEMORY,
+     []() {
+         return new (std::nothrow) AppMallocMemoryRequest();
+     }},
+    {IPC_FREE_RACKMEM,
+     []() {
+         return new (std::nothrow) AppFreeMemoryRequest();
+     }},
+    {IPC_QUERY_CLUSTERINFO,
+     []() {
+         return new (std::nothrow) CommonRequest();
+     }},
+    {IPC_RACKMEMSHM_LOOKUP_SHAREREGIONS,
+     []() {
+         return new (std::nothrow) ShmLookRegionListRequest();
+     }},
+    {IPC_RACKMEMSHM_CREATE,
+     []() {
+         return new (std::nothrow) ShmCreateRequest();
+     }},
+    {IPC_RACKMEMSHM_DELETE,
+     []() {
+         return new (std::nothrow) ShmDeleteRequest();
+     }},
+    {IPC_RACKMEMSHM_MMAP,
+     []() {
+         return new (std::nothrow) ShmMapRequest();
+     }},
+    {IPC_RACKMEMSHM_UNMMAP,
+     []() {
+         return new (std::nothrow) ShmUnmapRequest();
+     }},
+    {IPC_RACKMEMSHM_QUERY_MEM_FAULT_STATUS,
+     []() {
+         return new (std::nothrow) ShmQueryMemFaultStatusRequest();
+     }},
+    {IPC_RACKMEMSHM_WRITELOCK,
+     []() {
+         return new (std::nothrow) ShmWriteLockRequest();
+     }},
+    {IPC_RACKMEMSHM_READLOCK,
+     []() {
+         return new (std::nothrow) ShmReadLockRequest();
+     }},
+    {IPC_RACKMEMSHM_UNLOCK,
+     []() {
+         return new (std::nothrow) ShmUnLockRequest();
+     }},
+    {IPC_RACKMEMSHM_ATTACH,
+     []() {
+         return new (std::nothrow) ShmAttachRequest();
+     }},
+    {IPC_RACKMEMSHM_DETACH,
+     []() {
+         return new (std::nothrow) ShmDetachRequest();
+     }},
+    {IPC_RACKMEMSHM_LOOKUP_LIST,
+     []() {
+         return new (std::nothrow) ShmListLookupRequest();
+     }},
+    {IPC_RACKMEMSHM_LOOKUP,
+     []() {
+         return new (std::nothrow) ShmLookupRequest();
+     }},
+    {RPC_AGENT_QUERY_NODE_INFO,
+     []() {
+         return new (std::nothrow) CommonRequest();
+     }},
+    {RPC_DLOCK_CLIENT_REINIT,
+     []() {
+         return new (std::nothrow) DLockClientReinitRequest();
+     }},
+    {IPC_RACKMEMSHM_QUERY_NODE,
+     []() {
+         return new (std::nothrow) QueryNodeRequest();
+     }},
+    {IPC_RACKMEMSHM_QUERY_DLOCK_STATUS,
+     []() {
+         return new (std::nothrow) CommonRequest();
+     }},
+    {IPC_CHECK_MEMORY_LEASE,
+     []() {
+         return new (std::nothrow) CheckMemoryLeaseRequest();
+     }},
+    {IPC_CHECK_SHARE_MEMORY,
+     []() {
+         return new (std::nothrow) CheckShareMemoryMapRequest();
+     }},
+    {IPC_RACKMEMSHM_QUERY_SLOT_ID, []() {
+         return new (std::nothrow) CommonRequest();
+     }}};
 static std::unordered_map<int16_t, TEST_MsgBaseFunc> gTestResponseMap = {
-    {MXM_MSG_SHM_ALLOCATE, []() { return new(std::nothrow) CommonResponse(); }},
-    {MXM_MSG_SHM_DEALLOCATE, []() { return new(std::nothrow) CommonResponse(); }},
-    {IPC_MALLOC_MEMORY, []() { return new(std::nothrow) AppMallocMemoryResponse(); }},
-    {IPC_FREE_RACKMEM, []() { return new(std::nothrow) CommonResponse(); }},
-    {IPC_QUERY_CLUSTERINFO, []() { return new(std::nothrow) AppQueryClusterInfoResponse(); }},
-    {IPC_RACKMEMSHM_LOOKUP_SHAREREGIONS, []() { return new(std::nothrow) ShmLookRegionListResponse(); }},
-    {IPC_RACKMEMSHM_CREATE, []() { return new(std::nothrow) CommonResponse(); }},
-    {IPC_RACKMEMSHM_DELETE, []() { return new(std::nothrow) CommonResponse(); }},
-    {IPC_RACKMEMSHM_MMAP, []() { return new(std::nothrow) ShmMapResponse(); }},
-    {IPC_RACKMEMSHM_UNMMAP, []() { return new(std::nothrow) CommonResponse(); }},
-    {IPC_RACKMEMSHM_QUERY_MEM_FAULT_STATUS, []() { return new(std::nothrow) ShmQueryMemFaultStatusResponse(); }},
-    {IPC_RACKMEMSHM_WRITELOCK, []() { return new(std::nothrow) ShmWriteLockResponse(); }},
-    {IPC_RACKMEMSHM_READLOCK, []() { return new(std::nothrow) ShmReadLockResponse(); }},
-    {IPC_RACKMEMSHM_UNLOCK, []() { return new(std::nothrow) ShmUnLockResponse(); }},
-    {IPC_RACKMEMSHM_ATTACH, []() { return new(std::nothrow) ShmAttachResponse(); }},
-    {IPC_RACKMEMSHM_DETACH, []() { return new(std::nothrow) CommonResponse(); }},
-    {IPC_RACKMEMSHM_LOOKUP_LIST, []() { return new(std::nothrow) ShmListLookupResponse(); }},
-    {IPC_RACKMEMSHM_LOOKUP, []() { return new(std::nothrow) ShmLookupResponse(); }},
-    {RPC_AGENT_QUERY_NODE_INFO, []() { return new(std::nothrow) RpcQueryInfoResponse(); }},
-    {RPC_DLOCK_CLIENT_REINIT, []() { return new(std::nothrow) DLockClientReinitResponse(); }},
-    {IPC_RACKMEMSHM_QUERY_NODE, []() { return new(std::nothrow) QueryNodeResponse(); }},
-    {IPC_RACKMEMSHM_QUERY_DLOCK_STATUS, []() { return new(std::nothrow) QueryDlockStatusResponse(); }},
-    {IPC_CHECK_MEMORY_LEASE, []() { return new(std::nothrow) CommonResponse(); }},
-    {IPC_CHECK_SHARE_MEMORY, []() { return new(std::nothrow) CommonResponse(); }},
-    {IPC_RACKMEMSHM_QUERY_SLOT_ID, []() { return new(std::nothrow) LookupSlotIdResponse(); }}
-};
-
+    {MXM_MSG_SHM_ALLOCATE,
+     []() {
+         return new (std::nothrow) CommonResponse();
+     }},
+    {MXM_MSG_SHM_DEALLOCATE,
+     []() {
+         return new (std::nothrow) CommonResponse();
+     }},
+    {IPC_MALLOC_MEMORY,
+     []() {
+         return new (std::nothrow) AppMallocMemoryResponse();
+     }},
+    {IPC_FREE_RACKMEM,
+     []() {
+         return new (std::nothrow) CommonResponse();
+     }},
+    {IPC_QUERY_CLUSTERINFO,
+     []() {
+         return new (std::nothrow) AppQueryClusterInfoResponse();
+     }},
+    {IPC_RACKMEMSHM_LOOKUP_SHAREREGIONS,
+     []() {
+         return new (std::nothrow) ShmLookRegionListResponse();
+     }},
+    {IPC_RACKMEMSHM_CREATE,
+     []() {
+         return new (std::nothrow) CommonResponse();
+     }},
+    {IPC_RACKMEMSHM_DELETE,
+     []() {
+         return new (std::nothrow) CommonResponse();
+     }},
+    {IPC_RACKMEMSHM_MMAP,
+     []() {
+         return new (std::nothrow) ShmMapResponse();
+     }},
+    {IPC_RACKMEMSHM_UNMMAP,
+     []() {
+         return new (std::nothrow) CommonResponse();
+     }},
+    {IPC_RACKMEMSHM_QUERY_MEM_FAULT_STATUS,
+     []() {
+         return new (std::nothrow) ShmQueryMemFaultStatusResponse();
+     }},
+    {IPC_RACKMEMSHM_WRITELOCK,
+     []() {
+         return new (std::nothrow) ShmWriteLockResponse();
+     }},
+    {IPC_RACKMEMSHM_READLOCK,
+     []() {
+         return new (std::nothrow) ShmReadLockResponse();
+     }},
+    {IPC_RACKMEMSHM_UNLOCK,
+     []() {
+         return new (std::nothrow) ShmUnLockResponse();
+     }},
+    {IPC_RACKMEMSHM_ATTACH,
+     []() {
+         return new (std::nothrow) ShmAttachResponse();
+     }},
+    {IPC_RACKMEMSHM_DETACH,
+     []() {
+         return new (std::nothrow) CommonResponse();
+     }},
+    {IPC_RACKMEMSHM_LOOKUP_LIST,
+     []() {
+         return new (std::nothrow) ShmListLookupResponse();
+     }},
+    {IPC_RACKMEMSHM_LOOKUP,
+     []() {
+         return new (std::nothrow) ShmLookupResponse();
+     }},
+    {RPC_AGENT_QUERY_NODE_INFO,
+     []() {
+         return new (std::nothrow) RpcQueryInfoResponse();
+     }},
+    {RPC_DLOCK_CLIENT_REINIT,
+     []() {
+         return new (std::nothrow) DLockClientReinitResponse();
+     }},
+    {IPC_RACKMEMSHM_QUERY_NODE,
+     []() {
+         return new (std::nothrow) QueryNodeResponse();
+     }},
+    {IPC_RACKMEMSHM_QUERY_DLOCK_STATUS,
+     []() {
+         return new (std::nothrow) QueryDlockStatusResponse();
+     }},
+    {IPC_CHECK_MEMORY_LEASE,
+     []() {
+         return new (std::nothrow) CommonResponse();
+     }},
+    {IPC_CHECK_SHARE_MEMORY,
+     []() {
+         return new (std::nothrow) CommonResponse();
+     }},
+    {IPC_RACKMEMSHM_QUERY_SLOT_ID, []() {
+         return new (std::nothrow) LookupSlotIdResponse();
+     }}};
 
 class MxmMessageTest : public testing::Test {
 public:
@@ -81,13 +226,9 @@ public:
         mockcpp::GlobalMockObject::reset();
     }
 
-    void SetUp() override
-    {
-    }
+    void SetUp() override {}
 
-    void TearDown() override
-    {
-    }
+    void TearDown() override {}
 };
 
 template <typename TMsg>
@@ -108,7 +249,6 @@ bool TestSerializeDeserialize()
     }
     return true; // 检查是否一致
 }
-
 
 TEST_F(MxmMessageTest, TestSerialize_ShmemAllocateRequest_Success)
 {
@@ -172,7 +312,6 @@ TEST_F(MxmMessageTest, TestSerialize_LookupSlotIdResponse_Success)
     EXPECT_EQ(rsp.errCode_, UBSM_OK);
     EXPECT_EQ(rsp.slotId_, 42);
 }
-
 
 TEST_F(MxmMessageTest, TestSerialize_ShmemDeallocateRequest_Success)
 {
@@ -324,7 +463,6 @@ TEST_F(MxmMessageTest, TestSerialize_ShmQueryMemFaultStatusResponse_Success)
     EXPECT_EQ(ret, true);
 }
 
-
 TEST_F(MxmMessageTest, TestSerialize_ShmWriteLockRequest_Success)
 {
     auto ret = TestSerializeDeserialize<ShmWriteLockRequest>();
@@ -471,7 +609,7 @@ TEST_F(MxmMessageTest, TestSerialize_ShmListLookupResponse_Success)
 
 TEST_F(MxmMessageTest, TestCreateRequestByOpCode_Success)
 {
-    for (const auto& it : gTestRequestMap) {
+    for (const auto &it : gTestRequestMap) {
         auto ret = CreateRequestByOpCode(it.first);
         EXPECT_NE(ret, nullptr);
         SafeDelete(ret);
@@ -480,7 +618,7 @@ TEST_F(MxmMessageTest, TestCreateRequestByOpCode_Success)
 
 TEST_F(MxmMessageTest, CreateResponseByOpCode_Success)
 {
-    for (const auto& it : gTestResponseMap) {
+    for (const auto &it : gTestResponseMap) {
         auto ret = CreateResponseByOpCode(it.first);
         EXPECT_NE(ret, nullptr);
         SafeDelete(ret);
@@ -489,12 +627,21 @@ TEST_F(MxmMessageTest, CreateResponseByOpCode_Success)
 
 TEST_F(MxmMessageTest, TestCreateRequestByOpCodeInner_Success)
 {
-    std::vector<int16_t> ops{IPC_REGION_LOOKUP_REGION_LIST, IPC_REGION_CREATE_REGION, IPC_REGION_LOOKUP_REGION,
-                             IPC_REGION_DESTROY_REGION, IPC_FORCE_FREE_CACHED_MEMORY, IPC_QUERY_CACHED_MEMORY,
-                             RPC_PING_NODE_INFO, RPC_JOIN_NODE_INFO, RPC_MASTER_ELECTED_NODE_INFO,
-                             RPC_SEND_ELECTED_MASTER_INFO, RPC_VOTE_NODE_INFO, RPC_BROADCAST_NODE_INFO, RPC_LOCK,
+    std::vector<int16_t> ops{IPC_REGION_LOOKUP_REGION_LIST,
+                             IPC_REGION_CREATE_REGION,
+                             IPC_REGION_LOOKUP_REGION,
+                             IPC_REGION_DESTROY_REGION,
+                             IPC_FORCE_FREE_CACHED_MEMORY,
+                             IPC_QUERY_CACHED_MEMORY,
+                             RPC_PING_NODE_INFO,
+                             RPC_JOIN_NODE_INFO,
+                             RPC_MASTER_ELECTED_NODE_INFO,
+                             RPC_SEND_ELECTED_MASTER_INFO,
+                             RPC_VOTE_NODE_INFO,
+                             RPC_BROADCAST_NODE_INFO,
+                             RPC_LOCK,
                              RPC_UNLOCK};
-    for (const auto& it : ops) {
+    for (const auto &it : ops) {
         auto ret = CreateRequestByOpCodeInner(it);
         EXPECT_NE(ret, nullptr);
         SafeDelete(ret);
@@ -503,15 +650,23 @@ TEST_F(MxmMessageTest, TestCreateRequestByOpCodeInner_Success)
     EXPECT_EQ(ret, nullptr);
 }
 
-
 TEST_F(MxmMessageTest, CreateResponseByOpCodeInner_Success)
 {
-    std::vector<int16_t> ops{IPC_REGION_LOOKUP_REGION_LIST, IPC_REGION_CREATE_REGION, IPC_REGION_LOOKUP_REGION,
-                             IPC_REGION_DESTROY_REGION, IPC_FORCE_FREE_CACHED_MEMORY, IPC_QUERY_CACHED_MEMORY,
-                             RPC_PING_NODE_INFO, RPC_JOIN_NODE_INFO, RPC_MASTER_ELECTED_NODE_INFO,
-                             RPC_SEND_ELECTED_MASTER_INFO, RPC_VOTE_NODE_INFO, RPC_BROADCAST_NODE_INFO, RPC_LOCK,
+    std::vector<int16_t> ops{IPC_REGION_LOOKUP_REGION_LIST,
+                             IPC_REGION_CREATE_REGION,
+                             IPC_REGION_LOOKUP_REGION,
+                             IPC_REGION_DESTROY_REGION,
+                             IPC_FORCE_FREE_CACHED_MEMORY,
+                             IPC_QUERY_CACHED_MEMORY,
+                             RPC_PING_NODE_INFO,
+                             RPC_JOIN_NODE_INFO,
+                             RPC_MASTER_ELECTED_NODE_INFO,
+                             RPC_SEND_ELECTED_MASTER_INFO,
+                             RPC_VOTE_NODE_INFO,
+                             RPC_BROADCAST_NODE_INFO,
+                             RPC_LOCK,
                              RPC_UNLOCK};
-    for (const auto& it : ops) {
+    for (const auto &it : ops) {
         auto ret = CreateResponseByOpCodeInner(it);
         EXPECT_NE(ret, nullptr);
         SafeDelete(ret);
@@ -670,4 +825,4 @@ TEST_F(MxmMessageTest, TestQueryDlockStatusResponseWithValues)
     EXPECT_EQ(rsp.errCode_, UBSM_OK);
     EXPECT_EQ(rsp.isReady_, true);
 }
-}
+} // namespace UT

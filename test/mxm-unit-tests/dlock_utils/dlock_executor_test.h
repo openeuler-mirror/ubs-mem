@@ -11,10 +11,16 @@
 namespace UT {
 class DlockExecutorTestSuite : public testing::Test {
 public:
-    void SetUp() override { GlobalMockObject::reset(); };
+    void SetUp() override
+    {
+        GlobalMockObject::reset();
+    };
 
-    void TearDown() override { GlobalMockObject::reset(); };
+    void TearDown() override
+    {
+        GlobalMockObject::reset();
+    };
 };
 
-}  // namespace UT
-#endif  // UBSM_TEST_DLOCK_EXECUTOR_TEST_H
+} // namespace UT
+#endif // UBSM_TEST_DLOCK_EXECUTOR_TEST_H

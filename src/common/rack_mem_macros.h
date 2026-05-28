@@ -13,24 +13,23 @@
 #ifndef RACK_MEMORYFABRIC_MACROS_H
 #define RACK_MEMORYFABRIC_MACROS_H
 
+#include <regex.h>
+#include <securec.h>
+#include <sys/types.h>
+#include <sys/utsname.h>
+#include <unistd.h>
 #include <climits>
 #include <cmath>
 #include <cstring>
 #include <fstream>
-#include <regex.h>
+#include <list>
+#include <random>
 #include <set>
 #include <string>
-#include <random>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/utsname.h>
 #include <vector>
-#include <list>
-#include <securec.h>
 #ifndef ROUND_UP
 #define ROUND_UP(x, align) \
-    ((static_cast<uint64_t>(x) + static_cast<uint64_t>(align) - 1) & \
-     ~static_cast<uint64_t>((align) - 1))
+    ((static_cast<uint64_t>(x) + static_cast<uint64_t>(align) - 1) & ~static_cast<uint64_t>((align)-1))
 #endif
 
 #endif

@@ -16,7 +16,6 @@
 #include <utility>
 #include "mxm_com_base.h"
 
-
 namespace ock::com::rpc {
 class MxmRpcServer : public ock::com::MxmComBase {
 public:
@@ -43,10 +42,10 @@ public:
    * @param remoteNodeId [in] 对端nodeId
    * @return HRESULT, 成功返回0, 失败返回非0
    */
-    HRESULT Connect(const RpcNode& remoteNodeId) override;
+    HRESULT Connect(const RpcNode &remoteNodeId) override;
 
 private:
     RpcNode ipAndPort;
 };
-}  // namespace ock::com::rpc
-#endif  // RPC_MXM_RPC_SERVER_H
+} // namespace ock::com::rpc
+#endif // RPC_MXM_RPC_SERVER_H

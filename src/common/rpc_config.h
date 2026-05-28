@@ -15,8 +15,8 @@
 #include <string>
 #include <vector>
 #include "ubs_mem_def.h"
-#include "rack_mem_err.h"
 #include "log.h"
+#include "rack_mem_err.h"
 
 using namespace ock::common;
 
@@ -28,10 +28,7 @@ struct RpcNode {
     uint16_t port;
 };
 
-enum class NodeType {
-    ELIGIBLE_NODE = 0,
-    VOTING_ONLY_NODE = 1
-};
+enum class NodeType { ELIGIBLE_NODE = 0, VOTING_ONLY_NODE = 1 };
 
 struct ClusterNode {
     std::string id;
@@ -51,12 +48,12 @@ public:
         return config;
     }
 
-    void SetLocalNode(const std::pair<std::string, uint16_t>& ipAndPort)
+    void SetLocalNode(const std::pair<std::string, uint16_t> &ipAndPort)
     {
         mNode = {ipAndPort.first + ":" + std::to_string(ipAndPort.second), ipAndPort.first, ipAndPort.second};
     }
 
-    void SetRemoteNodes(const std::vector<std::pair<std::string, uint16_t>>& ipAndPortList)
+    void SetRemoteNodes(const std::vector<std::pair<std::string, uint16_t>> &ipAndPortList)
     {
         for (auto &item : ipAndPortList) {
             RpcNode node = {item.first + ":" + std::to_string(item.second), item.first, item.second};
@@ -64,13 +61,13 @@ public:
         }
     }
 
-    void GetNodes(std::vector<RpcNode>& nodes, RpcNode& node)
+    void GetNodes(std::vector<RpcNode> &nodes, RpcNode &node)
     {
         nodes = mNodes;
         node = mNode;
     }
 
-    int32_t ParseRpcNodeFromId(const std::string& nodeId, RpcNode& node)
+    int32_t ParseRpcNodeFromId(const std::string &nodeId, RpcNode &node)
     {
         DBG_LOGDEBUG("Parsing rpc node info, nodeID=" << nodeId);
         std::vector<std::string> result;
@@ -99,12 +96,12 @@ public:
         return MXM_OK;
     }
 
-    const RpcNode& GetLocalNode() const
+    const RpcNode &GetLocalNode() const
     {
         return mNode;
     }
 
-    const std::vector<RpcNode>& GetRemoteNodes() const
+    const std::vector<RpcNode> &GetRemoteNodes() const
     {
         return mNodes;
     }
@@ -115,6 +112,6 @@ private:
     std::vector<RpcNode> mNodes;
     RpcNode mNode;
 };
-}  // namespace ock::rpc
+} // namespace ock::rpc
 
 #endif // RPC_CONFIG_H

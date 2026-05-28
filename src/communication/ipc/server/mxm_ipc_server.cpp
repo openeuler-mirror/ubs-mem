@@ -10,23 +10,21 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include "mxm_ipc_server.h"
 #include "configuration.h"
 #include "ubsm_thread_pool.h"
-#include "mxm_ipc_server.h"
-
 
 namespace ock::com::ipc {
 using namespace ock::common;
 
-static void IpcServerWork(void (*handler)(MxmComMessageCtx& messageCtx),
-                          MxmComMessageCtx& messageCtx)
+static void IpcServerWork(void (*handler)(MxmComMessageCtx &messageCtx), MxmComMessageCtx &messageCtx)
 {
     MxmComMessageCtx ctx = std::move(messageCtx);
     if (handler != nullptr) {
         UBSMThreadPool::GetInstance().Push([handler, ctx]() mutable {
             try {
                 handler(ctx);
-            } catch (std::exception& e) {
+            } catch (std::exception &e) {
                 DBG_LOGERROR("exception " << e.what() << " was caught");
             } catch (...) {
                 DBG_LOGERROR("unknown exception was caught.");
@@ -56,12 +54,14 @@ HRESULT MxmIpcServer::Start()
         DBG_LOGERROR("Configuration::GetInstance() is nullptr.");
         return HFAIL;
     }
-    auto maxNum = conf->GetInt(
-        ock::common::ConfConstant::UBSMD_MAX_HCOM_CONNECT_NUM.first);
+    auto maxNum = conf->GetInt(ock::common::ConfConstant::UBSMD_MAX_HCOM_CONNECT_NUM.first);
     engineInfo.SetMaxHcomConnectNum(maxNum);
     DBG_LOGINFO("options.confPath is " << conf->GetConfigPath() << "num is " << maxNum);
     return MxmCommunication::CreateMxmComEngine(engineInfo, LinkNotify, IpcServerWork);
 }
 
-void MxmIpcServer::Stop() { MxmCommunication::DeleteMxmComEngine(name); }
-}  // namespace ock::com::ipc
+void MxmIpcServer::Stop()
+{
+    MxmCommunication::DeleteMxmComEngine(name);
+}
+} // namespace ock::com::ipc

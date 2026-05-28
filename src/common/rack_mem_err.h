@@ -13,28 +13,28 @@
 #ifndef RACK_MEMORYFABRIC_ERRORS_H
 #define RACK_MEMORYFABRIC_ERRORS_H
 
+#include <regex.h>
+#include <securec.h>
+#include <sys/types.h>
+#include <sys/utsname.h>
+#include <unistd.h>
 #include <climits>
 #include <cmath>
 #include <cstring>
 #include <fstream>
-#include <regex.h>
+#include <list>
+#include <random>
 #include <set>
 #include <string>
-#include <random>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/utsname.h>
 #include <vector>
-#include <list>
-#include <securec.h>
 #include "dg_common.h"
 
+#include "lock/dg_lock.h"
 #include "rack_mem_constants.h"
 #include "referable/dg_ref.h"
-#include "lock/dg_lock.h"
-#include "time/dg_monotonic.h"
 #include "strings/dg_str_util.h"
 #include "thread_pool/dg_execution_service.h"
+#include "time/dg_monotonic.h"
 #include "util/defines.h"
 
 namespace ock::mxmd {
@@ -44,7 +44,7 @@ inline bool BresultFail(uint32_t res)
     return res != HOK;
 }
 
-}  // namespace ock::mxmd
+} // namespace ock::mxmd
 
 namespace ock {
 namespace common {
@@ -116,7 +116,7 @@ typedef enum {
 
     MXM_ERR_UNKNOWN = 1000,
 } UbsmdRetErr;
-}  // namespace common
-}  // namespace ock
+} // namespace common
+} // namespace ock
 
 #endif

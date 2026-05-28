@@ -11,18 +11,18 @@
  */
 #include "numa_cpu_utils.h"
 
-#include <sched.h>
 #include <numa.h>
-#include <iostream>
-#include <vector>
-#include <string>
-#include <sstream>
-#include <iomanip>
-#include <stdexcept>
-#include <cstring>
+#include <sched.h>
 #include <unistd.h>
+#include <cstring>
 #include <fstream>
+#include <iomanip>
+#include <iostream>
 #include <set>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
 #include "log.h"
 
 namespace ock {
@@ -74,10 +74,10 @@ NumaCpuUtils::CpuNodeMapping NumaCpuUtils::NumaNodeOfCpuGetMapping(int cpuId)
     return mapping;
 }
 
-std::vector<NumaCpuUtils::CpuNodeMapping> NumaCpuUtils::GetCpusNumaMapping(const std::vector<int>& cpuLists)
+std::vector<NumaCpuUtils::CpuNodeMapping> NumaCpuUtils::GetCpusNumaMapping(const std::vector<int> &cpuLists)
 {
     std::vector<CpuNodeMapping> mappings;
-    
+
     for (int cpuId : cpuLists) {
         mappings.push_back(NumaNodeOfCpuGetMapping(cpuId));
     }
@@ -85,7 +85,7 @@ std::vector<NumaCpuUtils::CpuNodeMapping> NumaCpuUtils::GetCpusNumaMapping(const
     return mappings;
 }
 
-std::string NumaCpuUtils::CpuSetToHexString(cpu_set_t* mask, int num_cpus)
+std::string NumaCpuUtils::CpuSetToHexString(cpu_set_t *mask, int num_cpus)
 {
     std::stringstream ss;
     ss << "0x";
@@ -124,7 +124,7 @@ std::set<int> NumaCpuUtils::GetAppBoundNumaNodes(pid_t pid)
             DBG_LOGINFO("No NUMA mappings found for CPUs");
             return boundNodes;
         }
-        for (const auto& mapping : numaMappings) {
+        for (const auto &mapping : numaMappings) {
             if (mapping.numaNode != -1) {
                 DBG_LOGDEBUG("valid NUMA nodes found in mappings, node: " << mapping.numaNode);
                 boundNodes.insert(mapping.numaNode);
@@ -133,7 +133,7 @@ std::set<int> NumaCpuUtils::GetAppBoundNumaNodes(pid_t pid)
         if (boundNodes.empty()) {
             DBG_LOGINFO("No valid NUMA nodes found in mappings");
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         DBG_LOGINFO("Failed to get app bound NUMA nodes for PID %d: %s", pid, e.what());
     }
     DBG_LOGINFO("GetAppBoundNumaNodes success, bound numaNode num: " << boundNodes.size());
@@ -151,7 +151,7 @@ int NumaCpuUtils::IsAppBoundToOneNumaNode(pid_t pid)
         }
         DBG_LOGINFO("App  PID: " << pid << " is not bound to one NUMA node.");
         return -1;
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         DBG_LOGERROR("Failed to check app NUMA binding, PID: " << pid);
         return -1;
     }

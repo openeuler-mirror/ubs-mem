@@ -13,16 +13,16 @@
 #ifndef MEMORYFABRIC_IPC_PROXY_H
 #define MEMORYFABRIC_IPC_PROXY_H
 
-#include <utility>
-#include <string>
 #include <functional>
+#include <string>
+#include <utility>
 
 #include "log.h"
 #include "mxm_ipc_client_interface.h"
-#include "rack_mem_err.h"
 #include "mxm_msg.h"
-#include "ubsm_ptracer.h"
 #include "ptracer.h"
+#include "rack_mem_err.h"
+#include "ubsm_ptracer.h"
 
 namespace ock::mxmd {
 using namespace ock::common;
@@ -30,19 +30,19 @@ class IpcProxy {
 public:
     static uint32_t Initialize();
 
-    uint32_t SyncCall(int opcode, MsgBase* request, MsgBase* response);
+    uint32_t SyncCall(int opcode, MsgBase *request, MsgBase *response);
 
     static uint32_t Destroy();
 
-    uint32_t Ipc(MsgBase* request, MsgBase* response, const int opCode)
+    uint32_t Ipc(MsgBase *request, MsgBase *response, const int opCode)
     {
         if (request == nullptr) {
             DBG_LOGINFO("Request is nullptr.");
-            return MXM_ERR_PARAM_INVALID ;
+            return MXM_ERR_PARAM_INVALID;
         }
         if (response == nullptr) {
             DBG_LOGINFO("Response is nullptr.");
-            return MXM_ERR_PARAM_INVALID ;
+            return MXM_ERR_PARAM_INVALID;
         };
 
         DBG_LOGINFO("IPC SyncCall begin, opCode=" << opCode);
@@ -65,15 +65,15 @@ public:
         return hr;
     }
 
-    static IpcProxy& GetInstance()
+    static IpcProxy &GetInstance()
     {
         static IpcProxy instance;
         return instance;
     }
-    IpcProxy(const IpcProxy& other) = default;
-    IpcProxy(IpcProxy&& other) = default;
-    IpcProxy& operator=(const IpcProxy& other) = default;
-    IpcProxy& operator=(IpcProxy&& other) noexcept = default;
+    IpcProxy(const IpcProxy &other) = default;
+    IpcProxy(IpcProxy &&other) = default;
+    IpcProxy &operator=(const IpcProxy &other) = default;
+    IpcProxy &operator=(IpcProxy &&other) noexcept = default;
 
     DAGGER_DEFINE_REF_COUNT_FUNCTIONS
 private:
@@ -81,6 +81,6 @@ private:
     DAGGER_DEFINE_REF_COUNT_VARIABLE;
     IpcProxy() = default;
 };
-}  // namespace ock::mxmd
+} // namespace ock::mxmd
 
-#endif  // MEMORYFABRIC_IPC_PROXY_H
+#endif // MEMORYFABRIC_IPC_PROXY_H

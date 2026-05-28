@@ -5,10 +5,10 @@
 #include <netinet/tcp.h>
 #include <sys/socket.h>
 #include "defines.h"
+#include "hcom_service.h"
 #include "mxm_com_def.h"
 #include "mxm_com_engine.h"
 #include "mxm_rpc_server.h"
-#include "hcom_service.h"
 #include "ubs_certify_handler.h"
 
 namespace UT {
@@ -17,13 +17,13 @@ using namespace ock::com;
 using namespace ock::common;
 using namespace ock::ubsm;
 
-void RpcTestHandler(const MsgBase* req, MsgBase* rsp)
+void RpcTestHandler(const MsgBase *req, MsgBase *rsp)
 {
     if (req == nullptr || rsp == nullptr) {
         return;
     }
-    auto request = dynamic_cast<const CommonRequest*>(req);
-    auto response = dynamic_cast<RpcQueryInfoResponse*>(rsp);
+    auto request = dynamic_cast<const CommonRequest *>(req);
+    auto response = dynamic_cast<RpcQueryInfoResponse *>(rsp);
     if (request == nullptr || response == nullptr) {
         return;
     }
@@ -67,8 +67,9 @@ TEST_F(RpcTestSuite, TestRpcServiceRegSuccess)
     endPoint.moduleId = 1;
     endPoint.serviceId = 1;
     MOCKER_CPP(&MxmCommunication::RegMxmComMsgHandler,
-               HRESULT(*)(const std::string& engineName, const MxmComMsgHandler& handle))
-        .stubs().will(returnValue(HOK));
+               HRESULT(*)(const std::string &engineName, const MxmComMsgHandler &handle))
+        .stubs()
+        .will(returnValue(HOK));
     ret = MxmRegRpcService(endPoint, RpcTestHandler);
     EXPECT_EQ(ret, HOK);
 }
@@ -92,8 +93,8 @@ TEST_F(RpcTestSuite, TestRpcConnectSuccess)
     EXPECT_EQ(ret, HOK);
     RpcNode node = {"127.0.0.1:7201", "127.0.0.1", 7201};
     MOCKER_CPP(&MxmCommunication::MxmComRpcConnect,
-               HRESULT(*)(const std::string& engineName, const RpcNode& remoteNodeId, const std::string& nodeId,
-                   MxmChannelType chType))
+               HRESULT(*)(const std::string &engineName, const RpcNode &remoteNodeId, const std::string &nodeId,
+                          MxmChannelType chType))
         .stubs()
         .will(returnValue(HOK));
     ret = MxmComRpcServerConnect(node);
@@ -131,7 +132,7 @@ TEST_F(RpcTestSuite, TestRpcMessageSendSuccess)
     auto response = std::make_shared<RpcQueryInfoResponse>();
     std::string nodeId = "127.0.0.1:7201";
     MOCKER_CPP(&MxmCommunication::MxmComMsgSend,
-               HRESULT(*)(const std::string& engineName, MxmComMessageCtx& message, MxmComDataDesc& retData))
+               HRESULT(*)(const std::string &engineName, MxmComMessageCtx &message, MxmComDataDesc &retData))
         .stubs()
         .will(returnValue(HOK));
     ret = MxmComRpcServerSend(endPoint.serviceId, request.get(), response.get(), nodeId);
@@ -149,8 +150,10 @@ TEST_F(RpcTestSuite, TestRpcMessageSendFail01)
     endPoint.address = "test";
     endPoint.moduleId = 1;
     std::string nodeId = "127.0.0.1:7201";
-    MOCKER_CPP(&MxmCommunication::MxmComMsgSend, HRESULT (*)(const std::string& engineName, MxmComMessageCtx& message,
-                   MxmComDataDesc& retData)).stubs().will(returnValue(HFAIL));
+    MOCKER_CPP(&MxmCommunication::MxmComMsgSend,
+               HRESULT(*)(const std::string &engineName, MxmComMessageCtx &message, MxmComDataDesc &retData))
+        .stubs()
+        .will(returnValue(HFAIL));
 
     ret = MxmComRpcServerSend(endPoint.serviceId, request.get(), response.get(), nodeId);
     EXPECT_EQ(ret, HFAIL);

@@ -9,13 +9,13 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include <memory>
+#include "shm_ipc_command.h"
 #include <sys/mman.h>
+#include <memory>
 #include "ipc_proxy.h"
 #include "message_op.h"
-#include "rack_mem_lib_common.h"
 #include "rack_mem_functions.h"
-#include "shm_ipc_command.h"
+#include "rack_mem_lib_common.h"
 
 #include <ShmMetaDataMgr.h>
 
@@ -23,7 +23,8 @@ namespace ock::mxmd {
 using namespace ock::common;
 
 uint32_t ShmIpcCommand::IpcCallShmCreate(const std::string &regionName, const std::string &name, uint64_t size,
-    const std::string &nid, const SHMRegionDesc &shmRegionDesc, uint64_t flags, mode_t mode)
+                                         const std::string &nid, const SHMRegionDesc &shmRegionDesc, uint64_t flags,
+                                         mode_t mode)
 {
     DBG_LOGINFO("Create share memory start to construct the ipc message, name=" << name);
     auto request = std::make_shared<ShmCreateRequest>(regionName, name, size, nid, shmRegionDesc, flags, mode);
@@ -53,8 +54,8 @@ uint32_t ShmIpcCommand::IpcCallShmCreate(const std::string &regionName, const st
     return UBSM_OK;
 }
 
-uint32_t ShmIpcCommand::IpcCallShmCreateWithProvider(const std::string& hostName, uint32_t socketId, uint32_t numaId,
-                                                     uint32_t portId, const std::string& name, uint64_t size,
+uint32_t ShmIpcCommand::IpcCallShmCreateWithProvider(const std::string &hostName, uint32_t socketId, uint32_t numaId,
+                                                     uint32_t portId, const std::string &name, uint64_t size,
                                                      uint64_t flags, mode_t mode)
 {
     DBG_LOGINFO("Create shm with provider start to construct the ipc message, name=" << name);
@@ -84,7 +85,7 @@ uint32_t ShmIpcCommand::IpcCallShmCreateWithProvider(const std::string& hostName
     return UBSM_OK;
 }
 
-uint32_t ShmIpcCommand::IpcCallShmDelete(const std::string& name)
+uint32_t ShmIpcCommand::IpcCallShmDelete(const std::string &name)
 {
     auto request = std::make_shared<ShmDeleteRequest>("default", name);
     if (request == nullptr) {
@@ -113,7 +114,7 @@ uint32_t ShmIpcCommand::IpcCallShmDelete(const std::string& name)
     return UBSM_OK;
 }
 
-uint32_t ShmIpcCommand::IpcCallShmLookRegionList(const std::string& baseNid, ShmRegionType type, SHMRegions& list)
+uint32_t ShmIpcCommand::IpcCallShmLookRegionList(const std::string &baseNid, ShmRegionType type, SHMRegions &list)
 {
     DBG_LOGINFO("Looking up region list, region type=" << type);
     auto request = std::make_shared<ShmLookRegionListRequest>(baseNid, static_cast<int32_t>(type));
@@ -139,7 +140,7 @@ uint32_t ShmIpcCommand::IpcCallShmLookRegionList(const std::string& baseNid, Shm
         DBG_LOGERROR("Failed to look up regions list, error=" << hr << ", region type==" << type);
         return hr;
     }
-    const SHMRegions& shmRegions = response->regions_;
+    const SHMRegions &shmRegions = response->regions_;
     if (shmRegions.num <= 0 || shmRegions.num > MAX_REGIONS_NUM) {
         DBG_LOGERROR("The shmRegion value error shmRegions->num is :" << shmRegions.num);
         return MXM_ERR_CHECK_RESOURCE;
@@ -148,7 +149,7 @@ uint32_t ShmIpcCommand::IpcCallShmLookRegionList(const std::string& baseNid, Shm
     list.num = shmRegions.num;
     for (int i = 0; i < list.num; ++i) {
         list.region[i] = shmRegions.region[i];
-        DBG_LOGINFO("Serial number="<< i << ", number=" << shmRegions.region[i].num);
+        DBG_LOGINFO("Serial number=" << i << ", number=" << shmRegions.region[i].num);
         for (int j = 0; j < shmRegions.num; ++j) {
             DBG_LOGDEBUG("Node id=" << shmRegions.region[i].nodeId[j]
                                     << ", host name=" << shmRegions.region[i].hostName[j]);
@@ -206,7 +207,7 @@ uint32_t ShmIpcCommand::IpcCallShmMap(const std::string &name, uint64_t mapSize,
     return MXM_OK;
 }
 
-uint32_t ShmIpcCommand::IpcCallShmUnMap(const std::string& name)
+uint32_t ShmIpcCommand::IpcCallShmUnMap(const std::string &name)
 {
     auto request = std::make_shared<ShmUnmapRequest>("default", name);
     if (request == nullptr) {
@@ -234,7 +235,7 @@ uint32_t ShmIpcCommand::IpcCallShmUnMap(const std::string& name)
     return UBSM_OK;
 }
 
-uint32_t ShmIpcCommand::IpcCallLookupRegionList(const std::string& baseNid, ShmRegionType type, SHMRegions& list)
+uint32_t ShmIpcCommand::IpcCallLookupRegionList(const std::string &baseNid, ShmRegionType type, SHMRegions &list)
 {
     auto request = std::make_shared<ShmLookRegionListRequest>(baseNid, static_cast<int32_t>(type));
     if (request == nullptr) {
@@ -257,7 +258,7 @@ uint32_t ShmIpcCommand::IpcCallLookupRegionList(const std::string& baseNid, ShmR
         DBG_LOGERROR("IpcCallLookupRegionList, peer response error=" << hr << ", base node id=" << baseNid);
         return hr;
     }
-    const SHMRegions& shmRegions = response->regions_;
+    const SHMRegions &shmRegions = response->regions_;
     if (shmRegions.num <= 0 || shmRegions.num > MAX_REGIONS_NUM) {
         DBG_LOGERROR("Value of shared memory is error, number of regions=" << shmRegions.num);
         return MXM_ERR_CHECK_RESOURCE;
@@ -271,7 +272,7 @@ uint32_t ShmIpcCommand::IpcCallLookupRegionList(const std::string& baseNid, ShmR
     return UBSM_OK;
 }
 
-uint32_t ShmIpcCommand::IpcCallCreateRegion(const std::string& name, const SHMRegionDesc& region)
+uint32_t ShmIpcCommand::IpcCallCreateRegion(const std::string &name, const SHMRegionDesc &region)
 {
     DBG_LOGINFO("IpcCallCreateRegion name=" << name);
     auto request = std::make_shared<ShmCreateRegionRequest>(name, region);
@@ -304,7 +305,7 @@ uint32_t ShmIpcCommand::IpcCallCreateRegion(const std::string& name, const SHMRe
     return UBSM_OK;
 }
 
-uint32_t ShmIpcCommand::IpcCallLookupRegion(const std::string& name, SHMRegionDesc& region)
+uint32_t ShmIpcCommand::IpcCallLookupRegion(const std::string &name, SHMRegionDesc &region)
 {
     auto request = std::make_shared<ShmLookupRegionRequest>(name);
     if (request == nullptr) {
@@ -348,7 +349,7 @@ uint32_t ShmIpcCommand::IpcCallLookupRegion(const std::string& name, SHMRegionDe
     return UBSM_OK;
 }
 
-uint32_t ShmIpcCommand::IpcCallDestroyRegion(const std::string& name)
+uint32_t ShmIpcCommand::IpcCallDestroyRegion(const std::string &name)
 {
     DBG_LOGINFO("IpcCallDestroyRegion, name=" << name);
     auto request = std::make_shared<ShmDestroyRegionRequest>(name);
@@ -363,7 +364,7 @@ uint32_t ShmIpcCommand::IpcCallDestroyRegion(const std::string& name)
     }
     uint32_t hr = IpcProxy::GetInstance().Ipc(request.get(), response.get(), IPC_REGION_DESTROY_REGION);
     if (BresultFail(hr)) {
-        DBG_LOGERROR("Get exception when calling IpcCallDestroyRegion, ret=" <<hr);
+        DBG_LOGERROR("Get exception when calling IpcCallDestroyRegion, ret=" << hr);
         return hr;
     }
 
@@ -376,7 +377,7 @@ uint32_t ShmIpcCommand::IpcCallDestroyRegion(const std::string& name)
     return UBSM_OK;
 }
 
-int32_t ShmIpcCommand::IpcShmemWriteLock(const std::string& name)
+int32_t ShmIpcCommand::IpcShmemWriteLock(const std::string &name)
 {
     auto request = std::make_shared<ShmWriteLockRequest>("default", name);
     if (request == nullptr) {
@@ -406,7 +407,7 @@ int32_t ShmIpcCommand::IpcShmemWriteLock(const std::string& name)
     return UBSM_OK;
 }
 
-int32_t ShmIpcCommand::IpcShmemReadLock(const std::string& name)
+int32_t ShmIpcCommand::IpcShmemReadLock(const std::string &name)
 {
     auto request = std::make_shared<ShmReadLockRequest>("default", name);
     if (request == nullptr) {
@@ -436,7 +437,7 @@ int32_t ShmIpcCommand::IpcShmemReadLock(const std::string& name)
     return UBSM_OK;
 }
 
-int32_t ShmIpcCommand::IpcShmemUnLock(const std::string& name)
+int32_t ShmIpcCommand::IpcShmemUnLock(const std::string &name)
 {
     auto request = std::make_shared<ShmUnLockRequest>("default", name);
     if (request == nullptr) {
@@ -624,7 +625,7 @@ uint32_t ShmIpcCommand::IpcCallShmLookup(const std::string &name, ubsmem_shmem_i
     return UBSM_OK;
 }
 
-uint32_t ShmIpcCommand::IpcQueryNode(std::string& NodeId, bool& isNodeReady, bool isQueryMasterNode)
+uint32_t ShmIpcCommand::IpcQueryNode(std::string &NodeId, bool &isNodeReady, bool isQueryMasterNode)
 {
     auto request = std::make_shared<QueryNodeRequest>();
     if (request == nullptr) {
@@ -660,7 +661,7 @@ uint32_t ShmIpcCommand::IpcQueryNode(std::string& NodeId, bool& isNodeReady, boo
     return UBSM_OK;
 }
 
-uint32_t ShmIpcCommand::IpcQueryDlockStatus(bool& isReady)
+uint32_t ShmIpcCommand::IpcQueryDlockStatus(bool &isReady)
 {
     auto request = std::make_shared<CommonRequest>();
     if (request == nullptr) {
@@ -752,4 +753,4 @@ uint32_t ShmIpcCommand::AppGetLocalSlotId(uint32_t &slotId)
     return UBSM_OK;
 }
 
-}  // namespace ock::mxmd
+} // namespace ock::mxmd

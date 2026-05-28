@@ -9,11 +9,11 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include <sstream>
-#include <ctime>
-#include "ubs_common_config.h"
-#include "mls_repository.h"
 #include "mls_manager.h"
+#include <ctime>
+#include <sstream>
+#include "mls_repository.h"
+#include "ubs_common_config.h"
 
 #include "ubs_mem_monitor.h"
 
@@ -23,19 +23,31 @@ using namespace ock::common;
 
 constexpr uint64_t NANOSECONDS = 1000000000ULL;
 
-int32_t MLSManager::Init() { return MLSRepository::GetInstance().Init(); }
+int32_t MLSManager::Init()
+{
+    return MLSRepository::GetInstance().Init();
+}
 
-int32_t MLSManager::Finalize() { return GetInstance().DeleteAllBufferedMem(); }
+int32_t MLSManager::Finalize()
+{
+    return GetInstance().DeleteAllBufferedMem();
+}
 
-int32_t MLSManager::Recovery() { return GetInstance().RecoverFromRecord(); }
+int32_t MLSManager::Recovery()
+{
+    return GetInstance().RecoverFromRecord();
+}
 
-void MLSManager::SetBufferedNum(uint32_t num) { maxBufferedMemNum_ = num; }
+void MLSManager::SetBufferedNum(uint32_t num)
+{
+    maxBufferedMemNum_ = num;
+}
 
 int32_t MLSManager::RecoverFromRecord()
 {
     std::lock_guard<std::mutex> lock(mapMutex_);
     auto records = MLSRepository::GetInstance().RecoverMemRecord();
-    for (auto& record : records) {
+    for (auto &record : records) {
         if (record.first.state == RecordState::PRE_ADD) {
             bool needToDelete = false;
             auto ret = RemovePreAddRecord(record, needToDelete);
@@ -93,7 +105,7 @@ int32_t MLSManager::ReuseMemInSlotId(uint64_t size, uint16_t isNuma, const std::
     auto bufferMemoryMap = (isNuma == 0) ? &fdBufferedMemory_ : &numaBufferedMemory_;
 
     // debug 打印map里当前存放的key信息
-    for (const auto& entry : *bufferMemoryMap) {
+    for (const auto &entry : *bufferMemoryMap) {
         DBG_LOGDEBUG("In buffer map, key size=" << entry.first.size << ", value size=" << entry.second.size);
     }
 
@@ -130,7 +142,7 @@ int32_t MLSManager::ReuseMemInSlotId(uint64_t size, uint16_t isNuma, const std::
     return 0;
 }
 
-int32_t MLSManager::RemovePreAddRecord(ock::ubsm::MemLeaseInfo& record, bool& needToDelete)
+int32_t MLSManager::RemovePreAddRecord(ock::ubsm::MemLeaseInfo &record, bool &needToDelete)
 {
     needToDelete = false;
     ubs_mem_stage stage;
@@ -154,13 +166,13 @@ int32_t MLSManager::RemovePreAddRecord(ock::ubsm::MemLeaseInfo& record, bool& ne
     bool isNuma = !record.first.fdMode;
     bool hasChangedPermission = true;
     bool ubseTimeOut = true;
-    ubsm::DelayRemovedKey key{record.first.name, ONE_MINUTE_MS, isLease, record.first.appContext,
-                              hasChangedPermission, isNuma, ubseTimeOut};
+    ubsm::DelayRemovedKey key{record.first.name,    ONE_MINUTE_MS, isLease,    record.first.appContext,
+                              hasChangedPermission, isNuma,        ubseTimeOut};
     ubsm::UBSMemMonitor::GetInstance().AddDelayRemoveRecord(key);
     return MXM_OK;
 }
 
-int32_t MLSManager::RollbackPreDeleteRecord(const ock::ubsm::MemLeaseInfo& record, ock::ubsm::RecordState& recordState)
+int32_t MLSManager::RollbackPreDeleteRecord(const ock::ubsm::MemLeaseInfo &record, ock::ubsm::RecordState &recordState)
 {
     ubs_mem_stage stage;
     recordState = record.first.state;
@@ -239,7 +251,7 @@ int32_t MLSManager::ReuseBufferedMem(uint64_t size, uint16_t isNuma, const std::
     return 0;
 }
 
-int32_t MLSManager::BufferUsedMemory(MLSMemInfo& usedInfo)
+int32_t MLSManager::BufferUsedMemory(MLSMemInfo &usedInfo)
 {
     AppContext context = usedInfo.appContext;
     context.pid = 0;
@@ -275,7 +287,7 @@ int32_t MLSManager::BufferUsedMemory(MLSMemInfo& usedInfo)
     return 1;
 }
 
-int32_t MLSManager::PreDeleteUsedMem(const std::string& name)
+int32_t MLSManager::PreDeleteUsedMem(const std::string &name)
 {
     std::lock_guard<std::mutex> lock(mapMutex_);
     auto pos = usedMemory_.find(name);
@@ -284,7 +296,7 @@ int32_t MLSManager::PreDeleteUsedMem(const std::string& name)
         return MXM_ERR_LEASE_NOT_FOUND;
     }
     DBG_LOGINFO("Delete used mem, name=" << name << ", isEnableLeaseBuffered_="
-        << mxmd::ConvertBoolToString(isEnableLeaseBuffered_));
+                                         << mxmd::ConvertBoolToString(isEnableLeaseBuffered_));
     if (isEnableLeaseBuffered_) {
         auto ret = BufferUsedMemory(pos->second);
         if (ret == 1) {
@@ -324,7 +336,7 @@ int32_t MLSManager::DeleteUsedMem(const std::string &name)
     return 0;
 }
 
-static int LeaseFreeMemory(const std::string& name, bool isNuma)
+static int LeaseFreeMemory(const std::string &name, bool isNuma)
 {
     auto ret = MLSRepository::GetInstance().UpdateMemRecordState(name, RecordState::PRE_DEL);
     if (ret != 0) {
@@ -333,7 +345,7 @@ static int LeaseFreeMemory(const std::string& name, bool isNuma)
     }
     ret = mxm::UbseMemAdapter::LeaseFree(name, isNuma);
     if (ret != 0 && ret != MXM_ERR_LEASE_NOT_EXIST) {
-        DBG_LOGERROR("Get exception when LeaseFree: " << name<< " ret: " << ret);
+        DBG_LOGERROR("Get exception when LeaseFree: " << name << " ret: " << ret);
         MLSRepository::GetInstance().UpdateMemRecordState(name, RecordState::FINISH);
         return ret;
     }
@@ -389,23 +401,23 @@ std::vector<MLSMemInfo> MLSManager::ListAllMem()
         return result;
     }
 
-    for (auto& item : usedMemory_) {
+    for (auto &item : usedMemory_) {
         result.push_back(item.second);
     }
     if (!isEnableLeaseBuffered_) {
         return result;
     }
-    for (auto& item : numaBufferedMemory_) {
+    for (auto &item : numaBufferedMemory_) {
         result.push_back(item.second);
     }
-    for (auto& item : fdBufferedMemory_) {
+    for (auto &item : fdBufferedMemory_) {
         result.push_back(item.second);
     }
 
     return result;
 }
 
-int32_t MLSManager::GetUsedMemByName(const std::string& name, MLSMemInfo& info)
+int32_t MLSManager::GetUsedMemByName(const std::string &name, MLSMemInfo &info)
 {
     std::lock_guard<std::mutex> lock(mapMutex_);
     auto pos = usedMemory_.find(name);
@@ -420,7 +432,7 @@ std::vector<MLSMemInfo> MLSManager::GetUsedMemByPid(uint32_t pid)
 {
     std::lock_guard<std::mutex> lock(mapMutex_);
     std::vector<MLSMemInfo> result{};
-    for (auto& item : usedMemory_) {
+    for (auto &item : usedMemory_) {
         if (item.second.appContext.pid == pid) {
             result.push_back(item.second);
         }
@@ -429,7 +441,8 @@ std::vector<MLSMemInfo> MLSManager::GetUsedMemByPid(uint32_t pid)
 }
 std::string MLSManager::GenerateMemName(uint64_t size)
 {
-    struct timespec ts{};
+    struct timespec ts {
+    };
     clock_gettime(CLOCK_MONOTONIC, &ts);
     auto timeStamp = static_cast<uint64_t>(ts.tv_sec) * NANOSECONDS + static_cast<uint64_t>(ts.tv_nsec);
     std::stringstream ss;
@@ -489,7 +502,7 @@ int MLSManager::FinishAddUsedMem(const std::string &name, int64_t numaId, size_t
         DBG_LOGERROR("Add lease record failed, ret: " << ret);
         return MXM_ERR_RECORD_ADD;
     }
-    auto& memory = pos->second;
+    auto &memory = pos->second;
     memory.numaId = numaId;
     memory.memIds.assign(memIds.begin(), memIds.end());
     memory.unitSize = unitSize;
@@ -516,4 +529,4 @@ int32_t MLSManager::UpdateMemRecordState(const std::string &name, ock::ubsm::Rec
     return MXM_OK;
 }
 
-}  // namespace ock::lease::service
+} // namespace ock::lease::service

@@ -12,12 +12,12 @@
 #ifndef MXM_MSG_PACKER_H
 #define MXM_MSG_PACKER_H
 
-#include <vector>
 #include <map>
 #include <set>
+#include <sstream>
 #include <string>
 #include <unordered_map>
-#include <sstream>
+#include <vector>
 #include "rpc_config.h"
 
 namespace ock {
@@ -239,7 +239,7 @@ public:
 private:
     std::istringstream inStream_;
 };
-}
-}
+} // namespace mxmd
+} // namespace ock
 
-#endif  // MXMD_MSG_PACKER_H
+#endif // MXMD_MSG_PACKER_H

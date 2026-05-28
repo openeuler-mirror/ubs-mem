@@ -7,9 +7,10 @@ repos:
         language: system
         pass_filenames: false
         files: ^(?!test/).*(\.(h|c|cpp|sh|cmake)|CMakeLists\.txt)$
+        exclude: ^3rdparty/
       - id: run-build-test
         name: Run Tests Build
-        entry: bash build.sh ut --skip-run-tests
+        entry: bash -c 'cd test && sh run_dt.sh --skip-run-tests'
         language: system
         pass_filenames: false
         files: ^test/.*\.(h|c|cpp|sh|cmake)$|^test/CMakeLists\.txt$
@@ -18,16 +19,19 @@ repos:
         entry: clang-format
         language: system
         files: \.(h|c|cpp)$
+        exclude: ^3rdparty/
         args: [-style=file, -i]
       - id: clang-tidy
         name: Run clang-tidy check
         entry: clang-tidy
         language: system
         files: ^(?!test/).*\.(h|c|cpp)$
-        args: [-p=cmake-build-release, -header-filter=.*, --fix]
+        exclude: ^3rdparty/
+        args: [-p=build/debug, --fix]
       - id: clang-tidy-test
         name: Run clang-tidy check for test files
         entry: clang-tidy
         language: system
         files: ^test/.*\.(h|c|cpp)$
-        args: [-p=cmake-build-debug, --fix]
+        exclude: ^3rdparty/
+        args: [-p=test/build, --fix]

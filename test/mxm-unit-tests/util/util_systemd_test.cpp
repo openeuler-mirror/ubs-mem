@@ -4,10 +4,10 @@
  */
 
 #include <gtest/gtest.h>
+#include <mockcpp/mokc.h>
+#include <systemd/sd-daemon.h>
 #include <unistd.h>
 #include <chrono>
-#include <systemd/sd-daemon.h>
-#include <mockcpp/mokc.h>
 #include <mockcpp/mockcpp.hpp>
 #include "util/systemd_wrapper.h"
 
@@ -54,7 +54,7 @@ TEST_F(UtilSystemdTest, UtilSystemdTest)
 TEST_F(UtilSystemdTest, TestSystemdStoreFd)
 {
     MOCKER_CPP(&sd_pid_notify_with_fds,
-               int (*)(pid_t pid, int unset_environment, const char* state, const int* fds, unsigned n_fds))
+               int (*)(pid_t pid, int unset_environment, const char *state, const int *fds, unsigned n_fds))
         .stubs()
         .will(returnValue(0));
     std::string name = "name";
@@ -64,7 +64,7 @@ TEST_F(UtilSystemdTest, TestSystemdStoreFd)
 TEST_F(UtilSystemdTest, TestSystemdStoreFdFail)
 {
     MOCKER_CPP(&sd_pid_notify_with_fds,
-               int (*)(pid_t pid, int unset_environment, const char* state, const int* fds, unsigned n_fds))
+               int (*)(pid_t pid, int unset_environment, const char *state, const int *fds, unsigned n_fds))
         .stubs()
         .will(returnValue(-1));
     std::string name = "name";
@@ -74,7 +74,7 @@ TEST_F(UtilSystemdTest, TestSystemdStoreFdFail)
 
 TEST_F(UtilSystemdTest, TestLoadFdFail)
 {
-    MOCKER_CPP(&sd_listen_fds_with_names, int (*)(int unset_environment, char*** names)).stubs().will(returnValue(-1));
+    MOCKER_CPP(&sd_listen_fds_with_names, int (*)(int unset_environment, char ***names)).stubs().will(returnValue(-1));
 
     int fd = 1;
     auto ret = ock::common::systemd::LoadFd("name", fd);
@@ -83,9 +83,9 @@ TEST_F(UtilSystemdTest, TestLoadFdFail)
 
 TEST_F(UtilSystemdTest, TestLoadFdFail01)
 {
-    MOCKER_CPP(&sd_listen_fds_with_names, int (*)(int unset_environment, char*** names)).stubs().will(returnValue(0));
+    MOCKER_CPP(&sd_listen_fds_with_names, int (*)(int unset_environment, char ***names)).stubs().will(returnValue(0));
     int fd = 1;
     auto ret = ock::common::systemd::LoadFd("name", fd);
     EXPECT_EQ(ret, -1);
 }
-}  // namespace UT
+} // namespace UT

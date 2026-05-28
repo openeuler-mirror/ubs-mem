@@ -12,12 +12,12 @@
 #ifndef MEMORYFABRIC_BORROW_APP_META_MGR_H
 #define MEMORYFABRIC_BORROW_APP_META_MGR_H
 
-#include <mutex>
-#include <cstring>
-#include <unordered_map>
 #include <rack_mem_functions.h>
-#include "rack_mem_lib_common.h"
+#include <cstring>
+#include <mutex>
+#include <unordered_map>
 #include "rack_mem_err.h"
+#include "rack_mem_lib_common.h"
 #include "rack_mem_libobmm.h"
 #include "system_adapter.h"
 
@@ -28,10 +28,12 @@ public:
 
     explicit AppBorrowMetaDesc(const uint64_t fileSize, const std::string region = "default")
         : fileSize{fileSize},
-          regionName_(region) {}
+          regionName_(region)
+    {
+    }
 
-    void UpdateBorrowMetaDesc(const std::vector<uint64_t>& memIdIn, const uint64_t fileSizeIn,
-        bool isNumaIn, const std::string& nameIn)
+    void UpdateBorrowMetaDesc(const std::vector<uint64_t> &memIdIn, const uint64_t fileSizeIn, bool isNumaIn,
+                              const std::string &nameIn)
     {
         this->memIds = memIdIn;
         this->actualMapFileSize = fileSizeIn;
@@ -39,17 +41,38 @@ public:
         this->name = nameIn;
     }
 
-    [[nodiscard]] int GetIsNuma() const { return isNuma; }
+    [[nodiscard]] int GetIsNuma() const
+    {
+        return isNuma;
+    }
 
-    [[nodiscard]] mem_id GetMinMemId() const { return MinMemId(this->memIds); }
+    [[nodiscard]] mem_id GetMinMemId() const
+    {
+        return MinMemId(this->memIds);
+    }
 
-    [[nodiscard]] uint64_t GetFileSize() const { return fileSize; }
+    [[nodiscard]] uint64_t GetFileSize() const
+    {
+        return fileSize;
+    }
 
-    [[nodiscard]] uint64_t GetActualMapFileSize() const { return actualMapFileSize; }
+    [[nodiscard]] uint64_t GetActualMapFileSize() const
+    {
+        return actualMapFileSize;
+    }
 
-    void SetFileSize(const uint64_t fileSizeIn) { this->fileSize = fileSizeIn; }
-    size_t GetUniSize() const { return unitSize; }
-    [[nodiscard]] std::string GetName() const { return name; }
+    void SetFileSize(const uint64_t fileSizeIn)
+    {
+        this->fileSize = fileSizeIn;
+    }
+    size_t GetUniSize() const
+    {
+        return unitSize;
+    }
+    [[nodiscard]] std::string GetName() const
+    {
+        return name;
+    }
 
     [[nodiscard]] std::string GetRegionName() const
     {
@@ -71,14 +94,29 @@ public:
         return isLockAddress_;
     }
 
-    void SetisLockAddress(bool val) { isLockAddress_ = val; }
-    void SetHasUnmapped(bool val) { hasUnmapped_ = val; }
-    void SetUnitSize(size_t unitSizeIn) { unitSize = unitSizeIn; }
-    void AddFd(const int fd) { fds.push_back(fd); }
-    void AddAddr(void* addr) { addrs.push_back(addr); }
+    void SetisLockAddress(bool val)
+    {
+        isLockAddress_ = val;
+    }
+    void SetHasUnmapped(bool val)
+    {
+        hasUnmapped_ = val;
+    }
+    void SetUnitSize(size_t unitSizeIn)
+    {
+        unitSize = unitSizeIn;
+    }
+    void AddFd(const int fd)
+    {
+        fds.push_back(fd);
+    }
+    void AddAddr(void *addr)
+    {
+        addrs.push_back(addr);
+    }
     void CloseAllFd()
     {
-        for (auto& item : fds) {
+        for (auto &item : fds) {
             if (item == -1) {
                 continue;
             }
@@ -89,7 +127,10 @@ public:
             };
         }
     }
-    void SetName(const std::string& nameIn) { this->name = nameIn; }
+    void SetName(const std::string &nameIn)
+    {
+        this->name = nameIn;
+    }
     [[nodiscard]] int FirstFd() const
     {
         if (fds.empty()) {
@@ -99,13 +140,13 @@ public:
     }
 
 private:
-    std::vector<int> fds{};  // numa模式下，该值不再使用
-    std::vector<void*> addrs{};
-    std::vector<mem_id> memIds{};  // numa模式下，该memId非obmm import返回的id，仅作为资源释放标识符
+    std::vector<int> fds{}; // numa模式下，该值不再使用
+    std::vector<void *> addrs{};
+    std::vector<mem_id> memIds{}; // numa模式下，该memId非obmm import返回的id，仅作为资源释放标识符
     uint64_t fileSize{INVALID_MEM_SIZE};
     uint64_t actualMapFileSize{INVALID_MEM_SIZE};
     std::string regionName_{};
-    std::string name{};  // numa模式下，该值不再使用，name由agent端生成
+    std::string name{}; // numa模式下，该值不再使用，name由agent端生成
     bool isNuma{false};
     size_t unitSize{};
     bool hasUnmapped_{false};
@@ -114,26 +155,32 @@ private:
 
 class BorrowAppMetaMgr {
 public:
-    uint32_t AddMeta(const void* addr, const AppBorrowMetaDesc& desc);
+    uint32_t AddMeta(const void *addr, const AppBorrowMetaDesc &desc);
 
-    uint32_t RemoveMeta(const void* addr);
+    uint32_t RemoveMeta(const void *addr);
 
-    uint32_t GetMeta(const void* addr, AppBorrowMetaDesc& desc);
+    uint32_t GetMeta(const void *addr, AppBorrowMetaDesc &desc);
 
-    uint32_t UpdateMeta(const void* addr, AppBorrowMetaDesc& desc);
+    uint32_t UpdateMeta(const void *addr, AppBorrowMetaDesc &desc);
 
-    inline size_t PtrToSegment(void* ptr) const { return ptrHash(ptr) % SEGMENT_COUNT; }
+    inline size_t PtrToSegment(void *ptr) const
+    {
+        return ptrHash(ptr) % SEGMENT_COUNT;
+    }
 
-    inline size_t PtrToSegment(const void* ptr) const { return ptrHash(const_cast<void*>(ptr)) % SEGMENT_COUNT; }
+    inline size_t PtrToSegment(const void *ptr) const
+    {
+        return ptrHash(const_cast<void *>(ptr)) % SEGMENT_COUNT;
+    }
 
-    int32_t SetMetaHasUnmapped(const void* addr, bool val);
-    int32_t SetMetaIsLockAddress(const void* addr, bool val);
+    int32_t SetMetaHasUnmapped(const void *addr, bool val);
+    int32_t SetMetaIsLockAddress(const void *addr, bool val);
 
-    bool GetMetaHasUnmapped(const void* addr);
-    bool GetMetaIsLockAddress(const void* addr);
+    bool GetMetaHasUnmapped(const void *addr);
+    bool GetMetaIsLockAddress(const void *addr);
 
-    uint32_t GetAllUsedMemoryNames(std::vector<std::string>& names);
-    static BorrowAppMetaMgr& GetInstance()
+    uint32_t GetAllUsedMemoryNames(std::vector<std::string> &names);
+    static BorrowAppMetaMgr &GetInstance()
     {
         static BorrowAppMetaMgr instance;
         return instance;
@@ -143,11 +190,11 @@ private:
     BorrowAppMetaMgr() = default;
 
     static constexpr int SEGMENT_COUNT{4};
-    std::hash<void*> ptrHash{};
+    std::hash<void *> ptrHash{};
     SpinLock mapLock[SEGMENT_COUNT]{};
-    std::unordered_map<const void*, AppBorrowMetaDesc> appBorrowInfoMap[SEGMENT_COUNT]{};
+    std::unordered_map<const void *, AppBorrowMetaDesc> appBorrowInfoMap[SEGMENT_COUNT]{};
 };
-}  // namespace ock::mxmd
+} // namespace ock::mxmd
 // ock
 
-#endif  // MEMORYFABRIC_BORROW_APP_META_MGR_H
+#endif // MEMORYFABRIC_BORROW_APP_META_MGR_H

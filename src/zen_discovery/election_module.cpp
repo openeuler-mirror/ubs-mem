@@ -11,18 +11,17 @@
  */
 #include <algorithm>
 #include <chrono>
-#include <thread>
 #include <string>
+#include <thread>
 
-#include "zen_discovery.h"
-#include "rpc_config.h"
 #include "election_module.h"
+#include "rpc_config.h"
+#include "zen_discovery.h"
 
 #include <log.h>
 #include <cstring>
 namespace ock::zendiscovery {
-ElectionModule::ElectionModule(ZenDiscovery& discovery)
-    : discovery_(discovery), running_(true)
+ElectionModule::ElectionModule(ZenDiscovery &discovery) : discovery_(discovery), running_(true)
 {
     listenerThread_ = std::thread(&ElectionModule::ListenerLoop, this);
 }
@@ -32,7 +31,7 @@ ElectionModule::~ElectionModule()
     DBG_LOGDEBUG("ElectionModule destructor called");
     try {
         Stop();
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         DBG_LOGERROR("Exception in ElectionModule destructor: ", e.what());
     }
 }
@@ -45,7 +44,7 @@ void ElectionModule::Stop()
     running_ = false;
 
     // 通知监听器线程退出
-    cond.notify_all();  // 使用 notify_all 而不是 notify_one
+    cond.notify_all(); // 使用 notify_all 而不是 notify_one
 
     // 等待监听器线程结束
     if (listenerThread_.joinable()) {
@@ -71,7 +70,7 @@ void ElectionModule::ListenerLoop()
     }
 }
 
-void ElectionModule::NotifyListenerParam(const ListenerParam& listenerParam)
+void ElectionModule::NotifyListenerParam(const ListenerParam &listenerParam)
 {
     std::list<std::pair<int, ZenEventListener>> listenersCopy;
     {
@@ -81,15 +80,15 @@ void ElectionModule::NotifyListenerParam(const ListenerParam& listenerParam)
 
     currentTerm_.load(std::memory_order_relaxed);
 
-    for (const auto& pair : listenersCopy) {
-        const auto& listener = pair.second;
+    for (const auto &pair : listenersCopy) {
+        const auto &listener = pair.second;
         if (!listener) {
             continue;
         }
 
         try {
             listener(listenerParam.event, listenerParam.masterId, listenerParam.voteOnlyId);
-        } catch (const std::exception& e) {
+        } catch (const std::exception &e) {
             DBG_LOGERROR("Exception in election listener: " << e.what());
         }
     }
@@ -120,9 +119,9 @@ void ElectionModule::RunElection()
 
     // 没有达到最低选举条件，退出
     if (collections.masterCandidates.size() < ZenDiscovery::GetInstance()->GetMinimumMasterNodes()) {
-        DBG_LOGWARN("Candidate size is " << collections.masterCandidates.size() <<
-            " and is smaller than minimum master node size " <<
-            ZenDiscovery::GetInstance()->GetMinimumMasterNodes() << ".");
+        DBG_LOGWARN("Candidate size is " << collections.masterCandidates.size()
+                                         << " and is smaller than minimum master node size "
+                                         << ZenDiscovery::GetInstance()->GetMinimumMasterNodes() << ".");
         electionInProgress_ = false;
         notifyListeners(ZenElectionEventType::ELECTION_FAILED);
         return;
@@ -148,7 +147,7 @@ void ElectionModule::ClearJoinsReceived()
     joinsReceived_.clear();
 }
 
-void ElectionModule::AddJoinsReceived(const std::string& nodeId)
+void ElectionModule::AddJoinsReceived(const std::string &nodeId)
 {
     joinsReceived_.insert(nodeId);
 }
@@ -163,13 +162,13 @@ int ElectionModule::GetCurrentTerm() const
     return currentTerm_;
 }
 
-const std::string& ElectionModule::GetElectedMaster() const
+const std::string &ElectionModule::GetElectedMaster() const
 {
     return electedMaster_;
 }
 
 // 投票处理，收到回调时调用，票数++
-void ElectionModule::RecordVote(const std::string& nodeId)
+void ElectionModule::RecordVote(const std::string &nodeId)
 {
     std::lock_guard<std::mutex> lock(votingMutex_);
     votesReceived_.insert(nodeId);
@@ -189,49 +188,46 @@ ElectionModule::NodeCollections ElectionModule::CollectNodeInfo()
         DBG_LOGERROR("ZenDiscovery::GetInstance() is nullptr.");
         return collections;
     }
-    
+
     // 获取所有节点
     auto clusterNodes = ZenDiscovery::GetInstance()->GetClusterNodes();
     std::lock_guard<std::mutex> lock(ZenDiscovery::GetInstance()->GetNodesMutex());
-    
-    for (const auto& node : clusterNodes) {
+
+    for (const auto &node : clusterNodes) {
         if (node.type == ock::rpc::NodeType::VOTING_ONLY_NODE) {
             collections.voteOnlyNode = node.id;
             continue;
         }
         if (node.isActive && node.type == ock::rpc::NodeType::ELIGIBLE_NODE) {
             collections.masterCandidates.insert(node.id);
-            
+
             // 当前主节点
             if (node.isMaster) {
                 collections.activeMasters.insert(node.id);
             }
         }
     }
-    
+
     // 包括自己
     collections.masterCandidates.insert(ZenDiscovery::GetInstance()->GetNodeId());
-    
+
     return collections;
 }
 
 // 选举临时主节点
-std::string ElectionModule::SelectTemporaryMaster(const NodeCollections& collections)
+std::string ElectionModule::SelectTemporaryMaster(const NodeCollections &collections)
 {
     // 优先选择从所有节点视角看到的主节点
     if (!collections.activeMasters.empty()) {
-        return *std::min_element(collections.activeMasters.begin(),
-                                 collections.activeMasters.end());
+        return *std::min_element(collections.activeMasters.begin(), collections.activeMasters.end());
     }
 
     // 否则在所有参选节点选择主节点
-    return *std::min_element(collections.masterCandidates.begin(),
-                             collections.masterCandidates.end());
+    return *std::min_element(collections.masterCandidates.begin(), collections.masterCandidates.end());
 }
 
 // 执行投票流程
-bool ElectionModule::ConductVoting(const std::string& tempMaster,
-                                   const NodeCollections& collections)
+bool ElectionModule::ConductVoting(const std::string &tempMaster, const NodeCollections &collections)
 {
     electionStartTime_ = std::chrono::steady_clock::now();
 
@@ -239,7 +235,7 @@ bool ElectionModule::ConductVoting(const std::string& tempMaster,
         DBG_LOGERROR("ZenDiscovery::GetInstance() is nullptr.");
         return false;
     }
-    
+
     // 自己先投票
     {
         std::lock_guard<std::mutex> lock(votingMutex_);
@@ -250,12 +246,9 @@ bool ElectionModule::ConductVoting(const std::string& tempMaster,
         candidates.insert(collections.voteOnlyNode);
     }
     // 向所有节点发送投票请求
-    for (const auto& nodeId : candidates) {
+    for (const auto &nodeId : candidates) {
         if (nodeId != ZenDiscovery::GetInstance()->GetNodeId()) {
-            ZenDiscovery::GetInstance()->SendVoteRequest(
-                nodeId,
-                tempMaster,
-                currentTerm_);
+            ZenDiscovery::GetInstance()->SendVoteRequest(nodeId, tempMaster, currentTerm_);
         }
     }
 
@@ -264,12 +257,11 @@ bool ElectionModule::ConductVoting(const std::string& tempMaster,
     while (electionInProgress_) {
         // 检查超时
         auto now = std::chrono::steady_clock::now();
-        if (now - electionStartTime_ >
-            std::chrono::milliseconds(electionTimeout)) {
+        if (now - electionStartTime_ > std::chrono::milliseconds(electionTimeout)) {
             DBG_LOGERROR("Vote has exceeded time limit=" << electionTimeout << ", vote size=" << votesReceived_.size());
             return false;
         }
-        
+
         // 检查是否获得多数票
         {
             std::lock_guard<std::mutex> lock(votingMutex_);
@@ -277,15 +269,15 @@ bool ElectionModule::ConductVoting(const std::string& tempMaster,
                 return true;
             }
         }
-        
+
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
     return true;
 }
 
 // 处理投票结果
-void ElectionModule::ProcessVotingResults(const std::string& tempMaster,
-                                          const std::vector<std::string>& masterCandidates)
+void ElectionModule::ProcessVotingResults(const std::string &tempMaster,
+                                          const std::vector<std::string> &masterCandidates)
 {
     size_t votesCount;
     {
@@ -300,8 +292,8 @@ void ElectionModule::ProcessVotingResults(const std::string& tempMaster,
     }
 
     if (votesCount < ZenDiscovery::GetInstance()->GetMinimumMasterNodes()) {
-        DBG_LOGINFO("votesCount " << votesCount << " is smaller than minimum master node size " <<
-            ZenDiscovery::GetInstance()->GetMinimumMasterNodes() << ".");
+        DBG_LOGINFO("votesCount " << votesCount << " is smaller than minimum master node size "
+                                  << ZenDiscovery::GetInstance()->GetMinimumMasterNodes() << ".");
         notifyListeners(ZenElectionEventType::ELECTION_FAILED, "", "");
         return;
     }
@@ -316,21 +308,18 @@ void ElectionModule::ProcessVotingResults(const std::string& tempMaster,
     }
 }
 
-void ElectionModule::BroadcastElectionResult(const std::string& electedMaster)
+void ElectionModule::BroadcastElectionResult(const std::string &electedMaster)
 {
     if (ZenDiscovery::GetInstance() == nullptr) {
         DBG_LOGERROR("ZenDiscovery::GetInstance() is nullptr.");
         return;
     }
     auto clusterNodes = ZenDiscovery::GetInstance()->GetClusterNodes();
-    for (const auto& node : clusterNodes) {
+    for (const auto &node : clusterNodes) {
         if (node.id != ZenDiscovery::GetInstance()->GetNodeId()) {
-            DBG_LOGINFO("ElectionResult has been broadcast, the master is " << electedMaster
-                        << ", send result to " << node.id);
-            ZenDiscovery::GetInstance()->SendMasterElected(
-                node.id,
-                electedMaster,
-                currentTerm_);
+            DBG_LOGINFO("ElectionResult has been broadcast, the master is " << electedMaster << ", send result to "
+                                                                            << node.id);
+            ZenDiscovery::GetInstance()->SendMasterElected(node.id, electedMaster, currentTerm_);
         }
     }
     electedMaster_ = electedMaster;
@@ -340,25 +329,25 @@ void ElectionModule::BroadcastElectionResult(const std::string& electedMaster)
 int ElectionModule::AddElectionListener(ZenEventListener listener)
 {
     std::lock_guard<std::mutex> lock(listenersMutex_);
-    int id = ++nextListenerId_;  // 生成唯一ID
+    int id = ++nextListenerId_; // 生成唯一ID
     electionListeners_.emplace_back(id, std::move(listener));
-    return id;  // 返回ID，供后续删除使用
+    return id; // 返回ID，供后续删除使用
 }
 
 void ElectionModule::RemoveElectionListener(int listenerId)
 {
     std::lock_guard<std::mutex> lock(listenersMutex_);
-    electionListeners_.remove_if([listenerId](const auto& item) {
-        return item.first == listenerId;  // 按ID删除
+    electionListeners_.remove_if([listenerId](const auto &item) {
+        return item.first == listenerId; // 按ID删除
     });
 }
 
 // 触发事件通知
-void ElectionModule::notifyListeners(ZenElectionEventType event, const std::string& masterId,
-                                     const std::string& voteOnlyId)
+void ElectionModule::notifyListeners(ZenElectionEventType event, const std::string &masterId,
+                                     const std::string &voteOnlyId)
 {
     std::lock_guard<std::mutex> lock(listenerQueueMutex_);
     listenerQueue_.push({.event = event, .masterId = masterId, .voteOnlyId = voteOnlyId});
     cond.notify_one();
 }
-}
+} // namespace ock::zendiscovery

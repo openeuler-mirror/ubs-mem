@@ -9,18 +9,18 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include "ubse_mem_adapter.h"
 #include <dlfcn.h>
 #include <algorithm>
-#include "log.h"
 #include "ubs_mem_def.h"
-#include "ubs_error.h"
-#include "region_manager.h"
-#include "ubs_common_types.h"
-#include "ubsm_ptracer.h"
-#include "system_adapter.h"
+#include "log.h"
 #include "numa_cpu_utils.h"
+#include "region_manager.h"
+#include "system_adapter.h"
+#include "ubs_common_types.h"
+#include "ubs_error.h"
 #include "ubs_mem_monitor.h"
-#include "ubse_mem_adapter.h"
+#include "ubsm_ptracer.h"
 
 #include "record_store.h"
 
@@ -358,7 +358,7 @@ void UbseMemAdapter::Destroy()
     initialized_ = false;
 }
 
-int FillUserInfo(const AppContext& ownner, uint64_t flags, mode_t mode, ubse_user_info_t &ubsUserInfo, uint64_t & seqNo)
+int FillUserInfo(const AppContext &ownner, uint64_t flags, mode_t mode, ubse_user_info_t &ubsUserInfo, uint64_t &seqNo)
 {
     ubsUserInfo.udsInfo.uid = ownner.uid;
     ubsUserInfo.udsInfo.gid = ownner.gid;
@@ -378,7 +378,7 @@ int FillUserInfo(const AppContext& ownner, uint64_t flags, mode_t mode, ubse_use
     return HOK;
 }
 
-int UbseMemAdapter::GetRegionInfo(const std::string& regionName, std::vector<uint32_t>& slotIds)
+int UbseMemAdapter::GetRegionInfo(const std::string &regionName, std::vector<uint32_t> &slotIds)
 {
     RegionInfo regionInfo{};
     if (regionName == "default") {
@@ -388,7 +388,7 @@ int UbseMemAdapter::GetRegionInfo(const std::string& regionName, std::vector<uin
             DBG_LOGERROR("LookupRegionList failed, ret=" << hr);
             return hr;
         }
-        regionInfo.region = regions.region[0];  // 默认域取第一个域
+        regionInfo.region = regions.region[0]; // 默认域取第一个域
         regionInfo.name = "default";
         for (int i = 0; i < regionInfo.region.num; i++) {
             regionInfo.region.affinity[i] = true;
@@ -419,9 +419,9 @@ int UbseMemAdapter::GetRegionInfo(const std::string& regionName, std::vector<uin
     return MXM_OK;
 }
 
-int32_t UbseMemAdapter::MemFdCreateWithCandidate(const char* name, uint64_t size, const ubs_mem_fd_owner_t* owner,
-                                                 mode_t mode, const uint32_t* slot_ids, uint32_t slot_cnt,
-                                                 ubs_mem_fd_desc_t* fd_desc)
+int32_t UbseMemAdapter::MemFdCreateWithCandidate(const char *name, uint64_t size, const ubs_mem_fd_owner_t *owner,
+                                                 mode_t mode, const uint32_t *slot_ids, uint32_t slot_cnt,
+                                                 ubs_mem_fd_desc_t *fd_desc)
 {
     if (pUbseMemFdCreateWithCandidate == nullptr) {
         DBG_LOGERROR("Ubsm is not initialized.");
@@ -430,11 +430,11 @@ int32_t UbseMemAdapter::MemFdCreateWithCandidate(const char* name, uint64_t size
     return pUbseMemFdCreateWithCandidate(name, size, owner, mode, slot_ids, slot_cnt, fd_desc);
 }
 
-int UbseMemAdapter::LeaseMalloc(const ock::mxm::LeaseMallocParam& param, ock::ubsm::LeaseMallocResult& result)
+int UbseMemAdapter::LeaseMalloc(const ock::mxm::LeaseMallocParam &param, ock::ubsm::LeaseMallocResult &result)
 {
     auto rt = Initialize();
     if (rt != 0) {
-        DBG_LOGERROR("Initialize failed, name is " << param.name<< ", ret: " << rt);
+        DBG_LOGERROR("Initialize failed, name is " << param.name << ", ret: " << rt);
         return rt;
     }
 
@@ -485,10 +485,12 @@ int UbseMemAdapter::LeaseMalloc(const ock::mxm::LeaseMallocParam& param, ock::ub
             return MXM_ERR_UBSE_INNER;
         }
         if (hr == UBS_ERR_TIMED_OUT) {
-            DelayRemovedKey removedKey{param.name, ONE_MINUTE_MS, true, {param.appContext.pid,
-                param.appContext.uid, param.appContext.gid}, false, true, true};
+            DelayRemovedKey removedKey{
+                param.name, ONE_MINUTE_MS, true, {param.appContext.pid, param.appContext.uid, param.appContext.gid},
+                false,      true,          true};
             DBG_LOGERROR("Numa malloc failed, errCode=" << hr << " name=" << param.name
-                << " pid=" << param.appContext.pid << ", expires time=" << removedKey.expiresTime);
+                                                        << " pid=" << param.appContext.pid
+                                                        << ", expires time=" << removedKey.expiresTime);
             UBSMemMonitor::GetInstance().AddDelayRemoveRecord(removedKey);
             SAFE_DELETE_ARRAY(slotIdsPtr);
             return UBS_ERR_TIMED_OUT;
@@ -505,8 +507,8 @@ int UbseMemAdapter::LeaseMalloc(const ock::mxm::LeaseMallocParam& param, ock::ub
         mode_t mode = S_IRUSR | S_IWUSR;
         ubs_mem_fd_desc_t fdDesc;
         TP_TRACE_BEGIN(TP_UBSM_CREATE_FD_MEM);
-        hr = MemFdCreateWithCandidate(param.name.c_str(), static_cast<int64_t>(param.size), &owner, mode,
-                                      slotIdsPtr, slotCnt, &fdDesc);
+        hr = MemFdCreateWithCandidate(param.name.c_str(), static_cast<int64_t>(param.size), &owner, mode, slotIdsPtr,
+                                      slotCnt, &fdDesc);
         TP_TRACE_END(TP_UBSM_CREATE_FD_MEM, hr);
         if (hr != UBS_SUCCESS && hr != UBS_ERR_TIMED_OUT) {
             DBG_LOGERROR("MemFdCreateWithCandidate failed, ret: " << hr);
@@ -518,10 +520,11 @@ int UbseMemAdapter::LeaseMalloc(const ock::mxm::LeaseMallocParam& param, ock::ub
             return MXM_ERR_UBSE_INNER;
         }
         if (hr == UBS_ERR_TIMED_OUT) {
-            DelayRemovedKey removedKey{param.name, ONE_MINUTE_MS, true, {param.appContext.pid,
-                param.appContext.uid, param.appContext.gid}, false, false, true};
-            DBG_LOGERROR("Fd malloc failed, errCode=" << hr << " name=" << param.name
-                << " pid=" << param.appContext.pid << ", expires time=" << removedKey.expiresTime);
+            DelayRemovedKey removedKey{
+                param.name, ONE_MINUTE_MS, true, {param.appContext.pid, param.appContext.uid, param.appContext.gid},
+                false,      false,         true};
+            DBG_LOGERROR("Fd malloc failed, errCode=" << hr << " name=" << param.name << " pid=" << param.appContext.pid
+                                                      << ", expires time=" << removedKey.expiresTime);
             UBSMemMonitor::GetInstance().AddDelayRemoveRecord(removedKey);
             SAFE_DELETE_ARRAY(slotIdsPtr);
             return UBS_ERR_TIMED_OUT;
@@ -652,8 +655,8 @@ uint32_t FillRegionDesc(SHMRegionDesc &regionDesc, std::set<uint32_t> &intersect
             return MXM_ERR_MEMORY;
         }
 
-        regionDesc.nodeId[index][MEM_MAX_ID_LENGTH - 1] = '\0';            // core问题处理
-        regionDesc.hostName[index][MAX_HOST_NAME_DESC_LENGTH - 1] = '\0';  // core问题处理
+        regionDesc.nodeId[index][MEM_MAX_ID_LENGTH - 1] = '\0';           // core问题处理
+        regionDesc.hostName[index][MAX_HOST_NAME_DESC_LENGTH - 1] = '\0'; // core问题处理
         index++;
     }
     return MXM_OK;
@@ -665,7 +668,7 @@ int32_t UbseMemAdapter::PopulateHostNameMap(SHMRegions &regions)
         DBG_LOGERROR("Ubsm is not initialized.");
         return MXM_ERR_UBSE_INNER;
     }
-    ubs_topo_node_t* nodeList;
+    ubs_topo_node_t *nodeList;
     uint32_t nodeCnt;
     TP_TRACE_BEGIN(TP_UBSM_GET_NODE_LIST);
     auto ret = pUbseNodeList(&nodeList, &nodeCnt);
@@ -683,8 +686,8 @@ int32_t UbseMemAdapter::PopulateHostNameMap(SHMRegions &regions)
 
     std::unordered_map<uint32_t, std::string> slotToHostName;
     for (uint32_t i = 0; i < nodeCnt; ++i) {
-        DBG_LOGINFO("node info of slot_id[" << i << "]=" << nodeList[i].slot_id << ", hostname="
-                                            << nodeList[i].host_name);
+        DBG_LOGINFO("node info of slot_id[" << i << "]=" << nodeList[i].slot_id
+                                            << ", hostname=" << nodeList[i].host_name);
         DBG_LOGINFO(" socket_id[0]=" << nodeList[i].socket_id[0] << ", numa[0][0]=" << nodeList[i].numa_ids[0][0]
                                      << " numa[0][1]=" << nodeList[i].numa_ids[0][1] << ", socket_id[1]="
                                      << nodeList[i].socket_id[1] << ", numa[1][0]=" << nodeList[i].numa_ids[1][0]
@@ -722,7 +725,7 @@ int32_t UbseMemAdapter::PopulateHostNameMap(SHMRegions &regions)
                 DBG_LOGERROR("hostName copy error, ret=" << ret);
                 return ret;
             }
-            region.hostName[j][MAX_HOST_NAME_DESC_LENGTH - 1] = '\0';  // 确保字符串以 '\0' 结尾
+            region.hostName[j][MAX_HOST_NAME_DESC_LENGTH - 1] = '\0'; // 确保字符串以 '\0' 结尾
         }
     }
     // 打印调试信息
@@ -730,7 +733,7 @@ int32_t UbseMemAdapter::PopulateHostNameMap(SHMRegions &regions)
         DBG_LOGINFO("Regions[" << i << "]=" << regions.region[i].type << ", num=" << regions.region[i].num);
         for (int j = 0; j < regions.region[i].num; j++) {
             DBG_LOGINFO("Regions num[" << j << "]=" << regions.region[i].nodeId[j]
-                                        << ", hostname=" << regions.region[i].hostName[j]);
+                                       << ", hostname=" << regions.region[i].hostName[j]);
         }
     }
     return MXM_OK;
@@ -751,10 +754,10 @@ int32_t UbseMemAdapter::InitializeRegionList(SHMRegions &regions)
         return MXM_ERR_UBSE_INNER;
     }
     DBG_LOGINFO("Local node slot_id=" << localNode.slot_id << ", socket_id[0]=" << localNode.socket_id[0]
-                                      << ", socket_id[1]=" << localNode.socket_id[1] << ", host_name="
-                                      << localNode.host_name);
+                                      << ", socket_id[1]=" << localNode.socket_id[1]
+                                      << ", host_name=" << localNode.host_name);
 
-    ubs_topo_link_t* linkPtr = nullptr;
+    ubs_topo_link_t *linkPtr = nullptr;
     uint32_t cpuLinkCnt{0};
     res = pUbseTopLinkList(&linkPtr, &cpuLinkCnt);
     if (res != 0 || linkPtr == nullptr) {
@@ -772,10 +775,10 @@ int32_t UbseMemAdapter::InitializeRegionList(SHMRegions &regions)
     // 构建邻居节点集合
     for (int i = 0; i < cpuLinkCnt; ++i) {
         DBG_LOGINFO("ubs_topo_link_t slot_id=" << linkPtr[i].slot_id << ", socket_id=" << linkPtr[i].socket_id
-                                                << ", port_id=" << linkPtr[i].port_id
-                                                << ", peer_slot_id=" << linkPtr[i].peer_slot_id
-                                                << ", peer_socket_id=" << linkPtr[i].peer_socket_id
-                                                << ", peer_port_id=" << linkPtr[i].peer_port_id);
+                                               << ", port_id=" << linkPtr[i].port_id
+                                               << ", peer_slot_id=" << linkPtr[i].peer_slot_id
+                                               << ", peer_socket_id=" << linkPtr[i].peer_socket_id
+                                               << ", peer_port_id=" << linkPtr[i].peer_port_id);
         // 将 slot_id 作为键，添加到 neiBorNode
         if (neiBorNode.find(linkPtr[i].slot_id) == neiBorNode.end()) {
             std::set<uint32_t> tmpSet{};
@@ -803,8 +806,8 @@ int32_t UbseMemAdapter::InitializeRegionList(SHMRegions &regions)
     std::set_intersection(neiBorNode[localNode.slot_id].begin(), neiBorNode[localNode.slot_id].end(),
                           neiBorNode[firstNeiBorNode].begin(), neiBorNode[firstNeiBorNode].end(),
                           std::inserter(intersection1, intersection1.begin()));
-    intersection1.insert(localNode.slot_id);  // 增加本节点
-    intersection1.insert(firstNeiBorNode);    // 增加邻居节点
+    intersection1.insert(localNode.slot_id); // 增加本节点
+    intersection1.insert(firstNeiBorNode);   // 增加邻居节点
     std::set_difference(neiBorNode[localNode.slot_id].begin(), neiBorNode[localNode.slot_id].end(),
                         intersection1.begin(), intersection1.end(),
                         std::inserter(intersection2, intersection2.begin()));
@@ -842,14 +845,14 @@ int32_t UbseMemAdapter::InitializeRegionList(SHMRegions &regions)
         DBG_LOGINFO("Regions[" << i << "] is=" << regions.region[i].type << ", num=" << regions.region[i].num);
         for (int j = 0; j < regions.region[i].num; j++) {
             DBG_LOGINFO("Regions num[" << j << "]=" << regions.region[i].nodeId[j]
-                                        << ", hostname=" << regions.region[i].hostName[j]);
+                                       << ", hostname=" << regions.region[i].hostName[j]);
         }
     }
     free(linkPtr);
     return UBSM_OK;
 }
 
-int32_t UbseMemAdapter::CheckAndCopyRegionStatus(SHMRegions& staticRegions, SHMRegions& activeRegion)
+int32_t UbseMemAdapter::CheckAndCopyRegionStatus(SHMRegions &staticRegions, SHMRegions &activeRegion)
 {
     if (staticRegions.num > MAX_REGIONS_NUM) {
         DBG_LOGERROR("Static region is error, number of static regions=" << staticRegions.num);
@@ -857,28 +860,26 @@ int32_t UbseMemAdapter::CheckAndCopyRegionStatus(SHMRegions& staticRegions, SHMR
     }
     int regionsCnt = 0;
     for (int i = 0; i < staticRegions.num; ++i) {
-        const auto& region = staticRegions.region[i];
+        const auto &region = staticRegions.region[i];
         int nodeCnt = 0;
         activeRegion.region[regionsCnt].type = region.type;
         activeRegion.region[regionsCnt].perfLevel = region.perfLevel;
         for (int j = 0; j < region.num; ++j) {
             if (strlen(region.nodeId[j]) == 0 || strlen(region.hostName[j]) == 0) {
-                DBG_LOGWARN("nodeId or hostname is empty, cnt=" << j << ", id=" << region.nodeId[j] << ", hostname="
-                             << region.hostName[j]);
+                DBG_LOGWARN("nodeId or hostname is empty, cnt=" << j << ", id=" << region.nodeId[j]
+                                                                << ", hostname=" << region.hostName[j]);
                 continue;
             }
-            int ret = memcpy_s(activeRegion.region[regionsCnt].nodeId[nodeCnt], MEM_MAX_ID_LENGTH,
-                               region.nodeId[j], MEM_MAX_ID_LENGTH);
+            int ret = memcpy_s(activeRegion.region[regionsCnt].nodeId[nodeCnt], MEM_MAX_ID_LENGTH, region.nodeId[j],
+                               MEM_MAX_ID_LENGTH);
             if (ret != 0) {
-                DBG_LOGERROR("Failed to copy hostId, static region id="
-                             << region.nodeId[j]);
+                DBG_LOGERROR("Failed to copy hostId, static region id=" << region.nodeId[j]);
                 return MXM_ERR_MALLOC_FAIL;
             }
             ret = memcpy_s(activeRegion.region[regionsCnt].hostName[nodeCnt], MAX_HOST_NAME_DESC_LENGTH,
                            region.hostName[j], MAX_HOST_NAME_DESC_LENGTH);
             if (ret != 0) {
-                DBG_LOGERROR("Failed to copy hostId, static region name="
-                              << region.hostName[j]);
+                DBG_LOGERROR("Failed to copy hostId, static region name=" << region.hostName[j]);
                 return MXM_ERR_MALLOC_FAIL;
             }
             nodeCnt++;
@@ -893,7 +894,7 @@ int32_t UbseMemAdapter::CheckAndCopyRegionStatus(SHMRegions& staticRegions, SHMR
         DBG_LOGINFO("Regions[" << i << "]=" << activeRegion.region[i].type << ", num=" << activeRegion.region[i].num);
         for (int j = 0; j < activeRegion.region[i].num; j++) {
             DBG_LOGINFO("Regions num[" << j << "]=" << activeRegion.region[i].nodeId[j]
-                                        << ", hostname=" << activeRegion.region[i].hostName[j]);
+                                       << ", hostname=" << activeRegion.region[i].hostName[j]);
         }
     }
     return UBSM_OK;
@@ -937,7 +938,7 @@ int UbseMemAdapter::LookUpClusterStatistic(ubsmemClusterInfo &clusterInfo)
         DBG_LOGERROR("Ubsm is not initialized.");
         return MXM_ERR_UBSE_INNER;
     }
-    ubs_topo_node_t* nodeList;
+    ubs_topo_node_t *nodeList;
     uint32_t nodeCnt;
     DBG_LOGINFO("LookUpClusterStatistic start.");
     auto ret = pUbseNodeList(&nodeList, &nodeCnt);
@@ -970,7 +971,7 @@ int UbseMemAdapter::LookUpClusterStatistic(ubsmemClusterInfo &clusterInfo)
                 return MXM_ERR_UBSE_INNER;
             }
             ret = memcpy_s(clusterInfo.host[clusterInfo.host_num].host_name, MAX_HOST_NAME_DESC_LENGTH,
-                nodeList[i].host_name, MAX_HOST_NAME_DESC_LENGTH);
+                           nodeList[i].host_name, MAX_HOST_NAME_DESC_LENGTH);
             if (ret != 0) {
                 DBG_LOGERROR("memcpy_s failed, host name is " << nodeList[i].host_name << ", ret: " << ret);
                 free(numaMems);
@@ -986,12 +987,13 @@ int UbseMemAdapter::LookUpClusterStatistic(ubsmemClusterInfo &clusterInfo)
             clusterInfo.host[clusterInfo.host_num].numa[j].mem_lend = numaMems[j].mem_lend;
             clusterInfo.host[clusterInfo.host_num].numa[j].mem_lend_ratio = numaMems[j].mem_lend_ratio;
             clusterInfo.host[clusterInfo.host_num].numa_num++;
-            DBG_LOGINFO("host nodeid: " << numaMems[j].slot_id << ",host_name "
-                << clusterInfo.host[clusterInfo.host_num].host_name
-                << ", numaid: " << numaMems[j].numa_id << ", socket_id: " << numaMems[j].socket_id
-                << ", mem_total: " << numaMems[j].mem_total << ", mem_free: " << numaMems[j].mem_free
-                << ", mem_borrow: " << numaMems[j].mem_borrow << ", mem_lend: " << numaMems[j].mem_lend
-                << ", mem_lend_ratio: " << numaMems[j].mem_lend_ratio);
+            DBG_LOGINFO(
+                "host nodeid: " << numaMems[j].slot_id << ",host_name "
+                                << clusterInfo.host[clusterInfo.host_num].host_name
+                                << ", numaid: " << numaMems[j].numa_id << ", socket_id: " << numaMems[j].socket_id
+                                << ", mem_total: " << numaMems[j].mem_total << ", mem_free: " << numaMems[j].mem_free
+                                << ", mem_borrow: " << numaMems[j].mem_borrow << ", mem_lend: " << numaMems[j].mem_lend
+                                << ", mem_lend_ratio: " << numaMems[j].mem_lend_ratio);
         }
         clusterInfo.host_num++;
         free(numaMems);
@@ -1003,7 +1005,7 @@ int UbseMemAdapter::LookUpClusterStatistic(ubsmemClusterInfo &clusterInfo)
     return UBSM_OK;
 }
 
-uint32_t UbseMemAdapter::GetSocketIdWithNumaNode(int numaNode, uint32_t* socketId)
+uint32_t UbseMemAdapter::GetSocketIdWithNumaNode(int numaNode, uint32_t *socketId)
 {
     if (pUbseNodeLocalGet == nullptr) {
         DBG_LOGERROR("Ubsm is not initialized.");
@@ -1029,8 +1031,8 @@ uint32_t UbseMemAdapter::GetSocketIdWithNumaNode(int numaNode, uint32_t* socketI
     for (int i = 0; i < UBS_TOPO_SOCKET_NUM; ++i) {
         for (int j = 0; j < UBS_TOPO_NUMA_NUM; ++j) {
             if (localNode.numa_ids[i][j] == numaNode) {
-                DBG_LOGINFO("Found socket_id[" << i << "] = " << localNode.socket_id[i]
-                                               << " for NUMA node " << numaNode);
+                DBG_LOGINFO("Found socket_id[" << i << "] = " << localNode.socket_id[i] << " for NUMA node "
+                                               << numaNode);
                 *socketId = localNode.socket_id[i];
                 return MXM_OK;
             }
@@ -1054,12 +1056,12 @@ int UbseMemAdapter::ShmCreateWithAffinity(const CreateShmParam &param, const ubs
     TP_TRACE_END(TP_UBSE_IS_BOUND_NUMA, 0);
     if (numaNode == -1) {
         DBG_LOGWARN("parem (name=" << param.name << ", pid=" << param.appContext.pid
-                                    << ") is not bound on one numa node.");
+                                   << ") is not bound on one numa node.");
         return MXM_ERR_SHM_INVALID_NUMA;
     }
 
     DBG_LOGINFO("create shm with numa node=" << numaNode << " affinity, name=" << param.name
-                                              << ", pid=" << param.appContext.pid);
+                                             << ", pid=" << param.appContext.pid);
     uint32_t socketId;
     auto res = GetSocketIdWithNumaNode(numaNode, &socketId);
     if (res == MXM_OK) {
@@ -1067,10 +1069,9 @@ int UbseMemAdapter::ShmCreateWithAffinity(const CreateShmParam &param, const ubs
         DBG_LOGINFO("GetSocketIdWithNumaNode found socket ID=" << socketId << ", create shm name=" << param.name);
         TP_TRACE_BEGIN(TP_UBSE_MEM_SHM_CREATE_WITH_AFFINITY);
         auto ret = pUbseMemShmCreateWithAffinity(param.name.c_str(), static_cast<uint64_t>(param.size), socketId,
-                                                 const_cast<uint8_t *>(usrInfo), ubseFlags, &region,
-                                                 &param.privider);
+                                                 const_cast<uint8_t *>(usrInfo), ubseFlags, &region, &param.privider);
         TP_TRACE_END(TP_UBSE_MEM_SHM_CREATE_WITH_AFFINITY, ret);
-        if (ret != UBS_SUCCESS && ret != UBS_ERR_TIMED_OUT) {  // 失败打warning
+        if (ret != UBS_SUCCESS && ret != UBS_ERR_TIMED_OUT) { // 失败打warning
             DBG_LOGERROR("pUbseMemShmCreateWithAffinity failed, ret=" << ret << ", name=" << param.name);
             if (ret == UBS_ERR_NOT_SUPPORTED) {
                 DBG_LOGERROR("pUbseMemShmCreateWithAffinity not support.");
@@ -1079,12 +1080,14 @@ int UbseMemAdapter::ShmCreateWithAffinity(const CreateShmParam &param, const ubs
             return MXM_ERR_UBSE_INNER;
         }
         if (ret == UBS_ERR_TIMED_OUT) {
-            DelayRemovedKey removedKey{param.name, ONE_MINUTE_MS, false, {param.appContext.pid,
-                param.appContext.uid, param.appContext.gid}, false, false, true};
+            DelayRemovedKey removedKey{
+                param.name, ONE_MINUTE_MS, false, {param.appContext.pid, param.appContext.uid, param.appContext.gid},
+                false,      false,         true};
             removedKey.isAttach = false;
             removedKey.createSeqNo = createSeqNo;
             DBG_LOGERROR("Create share memory fail, errCode=" << ret << " name=" << param.name
-                << " pid=" << param.appContext.pid << ", expires time=" << removedKey.expiresTime);
+                                                              << " pid=" << param.appContext.pid
+                                                              << ", expires time=" << removedKey.expiresTime);
             UBSMemMonitor::GetInstance().AddDelayRemoveRecord(removedKey);
             return UBS_ERR_TIMED_OUT;
         }
@@ -1162,9 +1165,9 @@ int UbseMemAdapter::ShmCreate(const CreateShmParam &param)
         DBG_LOGERROR("PrepareUserInfoAndFlags failed, name=" << param.name << ", ret=" << ret);
         return ret;
     }
-    DBG_LOGINFO("Param name=" << param.name << "size=" << param.size << "User info: uid=" <<
-        ubsUserInfo.udsInfo.uid << ", gid=" << ubsUserInfo.udsInfo.gid << ", pid=" << ubsUserInfo.udsInfo.pid <<
-        ", flag=" << ubsUserInfo.flag << ", mode=" << ubsUserInfo.mode << ", ubseFlags=" << ubseFlags);
+    DBG_LOGINFO("Param name=" << param.name << "size=" << param.size << "User info: uid=" << ubsUserInfo.udsInfo.uid
+                              << ", gid=" << ubsUserInfo.udsInfo.gid << ", pid=" << ubsUserInfo.udsInfo.pid << ", flag="
+                              << ubsUserInfo.flag << ", mode=" << ubsUserInfo.mode << ", ubseFlags=" << ubseFlags);
 
     ret = ShmCreateWithAffinity(param, region, ubseFlags, usrInfo, seqNo);
     if (ret == MXM_OK) {
@@ -1190,12 +1193,14 @@ int UbseMemAdapter::ShmCreate(const CreateShmParam &param)
         return MXM_ERR_UBSE_INNER;
     }
     if (ret == UBS_ERR_TIMED_OUT) {
-        DelayRemovedKey removedKey{param.name, ONE_MINUTE_MS, false, {param.appContext.pid,
-            param.appContext.uid, param.appContext.gid}, false, false, true};
+        DelayRemovedKey removedKey{
+            param.name, ONE_MINUTE_MS, false, {param.appContext.pid, param.appContext.uid, param.appContext.gid},
+            false,      false,         true};
         removedKey.isAttach = false;
         removedKey.createSeqNo = seqNo;
         DBG_LOGERROR("Create share memory fail, errCode=" << ret << " name=" << param.name
-            << " pid=" << param.appContext.pid << ", expires time=" << removedKey.expiresTime);
+                                                          << " pid=" << param.appContext.pid
+                                                          << ", expires time=" << removedKey.expiresTime);
         UBSMemMonitor::GetInstance().AddDelayRemoveRecord(removedKey);
         return UBS_ERR_TIMED_OUT;
     }
@@ -1203,7 +1208,7 @@ int UbseMemAdapter::ShmCreate(const CreateShmParam &param)
     return MXM_OK;
 }
 
-int UbseMemAdapter::GetSlotIdFromHostName(const std::string& hostName, uint32_t* slotId)
+int UbseMemAdapter::GetSlotIdFromHostName(const std::string &hostName, uint32_t *slotId)
 {
     auto ret = Initialize();
     if (ret != 0) {
@@ -1214,7 +1219,7 @@ int UbseMemAdapter::GetSlotIdFromHostName(const std::string& hostName, uint32_t*
         DBG_LOGERROR("Host name is empty");
         return MXM_ERR_PARAM_INVALID;
     }
-    ubs_topo_node_t* nodeList;
+    ubs_topo_node_t *nodeList;
     uint32_t nodeCnt;
     TP_TRACE_BEGIN(TP_UBSM_GET_NODE_LIST);
     ret = pUbseNodeList(&nodeList, &nodeCnt);
@@ -1233,7 +1238,7 @@ int UbseMemAdapter::GetSlotIdFromHostName(const std::string& hostName, uint32_t*
     std::unordered_map<std::string, uint32_t> hostToSlotId;
     for (uint32_t i = 0; i < nodeCnt; ++i) {
         DBG_LOGINFO("Node list info: slot_id[" << i << "]=" << nodeList[i].slot_id
-                                          << ", hostname=" << nodeList[i].host_name);
+                                               << ", hostname=" << nodeList[i].host_name);
         hostToSlotId[nodeList[i].host_name] = nodeList[i].slot_id;
     }
 
@@ -1248,8 +1253,8 @@ int UbseMemAdapter::GetSlotIdFromHostName(const std::string& hostName, uint32_t*
     return MXM_OK;
 }
 
-int UbseMemAdapter::PrepareShmCreateWithProviderParams(const CreateShmWithProviderParam& param, uint8_t* usrInfo,
-                                                       uint64_t* ubseFlags, uint32_t* slotId, uint64_t& seqNo)
+int UbseMemAdapter::PrepareShmCreateWithProviderParams(const CreateShmWithProviderParam &param, uint8_t *usrInfo,
+                                                       uint64_t *ubseFlags, uint32_t *slotId, uint64_t &seqNo)
 {
     int ret = GetSlotIdFromHostName(param.hostName, slotId);
     if (ret != MXM_OK) {
@@ -1274,7 +1279,7 @@ int UbseMemAdapter::PrepareShmCreateWithProviderParams(const CreateShmWithProvid
     return MXM_OK;
 }
 
-int UbseMemAdapter::ShmCreateWithProvider(const CreateShmWithProviderParam& param)
+int UbseMemAdapter::ShmCreateWithProvider(const CreateShmWithProviderParam &param)
 {
     auto ret = Initialize();
     if (ret != 0) {
@@ -1366,7 +1371,7 @@ int UbseMemAdapter::ShmDelete(const std::string &name, const ubsm::AppContext &a
     return MXM_OK;
 }
 
-int UbseMemAdapter::ShmGetUserData(const std::string& name, ubse_user_info_t& ubsUserInfo)
+int UbseMemAdapter::ShmGetUserData(const std::string &name, ubse_user_info_t &ubsUserInfo)
 {
     auto ret = Initialize();
     if (ret != 0) {
@@ -1406,7 +1411,7 @@ int UbseMemAdapter::ShmGetUserData(const std::string& name, ubse_user_info_t& ub
     return MXM_OK;
 }
 
-void UbseMemAdapter::FreeShmDesc(ubs_mem_shm_desc_t* shmDes)
+void UbseMemAdapter::FreeShmDesc(ubs_mem_shm_desc_t *shmDes)
 {
     if (!shmDes) {
         return;
@@ -1477,16 +1482,16 @@ int UbseMemAdapter::GetTimeOutShmTaskStatus(const std::string &name, ubs_mem_sta
         }
     }
     if (!exist) {
-        DBG_LOGINFO("Shared memory not attached on current node. name=" << name <<
-            ", import_desc_cnt=" << desc->import_desc_cnt);
+        DBG_LOGINFO("Shared memory not attached on current node. name=" << name << ", import_desc_cnt="
+                                                                        << desc->import_desc_cnt);
         return MXM_ERR_SHM_NOT_EXIST;
     }
 
     return MXM_OK;
 }
 
-int UbseMemAdapter::GetTimeOutTaskStatus(const std::string &name, bool isLease,
-    bool isNumaLease, ubs_mem_stage &status, bool isAttach)
+int UbseMemAdapter::GetTimeOutTaskStatus(const std::string &name, bool isLease, bool isNumaLease, ubs_mem_stage &status,
+                                         bool isAttach)
 {
     DBG_LOGINFO("GetTimeOutTaskStatus start, name=" << name << ", isLease=" << isLease);
     if (!isLease) {
@@ -1542,11 +1547,11 @@ int UbseMemAdapter::ShmAttach(const std::string &name, const ubse_user_info_t &u
     ret = pUbseMemShmAttach(name.c_str(), &owner, ubsUserInfo.mode, &shmDes);
     TP_TRACE_END(TP_UBSE_ATTACH_SHARED_MEMORY, ret);
     if (ret == UBS_ERR_TIMED_OUT) {
-        AppContext context{static_cast<uint32_t>(ubsUserInfo.udsInfo.pid),
-            ubsUserInfo.udsInfo.uid, ubsUserInfo.udsInfo.gid};
+        AppContext context{static_cast<uint32_t>(ubsUserInfo.udsInfo.pid), ubsUserInfo.udsInfo.uid,
+                           ubsUserInfo.udsInfo.gid};
         DelayRemovedKey removedKey{name, ONE_MINUTE_MS, false, context, false, false, true};
-        DBG_LOGERROR("Attach share memory fail, errCode=" << ret << " name=" << name
-            << " pid=" << context.pid << ", expires time=" << removedKey.expiresTime);
+        DBG_LOGERROR("Attach share memory fail, errCode=" << ret << " name=" << name << " pid=" << context.pid
+                                                          << ", expires time=" << removedKey.expiresTime);
         removedKey.isAttach = true;
         UBSMemMonitor::GetInstance().AddDelayRemoveRecord(removedKey);
         return UBS_ERR_TIMED_OUT;
@@ -1577,7 +1582,7 @@ int UbseMemAdapter::ShmAttach(const std::string &name, const ubse_user_info_t &u
     for (uint32_t i = 0; i < shmDes->import_desc[0].memid_cnt; ++i) {
         result.memIds.emplace_back(shmDes->import_desc[0].memids[i]);
         DBG_LOGDEBUG("ubs_mem_fd_desc_t memid_cnt: " << shmDes->import_desc[0].memid_cnt << " index: " << i
-                                                      << "memids: " << shmDes->import_desc[0].memids[i]);
+                                                     << "memids: " << shmDes->import_desc[0].memids[i]);
     }
     DBG_LOGINFO("shmDes shmSize: " << shmDes->mem_size << " unitSize: " << shmDes->unit_size
                                    << " memidCnt: " << shmDes->import_desc[0].memid_cnt);
@@ -1682,7 +1687,8 @@ int UbseMemAdapter::ShmLookup(const std::string &name, ubsmem_shmem_info_t &shmI
         return MXM_ERR_UBSE_INNER;
     }
     DBG_LOGINFO("localNode slot_id =" << localNode.slot_id << " socket_id 0=" << localNode.socket_id[0]
-            << " socket_id 1=" << localNode.socket_id[1] << " host name=" << localNode.host_name);
+                                      << " socket_id 1=" << localNode.socket_id[1]
+                                      << " host name=" << localNode.host_name);
 
     ubs_mem_shm_desc_t *desc = nullptr;
     ret = pUbseMemShmGet(name.c_str(), &desc);
@@ -1801,7 +1807,7 @@ int UbseMemAdapter::LeaseFree(const std::string &name, bool isNuma)
     return MXM_OK;
 }
 
-void UbseMemAdapter::UseLog(uint32_t level, const char* str)
+void UbseMemAdapter::UseLog(uint32_t level, const char *str)
 {
     switch (level + 1) {
         case static_cast<int>(DBG_LOG_DEBUG):
@@ -1821,7 +1827,7 @@ void UbseMemAdapter::UseLog(uint32_t level, const char* str)
     }
 }
 
-int UbseMemAdapter::GetLeaseMemoryStage(const std::string& name, bool isNuma, ubs_mem_stage& state)
+int UbseMemAdapter::GetLeaseMemoryStage(const std::string &name, bool isNuma, ubs_mem_stage &state)
 {
     if (isNuma) {
         if (pUbseMemNumaGet == nullptr) {
@@ -1859,7 +1865,7 @@ int UbseMemAdapter::GetLeaseMemoryStage(const std::string& name, bool isNuma, ub
     return MXM_OK;
 }
 
-int UbseMemAdapter::GetShareMemoryStage(const std::string& name, ubs_mem_stage& state)
+int UbseMemAdapter::GetShareMemoryStage(const std::string &name, ubs_mem_stage &state)
 {
     if (pUbseMemShmGet == nullptr || pUbseNodeLocalGet == nullptr) {
         DBG_LOGERROR("pUbseMemShmGet or pUbseNodeLocalGet is nullptr");
@@ -1871,7 +1877,7 @@ int UbseMemAdapter::GetShareMemoryStage(const std::string& name, ubs_mem_stage& 
         DBG_LOGERROR("pUbseNodeLocalGet failed, ret=" << ret);
         return MXM_ERR_UBSE_INNER;
     }
-    ubs_mem_shm_desc_t* desc = nullptr;
+    ubs_mem_shm_desc_t *desc = nullptr;
     ret = pUbseMemShmGet(name.c_str(), &desc);
     if (ret == UBS_ENGINE_ERR_NOT_EXIST) {
         DBG_LOGINFO("Share memory not exist. name=" << name);
@@ -1941,5 +1947,5 @@ int UbseMemAdapter::EnsureGetLocalNodeId(uint32_t &nid)
     nid = tmpNodeId;
     return HOK;
 }
-}  // namespace mxm
-}  // namespace ock
+} // namespace mxm
+} // namespace ock

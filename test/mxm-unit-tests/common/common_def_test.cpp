@@ -1,6 +1,6 @@
+#include "common_def.h"
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
-#include "common_def.h"
 
 using testing::Test;
 
@@ -104,4 +104,4 @@ TEST_F(CommonDefTestSuite, TestPairMap)
     auto key2 = std::make_pair(3, 4);
     EXPECT_EQ(map[key2], "world");
 }
-}
+} // namespace UT

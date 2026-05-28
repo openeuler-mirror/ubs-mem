@@ -18,11 +18,11 @@ using namespace ock::com::ipc;
 using namespace ock::mxmd;
 namespace ock::lease::service {
 
-uint32_t IpcServerEngine::RegisterOpcode(MxmComEndpoint opcode, const HcomServiceHandle& handle)
+uint32_t IpcServerEngine::RegisterOpcode(MxmComEndpoint opcode, const HcomServiceHandle &handle)
 {
     opcode.moduleId = 1;
     auto ret = MxmRegIpcService(
-        opcode, [opcode, handle](const MxmComUdsInfo& udsInfo, const MsgBase* req, MsgBase* resp) -> void {
+        opcode, [opcode, handle](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *resp) -> void {
             handle.func(udsInfo, req, resp);
             return;
         });
@@ -31,4 +31,4 @@ uint32_t IpcServerEngine::RegisterOpcode(MxmComEndpoint opcode, const HcomServic
     }
     return HOK;
 }
-}  // namespace ock::lease::service
+} // namespace ock::lease::service

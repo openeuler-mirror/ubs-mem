@@ -11,17 +11,17 @@
  */
 #ifndef HDAGGER_DG_EXECUTION_SERVICE_H
 #define HDAGGER_DG_EXECUTION_SERVICE_H
+#include <unistd.h>
 #include <atomic>
+#include <functional>
 #include <mutex>
 #include <thread>
-#include <unistd.h>
 #include <vector>
-#include <functional>
 
 #include "../container/dg_ring_buffer.h"
 #include "../dg_common.h"
-#include "log.h"
 #include "../referable/dg_ref.h"
+#include "log.h"
 
 namespace ock {
 namespace dagger {
@@ -35,9 +35,9 @@ enum RunnableType {
  */
 class Runnable {
 public:
-    Runnable() : mTask{ nullptr } {}
+    Runnable() : mTask{nullptr} {}
 
-    explicit Runnable(const std::function<void()> &task) : mTask{ task } {}
+    explicit Runnable(const std::function<void()> &task) : mTask{task} {}
     virtual ~Runnable() = default;
 
     virtual void Run()
@@ -182,7 +182,8 @@ private:
           mStarted(false),
           mStopped(false),
           mStartedThreadNum(0)
-    {}
+    {
+    }
 
     void RunInThread(int16_t cpuId);
     void DoRunnable(bool &flag);
@@ -314,6 +315,6 @@ inline void ExecutorService::RunInThread(int16_t cpuId)
     }
     DBG_LOGINFO("Thread for executor service <" << threadName << "> cpuId " << cpuId << " exiting");
 }
-}
-}
+} // namespace dagger
+} // namespace ock
 #endif // HDAGGER_DG_EXECUTION_SERVICE_H

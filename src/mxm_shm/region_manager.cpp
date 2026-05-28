@@ -11,8 +11,8 @@
  */
 
 #include "region_manager.h"
-#include "util/functions.h"
 #include "rack_mem_err.h"
+#include "util/functions.h"
 
 namespace ock::share::service {
 
@@ -38,7 +38,7 @@ bool RegionManager::RecoverFromRamFS()
         return false;
     }
 
-    for (const auto& elem : regions) {
+    for (const auto &elem : regions) {
         if (mRegionMap.find(elem.name) != mRegionMap.end()) {
             DBG_LOGERROR("The region has already recoverd!" << elem.name);
             return false;

@@ -28,13 +28,13 @@ OckServiceManager::~OckServiceManager()
     }
 }
 
-HRESULT OckServiceManager::ServicePut(const std::vector<std::string>& services, const std::string& libHomePath)
+HRESULT OckServiceManager::ServicePut(const std::vector<std::string> &services, const std::string &libHomePath)
 {
-    if ((services.size() < 1) || (services.size() > 2)) {  // 2
+    if ((services.size() < 1) || (services.size() > 2)) { // 2
         DBG_LOGERROR("Services count should be within the range of [1, 2], size is: " << services.size());
         return HFAIL;
     }
-    for (auto& service : services) {
+    for (auto &service : services) {
         std::string serviceName = service;
         OckTrimString(serviceName);
         std::string lowerServiceName = serviceName;
@@ -45,12 +45,12 @@ HRESULT OckServiceManager::ServicePut(const std::vector<std::string>& services, 
             return HFAIL;
         }
 
-        OckServiceAdapter* adapter = new (std::nothrow) OckServiceAdapter(serviceName, libPath);
+        OckServiceAdapter *adapter = new (std::nothrow) OckServiceAdapter(serviceName, libPath);
         if (adapter == nullptr) {
             DBG_LOGERROR("Fail to create service adapter.");
             return HFAIL;
         }
-        auto* serviceP = new (std::nothrow) OckService();
+        auto *serviceP = new (std::nothrow) OckService();
         if (serviceP == nullptr) {
             DBG_LOGERROR("Service(" << serviceName.c_str() << ") build failed, ignored.");
             SAFE_DELETE(adapter);
@@ -72,8 +72,8 @@ HRESULT OckServiceManager::ServicePut(const std::vector<std::string>& services, 
 HRESULT OckServiceManager::ServiceProcessArgs()
 {
     std::unique_lock<std::mutex> lock(mutex_);
-    for (const auto& adapterIter : serviceAdapterMap) {
-        auto& name = adapterIter.first;
+    for (const auto &adapterIter : serviceAdapterMap) {
+        auto &name = adapterIter.first;
         if (adapterIter.second == nullptr) {
             DBG_LOGERROR("Ock service adapter of " << name.c_str() << "is NULL. ");
             continue;
@@ -87,7 +87,7 @@ HRESULT OckServiceManager::ServiceProcessArgs()
             DBG_LOGERROR("An wrong service(" << name.c_str() << ") in ock service manager.");
             continue;
         }
-        OckServiceArgs* serviceArgs = OckServiceAdapter::CreateServiceArgs(serviceIter->second->ServiceApplyArgs());
+        OckServiceArgs *serviceArgs = OckServiceAdapter::CreateServiceArgs(serviceIter->second->ServiceApplyArgs());
         if (serviceArgs == nullptr) {
             DBG_LOGERROR("Service(" << name.c_str() << ") create arg array failed.");
             return HFAIL;
@@ -103,13 +103,16 @@ HRESULT OckServiceManager::ServiceProcessArgs()
     return HOK;
 }
 
-HRESULT OckServiceManager::OnServiceProcessArgs(int argc, char** argv) { return HOK; }
+HRESULT OckServiceManager::OnServiceProcessArgs(int argc, char **argv)
+{
+    return HOK;
+}
 
 HRESULT OckServiceManager::OnServiceInitialize()
 {
     DBG_LOGINFO("OckServiceManager OnServiceInitialize.");
     std::unique_lock<std::mutex> lock(mutex_);
-    for (auto& iter : serviceMap) {
+    for (auto &iter : serviceMap) {
         if (iter.second == nullptr) {
             DBG_LOGERROR("An wrong service in OckServiceManager.");
             continue;
@@ -128,7 +131,7 @@ HRESULT OckServiceManager::OnServiceStart()
     HRESULT hr = HOK;
     DBG_LOGINFO("OckServiceManager OnServiceStart.");
     std::unique_lock<std::mutex> lock(mutex_);
-    for (auto& iter : serviceMap) {
+    for (auto &iter : serviceMap) {
         if (iter.second == nullptr) {
             DBG_LOGERROR("An wrong service in OckServiceManager.");
             continue;
@@ -146,7 +149,7 @@ HRESULT OckServiceManager::OnServiceHealthy()
 {
     std::unique_lock<std::mutex> lock(mutex_);
     HRESULT hr = HOK;
-    for (auto& iter : serviceMap) {
+    for (auto &iter : serviceMap) {
         if (iter.second == nullptr) {
             DBG_LOGERROR("An wrong service in OckServiceManager.");
             continue;
@@ -165,7 +168,7 @@ HRESULT OckServiceManager::OnServiceShutdown()
     std::unique_lock<std::mutex> lock(mutex_);
     HRESULT hr = HOK;
     DBG_LOGINFO("OckServiceManager OnServiceShutdown.");
-    for (auto& iter : serviceMap) {
+    for (auto &iter : serviceMap) {
         if (iter.second == nullptr) {
             DBG_LOGERROR("An wrong service in OckServiceManager.");
             continue;
@@ -184,7 +187,7 @@ HRESULT OckServiceManager::OnServiceUninitialize()
     std::unique_lock<std::mutex> lock(mutex_);
     HRESULT hr = HOK;
     DBG_LOGINFO("OckServiceManager OnServiceUninitialize.");
-    for (auto& iter : serviceMap) {
+    for (auto &iter : serviceMap) {
         if (iter.second == nullptr) {
             DBG_LOGERROR("An wrong service in OckServiceManager.");
             continue;
@@ -198,7 +201,7 @@ HRESULT OckServiceManager::OnServiceUninitialize()
     return hr;
 }
 
-HRESULT OckServiceManager::ServiceInitialize(const std::string& serviceName)
+HRESULT OckServiceManager::ServiceInitialize(const std::string &serviceName)
 {
     std::unique_lock<std::mutex> lock(mutex_);
     DBG_LOGINFO("execute ServiceInitialize with serviceName: " << serviceName);
@@ -214,7 +217,7 @@ HRESULT OckServiceManager::ServiceInitialize(const std::string& serviceName)
     return iter->second->ServiceInitialize();
 }
 
-HRESULT OckServiceManager::ServiceStart(const std::string& serviceName)
+HRESULT OckServiceManager::ServiceStart(const std::string &serviceName)
 {
     std::unique_lock<std::mutex> lock(mutex_);
     DBG_LOGINFO("execute ServiceStart with serviceName: " << serviceName);
@@ -230,7 +233,7 @@ HRESULT OckServiceManager::ServiceStart(const std::string& serviceName)
     return iter->second->ServiceStart();
 }
 
-HRESULT OckServiceManager::ServiceShutdown(const std::string& serviceName)
+HRESULT OckServiceManager::ServiceShutdown(const std::string &serviceName)
 {
     std::unique_lock<std::mutex> lock(mutex_);
     DBG_LOGINFO("execute ServiceShutdown with serviceName: " << serviceName);
@@ -246,7 +249,7 @@ HRESULT OckServiceManager::ServiceShutdown(const std::string& serviceName)
     return iter->second->ServiceShutdown();
 }
 
-HRESULT OckServiceManager::ServiceUninitialize(const std::string& serviceName)
+HRESULT OckServiceManager::ServiceUninitialize(const std::string &serviceName)
 {
     std::unique_lock<std::mutex> lock(mutex_);
     DBG_LOGINFO("execute ServiceUninitialize with serviceName: " << serviceName);
@@ -261,5 +264,5 @@ HRESULT OckServiceManager::ServiceUninitialize(const std::string& serviceName)
     }
     return iter->second->ServiceUninitialize();
 }
-}  // namespace daemon
-}  // namespace ock
+} // namespace daemon
+} // namespace ock

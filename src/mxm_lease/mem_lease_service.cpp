@@ -35,5 +35,8 @@ MemLeaseService::MemLeaseService() noexcept
     };
 }
 
-HRESULT MemLeaseService::OnServiceProcessArgs(int argc, char* argv[]) { return HOK; }
-}  // namespace ock::lease::service
+HRESULT MemLeaseService::OnServiceProcessArgs(int argc, char *argv[])
+{
+    return HOK;
+}
+} // namespace ock::lease::service
