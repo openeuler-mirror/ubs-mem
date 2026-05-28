@@ -13,8 +13,8 @@
 #ifndef SIMPLE_SAMPLES_RECORD_ID_POOL_ALLOCATOR_H
 #define SIMPLE_SAMPLES_RECORD_ID_POOL_ALLOCATOR_H
 
-#include <vector>
 #include <mutex>
+#include <vector>
 #include "record_store_def.h"
 
 namespace ock {
@@ -34,7 +34,7 @@ private:
     std::vector<uint32_t> idleIdIndexes_;
     std::mutex indexMutex_;
 };
-}
-}
+} // namespace ubsm
+} // namespace ock
 
-#endif  // SIMPLE_SAMPLES_RECORD_ID_POOL_ALLOCATOR_H
+#endif // SIMPLE_SAMPLES_RECORD_ID_POOL_ALLOCATOR_H

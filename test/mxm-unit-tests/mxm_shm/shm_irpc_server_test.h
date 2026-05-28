@@ -13,10 +13,16 @@ namespace UT {
 #endif
 class ShmIRpcServerTestSuite : public testing::Test {
 public:
-    void SetUp() override { GlobalMockObject::reset(); };
+    void SetUp() override
+    {
+        GlobalMockObject::reset();
+    };
 
-    void TearDown() override { GlobalMockObject::reset(); };
+    void TearDown() override
+    {
+        GlobalMockObject::reset();
+    };
 };
 
-}  // namespace UT
-#endif  // UBSM_TEST_SHM_IRPC_SERVER_TEST_H
+} // namespace UT
+#endif // UBSM_TEST_SHM_IRPC_SERVER_TEST_H

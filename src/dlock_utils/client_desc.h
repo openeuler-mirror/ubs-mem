@@ -13,11 +13,11 @@
 #ifndef UBSM_CLIENT_DESC_H
 #define UBSM_CLIENT_DESC_H
 
+#include <pthread.h>
 #include <cstdint>
 #include <cstdlib>
-#include <pthread.h>
-#include <string>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include "comm_def.h"
 #include "time/dg_monotonic.h"
@@ -118,11 +118,11 @@ public:
             return;
         }
 
-        auto& udsSet = it->second;
+        auto &udsSet = it->second;
         auto found = udsSet.find(udsInfo);
         if (found != udsSet.end()) {
-            DBG_LOGINFO("RemoveLockUdsInfoByName udsInfo by name: " << name << " pid: " << udsInfo.pid
-                                                            << " uid: " << udsInfo.uid << " gid: " << udsInfo.gid);
+            DBG_LOGINFO("RemoveLockUdsInfoByName udsInfo by name: " << name << " pid: " << udsInfo.pid << " uid: "
+                                                                    << udsInfo.uid << " gid: " << udsInfo.gid);
             udsSet.erase(found);
             return;
         }
@@ -197,17 +197,17 @@ public:
         auto it = name2UdsInfo.find(name);
         if (it == name2UdsInfo.end()) {
             DBG_LOGWARN("Failed to find udsInfo by name: " << name);
-            return true;  // 没有相关锁信息，返回 true
+            return true; // 没有相关锁信息，返回 true
         }
         auto timeNow = dagger::Monotonic::TimeUs();
         for (const auto &udsInfo : it->second) {
             if (udsInfo.validTime > timeNow) {
                 DBG_LOGDEBUG("Has validTime lock with name: " << name);
-                return true;  // 存在未过期的锁，返回 true
+                return true; // 存在未过期的锁，返回 true
             }
         }
         DBG_LOGINFO("All lock is invalid with name: " << name);
-        return false;  // 所有锁都已过期，返回 false
+        return false; // 所有锁都已过期，返回 false
     }
 
 private:
@@ -217,6 +217,6 @@ private:
     pthread_rwlock_t clientLock{};
     mutable std::mutex dataMutex;
 };
-}  // namespace dlock_utils
-}  // namespace ock
+} // namespace dlock_utils
+} // namespace ock
 #endif

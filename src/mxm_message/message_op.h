@@ -14,7 +14,8 @@
 #define MESSAGE_OP_H
 
 #include <cstdint>
-enum RmMemOpCodeIpc : uint16_t {
+enum RmMemOpCodeIpc : uint16_t
+{
     MEM_OP_SERVER_BEGIN = 0,
     // 内存借用
     IPC_FREE_RACKMEM,
@@ -61,7 +62,8 @@ enum RmMemOpCodeIpc : uint16_t {
     IPC_RACKMEMSHM_QUERY_SLOT_ID,
 };
 
-enum RmMemOpCodeRpc : uint16_t {
+enum RmMemOpCodeRpc : uint16_t
+{
     RPC_AGENT_QUERY_NODE_INFO = 100,
 
     // DLOCK
@@ -78,4 +80,4 @@ enum RmMemOpCodeRpc : uint16_t {
     RPC_BROADCAST_NODE_INFO,
 };
 
-#endif  // MESSAGE_OP_H
+#endif // MESSAGE_OP_H

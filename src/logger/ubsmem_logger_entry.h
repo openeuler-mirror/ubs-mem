@@ -13,8 +13,8 @@
 
 #ifndef UBSMEM_LOGGER_H
 #define UBSMEM_LOGGER_H
-#include <unistd.h>
 #include <pthread.h>
+#include <unistd.h>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -36,29 +36,29 @@ namespace ubsmem::log {
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #endif
 
-#define UBSMEM_LOGGER_CRIT                                            \
+#define UBSMEM_LOGGER_CRIT                                              \
     ubsmem::log::UbsmemLogEnabled(ubsmem::log::UbsmemLogLevel::CRIT) && \
-        ubsmem::log::UbsmemLog() ==                                   \
+        ubsmem::log::UbsmemLog() ==                                     \
             ubsmem::log::UbsmemLoggerEntry(ubsmem::log::UbsmemLogLevel::CRIT, FILENAME, __func__, __LINE__)
 
-#define UBSMEM_LOGGER_ERROR                                            \
+#define UBSMEM_LOGGER_ERROR                                              \
     ubsmem::log::UbsmemLogEnabled(ubsmem::log::UbsmemLogLevel::ERROR) && \
-        ubsmem::log::UbsmemLog() ==                                    \
+        ubsmem::log::UbsmemLog() ==                                      \
             ubsmem::log::UbsmemLoggerEntry(ubsmem::log::UbsmemLogLevel::ERROR, FILENAME, __func__, __LINE__)
 
-#define UBSMEM_LOGGER_WARN                                            \
+#define UBSMEM_LOGGER_WARN                                              \
     ubsmem::log::UbsmemLogEnabled(ubsmem::log::UbsmemLogLevel::WARN) && \
-        ubsmem::log::UbsmemLog() ==                                   \
+        ubsmem::log::UbsmemLog() ==                                     \
             ubsmem::log::UbsmemLoggerEntry(ubsmem::log::UbsmemLogLevel::WARN, FILENAME, __func__, __LINE__)
 
-#define UBSMEM_LOGGER_INFO                                            \
+#define UBSMEM_LOGGER_INFO                                              \
     ubsmem::log::UbsmemLogEnabled(ubsmem::log::UbsmemLogLevel::INFO) && \
-        ubsmem::log::UbsmemLog() ==                                   \
+        ubsmem::log::UbsmemLog() ==                                     \
             ubsmem::log::UbsmemLoggerEntry(ubsmem::log::UbsmemLogLevel::INFO, FILENAME, __func__, __LINE__)
 
-#define UBSMEM_LOGGER_DEBUG                                            \
+#define UBSMEM_LOGGER_DEBUG                                              \
     ubsmem::log::UbsmemLogEnabled(ubsmem::log::UbsmemLogLevel::DEBUG) && \
-        ubsmem::log::UbsmemLog() ==                                    \
+        ubsmem::log::UbsmemLog() ==                                      \
             ubsmem::log::UbsmemLoggerEntry(ubsmem::log::UbsmemLogLevel::DEBUG, FILENAME, __func__, __LINE__)
 
 #define UBSMEM_LOG_CRIT UBSMEM_LOGGER_CRIT
@@ -67,17 +67,17 @@ namespace ubsmem::log {
 #define UBSMEM_LOG_INFO UBSMEM_LOGGER_INFO
 #define UBSMEM_LOG_DEBUG UBSMEM_LOGGER_DEBUG
 
-#define UBSMEM_AUDIT_LOGGER(level) \
+#define UBSMEM_AUDIT_LOGGER(level)            \
     ubsmem::log::UbsmemAuditEnabled(level) && \
-        ubsmem::log::UbsmemLog() == \
-            ubsmem::log::UbsmemLoggerEntry(level, FILENAME, __func__, __LINE__, true)
+        ubsmem::log::UbsmemLog() == ubsmem::log::UbsmemLoggerEntry(level, FILENAME, __func__, __LINE__, true)
 
-#define UBSMEM_AUDIT_CRIT  UBSMEM_AUDIT_LOGGER(ubsmem::log::UbsmemLogLevel::CRIT)
+#define UBSMEM_AUDIT_CRIT UBSMEM_AUDIT_LOGGER(ubsmem::log::UbsmemLogLevel::CRIT)
 #define UBSMEM_AUDIT_ERROR UBSMEM_AUDIT_LOGGER(ubsmem::log::UbsmemLogLevel::ERROR)
-#define UBSMEM_AUDIT_WARN  UBSMEM_AUDIT_LOGGER(ubsmem::log::UbsmemLogLevel::WARN)
-#define UBSMEM_AUDIT_INFO  UBSMEM_AUDIT_LOGGER(ubsmem::log::UbsmemLogLevel::INFO)
+#define UBSMEM_AUDIT_WARN UBSMEM_AUDIT_LOGGER(ubsmem::log::UbsmemLogLevel::WARN)
+#define UBSMEM_AUDIT_INFO UBSMEM_AUDIT_LOGGER(ubsmem::log::UbsmemLogLevel::INFO)
 
-enum class UbsmemLogLevel : uint32_t {
+enum class UbsmemLogLevel : uint32_t
+{
     DEBUG = 0,
     INFO = 1,
     WARN = 2,
@@ -93,7 +93,8 @@ enum class UbsmemLogLevel : uint32_t {
  */
 std::string FormatRetCode(uint32_t retCode);
 
-enum class UbsmemLoggerTypeId : uint8_t {
+enum class UbsmemLoggerTypeId : uint8_t
+{
     CHAR = 0,
     UINT32,
     UINT64,
@@ -120,7 +121,10 @@ public:
     UbsmemLogLevel GetLogLevel();
     const char *GetFile();
     uint32_t GetLine();
-    bool IsAudit() const { return isAudit_; }
+    bool IsAudit() const
+    {
+        return isAudit_;
+    }
     void DecodePayload(std::ostream &os) const;
     uint64_t GetEntryTimeStamp();
 

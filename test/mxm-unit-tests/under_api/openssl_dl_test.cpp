@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include "openssl_dl.h"
+#include <gtest/gtest.h>
 
 static const char *TEST_CERT_DIR = "../3rdparty/build/test_certs";
 
@@ -31,8 +31,7 @@ TEST(OpensslDlTest, VerifyCertificateNoCrl)
     std::string base = TEST_CERT_DIR;
     std::string caFile = base + "/ca/ca.pem";
     std::string certFile = base + "/certs/cert1.pem";
-    int ret = VerifyCertificate(caFile.c_str(), certFile.c_str(), nullptr,
-                                "ca.pem", "cert1.pem", 43200);
+    int ret = VerifyCertificate(caFile.c_str(), certFile.c_str(), nullptr, "ca.pem", "cert1.pem", 43200);
     CleanupOpensslDl();
 }
 
@@ -43,8 +42,7 @@ TEST(OpensslDlTest, VerifyCertificateWithCrl)
     std::string caFile = base + "/ca/ca.pem";
     std::string certFile = base + "/certs/cert1.pem";
     std::string crlFile = base + "/crl/ca.crl.pem";
-    int ret = VerifyCertificate(caFile.c_str(), certFile.c_str(), crlFile.c_str(),
-                                "ca.pem", "cert1.pem", 43200);
+    int ret = VerifyCertificate(caFile.c_str(), certFile.c_str(), crlFile.c_str(), "ca.pem", "cert1.pem", 43200);
     CleanupOpensslDl();
 }
 
@@ -54,16 +52,15 @@ TEST(OpensslDlTest, VerifyCertificateExpireCheck)
     std::string base = TEST_CERT_DIR;
     std::string caFile = base + "/ca/ca.pem";
     std::string certFile = base + "/certs/cert1.pem";
-    int ret = VerifyCertificate(caFile.c_str(), certFile.c_str(), nullptr,
-                                "ca.pem", "cert1.pem", 99999999);
+    int ret = VerifyCertificate(caFile.c_str(), certFile.c_str(), nullptr, "ca.pem", "cert1.pem", 99999999);
     CleanupOpensslDl();
 }
 
 TEST(OpensslDlTest, VerifyCertificateInvalidCaPath)
 {
     EXPECT_EQ(InitOpensslDl(), 0);
-    int ret = VerifyCertificate("/tmp/nonexistent_ca.pem", "/tmp/nonexistent_cert.pem", nullptr,
-                                "ca.pem", "cert.pem", 43200);
+    int ret =
+        VerifyCertificate("/tmp/nonexistent_ca.pem", "/tmp/nonexistent_cert.pem", nullptr, "ca.pem", "cert.pem", 43200);
     EXPECT_NE(ret, 0);
     CleanupOpensslDl();
 }
@@ -74,8 +71,7 @@ TEST(OpensslDlTest, VerifyCertificateCertExpired)
     std::string base = TEST_CERT_DIR;
     std::string caFile = base + "/ca/ca.pem";
     std::string certFile = base + "/certs/cert2.pem";
-    int ret = VerifyCertificate(caFile.c_str(), certFile.c_str(), nullptr,
-                                "ca.pem", "cert2.pem", 0);
+    int ret = VerifyCertificate(caFile.c_str(), certFile.c_str(), nullptr, "ca.pem", "cert2.pem", 0);
     CleanupOpensslDl();
 }
 
@@ -86,7 +82,6 @@ TEST(OpensslDlTest, VerifyCertificateWithCrlCheckExpired)
     std::string caFile = base + "/ca/ca.pem";
     std::string certFile = base + "/certs/cert1.pem";
     std::string crlFile = base + "/crl/ca.crl.pem";
-    int ret = VerifyCertificate(caFile.c_str(), certFile.c_str(), crlFile.c_str(),
-                                "ca.pem", "cert1.pem", 0);
+    int ret = VerifyCertificate(caFile.c_str(), certFile.c_str(), crlFile.c_str(), "ca.pem", "cert1.pem", 0);
     CleanupOpensslDl();
 }

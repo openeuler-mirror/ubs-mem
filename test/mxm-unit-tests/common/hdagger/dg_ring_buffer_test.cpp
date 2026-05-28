@@ -1,9 +1,9 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
+#include <dlfcn.h>
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
-#include <dlfcn.h>
 
 #include "common/hdagger/container/dg_ring_buffer.h"
 
@@ -14,8 +14,7 @@ using namespace ock::dagger;
 
 class DgRingBufferTestSuite : public Test {
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
     void TearDown() override
     {
@@ -59,7 +58,7 @@ TEST_F(DgRingBufferTestSuite, TestRingBufferExecuteFront)
     ASSERT_EQ(rb.PopFront(item), true);
     ASSERT_EQ(item, 1);
     ASSERT_EQ(rb.Size(), 1);
-    
+
     ASSERT_EQ(rb.PopFront(item), true);
     ASSERT_EQ(item, 0);
     ASSERT_EQ(rb.Size(), 0);
@@ -156,4 +155,4 @@ TEST_F(DgRingBufferTestSuite, TestRingBufferQueue)
     ASSERT_EQ(queue.Dequeue(out), true);
     ASSERT_EQ(out, 2);
 }
-}  // namespace UT
+} // namespace UT

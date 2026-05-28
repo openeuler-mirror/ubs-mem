@@ -63,7 +63,7 @@ SHMEM_API int ubsmem_set_extern_logger(void (*func)(int level, const char *msg))
  * @param regions - [out] The descriptor to the regions.
  * @return - 0 on success and other on failure
  */
-SHMEM_API int ubsmem_lookup_regions(ubsmem_regions_t* regions);
+SHMEM_API int ubsmem_lookup_regions(ubsmem_regions_t *regions);
 
 /**
  * Create a large region of UBSMSHMEM.
@@ -105,8 +105,8 @@ SHMEM_API int ubsmem_destroy_region(const char *region_name);
  * @param flags - Special marking for this object, MXMEM_FLAG_WITH_LOCK etc.
  * @return - 0 on success and other on failure
  */
-SHMEM_API int ubsmem_shmem_allocate(
-    const char *region_name, const char *name, size_t size, mode_t mode, uint64_t flags);
+SHMEM_API int ubsmem_shmem_allocate(const char *region_name, const char *name, size_t size, mode_t mode,
+                                    uint64_t flags);
 
 /**
  * Allocate a named shared memory space from a specified node (provider).
@@ -199,7 +199,7 @@ SHMEM_API int ubsmem_lease_malloc_with_location(const ubs_mem_location_t *src_lo
  */
 SHMEM_API int ubsmem_lease_free(void *local_ptr);
 
-SHMEM_API int ubsmem_lookup_cluster_statistic(ubsmem_cluster_info_t* info);
+SHMEM_API int ubsmem_lookup_cluster_statistic(ubsmem_cluster_info_t *info);
 
 /**
  * Subscribes to shared memory UB Event.
@@ -213,10 +213,10 @@ SHMEM_API int ubsmem_shmem_faults_register(shmem_faults_func registerFunc);
  * @param nid - The supernode ID of this node within the supernode domain.
  * @return - 0 on success and other on failure
  */
-SHMEM_API int ubsmem_local_nid_query(uint32_t* nid);
+SHMEM_API int ubsmem_local_nid_query(uint32_t *nid);
 
 #ifdef __cplusplus
-}  // end of extern "C"
+} // end of extern "C"
 #endif
 
-#endif  // __UBSM_SHMEM_H__
+#endif // __UBSM_SHMEM_H__

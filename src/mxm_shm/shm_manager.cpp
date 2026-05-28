@@ -12,13 +12,13 @@
 
 #include "shm_manager.h"
 
-#include "mls_repository.h"
-#include "record_store.h"
 #include "ubs_mem_def.h"
-#include "util/functions.h"
+#include "mls_repository.h"
 #include "rack_mem_err.h"
-#include "ubse_mem_adapter.h"
+#include "record_store.h"
 #include "ubs_mem_monitor.h"
+#include "ubse_mem_adapter.h"
+#include "util/functions.h"
 
 namespace ock::share::service {
 using namespace ock::common;
@@ -63,7 +63,7 @@ int32_t SHMManager::RecoverFromRefRecord()
      * 当 RemoveMemoryUserInfo 和 RemoveMemoryInfo 之间，进程故障，会出现没有用户的record，需要删除。
      */
     auto backup = attachedShareMemory_;
-    for (const auto& [name, memory] : backup) {
+    for (const auto &[name, memory] : backup) {
         if (memory.state == ubsm::RecordState::PRE_ADD) {
             // PRE_ADD的record会在后台回收，其pids一定为空。这里需要跳过
             continue;
@@ -139,8 +139,8 @@ int32_t SHMManager::AddMemoryUserInfo(const std::string &name, pid_t userProcess
         return MXM_ERR_SHM_NOT_FOUND;
     }
     attachedShareMemory_[name].pids.insert(userProcessId);
-    DBG_LOGINFO("AddMemoryUserInfo Successfully. name: " << name << " refCount: "
-        << attachedShareMemory_[name].pids.size());
+    DBG_LOGINFO("AddMemoryUserInfo Successfully. name: " << name
+                                                         << " refCount: " << attachedShareMemory_[name].pids.size());
     return UBSM_OK;
 }
 
@@ -162,8 +162,8 @@ int32_t SHMManager::RemoveMemoryUserInfo(const std::string &name, pid_t userProc
         return MXM_ERR_SHM_NOT_FOUND;
     }
     memIter->second.pids.erase(userProcessId);
-    DBG_LOGINFO("RemoveMemoryUserInfo Successfully. name: " << name << " refCount: "
-        << attachedShareMemory_[name].pids.size());
+    DBG_LOGINFO("RemoveMemoryUserInfo Successfully. name: " << name
+                                                            << " refCount: " << attachedShareMemory_[name].pids.size());
     return UBSM_OK;
 }
 
@@ -194,8 +194,8 @@ int32_t SHMManager::PrepareAddShareMemoryInfo(const std::string &name, size_t si
     return MXM_OK;
 }
 
-int32_t SHMManager::AddFullShareMemoryInfo(const std::string& name, pid_t pid,
-                                           const ock::ubsm::ShareMemImportResult& result)
+int32_t SHMManager::AddFullShareMemoryInfo(const std::string &name, pid_t pid,
+                                           const ock::ubsm::ShareMemImportResult &result)
 {
     std::unique_lock<std::mutex> lock(mapMutex_);
     auto memIter = attachedShareMemory_.find(name);
@@ -211,7 +211,7 @@ int32_t SHMManager::AddFullShareMemoryInfo(const std::string& name, pid_t pid,
     }
     ret = ubsm::RecordStore::GetInstance().AddShmRefRecord(pid, name);
     if (ret != 0) {
-        DBG_LOGERROR("AddShmRefRecord fail. name: " << name << " pid: " <<pid);
+        DBG_LOGERROR("AddShmRefRecord fail. name: " << name << " pid: " << pid);
         ubsm::RecordStore::GetInstance().DelShmImportRecord(name);
         return MXM_ERR_SHM_NOT_FOUND;
     }
@@ -238,7 +238,6 @@ int32_t SHMManager::UpdateShareMemoryRecordState(const std::string &name, ubsm::
     return MXM_OK;
 }
 
-
 int32_t SHMManager::RemoveMemoryInfo(const std::string &name, bool force)
 {
     std::unique_lock<std::mutex> lock(mapMutex_);
@@ -249,7 +248,7 @@ int32_t SHMManager::RemoveMemoryInfo(const std::string &name, bool force)
     }
     if (force && memIter->second.state == ubsm::RecordState::DELETED) {
         DBG_LOGINFO("Force to remove share memory record which is deleted. name=" << name);
-        for (auto pid:memIter->second.pids) {
+        for (auto pid : memIter->second.pids) {
             auto ret = ubsm::RecordStore::GetInstance().DelShmRefRecord(pid, name);
             if (ret != 0) {
                 DBG_LOGERROR("DelShmRefRecord fail. name: " << name);
@@ -320,7 +319,7 @@ std::unordered_set<pid_t> SHMManager::GetAllUsers()
     return allPids;
 }
 
-int SHMManager::RemovePreAddRecord(const ubsm::ShareMemImportInfo& record, bool& needToDelete)
+int SHMManager::RemovePreAddRecord(const ubsm::ShareMemImportInfo &record, bool &needToDelete)
 {
     needToDelete = false;
     ubs_mem_stage stage;
@@ -350,7 +349,7 @@ int SHMManager::RemovePreAddRecord(const ubsm::ShareMemImportInfo& record, bool&
     return MXM_OK;
 }
 
-int SHMManager::RollbackPreDeleteRecord(const ubsm::ShareMemImportInfo& record, ubsm::RecordState &state)
+int SHMManager::RollbackPreDeleteRecord(const ubsm::ShareMemImportInfo &record, ubsm::RecordState &state)
 {
     state = record.state;
     ubs_mem_stage stage;
@@ -375,4 +374,4 @@ int SHMManager::RollbackPreDeleteRecord(const ubsm::ShareMemImportInfo& record, 
 
     return 0;
 }
-}  // namespace ock::lease::service
+} // namespace ock::share::service

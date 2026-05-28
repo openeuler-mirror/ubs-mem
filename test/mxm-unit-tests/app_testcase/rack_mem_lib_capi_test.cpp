@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include "rack_mem_lib.h"
 #include "ubs_mem.h"
+#include "rack_mem_lib.h"
 
 TEST(RackMemLibCApiTest, InitAttributesNull)
 {

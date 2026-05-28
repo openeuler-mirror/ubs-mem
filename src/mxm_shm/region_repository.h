@@ -13,8 +13,8 @@
 #ifndef OCK_MEM_REGION_REPOSITORY_H
 #define OCK_MEM_REGION_REPOSITORY_H
 
-#include <vector>
 #include <string>
+#include <vector>
 #include "mx_shm.h"
 
 namespace ock::share::service {
@@ -24,17 +24,12 @@ struct RegionInfo {
     uint64_t size;
     SHMRegionDesc region;
     RegionInfo() noexcept = default;
-    RegionInfo(std::string nm, uint64_t sz, SHMRegionDesc rg)
-        : name{nm},
-          size{sz},
-          region{rg}
-    {
-    }
+    RegionInfo(std::string nm, uint64_t sz, SHMRegionDesc rg) : name{nm}, size{sz}, region{rg} {}
 };
 
 class RegionRepository {
 public:
-    static RegionRepository& GetInstance()
+    static RegionRepository &GetInstance()
     {
         static RegionRepository instance;
         return instance;
@@ -50,10 +45,10 @@ public:
 
 private:
     RegionRepository() = default;
-    RegionRepository(const RegionRepository& other) = delete;
-    RegionRepository(RegionRepository&& other) = delete;
-    RegionRepository& operator=(const RegionRepository& other) = delete;
-    RegionRepository& operator=(RegionRepository&& other) noexcept = delete;
+    RegionRepository(const RegionRepository &other) = delete;
+    RegionRepository(RegionRepository &&other) = delete;
+    RegionRepository &operator=(const RegionRepository &other) = delete;
+    RegionRepository &operator=(RegionRepository &&other) noexcept = delete;
 };
-}  // namespace ock::share::service
+} // namespace ock::share::service
 #endif // OCK_MEM_REGION_REPOSITORY_H

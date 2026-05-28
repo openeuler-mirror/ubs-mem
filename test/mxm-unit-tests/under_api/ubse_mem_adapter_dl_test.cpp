@@ -3,13 +3,13 @@ Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
  */
 #include "gtest/gtest.h"
 #include "mockcpp/mockcpp.hpp"
-#include "region_repository.h"
-#include "ubse_mem_adapter.h"
-#include "ubs_error.h"
-#include "region_manager.h"
-#include "ubs_common_types.h"
-#include "system_adapter.h"
 #include "numa_cpu_utils.h"
+#include "region_manager.h"
+#include "region_repository.h"
+#include "system_adapter.h"
+#include "ubs_common_types.h"
+#include "ubs_error.h"
+#include "ubse_mem_adapter.h"
 
 extern "C" {
 extern void *dlopen(const char *file, int mode);
@@ -66,7 +66,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapterLoadLibrary_WhenDlsymFailed)
 TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_LookupRegionListSuccess)
 {
     SHMRegions regions;
-    auto  ret = ock::mxm::UbseMemAdapter::LookupRegionList(regions);
+    auto ret = ock::mxm::UbseMemAdapter::LookupRegionList(regions);
     EXPECT_EQ(ret, 0);
     EXPECT_NE(regions.num, 0);
     UbseMemAdapter::Destroy();
@@ -85,7 +85,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_NumaLeaseMalloc)
     param.appContext.pid = 0;
 
     SHMRegions regions;
-    auto  ret = ock::mxm::UbseMemAdapter::LookupRegionList(regions);
+    auto ret = ock::mxm::UbseMemAdapter::LookupRegionList(regions);
     EXPECT_EQ(ret, 0);
     ock::share::service::RegionInfo regionInfo{param.regionName, 1, regions.region[0]};
     regionInfo.region.affinity[0] = true;
@@ -94,8 +94,8 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_NumaLeaseMalloc)
 
     ock::ubsm::LeaseMallocResult result{};
     auto hr = ock::mxm::UbseMemAdapter::LeaseMalloc(param, result);
-    DBG_LOGINFO("Malloc res is " << hr << ", name is " << param.name << ", numa is " << result.numaId
-                                 << ", size is " << result.unitSize);
+    DBG_LOGINFO("Malloc res is " << hr << ", name is " << param.name << ", numa is " << result.numaId << ", size is "
+                                 << result.unitSize);
     EXPECT_EQ(hr, 0);
     hr = ock::mxm::UbseMemAdapter::LeaseFree(param.name, param.isNuma);
     EXPECT_EQ(hr, 0);
@@ -118,8 +118,8 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_FdLeaseMallocSuccess)
 
     ock::ubsm::LeaseMallocResult result{};
     auto hr = ock::mxm::UbseMemAdapter::LeaseMalloc(param, result);
-    DBG_LOGINFO("Malloc res is " << hr << ", name is " << param.name << ", numa is " << result.numaId
-                                 << ", size is " << result.unitSize);
+    DBG_LOGINFO("Malloc res is " << hr << ", name is " << param.name << ", numa is " << result.numaId << ", size is "
+                                 << result.unitSize);
     EXPECT_EQ(hr, 0);
 
     mode_t mode = S_IRUSR | S_IWUSR;
@@ -150,7 +150,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_FdLeaseMallocWithLocSuccess)
     ock::ubsm::LeaseMallocResult result{};
     auto hr = ock::mxm::UbseMemAdapter::LeaseMallocWithLoc(param, result);
     DBG_LOGINFO("Malloc with loc res is " << hr << ", name is " << param.name << ", numa is " << result.numaId
-                                 << ", size is " << result.unitSize);
+                                          << ", size is " << result.unitSize);
     EXPECT_EQ(hr, 0);
 
     hr = ock::mxm::UbseMemAdapter::LeaseFree(param.name, param.isNuma);
@@ -218,7 +218,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmCreateSuccess)
     createParam.mode = 0600;
 
     SHMRegions regions;
-    auto  ret = ock::mxm::UbseMemAdapter::LookupRegionList(regions);
+    auto ret = ock::mxm::UbseMemAdapter::LookupRegionList(regions);
     EXPECT_EQ(ret, 0);
     createParam.desc = regions.region[0];
 
@@ -241,7 +241,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmCreateSuccess)
 
     // mmap
     ock::mxm::AttachShmResult result;
-    hr = ock::mxm::UbseMemAdapter::ShmAttach(importOwnerParam.name,  ubsUserInfo, result);
+    hr = ock::mxm::UbseMemAdapter::ShmAttach(importOwnerParam.name, ubsUserInfo, result);
     EXPECT_EQ(hr, 0);
 
     // unmap
@@ -273,7 +273,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmCreateWithAffinity)
     createParam.mode = 0600;
 
     SHMRegions regions;
-    auto  ret = ock::mxm::UbseMemAdapter::LookupRegionList(regions);
+    auto ret = ock::mxm::UbseMemAdapter::LookupRegionList(regions);
     EXPECT_EQ(ret, 0);
     createParam.desc = regions.region[0];
 
@@ -307,7 +307,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmCreateWithAffinity)
 
     // mmap
     ock::mxm::AttachShmResult result;
-    hr = ock::mxm::UbseMemAdapter::ShmAttach(importOwnerParam.name,  ubsUserInfo, result);
+    hr = ock::mxm::UbseMemAdapter::ShmAttach(importOwnerParam.name, ubsUserInfo, result);
     EXPECT_EQ(hr, 0);
 
     // unmap
@@ -349,7 +349,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmAttach)
     createParam.mode = 0600;
 
     SHMRegions regions;
-    auto  ret = ock::mxm::UbseMemAdapter::LookupRegionList(regions);
+    auto ret = ock::mxm::UbseMemAdapter::LookupRegionList(regions);
     EXPECT_EQ(ret, 0);
     createParam.desc = regions.region[0];
 
@@ -437,7 +437,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmCreateWithProvider)
 
     // mmap
     ock::mxm::AttachShmResult result;
-    hr = ock::mxm::UbseMemAdapter::ShmAttach(importOwnerParam.name,  ubsUserInfo, result);
+    hr = ock::mxm::UbseMemAdapter::ShmAttach(importOwnerParam.name, ubsUserInfo, result);
     EXPECT_EQ(hr, 0);
 
     // unmap
@@ -639,8 +639,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmDeleteNotSupported)
     appContext.gid = 0;
     appContext.pid = 0;
 
-    hr = ock::mxm::UbseMemAdapter::ShmDelete(
-        "UbseMemAdapter_ShmDeleteNotSupported_NOT_SUPPORTED", appContext);
+    hr = ock::mxm::UbseMemAdapter::ShmDelete("UbseMemAdapter_ShmDeleteNotSupported_NOT_SUPPORTED", appContext);
     EXPECT_EQ(hr, MXM_ERR_UBSE_NOT_SUPPORTED);
 
     hr = ock::mxm::UbseMemAdapter::ShmDelete(createParam.name, appContext);
@@ -683,8 +682,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmAttachNotSupported)
     EXPECT_EQ(hr, 0);
 
     ock::mxm::AttachShmResult result;
-    hr = ock::mxm::UbseMemAdapter::ShmAttach(
-        "UbseMemAdapter_ShmAttachNotSupported_NOT_SUPPORTED", ubsUserInfo, result);
+    hr = ock::mxm::UbseMemAdapter::ShmAttach("UbseMemAdapter_ShmAttachNotSupported_NOT_SUPPORTED", ubsUserInfo, result);
     EXPECT_EQ(hr, MXM_ERR_UBSE_NOT_SUPPORTED);
 
     hr = ock::mxm::UbseMemAdapter::ShmAttach(createParam.name, ubsUserInfo, result);
@@ -730,8 +728,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_LeaseFree_FdDeleteNotSupported)
     auto hr = ock::mxm::UbseMemAdapter::LeaseMalloc(param, mallocResult);
     EXPECT_EQ(hr, 0);
 
-    hr = ock::mxm::UbseMemAdapter::LeaseFree(
-        "UbseMemAdapter_LeaseFree_FdNotSupported_NOT_SUPPORTED", false);
+    hr = ock::mxm::UbseMemAdapter::LeaseFree("UbseMemAdapter_LeaseFree_FdNotSupported_NOT_SUPPORTED", false);
     EXPECT_EQ(hr, MXM_ERR_UBSE_NOT_SUPPORTED);
 
     hr = ock::mxm::UbseMemAdapter::LeaseFree(param.name, param.isNuma);
@@ -771,8 +768,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_LeaseFree_NumaDeleteNotSupported)
     auto hr = ock::mxm::UbseMemAdapter::LeaseMalloc(param, mallocResult);
     EXPECT_EQ(hr, 0);
 
-    hr = ock::mxm::UbseMemAdapter::LeaseFree(
-        "UbseMemAdapter_LeaseFree_NumaNotSupported_NOT_SUPPORTED", true);
+    hr = ock::mxm::UbseMemAdapter::LeaseFree("UbseMemAdapter_LeaseFree_NumaNotSupported_NOT_SUPPORTED", true);
     EXPECT_EQ(hr, MXM_ERR_UBSE_NOT_SUPPORTED);
 
     hr = ock::mxm::UbseMemAdapter::LeaseFree(param.name, param.isNuma);
@@ -782,4 +778,4 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_LeaseFree_NumaDeleteNotSupported)
     EXPECT_EQ(ret, true);
     UbseMemAdapter::Destroy();
 }
-}  // namespace UT
+} // namespace UT

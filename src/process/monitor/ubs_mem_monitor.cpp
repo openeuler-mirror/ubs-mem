@@ -9,22 +9,22 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include <iostream>
+#include "ubs_mem_monitor.h"
 #include <iosfwd>
-#include "log.h"
-#include "ubse_mem_adapter.h"
+#include <iostream>
 #include "defines.h"
+#include "log.h"
+#include "mls_manager.h"
 #include "mxm_ipc_server_interface.h"
 #include "record_store.h"
 #include "ubs_mem_leak_cleaner.h"
-#include "mls_manager.h"
-#include "ubs_mem_monitor.h"
+#include "ubse_mem_adapter.h"
 
 namespace ock {
 namespace ubsm {
 using namespace lease::service;
-DelayRemovedKey::DelayRemovedKey(std::string nm, uint64_t delay, bool isLease,
-    const AppContext &appCtx, bool changed, bool isNumaLease, bool isTimeOutScene) noexcept
+DelayRemovedKey::DelayRemovedKey(std::string nm, uint64_t delay, bool isLease, const AppContext &appCtx, bool changed,
+                                 bool isNumaLease, bool isTimeOutScene) noexcept
     : isLease(isLease),
       retryTimes{0},
       expiresTime{0},
@@ -226,8 +226,8 @@ void UBSMemMonitor::RemoveDelayBorrows() noexcept
 
     for (auto item : delayedRemoveKeys) {
         if (item.expiresTime <= nowTime) {
-            DBG_LOGDEBUG("Find expires name(" << item.name << ", expires time("
-                << item.expiresTime << ") nowtime(" << nowTime << ").");
+            DBG_LOGDEBUG("Find expires name(" << item.name << ", expires time(" << item.expiresTime << ") nowtime("
+                                              << nowTime << ").");
             expiresRemovedKeys.push_back(item);
         }
     }
@@ -241,11 +241,13 @@ void UBSMemMonitor::RemoveDelayBorrows() noexcept
                                                    << "), expires time(" << removedKey.expiresTime << "), nowtime("
                                                    << nowTime << ")");
         if (removedKey.isLease) {
-            ret = UBSMemLeakCleaner::GetInstance().CleanLeaseMemoryLeakInner(removedKey.name, removedKey.appCtx,
-                removedKey.changed, removedKey.timeOutScene, removedKey.isNumaLease);
+            ret = UBSMemLeakCleaner::GetInstance().CleanLeaseMemoryLeakInner(
+                removedKey.name, removedKey.appCtx, removedKey.changed, removedKey.timeOutScene,
+                removedKey.isNumaLease);
         } else {
-            ret = UBSMemLeakCleaner::GetInstance().CleanShareMemoryLeakInner(removedKey.name,
-                removedKey.appCtx, removedKey.timeOutScene, removedKey.isAttach, removedKey.createSeqNo);
+            ret = UBSMemLeakCleaner::GetInstance().CleanShareMemoryLeakInner(
+                removedKey.name, removedKey.appCtx, removedKey.timeOutScene, removedKey.isAttach,
+                removedKey.createSeqNo);
         }
 
         mutex.lock();
@@ -287,5 +289,5 @@ bool UBSMemMonitor::GetDelayRemoveRecord(const DelayRemovedKey &key)
     return false;
 }
 
-}
-}
+} // namespace ubsm
+} // namespace ock

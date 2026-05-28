@@ -9,25 +9,23 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "log.h"
 #include "record_id_pool_allocator.h"
+#include "log.h"
 
 namespace ock {
 namespace ubsm {
 union IdHead {
     uint64_t id;
     struct un {
-        uint64_t used : 1;  // 是否被占用（分配出去）
-        uint64_t head : 1;  // 分配出去的第一个line
-        uint64_t tail : 1;  // 分配出去的最后一个line
+        uint64_t used : 1; // 是否被占用（分配出去）
+        uint64_t head : 1; // 分配出去的第一个line
+        uint64_t tail : 1; // 分配出去的最后一个line
         uint64_t reserved : 29;
-        uint64_t nextIndex : 32;  // 非最后一个，表示后一个line的index；最后一个，表示line有中有效个数
+        uint64_t nextIndex : 32; // 非最后一个，表示后一个line的index；最后一个，表示line有中有效个数
     } u;
 };
 
-RecordIdPoolAllocator::RecordIdPoolAllocator() noexcept : memIdRecordPool_{nullptr}
-{
-}
+RecordIdPoolAllocator::RecordIdPoolAllocator() noexcept : memIdRecordPool_{nullptr} {}
 
 RecordIdPoolAllocator::~RecordIdPoolAllocator() noexcept
 {
@@ -196,5 +194,5 @@ int RecordIdPoolAllocator::Release(uint32_t headIndex) noexcept
     DBG_LOGINFO("fill allocated memory ids from head index(" << headIndex << ")");
     return 0;
 }
-}
-}
+} // namespace ubsm
+} // namespace ock

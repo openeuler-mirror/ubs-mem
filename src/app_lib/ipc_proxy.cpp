@@ -10,9 +10,9 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include "ipc_proxy.h"
 #include <dlfcn.h>
 #include "ubsm_check_resource.h"
-#include "ipc_proxy.h"
 
 using namespace ock::dagger;
 

@@ -44,21 +44,21 @@ private:
 /* @brief Functions */
 class Func {
 public:
-    static int32_t MakeDir(const std::string& name);
+    static int32_t MakeDir(const std::string &name);
     static std::string CurrentTimeString();
     static std::string HeaderString();
-    static std::string FormatString(std::string& name, uint64_t begin, uint64_t goodEnd, uint64_t badEnd, uint64_t min,
+    static std::string FormatString(std::string &name, uint64_t begin, uint64_t goodEnd, uint64_t badEnd, uint64_t min,
                                     uint64_t max, uint64_t total);
 
 private:
-    static void StrSplit(const std::string& src, const std::string& sep, std::vector<std::string>& out);
+    static void StrSplit(const std::string &src, const std::string &sep, std::vector<std::string> &out);
 };
 
 /* @brief Tool to store and get last error with thread local variable */
 class LastError {
 public:
-    static void Set(const std::string& msg);
-    static const char* Get();
+    static void Set(const std::string &msg);
+    static const char *Get();
 
 private:
     static thread_local std::string msg_;
@@ -89,7 +89,8 @@ inline uint64_t Monotonic::TimeNs()
     __asm__ volatile("mrs %0, cntvct_el0" : "=r"(timeValue));
     return timeValue * 1000ULL / TICK_PER_US;
 #else
-    struct timespec ts{};
+    struct timespec ts {
+    };
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return static_cast<uint64_t>(ts.tv_sec) * 1000000000UL + static_cast<uint64_t>(ts.tv_nsec);
 #endif
@@ -107,13 +108,13 @@ constexpr int32_t WIDTH_TWO = 2;
 constexpr mode_t DEFAULT_DIR_MODE = 0750;
 constexpr int32_t BASE_YEAR_1900 = 1900;
 
-inline int32_t Func::MakeDir(const std::string& name)
+inline int32_t Func::MakeDir(const std::string &name)
 {
     std::vector<std::string> paths;
     StrSplit(name, "/", paths);
     int32_t ret = 0;
     std::string pathTmp;
-    for (auto& item : paths) {
+    for (auto &item : paths) {
         if (item.empty()) {
             continue;
         }
@@ -148,7 +149,7 @@ inline std::string Func::CurrentTimeString()
     return ss.str();
 }
 
-inline std::string Func::FormatString(std::string& name, uint64_t begin, uint64_t goodEnd, uint64_t badEnd,
+inline std::string Func::FormatString(std::string &name, uint64_t begin, uint64_t goodEnd, uint64_t badEnd,
                                       uint64_t min, uint64_t max, uint64_t total)
 {
     std::string str;
@@ -178,7 +179,7 @@ inline std::string Func::HeaderString()
     return ss.str();
 }
 
-inline void Func::StrSplit(const std::string& src, const std::string& sep, std::vector<std::string>& out)
+inline void Func::StrSplit(const std::string &src, const std::string &sep, std::vector<std::string> &out)
 {
     std::string::size_type pos1 = 0;
     std::string::size_type pos2 = src.find(sep);
@@ -198,10 +199,16 @@ inline void Func::StrSplit(const std::string& src, const std::string& sep, std::
 }
 
 /*** for ptracer last error ***/
-inline void LastError::Set(const std::string& msg) { msg_ = msg; }
+inline void LastError::Set(const std::string &msg)
+{
+    msg_ = msg;
+}
 
-inline const char* LastError::Get() { return msg_.c_str(); }
-}  // namespace tracer
-}  // namespace ubsm
-}  // namespace ock
-#endif  // UBSM_MEM_FABRIC_PTRACE_UTILS_H
+inline const char *LastError::Get()
+{
+    return msg_.c_str();
+}
+} // namespace tracer
+} // namespace ubsm
+} // namespace ock
+#endif // UBSM_MEM_FABRIC_PTRACE_UTILS_H

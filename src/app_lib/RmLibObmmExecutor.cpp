@@ -11,8 +11,8 @@
  */
 #include "RmLibObmmExecutor.h"
 #include <cstddef>
-#include "log.h"
 #include "dlfcn.h"
+#include "log.h"
 #include "system_adapter.h"
 
 namespace ock::mxmd {
@@ -44,4 +44,4 @@ uint32_t RmLibObmmExecutor::Exit()
     }
     return HOK;
 };
-}  // namespace ock::mxmd
+} // namespace ock::mxmd

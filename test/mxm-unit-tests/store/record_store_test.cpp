@@ -1,10 +1,10 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
+#include "record_store.h"
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
 #include "rack_mem_constants.h"
-#include "record_store.h"
 
 namespace UT {
 using namespace ock::ubsm;
@@ -23,13 +23,9 @@ RecordIdPoolAllocator poolAllocator_;
 
 class RecordStoreTest : public testing::Test {
 public:
-    void SetUp() override
-    {
-    }
+    void SetUp() override {}
 
-    void TearDown() override
-    {
-    }
+    void TearDown() override {}
 
     static void TearDownTestSuite()
     {
@@ -41,24 +37,14 @@ public:
         TEST_REGION_RECORD = CreateRegionInput(TEST_REGION_NAME, NO_1, {NO_1}, {true});
 
         TEST_LEASE_RECORD.first = {
-            .fdMode = true,
-            .name = TEST_LEASE_NAME,
-            .size = 1 << 30,
-            .distance = 0,
-            .appContext = TEST_APP_CTX};
-        TEST_LEASE_RECORD.second = {
-            .memIds = {1, 2, 3, 4, 5, 6, 7, 8},
-            .numaId = -1,
-            .unitSize = 1 << 27
-        };
+            .fdMode = true, .name = TEST_LEASE_NAME, .size = 1 << 30, .distance = 0, .appContext = TEST_APP_CTX};
+        TEST_LEASE_RECORD.second = {.memIds = {1, 2, 3, 4, 5, 6, 7, 8}, .numaId = -1, .unitSize = 1 << 27};
 
-        TEST_SHM_IMPORT_RECORD = {
-            .name = TEST_SHM_NAME,
-            .size = 1 << 30,
-            .appContext = TEST_APP_CTX,
-            .memIds = {1, 2, 3, 4, 5, 6, 7, 8},
-            .unitSize = 1 << 27
-        };
+        TEST_SHM_IMPORT_RECORD = {.name = TEST_SHM_NAME,
+                                  .size = 1 << 30,
+                                  .appContext = TEST_APP_CTX,
+                                  .memIds = {1, 2, 3, 4, 5, 6, 7, 8},
+                                  .unitSize = 1 << 27};
 
         auto list = RecordStore::GetInstance().ListMemLeaseRecord();
         for (auto it : list) {
@@ -104,7 +90,6 @@ TEST_F(RecordStoreTest, TestAddRegionRecord_FailWhenNodeNumNotEqualsToAffinities
     auto ret = RecordStore::GetInstance().AddRegionRecord(input);
     EXPECT_EQ(ret, -1);
 }
-
 
 // DelRegionRecord
 TEST_F(RecordStoreTest, TestAddRegionRecord_DelRegionRecord_Success)
@@ -403,4 +388,4 @@ TEST_F(RecordStoreTest, TestFillAllocated_FailWhenHeadIndexInvalid)
     ret = poolAllocator_.FillAllocated(7777U, TEST_LEASE_RECORD.second.memIds);
     EXPECT_EQ(ret, -1);
 }
-}
+} // namespace UT

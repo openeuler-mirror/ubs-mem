@@ -16,21 +16,27 @@ constexpr auto DEV_MOCK = "dev";
 constexpr auto EID_MOCK = "0000:0000:0000:1000:0010:0000:df00:0404";
 constexpr auto ELECTION_TIMEOUT = 1000;
 constexpr auto DISCOVERY_MIN_NODES = 0;
-int MockDLockSuccess() { return dlock::DLOCK_SUCCESS; }
-int MockDLockFail() { return -1; }
-void MockDlsym(const char* name)
+int MockDLockSuccess()
 {
-    void* mockFunc = reinterpret_cast<void*>(MockDLockSuccess);
-    void* mockFailFunc = reinterpret_cast<void*>(MockDLockFail);
+    return dlock::DLOCK_SUCCESS;
+}
+int MockDLockFail()
+{
+    return -1;
+}
+void MockDlsym(const char *name)
+{
+    void *mockFunc = reinterpret_cast<void *>(MockDLockSuccess);
+    void *mockFailFunc = reinterpret_cast<void *>(MockDLockFail);
     MOCKER(SystemAdapter::DlSym)
         .stubs()
-        .with(any(), checkWith([name](const char* str) mutable -> bool { return strcmp(str, name) == 0; }))
+        .with(any(), checkWith([name](const char *str) mutable -> bool { return strcmp(str, name) == 0; }))
         .will(returnValue(mockFailFunc));
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockFunc));
 }
 void TestDefaultConfig()
 {
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     ctx.GetConfig().isDlockServer = true;
     ctx.GetConfig().serverIp = IP_MOCK;
     ctx.GetConfig().clientIp = IP_MOCK;
@@ -43,8 +49,8 @@ TEST_F(DlockTestSuite, TestDLockInitSuccess)
 {
     // given
     int mockHandle = 0;
-    void* mockFunc = reinterpret_cast<void*>(MockDLockSuccess);
-    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(&mockHandle)));
+    void *mockFunc = reinterpret_cast<void *>(MockDLockSuccess);
+    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockFunc));
     TestDefaultConfig();
     // when
@@ -57,8 +63,8 @@ TEST_F(DlockTestSuite, TestDLockInitSuccess_TLS)
 {
     // given
     int mockHandle = 0;
-    void* mockFunc = reinterpret_cast<void*>(MockDLockSuccess);
-    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(&mockHandle)));
+    void *mockFunc = reinterpret_cast<void *>(MockDLockSuccess);
+    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockFunc));
     MOCKER(SystemAdapter::DlClose).stubs().will(returnValue(0));
     TestDefaultConfig();
@@ -74,7 +80,7 @@ TEST_F(DlockTestSuite, TestDLockInitSuccess_TLS)
 TEST_F(DlockTestSuite, TestDLockInitFail1)
 {
     // given
-    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(nullptr)));
+    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(nullptr)));
     MOCKER(SystemAdapter::DlClose).stubs().will(returnValue(0));
     // when
     auto ret = UbsmLock::Instance().Init();
@@ -86,7 +92,7 @@ TEST_F(DlockTestSuite, TestDLockInitFail2)
 {
     // given
     int mockHandle = 0;
-    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(&mockHandle)));
+    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
     MockDlsym("dserver_lib_init");
     TestDefaultConfig();
     // when
@@ -100,7 +106,7 @@ TEST_F(DlockTestSuite, TestDLockInitFail3)
     // given
     int mockHandle = 0;
     DLockContext::Instance().GetConfig().isDlockClient = true;
-    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(&mockHandle)));
+    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
     MockDlsym("dclient_lib_init");
     TestDefaultConfig();
     // when
@@ -114,7 +120,7 @@ TEST_F(DlockTestSuite, TestDLockInitFail4)
     // given
     int mockHandle = 0;
     DLockContext::Instance().GetConfig().isDlockClient = true;
-    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(&mockHandle)));
+    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
     MockDlsym("client_init");
     TestDefaultConfig();
     // when
@@ -126,8 +132,8 @@ TEST_F(DlockTestSuite, TestDLockInitFail4)
 TEST_F(DlockTestSuite, TestDLockDeInitSuccess)
 {
     // given
-    auto& ctx = DLockContext::Instance();
-    auto& cfg = ctx.GetConfig();
+    auto &ctx = DLockContext::Instance();
+    auto &cfg = ctx.GetConfig();
     MOCKER(SystemAdapter::DlClose).stubs().will(returnValue(0));
     cfg.isDlockClient = true;
     cfg.dlockClientNum = 0;
@@ -148,8 +154,8 @@ TEST_F(DlockTestSuite, TestDLockDeInitSuccess)
 TEST_F(DlockTestSuite, TestDLockDeInitFail)
 {
     // given
-    auto& ctx = DLockContext::Instance();
-    auto& cfg = ctx.GetConfig();
+    auto &ctx = DLockContext::Instance();
+    auto &cfg = ctx.GetConfig();
     MOCKER(SystemAdapter::DlClose).stubs().will(returnValue(0));
     cfg.dlockClientNum = 0;
     ctx.SetServerDeinitFlag(true);
@@ -172,19 +178,19 @@ TEST_F(DlockTestSuite, TestDLockLockSuccess)
 {
     // given
     int mockHandle = 0;
-    void* mockFunc = reinterpret_cast<void*>(MockDLockSuccess);
-    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(&mockHandle)));
+    void *mockFunc = reinterpret_cast<void *>(MockDLockSuccess);
+    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockFunc));
     TestDefaultConfig();
     auto ret = UbsmLock::Instance().Init();
     ASSERT_EQ(UBSM_OK, ret);
     std::string name = "lock";
-    DLockExecutor::GetInstance().DLockClientGetLockFunc = [](int clientId, const struct dlock::lock_desc* desc,
-                                                             int* lockId) -> int {
+    DLockExecutor::GetInstance().DLockClientGetLockFunc = [](int clientId, const struct dlock::lock_desc *desc,
+                                                             int *lockId) -> int {
         return dlock::DLOCK_SUCCESS;
     };
-    DLockExecutor::GetInstance().DLockTryLockFunc = [](int clientId, const struct dlock::lock_request* req,
-                                                       void* result) -> int {
+    DLockExecutor::GetInstance().DLockTryLockFunc = [](int clientId, const struct dlock::lock_request *req,
+                                                       void *result) -> int {
         return dlock::DLOCK_SUCCESS;
     };
     ock::rpc::NetRpcConfig::GetInstance().SetLocalNode(std::make_pair("1.2.3.4", 1234));
@@ -209,15 +215,15 @@ TEST_F(DlockTestSuite, TestDLockLockFail)
 {
     // given
     int mockHandle = 0;
-    void* mockFunc = reinterpret_cast<void*>(MockDLockSuccess);
-    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(&mockHandle)));
+    void *mockFunc = reinterpret_cast<void *>(MockDLockSuccess);
+    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockFunc));
     TestDefaultConfig();
     auto ret = UbsmLock::Instance().Init();
     ASSERT_EQ(UBSM_OK, ret);
     std::string name = "lock1";
-    DLockExecutor::GetInstance().DLockClientGetLockFunc = [](int clientId, const struct dlock::lock_desc* desc,
-                                                             int* lockId) -> int {
+    DLockExecutor::GetInstance().DLockClientGetLockFunc = [](int clientId, const struct dlock::lock_desc *desc,
+                                                             int *lockId) -> int {
         return dlock::DLOCK_FAIL;
     };
     ock::dlock_utils::LockUdsInfo info;
@@ -234,20 +240,20 @@ TEST_F(DlockTestSuite, TestDLockUnLockSuccess)
 {
     // given
     int mockHandle = 0;
-    void* mockFunc = reinterpret_cast<void*>(MockDLockSuccess);
-    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(&mockHandle)));
+    void *mockFunc = reinterpret_cast<void *>(MockDLockSuccess);
+    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockFunc));
     TestDefaultConfig();
     auto ret = UbsmLock::Instance().Init();
     ASSERT_EQ(UBSM_OK, ret);
     std::string name = "lock2";
-    DLockExecutor::GetInstance().DLockClientGetLockFunc = [](int clientId, const struct dlock::lock_desc* desc,
-                                                             int* lockId) -> int {
+    DLockExecutor::GetInstance().DLockClientGetLockFunc = [](int clientId, const struct dlock::lock_desc *desc,
+                                                             int *lockId) -> int {
         return dlock::DLOCK_SUCCESS;
     };
 
-    DLockExecutor::GetInstance().DLockTryLockFunc = [](int clientId, const struct dlock::lock_request* req,
-                                                       void* result) -> int {
+    DLockExecutor::GetInstance().DLockTryLockFunc = [](int clientId, const struct dlock::lock_request *req,
+                                                       void *result) -> int {
         return dlock::DLOCK_SUCCESS;
     };
     ock::dlock_utils::LockUdsInfo info;
@@ -256,7 +262,7 @@ TEST_F(DlockTestSuite, TestDLockUnLockSuccess)
     info.gid = 0;
     ret = UbsmLock::Instance().Lock(name, true, info);
     ASSERT_EQ(ret, UBSM_OK);
-    DLockExecutor::GetInstance().DLockUnlockFunc = [](int clientId, int lockId, void* result) -> int {
+    DLockExecutor::GetInstance().DLockUnlockFunc = [](int clientId, int lockId, void *result) -> int {
         return dlock::DLOCK_SUCCESS;
     };
     // when
@@ -269,20 +275,20 @@ TEST_F(DlockTestSuite, TestDLockUnLockFail)
 {
     // given
     int mockHandle = 0;
-    void* mockFunc = reinterpret_cast<void*>(MockDLockSuccess);
-    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(&mockHandle)));
+    void *mockFunc = reinterpret_cast<void *>(MockDLockSuccess);
+    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockFunc));
     TestDefaultConfig();
     auto ret = UbsmLock::Instance().Init();
     ASSERT_EQ(UBSM_OK, ret);
     std::string name = "lock3";
-    DLockExecutor::GetInstance().DLockClientGetLockFunc = [](int clientId, const struct dlock::lock_desc* desc,
-                                                             int* lockId) -> int {
+    DLockExecutor::GetInstance().DLockClientGetLockFunc = [](int clientId, const struct dlock::lock_desc *desc,
+                                                             int *lockId) -> int {
         return dlock::DLOCK_SUCCESS;
     };
 
-    DLockExecutor::GetInstance().DLockTryLockFunc = [](int clientId, const struct dlock::lock_request* req,
-                                                       void* result) -> int {
+    DLockExecutor::GetInstance().DLockTryLockFunc = [](int clientId, const struct dlock::lock_request *req,
+                                                       void *result) -> int {
         return dlock::DLOCK_SUCCESS;
     };
     ock::dlock_utils::LockUdsInfo info;
@@ -291,7 +297,7 @@ TEST_F(DlockTestSuite, TestDLockUnLockFail)
     info.gid = 0;
     ret = UbsmLock::Instance().Lock(name, true, info);
     ASSERT_EQ(ret, UBSM_OK);
-    DLockExecutor::GetInstance().DLockUnlockFunc = [](int clientId, int lockId, void* result) -> int {
+    DLockExecutor::GetInstance().DLockUnlockFunc = [](int clientId, int lockId, void *result) -> int {
         return dlock::DLOCK_BAD_RESPONSE;
     };
     // when
@@ -302,23 +308,23 @@ TEST_F(DlockTestSuite, TestDLockUnLockFail)
 
 void DefaultMock()
 {
-    auto& exec = DLockExecutor::GetInstance();
+    auto &exec = DLockExecutor::GetInstance();
     exec.DLockServerStopFunc = [](int serverId) -> int {
         return dlock::DLOCK_SUCCESS;
     };
     exec.DLockServerLibInitFunc = [](unsigned int maxServerNum) -> int {
         return dlock::DLOCK_SUCCESS;
     };
-    exec.DLockServerStartFunc = [](const dlock::server_cfg& cfg, int& serverId) -> int {
+    exec.DLockServerStartFunc = [](const dlock::server_cfg &cfg, int &serverId) -> int {
         return dlock::DLOCK_SUCCESS;
     };
-    exec.DLockClientInitFunc = [](int* clientId, const char* ipStr) -> int {
+    exec.DLockClientInitFunc = [](int *clientId, const char *ipStr) -> int {
         return dlock::DLOCK_SUCCESS;
     };
     exec.DLockServerStopFunc = [](int clientId) -> int {
         return dlock::DLOCK_SUCCESS;
     };
-    exec.DLockClientReinitFunc = [](int clientId, const char* ipStr) -> int {
+    exec.DLockClientReinitFunc = [](int clientId, const char *ipStr) -> int {
         return dlock::DLOCK_SUCCESS;
     };
     exec.DLockUpdateAllLocksFunc = [](int clientId) -> int {
@@ -334,7 +340,7 @@ void DefaultMock()
 
 TEST_F(DlockTestSuite, TestReinitSuccessAllSuccess)
 {
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     TestDefaultConfig();
     ctx.GetConfig().isDlockClient = true;
     DefaultMock();
@@ -349,10 +355,10 @@ TEST_F(DlockTestSuite, TestReinitSuccessAllSuccess)
 
 TEST_F(DlockTestSuite, TestReinitSuccessServerStopFail)
 {
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     TestDefaultConfig();
     DefaultMock();
-    auto& exec = DLockExecutor::GetInstance();
+    auto &exec = DLockExecutor::GetInstance();
 
     int32_t ret = ctx.InitDlockClient();
     EXPECT_EQ(UBSM_OK, ret);
@@ -367,7 +373,7 @@ TEST_F(DlockTestSuite, TestReinitSuccessServerStopFail)
 
 TEST_F(DlockTestSuite, TestReinitWithServerReinitFailedEmptyServerIp)
 {
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     TestDefaultConfig();
     DefaultMock();
 
@@ -382,10 +388,10 @@ TEST_F(DlockTestSuite, TestReinitWithServerReinitFailedEmptyServerIp)
 
 TEST_F(DlockTestSuite, TestReinitWithServerReinitFailedServerLibInitFail)
 {
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     TestDefaultConfig();
     DefaultMock();
-    auto& exec = DLockExecutor::GetInstance();
+    auto &exec = DLockExecutor::GetInstance();
 
     int32_t ret = ctx.InitDlockClient();
     ASSERT_EQ(UBSM_OK, ret);
@@ -402,10 +408,10 @@ TEST_F(DlockTestSuite, TestReinitWithServerReinitFailedServerLibInitFail)
 
 TEST_F(DlockTestSuite, TestReinitWithServerReinitFailedServerStartNoResource)
 {
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     TestDefaultConfig();
     DefaultMock();
-    auto& exec = DLockExecutor::GetInstance();
+    auto &exec = DLockExecutor::GetInstance();
 
     int32_t ret = ctx.InitDlockClient();
     ASSERT_EQ(UBSM_OK, ret);
@@ -415,7 +421,7 @@ TEST_F(DlockTestSuite, TestReinitWithServerReinitFailedServerStartNoResource)
         return dlock::DLOCK_SUCCESS;
     };
     // 因 ServerStart 返回 DLOCK_SERVER_NO_RESOURCE 失败
-    exec.DLockServerStartFunc = [](const dlock::server_cfg& cfg, int& serverId) -> int {
+    exec.DLockServerStartFunc = [](const dlock::server_cfg &cfg, int &serverId) -> int {
         return dlock::DLOCK_SERVER_NO_RESOURCE;
     };
     ret = UbsmLock::Instance().Reinit();
@@ -424,18 +430,18 @@ TEST_F(DlockTestSuite, TestReinitWithServerReinitFailedServerStartNoResource)
 
 TEST_F(DlockTestSuite, TestReinitWithClientReinitFailedWithUnknownErr)
 {
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     TestDefaultConfig();
     ctx.GetConfig().isDlockServer = false;
     ctx.GetConfig().isDlockClient = true;
     DefaultMock();
-    auto& exec = DLockExecutor::GetInstance();
+    auto &exec = DLockExecutor::GetInstance();
 
     int32_t ret = ctx.InitDlockClient();
     ASSERT_EQ(UBSM_OK, ret);
 
     // 返回 -1 导致失败
-    exec.DLockClientReinitFunc = [](int clientId, const char* ipStr) -> int {
+    exec.DLockClientReinitFunc = [](int clientId, const char *ipStr) -> int {
         return -1;
     };
     ret = UbsmLock::Instance().Reinit();
@@ -444,18 +450,18 @@ TEST_F(DlockTestSuite, TestReinitWithClientReinitFailedWithUnknownErr)
 
 TEST_F(DlockTestSuite, TestReinitWithClientReinitFailedTooManyNotReady)
 {
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     TestDefaultConfig();
     ctx.GetConfig().isDlockServer = false;
     ctx.GetConfig().isDlockClient = true;
     DefaultMock();
-    auto& exec = DLockExecutor::GetInstance();
+    auto &exec = DLockExecutor::GetInstance();
 
     int32_t ret = ctx.InitDlockClient();
     ASSERT_EQ(UBSM_OK, ret);
 
     // 因长时间 DLOCK_NOT_READY 失败
-    exec.DLockClientReinitFunc = [](int clientId, const char* ipStr) -> int {
+    exec.DLockClientReinitFunc = [](int clientId, const char *ipStr) -> int {
         return dlock::DLOCK_NOT_READY;
     };
     ret = UbsmLock::Instance().Reinit();
@@ -464,18 +470,18 @@ TEST_F(DlockTestSuite, TestReinitWithClientReinitFailedTooManyNotReady)
 
 TEST_F(DlockTestSuite, TestReinitWithClientReinitFailedBadResponse)
 {
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     TestDefaultConfig();
     ctx.GetConfig().isDlockServer = false;
     ctx.GetConfig().isDlockClient = true;
     DefaultMock();
-    auto& exec = DLockExecutor::GetInstance();
+    auto &exec = DLockExecutor::GetInstance();
 
     int32_t ret = ctx.InitDlockClient();
     ASSERT_EQ(UBSM_OK, ret);
 
     // 因 ClientReInitStagesUpdateLocks 返回 DLOCK_BAD_RESPONSE 失败
-    exec.DLockClientReinitFunc = [](int clientId, const char* ipStr) -> int {
+    exec.DLockClientReinitFunc = [](int clientId, const char *ipStr) -> int {
         return dlock::DLOCK_SUCCESS;
     };
     exec.DLockUpdateAllLocksFunc = [](int clientId) -> int {
@@ -487,18 +493,18 @@ TEST_F(DlockTestSuite, TestReinitWithClientReinitFailedBadResponse)
 
 TEST_F(DlockTestSuite, TestReinitWithClientReinitFailedEnomem)
 {
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     TestDefaultConfig();
     ctx.GetConfig().isDlockServer = false;
     ctx.GetConfig().isDlockClient = true;
     DefaultMock();
-    auto& exec = DLockExecutor::GetInstance();
+    auto &exec = DLockExecutor::GetInstance();
 
     int32_t ret = ctx.InitDlockClient();
     ASSERT_EQ(UBSM_OK, ret);
 
     // 因 ClientReInitStagesUpdateLocks 返回 DLOCK_ENOMEM 失败
-    exec.DLockClientReinitFunc = [](int clientId, const char* ipStr) -> int {
+    exec.DLockClientReinitFunc = [](int clientId, const char *ipStr) -> int {
         return dlock::DLOCK_SUCCESS;
     };
     exec.DLockUpdateAllLocksFunc = [](int clientId) -> int {
@@ -510,18 +516,18 @@ TEST_F(DlockTestSuite, TestReinitWithClientReinitFailedEnomem)
 
 TEST_F(DlockTestSuite, TestReinitWithClientReinitFailedUnknownError)
 {
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     TestDefaultConfig();
     ctx.GetConfig().isDlockServer = false;
     ctx.GetConfig().isDlockClient = true;
     DefaultMock();
-    auto& exec = DLockExecutor::GetInstance();
+    auto &exec = DLockExecutor::GetInstance();
 
     int32_t ret = ctx.InitDlockClient();
     ASSERT_EQ(UBSM_OK, ret);
 
     // 因 ClientReInitStagesUpdateLocks 返回 -1 失败
-    exec.DLockClientReinitFunc = [](int clientId, const char* ipStr) -> int {
+    exec.DLockClientReinitFunc = [](int clientId, const char *ipStr) -> int {
         return dlock::DLOCK_SUCCESS;
     };
     exec.DLockUpdateAllLocksFunc = [](int clientId) -> int {
@@ -533,7 +539,7 @@ TEST_F(DlockTestSuite, TestReinitWithClientReinitFailedUnknownError)
 
 TEST_F(DlockTestSuite, TestNoNeedHeartbeat)
 {
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     TestDefaultConfig();
     ctx.GetConfig().isDlockServer = false;
     ctx.GetConfig().isDlockClient = true;
@@ -546,7 +552,7 @@ TEST_F(DlockTestSuite, TestNoNeedHeartbeat)
 
 TEST_F(DlockTestSuite, TestHeartbeatAllSuccess)
 {
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     TestDefaultConfig();
     ctx.GetConfig().isDlockServer = false;
     ctx.GetConfig().isDlockClient = true;

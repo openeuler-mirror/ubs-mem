@@ -2,15 +2,15 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
  */
 
+#include "ipc_command.h"
 #include <sys/mman.h>
 #include <memory>
+#include "ubs_mem_def.h"
 #include "BorrowAppMetaMgr.h"
+#include "RackMem.h"
 #include "ipc_proxy.h"
 #include "message_op.h"
-#include "RackMem.h"
 #include "rack_mem_lib_common.h"
-#include "ubs_mem_def.h"
-#include "ipc_command.h"
 
 namespace ock::mxmd {
 using namespace ock::common;

@@ -12,19 +12,19 @@
 #ifndef UBS_MEM_MONITOR_H
 #define UBS_MEM_MONITOR_H
 
-#include <string>
-#include <vector>
-#include <thread>
-#include <mutex>
 #include <condition_variable>
 #include <list>
+#include <mutex>
 #include <set>
+#include <string>
+#include <thread>
+#include <vector>
 #include "ubs_common_types.h"
 
 namespace ock {
 namespace ubsm {
 constexpr uint64_t ONE_SECOND_MS = 1000;
-constexpr uint64_t ONE_MINUTE_MS = 60UL * ONE_SECOND_MS;  // 1 minute
+constexpr uint64_t ONE_MINUTE_MS = 60UL * ONE_SECOND_MS;     // 1 minute
 constexpr uint64_t MAX_DELAY_TIME_MS = 60UL * ONE_MINUTE_MS; // 1 hour
 /**
  * @brief 一条需要延时执行的归还内存借用记录，执行失败时加入延时执行
@@ -40,9 +40,9 @@ struct DelayRemovedKey {
     bool timeOutScene;
     bool isAttach = false;
     uint64_t createSeqNo = 0;
-    DelayRemovedKey(std::string nm, uint64_t delay, bool isLease,
-        const AppContext &appCtx, bool changed, bool isNumaLease, bool timeScene) noexcept;
-    explicit DelayRemovedKey(const std::string &name) : name(name) {};
+    DelayRemovedKey(std::string nm, uint64_t delay, bool isLease, const AppContext &appCtx, bool changed,
+                    bool isNumaLease, bool timeScene) noexcept;
+    explicit DelayRemovedKey(const std::string &name) : name(name){};
 };
 
 /**
@@ -64,8 +64,9 @@ public:
 
     int Initialize(uint64_t delayMs = 0) noexcept;
     void Destroy() noexcept;
-    void AddDelayRemoveRecord(const DelayRemovedKey& key);
+    void AddDelayRemoveRecord(const DelayRemovedKey &key);
     bool GetDelayRemoveRecord(const DelayRemovedKey &key);
+
 private:
     static uint32_t RegisterHandler(pid_t pid) noexcept;
     UBSMemMonitor() noexcept;
@@ -85,6 +86,6 @@ private:
     std::set<DelayRemovedKey, DelayKeyComparator> delayedRemoveKeys;
     std::set<DelayRemovedKey, DelayKeyIsBusyComparator> delayedRemoveKeysByName;
 };
-}
-}
-#endif  // UBS_MEM_MONITOR_H
+} // namespace ubsm
+} // namespace ock
+#endif // UBS_MEM_MONITOR_H

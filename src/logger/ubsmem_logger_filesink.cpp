@@ -120,7 +120,8 @@ bool UbsmemLoggerFilesink::Write(const UbsmemLoggerEntry &loggerEntry)
 
 bool UbsmemLoggerFilesink::IsFileStatusChanged(const std::string &fileName)
 {
-    struct stat fileStat{};
+    struct stat fileStat {
+    };
     if (stat(fileMap_[fileName].filePath.c_str(), &fileStat) != 0) {
         return true; // 文件不存在或无法访问
     }
@@ -148,13 +149,14 @@ std::string UbsmemLoggerFilesink::GenerateCompressedFilename(const std::string &
     std::ostringstream oss;
 
     // 获取当前时间信息
-    struct tm timeinfo{};
+    struct tm timeinfo {
+    };
     localtime_r(&timeStamp, &timeinfo);
     struct tm *ptimeinfo = &timeinfo;
 
     // 生成文件名
     oss << baseDir << "/" << fileName << "_" << std::setw(4) << std::setfill('0') << // 年份格式占4位
-        (ptimeinfo->tm_year + 1900) << std::setw(2) << std::setfill('0') <<          // 月份格式占2位 起始年份1900
+        (ptimeinfo->tm_year + 1900) << std::setw(2) << std::setfill('0') << // 月份格式占2位 起始年份1900
         (ptimeinfo->tm_mon + 1) << std::setw(2) << std::setfill('0') << ptimeinfo->tm_mday << // 日期格式占2位
         "_" << std::setw(2) << std::setfill('0') << ptimeinfo->tm_hour <<                     // 小时格式占2位
         std::setw(2) << std::setfill('0') << ptimeinfo->tm_min <<                             // 分钟格式占2位
@@ -176,7 +178,8 @@ bool UbsmemLoggerFilesink::OpenFile(const std::string &fileName)
     }
 
     if (fileMap_[fileName].logFile.is_open()) {
-        struct stat fileStat{};
+        struct stat fileStat {
+        };
         if (stat(fileMap_[fileName].filePath.c_str(), &fileStat) == 0) {
             fileMap_[fileName].inode = fileStat.st_ino;
         }

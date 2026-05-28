@@ -10,34 +10,35 @@ using namespace ock::common;
 using namespace UT::Daemon;
 
 namespace UT {
-const HRESULT HRESULT_NO_FEATURE_ENABLED =
-        static_cast<HRESULT>(MXM_ERR_DAEMON_NO_FEATURE_ENABLED);
+const HRESULT HRESULT_NO_FEATURE_ENABLED = static_cast<HRESULT>(MXM_ERR_DAEMON_NO_FEATURE_ENABLED);
 
 TEST(daemon_init, ulog_init)
 {
     DaemonTestCommon::ClearUlog();
     Configuration::DestroyInstance();
     ock::daemon::OCKDaemonPtr daemon = new ock::daemon::OckDaemon();
-    DaemonTestCommon::CreateConf(
-        "ubsm.server.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.log.level = INFO\n"
-        "ubsm.server.log.rotation.file.size = 20\n"
-        "ubsm.server.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.enable = on\n"
-        "ubsm.server.audit.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.audit.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.log.rotation.file.size = 20\n"
-        "ubsm.lock.enable = on\n"
-        "ubsm.lock.tls.enable = off\n"
-        "ubsm.lock.ub_token.enable = on\n"
-        "ubsm.lock.expire.time = 300\n"
-        "ubsm.server.lease.cache.enable = on\n"
-        "ubsm.hcom.max.connect.num = 128\n"
-        "ubsm.discovery.election.timeout = 1000\n"
-        "ubsm.discovery.min.nodes = 0\n"
-        "ubsm.server.tls.enable = off\n"
-        "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
-        "ubsm.performance.statistics.enable = off\n");
+    DaemonTestCommon::CreateConf("ubsm.server.log.path = " + DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.log.level = INFO\n"
+                                 "ubsm.server.log.rotation.file.size = 20\n"
+                                 "ubsm.server.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.enable = on\n"
+                                 "ubsm.server.audit.log.path = " +
+                                 DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.audit.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.log.rotation.file.size = 20\n"
+                                 "ubsm.lock.enable = on\n"
+                                 "ubsm.lock.tls.enable = off\n"
+                                 "ubsm.lock.ub_token.enable = on\n"
+                                 "ubsm.lock.expire.time = 300\n"
+                                 "ubsm.server.lease.cache.enable = on\n"
+                                 "ubsm.hcom.max.connect.num = 128\n"
+                                 "ubsm.discovery.election.timeout = 1000\n"
+                                 "ubsm.discovery.min.nodes = 0\n"
+                                 "ubsm.server.tls.enable = off\n"
+                                 "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
+                                 "ubsm.performance.statistics.enable = off\n");
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
@@ -62,20 +63,22 @@ TEST(daemon_init, ulog_init_check_params_2)
     DaemonTestCommon::ClearUlog();
     Configuration::DestroyInstance();
     ock::daemon::OCKDaemonPtr daemon = new ock::daemon::OckDaemon();
-    DaemonTestCommon::CreateConf(
-        "ubsm.server.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.log.level = INFO\n"
-        "ubsm.server.log.rotation.file.size = 20\n"
-        "ubsm.server.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.enable = on\n"
-        "ubsm.lock.expire.time = 300\n"
-        "ubsm.server.audit.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.audit.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.log.rotation.file.size = 20\n"
-        "ubsm.server.lease.cache.enable = on\n"
-        "ubsm.server.tls.enable = off\n"
-        "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
-        "ubsm.performance.statistics.enable = off\n");
+    DaemonTestCommon::CreateConf("ubsm.server.log.path = " + DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.log.level = INFO\n"
+                                 "ubsm.server.log.rotation.file.size = 20\n"
+                                 "ubsm.server.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.enable = on\n"
+                                 "ubsm.lock.expire.time = 300\n"
+                                 "ubsm.server.audit.log.path = " +
+                                 DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.audit.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.log.rotation.file.size = 20\n"
+                                 "ubsm.server.lease.cache.enable = on\n"
+                                 "ubsm.server.tls.enable = off\n"
+                                 "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
+                                 "ubsm.performance.statistics.enable = off\n");
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
@@ -119,19 +122,21 @@ TEST(daemon_init, ulog_audit_conf_1)
     DaemonTestCommon::ClearUlog();
     Configuration::DestroyInstance();
     ock::daemon::OCKDaemonPtr daemon = new ock::daemon::OckDaemon();
-    DaemonTestCommon::CreateConf(
-        "ubsm.server.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.log.level = INFO\n"
-        "ubsm.server.log.rotation.file.size = 20\n"
-        "ubsm.server.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.enable = invalid\n"
-        "ubsm.server.audit.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.audit.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.log.rotation.file.size = 20\n"
-        "ubsm.server.lease.cache.enable = on\n"
-        "ubsm.server.tls.enable = off\n"
-        "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
-        "ubsm.performance.statistics.enable = off\n");
+    DaemonTestCommon::CreateConf("ubsm.server.log.path = " + DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.log.level = INFO\n"
+                                 "ubsm.server.log.rotation.file.size = 20\n"
+                                 "ubsm.server.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.enable = invalid\n"
+                                 "ubsm.server.audit.log.path = " +
+                                 DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.audit.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.log.rotation.file.size = 20\n"
+                                 "ubsm.server.lease.cache.enable = on\n"
+                                 "ubsm.server.tls.enable = off\n"
+                                 "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
+                                 "ubsm.performance.statistics.enable = off\n");
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
@@ -139,7 +144,7 @@ TEST(daemon_init, ulog_audit_conf_1)
     EXPECT_GE(result, 0);
     av[0] = &empty;
     av[1] = binPath;
-    
+
     auto hr = daemon->CheckParam(av[1]);
     EXPECT_EQ(hr, HOK);
     hr = daemon->Initialize();
@@ -156,19 +161,21 @@ TEST(daemon_init, init_number_conf_1)
     DaemonTestCommon::ClearUlog();
     Configuration::DestroyInstance();
     ock::daemon::OCKDaemonPtr daemon = new ock::daemon::OckDaemon();
-    DaemonTestCommon::CreateConf(
-        "ubsm.server.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.log.level = INFO\n"
-        "ubsm.server.log.rotation.file.size = 20\n"
-        "ubsm.server.log.rotation.file.count = 2.a\n"
-        "ubsm.server.audit.enable = on\n"
-        "ubsm.server.audit.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.audit.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.log.rotation.file.size = 20\n"
-        "ubsm.server.lease.cache.enable = on\n"
-        "ubsm.server.tls.enable = off\n"
-        "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
-        "ubsm.performance.statistics.enable = off\n");
+    DaemonTestCommon::CreateConf("ubsm.server.log.path = " + DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.log.level = INFO\n"
+                                 "ubsm.server.log.rotation.file.size = 20\n"
+                                 "ubsm.server.log.rotation.file.count = 2.a\n"
+                                 "ubsm.server.audit.enable = on\n"
+                                 "ubsm.server.audit.log.path = " +
+                                 DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.audit.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.log.rotation.file.size = 20\n"
+                                 "ubsm.server.lease.cache.enable = on\n"
+                                 "ubsm.server.tls.enable = off\n"
+                                 "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
+                                 "ubsm.performance.statistics.enable = off\n");
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
@@ -191,18 +198,20 @@ TEST(daemon_init, ulog_audit_conf_2)
     DaemonTestCommon::ClearUlog();
     Configuration::DestroyInstance();
     ock::daemon::OCKDaemonPtr daemon = new ock::daemon::OckDaemon();
-    DaemonTestCommon::CreateConf(
-        "ubsm.server.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.log.level = INFO\n"
-        "ubsm.server.log.rotation.file.size = 20\n"
-        "ubsm.server.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.audit.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.log.rotation.file.size = 20\n"
-        "ubsm.server.lease.cache.enable = on\n"
-        "ubsm.server.tls.enable = off\n"
-        "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
-        "ubsm.performance.statistics.enable = off\n");
+    DaemonTestCommon::CreateConf("ubsm.server.log.path = " + DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.log.level = INFO\n"
+                                 "ubsm.server.log.rotation.file.size = 20\n"
+                                 "ubsm.server.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.log.path = " +
+                                 DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.audit.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.log.rotation.file.size = 20\n"
+                                 "ubsm.server.lease.cache.enable = on\n"
+                                 "ubsm.server.tls.enable = off\n"
+                                 "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
+                                 "ubsm.performance.statistics.enable = off\n");
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
@@ -228,26 +237,28 @@ TEST(daemon_init, ulog_audit_conf_3)
     DaemonTestCommon::ClearUlog();
     Configuration::DestroyInstance();
     ock::daemon::OCKDaemonPtr daemon = new ock::daemon::OckDaemon();
-    DaemonTestCommon::CreateConf(
-        "ubsm.server.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.log.level = INFO\n"
-        "ubsm.server.log.rotation.file.size = 20\n"
-        "ubsm.server.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.enable = off\n"
-        "ubsm.server.audit.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.audit.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.log.rotation.file.size = 20\n"
-        "ubsm.lock.enable = on\n"
-        "ubsm.lock.tls.enable = off\n"
-        "ubsm.lock.ub_token.enable = on\n"
-        "ubsm.lock.expire.time = 300\n"
-        "ubsm.server.lease.cache.enable = on\n"
-        "ubsm.hcom.max.connect.num = 128\n"
-        "ubsm.discovery.election.timeout = 1000\n"
-        "ubsm.discovery.min.nodes = 0\n"
-        "ubsm.server.tls.enable = off\n"
-        "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
-        "ubsm.performance.statistics.enable = off\n");
+    DaemonTestCommon::CreateConf("ubsm.server.log.path = " + DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.log.level = INFO\n"
+                                 "ubsm.server.log.rotation.file.size = 20\n"
+                                 "ubsm.server.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.enable = off\n"
+                                 "ubsm.server.audit.log.path = " +
+                                 DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.audit.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.log.rotation.file.size = 20\n"
+                                 "ubsm.lock.enable = on\n"
+                                 "ubsm.lock.tls.enable = off\n"
+                                 "ubsm.lock.ub_token.enable = on\n"
+                                 "ubsm.lock.expire.time = 300\n"
+                                 "ubsm.server.lease.cache.enable = on\n"
+                                 "ubsm.hcom.max.connect.num = 128\n"
+                                 "ubsm.discovery.election.timeout = 1000\n"
+                                 "ubsm.discovery.min.nodes = 0\n"
+                                 "ubsm.server.tls.enable = off\n"
+                                 "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
+                                 "ubsm.performance.statistics.enable = off\n");
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
@@ -273,26 +284,28 @@ TEST(daemon_init, init_service_without_lib)
     DaemonTestCommon::ClearUlog();
     Configuration::DestroyInstance();
     ock::daemon::OCKDaemonPtr daemon = new ock::daemon::OckDaemon();
-    DaemonTestCommon::CreateConf(
-        "ubsm.server.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.log.level = INFO\n"
-        "ubsm.server.log.rotation.file.size = 20\n"
-        "ubsm.server.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.enable = on\n"
-        "ubsm.server.audit.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.audit.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.log.rotation.file.size = 20\n"
-        "ubsm.lock.enable = on\n"
-        "ubsm.lock.tls.enable = off\n"
-        "ubsm.lock.ub_token.enable = on\n"
-        "ubsm.lock.expire.time = 300\n"
-        "ubsm.server.lease.cache.enable = on\n"
-        "ubsm.hcom.max.connect.num = 128\n"
-        "ubsm.discovery.election.timeout = 1000\n"
-        "ubsm.discovery.min.nodes = 0\n"
-        "ubsm.server.tls.enable = off\n"
-        "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
-        "ubsm.performance.statistics.enable = off\n");
+    DaemonTestCommon::CreateConf("ubsm.server.log.path = " + DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.log.level = INFO\n"
+                                 "ubsm.server.log.rotation.file.size = 20\n"
+                                 "ubsm.server.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.enable = on\n"
+                                 "ubsm.server.audit.log.path = " +
+                                 DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.audit.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.log.rotation.file.size = 20\n"
+                                 "ubsm.lock.enable = on\n"
+                                 "ubsm.lock.tls.enable = off\n"
+                                 "ubsm.lock.ub_token.enable = on\n"
+                                 "ubsm.lock.expire.time = 300\n"
+                                 "ubsm.server.lease.cache.enable = on\n"
+                                 "ubsm.hcom.max.connect.num = 128\n"
+                                 "ubsm.discovery.election.timeout = 1000\n"
+                                 "ubsm.discovery.min.nodes = 0\n"
+                                 "ubsm.server.tls.enable = off\n"
+                                 "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
+                                 "ubsm.performance.statistics.enable = off\n");
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
@@ -307,7 +320,7 @@ TEST(daemon_init, init_service_without_lib)
     EXPECT_EQ(hr, HRESULT_NO_FEATURE_ENABLED);
     DaemonTestCommon::DeleteConf();
 
-    OckService* service = new OckService();
+    OckService *service = new OckService();
     auto adapter = new OckServiceAdapter("mls", "NULL");
     hr = service->Initialize(adapter);
     EXPECT_EQ(hr, HFAIL); // 缺少动态库会使特定服务初始化失败
@@ -342,7 +355,7 @@ TEST(daemon_init, append_args)
 
     hr = ock::common::CreateArgs(newArgc, newArgv, {"\0", binPath, "3", "off"});
     EXPECT_EQ(hr, HOK);
-    delete [] newArgv[2];
+    delete[] newArgv[2];
     newArgv[2] = nullptr;
     ock::common::DeleteStrArray(newArgc, newArgv);
     EXPECT_EQ(newArgv, nullptr);
@@ -354,22 +367,23 @@ TEST(daemon_init, conf_1)
     DaemonTestCommon::ClearUlog();
     Configuration::DestroyInstance();
     ock::daemon::OCKDaemonPtr daemon = new ock::daemon::OckDaemon();
-    DaemonTestCommon::CreateConf(
-        "ubsm.server.log.path = \n"
-        "ubsm.server.log.level = INFO\n"
-        "ubsm.server.log.rotation.file.size = 20\n"
-        "ubsm.server.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.enable = on\n"
-        "ubsm.server.audit.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.audit.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.log.rotation.file.size = 20\n"
-        "ubsm.server.lease.cache.enable = on\n"
-        "ubsm.hcom.max.connect.num = 128\n"
-        "ubsm.discovery.election.timeout = 1000\n"
-        "ubsm.discovery.min.nodes = 0\n"
-        "ubsm.server.tls.enable = off\n"
-        "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
-        "ubsm.performance.statistics.enable = off\n");
+    DaemonTestCommon::CreateConf("ubsm.server.log.path = \n"
+                                 "ubsm.server.log.level = INFO\n"
+                                 "ubsm.server.log.rotation.file.size = 20\n"
+                                 "ubsm.server.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.enable = on\n"
+                                 "ubsm.server.audit.log.path = " +
+                                 DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.audit.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.log.rotation.file.size = 20\n"
+                                 "ubsm.server.lease.cache.enable = on\n"
+                                 "ubsm.hcom.max.connect.num = 128\n"
+                                 "ubsm.discovery.election.timeout = 1000\n"
+                                 "ubsm.discovery.min.nodes = 0\n"
+                                 "ubsm.server.tls.enable = off\n"
+                                 "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
+                                 "ubsm.performance.statistics.enable = off\n");
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
@@ -394,19 +408,21 @@ TEST(daemon_init, conf_2)
     DaemonTestCommon::ClearUlog();
     Configuration::DestroyInstance();
     ock::daemon::OCKDaemonPtr daemon = new ock::daemon::OckDaemon();
-    DaemonTestCommon::CreateConf(
-        "ubsm.server.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.log.level = \n"
-        "ubsm.server.log.rotation.file.size = 20\n"
-        "ubsm.server.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.enable = on\n"
-        "ubsm.server.audit.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.audit.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.log.rotation.file.size = 20\n"
-        "ubsm.server.lease.cache.enable = on\n"
-        "ubsm.server.tls.enable = off\n"
-        "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
-        "ubsm.performance.statistics.enable = off\n");
+    DaemonTestCommon::CreateConf("ubsm.server.log.path = " + DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.log.level = \n"
+                                 "ubsm.server.log.rotation.file.size = 20\n"
+                                 "ubsm.server.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.enable = on\n"
+                                 "ubsm.server.audit.log.path = " +
+                                 DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.audit.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.log.rotation.file.size = 20\n"
+                                 "ubsm.server.lease.cache.enable = on\n"
+                                 "ubsm.server.tls.enable = off\n"
+                                 "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
+                                 "ubsm.performance.statistics.enable = off\n");
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
@@ -432,19 +448,21 @@ TEST(daemon_init, conf_3)
     DaemonTestCommon::ClearUlog();
     Configuration::DestroyInstance();
     ock::daemon::OCKDaemonPtr daemon = new ock::daemon::OckDaemon();
-    DaemonTestCommon::CreateConf(
-    "ubsm.server.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-    "ubsm.server.log.level = INFO\n"
-    "ubsm.server.log.rotation.file.size = \n"
-    "ubsm.server.log.rotation.file.count = 10\n"
-    "ubsm.server.audit.enable = on\n"
-    "ubsm.server.audit.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-    "ubsm.server.audit.log.rotation.file.count = 10\n"
-    "ubsm.server.audit.log.rotation.file.size = 20\n"
-    "ubsm.server.lease.cache.enable = on\n"
-    "ubsm.server.tls.enable = off\n"
-    "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
-        "ubsm.performance.statistics.enable = off\n");
+    DaemonTestCommon::CreateConf("ubsm.server.log.path = " + DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.log.level = INFO\n"
+                                 "ubsm.server.log.rotation.file.size = \n"
+                                 "ubsm.server.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.enable = on\n"
+                                 "ubsm.server.audit.log.path = " +
+                                 DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.audit.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.log.rotation.file.size = 20\n"
+                                 "ubsm.server.lease.cache.enable = on\n"
+                                 "ubsm.server.tls.enable = off\n"
+                                 "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
+                                 "ubsm.performance.statistics.enable = off\n");
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
@@ -469,19 +487,21 @@ TEST(daemon_init, conf_5)
     DaemonTestCommon::ClearUlog();
     Configuration::DestroyInstance();
     ock::daemon::OCKDaemonPtr daemon = new ock::daemon::OckDaemon();
-    DaemonTestCommon::CreateConf(
-        "ubsm.server.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.log.level = INFO\n"
-        "ubsm.server.log.rotation.file.size = 20\n"
-        "ubsm.server.log.rotation.file.count = 0\n"
-        "ubsm.server.audit.enable = on\n"
-        "ubsm.server.audit.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.audit.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.log.rotation.file.size = 20\n"
-        "ubsm.server.lease.cache.enable = on\n"
-        "ubsm.server.tls.enable = off\n"
-        "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
-        "ubsm.performance.statistics.enable = off\n");
+    DaemonTestCommon::CreateConf("ubsm.server.log.path = " + DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.log.level = INFO\n"
+                                 "ubsm.server.log.rotation.file.size = 20\n"
+                                 "ubsm.server.log.rotation.file.count = 0\n"
+                                 "ubsm.server.audit.enable = on\n"
+                                 "ubsm.server.audit.log.path = " +
+                                 DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.audit.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.log.rotation.file.size = 20\n"
+                                 "ubsm.server.lease.cache.enable = on\n"
+                                 "ubsm.server.tls.enable = off\n"
+                                 "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
+                                 "ubsm.performance.statistics.enable = off\n");
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
@@ -506,19 +526,21 @@ TEST(daemon_init, conf_6)
     DaemonTestCommon::ClearUlog();
     Configuration::DestroyInstance();
     ock::daemon::OCKDaemonPtr daemon = new ock::daemon::OckDaemon();
-    DaemonTestCommon::CreateConf(
-        "ubsm.server.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.log.level = INFO\n"
-        "ubsm.server.log.rotation.file.size = invalid\n"
-        "ubsm.server.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.enable = on\n"
-        "ubsm.server.audit.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.audit.log.rotation.file.count = 10\n"
-        "ubsm.server.audit.log.rotation.file.size = 20\n"
-        "ubsm.server.lease.cache.enable = on\n"
-        "ubsm.server.tls.enable = off\n"
-        "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
-        "ubsm.performance.statistics.enable = off\n");
+    DaemonTestCommon::CreateConf("ubsm.server.log.path = " + DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.log.level = INFO\n"
+                                 "ubsm.server.log.rotation.file.size = invalid\n"
+                                 "ubsm.server.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.enable = on\n"
+                                 "ubsm.server.audit.log.path = " +
+                                 DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.audit.log.rotation.file.count = 10\n"
+                                 "ubsm.server.audit.log.rotation.file.size = 20\n"
+                                 "ubsm.server.lease.cache.enable = on\n"
+                                 "ubsm.server.tls.enable = off\n"
+                                 "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
+                                 "ubsm.performance.statistics.enable = off\n");
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
@@ -543,4 +565,4 @@ TEST(daemon_init, ulog_recover)
     EXPECT_EQ(ret, 0);
 }
 
-}  // namespace UT
+} // namespace UT

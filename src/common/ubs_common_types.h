@@ -14,14 +14,15 @@
 #define SIMPLE_SAMPLES_UBS_COMMON_TYPES_H
 
 #include <cstdint>
-#include <vector>
 #include <string>
+#include <vector>
 #include "ubs_mem_def.h"
 
 namespace ock {
 namespace ubsm {
 
-enum class RecordState : int16_t {
+enum class RecordState : int16_t
+{
     PRE_ADD,
     FINISH,
     PRE_DEL,
@@ -87,8 +88,8 @@ struct ShareMemImportInput {
 struct ShareMemImportResult {
     std::vector<uint64_t> memIds;
     size_t unitSize{0};
-    uint64_t createFlags{};  // create parameters
-    int openFlag{};    // O_RDWR
+    uint64_t createFlags{}; // create parameters
+    int openFlag{};         // O_RDWR
     uid_t ownerUserId;
     gid_t ownerGroupId;
 };
@@ -105,14 +106,14 @@ struct ShareMemImportInfo {
 };
 
 typedef struct {
-    uint32_t slot_id;            // 节点唯一标识, 采用slotid, 与lcne保持一致
-    uint32_t socket_id;          // socket id
-    uint32_t numa_id;            // 节点中的numa id
-    uint32_t mem_lend_ratio;     // 池化内存借出比例上限
-    uint64_t mem_total;          // 内存总量, 单位字节
-    uint64_t mem_free;           // 内存空闲量, 单位字节
-    uint64_t mem_borrow;         // 借用的内存，单位字节
-    uint64_t mem_lend;           // 借出的内存，单位字节
+    uint32_t slot_id;        // 节点唯一标识, 采用slotid, 与lcne保持一致
+    uint32_t socket_id;      // socket id
+    uint32_t numa_id;        // 节点中的numa id
+    uint32_t mem_lend_ratio; // 池化内存借出比例上限
+    uint64_t mem_total;      // 内存总量, 单位字节
+    uint64_t mem_free;       // 内存空闲量, 单位字节
+    uint64_t mem_borrow;     // 借用的内存，单位字节
+    uint64_t mem_lend;       // 借出的内存，单位字节
     uint8_t resv[MAX_NUMA_RESV_LEN];
 } ubsmemNumaMem;
 
@@ -123,11 +124,11 @@ typedef struct {
 } ubsmemHostFnfo;
 
 typedef struct {
-    int host_num;  // 集群可用节点数量
+    int host_num; // 集群可用节点数量
     ubsmemHostFnfo host[MAX_HOST_NUM];
 } ubsmemClusterInfo;
 
-}
-}
+} // namespace ubsm
+} // namespace ock
 
-#endif  // SIMPLE_SAMPLES_UBS_COMMON_TYPES_H
+#endif // SIMPLE_SAMPLES_UBS_COMMON_TYPES_H

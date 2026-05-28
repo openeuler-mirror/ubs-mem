@@ -13,8 +13,8 @@
 #include "mxm_ipc_client_interface.h"
 
 #include <utility>
-#include "mxm_ipc_client.h"
 #include "mxm_com_error.h"
+#include "mxm_ipc_client.h"
 #include "mxm_msg.h"
 #include "ubsm_com_constants.h"
 
@@ -22,7 +22,7 @@ using namespace ock::com;
 using namespace ock::common;
 using namespace ock::mxmd;
 using namespace ock::com::ipc;
-MxmIpcClient* g_mxmIpcClient{nullptr};
+MxmIpcClient *g_mxmIpcClient{nullptr};
 std::atomic<int> g_ipcClientCount{0};
 
 int MxmComStartIpcClient()
@@ -77,7 +77,7 @@ void MxmComStopIpcClient()
     }
 }
 
-int MxmComIpcClientSend(uint16_t opCode, MsgBase* request, MsgBase* response)
+int MxmComIpcClientSend(uint16_t opCode, MsgBase *request, MsgBase *response)
 {
     SendParam param(FAKE_CUR_NODE_ID, static_cast<uint16_t>(MxmModuleCode::MEM), opCode, MxmChannelType::SINGLE_SIDE);
     if (g_mxmIpcClient == nullptr) {
@@ -88,7 +88,7 @@ int MxmComIpcClientSend(uint16_t opCode, MsgBase* request, MsgBase* response)
     return ret;
 }
 
-int MxmSetPostReconnectHandler(int(*handler)())
+int MxmSetPostReconnectHandler(int (*handler)())
 {
     if (g_mxmIpcClient == nullptr) {
         DBG_LOGERROR("g_mxmIpcClient is nullptr");

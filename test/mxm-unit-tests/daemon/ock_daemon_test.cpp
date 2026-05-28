@@ -1,9 +1,9 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <iostream>
-#include <sys/stat.h>
 #include <gtest/gtest.h>
+#include <sys/stat.h>
+#include <iostream>
 #include <mockcpp/mockcpp.hpp>
 #include "daemon_test_common.h"
 #include "ubs_certify_handler.h"
@@ -132,7 +132,10 @@ TEST_F(OckDaemonTest, TestCheckParamValidPath)
     EXPECT_EQ(HOK, result);
 }
 
-void EmptyStub() { printf("EmptyStub.\n"); }
+void EmptyStub()
+{
+    printf("EmptyStub.\n");
+}
 
 TEST_F(OckDaemonTest, TestInitializeMHomePathEmpty)
 {
@@ -176,7 +179,7 @@ TEST_F(OckDaemonTest, TestInitializeUbsmLock)
                                  "ubsm.server.tls.enable = off\n"
                                  "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
                                  "ubsm.performance.statistics.enable = off\n");
-    char* av[2];
+    char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
     auto result = sprintf_s(binPath, sizeof(binPath), "-binpath=%s\0", DaemonTestCommon::CWD().c_str());
@@ -220,7 +223,7 @@ TEST_F(OckDaemonTest, TestInitializeUbsmTlsShouldFailed)
                                  "ubsm.server.tls.enable = on\n"
                                  "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
                                  "ubsm.performance.statistics.enable = off\n");
-    char* av[2];
+    char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
     auto result = sprintf_s(binPath, sizeof(binPath), "-binpath=%s\0", DaemonTestCommon::CWD().c_str());
@@ -319,4 +322,4 @@ TEST_F(OckDaemonTest, TestockDaemonPrintStartTime)
     ock::daemon::OckDaemon::PrintStartTime(start, "START");
 }
 
-}  // namespace UT
+} // namespace UT

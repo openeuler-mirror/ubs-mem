@@ -79,8 +79,8 @@ private:
      * @param[in] timeStamp 时间戳，用于生成唯一文件名
      * @return 生成的压缩日志文件名
      */
-    std::string GenerateCompressedFilename(const std::string &baseDir, const std::string &fileName,
-                                           uint32_t index, time_t timeStamp);
+    std::string GenerateCompressedFilename(const std::string &baseDir, const std::string &fileName, uint32_t index,
+                                           time_t timeStamp);
 
     /**
      * @brief 打开日志文件进行写入
@@ -96,8 +96,8 @@ private:
      * @param[in] destFilename 目标压缩文件名
      * @return 如果压缩成功返回 true，否则返回 false
      */
-    bool CompressFile(const std::string &fileName, const std::string &sourceFilename,
-                      const std::string &destFilename, const std::string &baseDir);
+    bool CompressFile(const std::string &fileName, const std::string &sourceFilename, const std::string &destFilename,
+                      const std::string &baseDir);
 
     /**
      * @brief 重命名压缩包名

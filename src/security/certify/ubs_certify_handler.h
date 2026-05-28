@@ -12,14 +12,14 @@
 #ifndef UBS_CERTIFY_HANDLER_H
 #define UBS_CERTIFY_HANDLER_H
 
-#include <cstdint>
 #include <unistd.h>
+#include <cstdint>
 
 namespace ock::ubsm {
 
 class UbsCertifyHandler {
 public:
-    static UbsCertifyHandler& GetInstance()
+    static UbsCertifyHandler &GetInstance()
     {
         static UbsCertifyHandler instance;
         return instance;
@@ -33,6 +33,6 @@ private:
     ~UbsCertifyHandler() = default;
 };
 
-}
+} // namespace ock::ubsm
 
 #endif

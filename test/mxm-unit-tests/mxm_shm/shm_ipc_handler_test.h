@@ -18,8 +18,11 @@ public:
         GlobalMockObject::reset();
     };
 
-    void TearDown() override { GlobalMockObject::reset(); };
+    void TearDown() override
+    {
+        GlobalMockObject::reset();
+    };
 };
 
-}  // namespace UT
-#endif  // UBSM_TEST_SHM_IPC_HANDLER_TEST_H
+} // namespace UT
+#endif // UBSM_TEST_SHM_IPC_HANDLER_TEST_H

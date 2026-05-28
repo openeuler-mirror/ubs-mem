@@ -13,14 +13,14 @@
 #ifndef UBSM_DLOCK_DLOCK_CONTEXT_H
 #define UBSM_DLOCK_DLOCK_CONTEXT_H
 
-#include <cstdint>
-#include <atomic>
 #include <time/dg_monotonic.h>
+#include <atomic>
+#include <cstdint>
+#include "ubs_mem_def.h"
+#include "client_desc.h"
 #include "dlock_common.h"
 #include "dlock_config.h"
-#include "ubs_mem_def.h"
 #include "log.h"
-#include "client_desc.h"
 
 namespace ock {
 namespace dlock_utils {
@@ -28,25 +28,26 @@ namespace dlock_utils {
 class DLockContext {
 public:
     static constexpr int32_t NOT_FOUND = -1;
+
 public:
-    DLockContext(const DLockContext& other) = delete;
-    DLockContext(DLockContext&& other) = delete;
-    auto operator=(const DLockContext& other) -> DLockContext& = delete;
-    auto operator=(DLockContext&& other) -> DLockContext& = delete;
+    DLockContext(const DLockContext &other) = delete;
+    DLockContext(DLockContext &&other) = delete;
+    auto operator=(const DLockContext &other) -> DLockContext & = delete;
+    auto operator=(DLockContext &&other) -> DLockContext & = delete;
     ~DLockContext();
 
-    static auto Instance() -> DLockContext&
+    static auto Instance() -> DLockContext &
     {
         static DLockContext ctx;
         return ctx;
     };
 
-    auto GetConfig() -> DLockConfig&
+    auto GetConfig() -> DLockConfig &
     {
         return cfg;
     };
 
-    auto GetConfig() const -> const DLockConfig&
+    auto GetConfig() const -> const DLockConfig &
     {
         return cfg;
     };
@@ -74,7 +75,7 @@ public:
         isHeartBeatActive = status;
     }
 
-    ClientDesc* GetDlockClient()
+    ClientDesc *GetDlockClient()
     {
         // client负载均衡
         size_t index = clientIndex.fetch_add(1, std::memory_order_relaxed);
@@ -86,15 +87,18 @@ public:
         return dlockClients.at(index);
     };
 
-    const std::vector<ClientDesc*>& GetDlockClientList() { return dlockClients; };
+    const std::vector<ClientDesc *> &GetDlockClientList()
+    {
+        return dlockClients;
+    };
 
-    bool ContainClientDesc(const std::string& name) const
+    bool ContainClientDesc(const std::string &name) const
     {
         std::lock_guard<std::mutex> guard(metaMutex);
         return metaMap.find(name) != metaMap.end();
     }
 
-    ClientDesc* GetClientDesc(const std::string& name)
+    ClientDesc *GetClientDesc(const std::string &name)
     {
         std::lock_guard<std::mutex> guard(metaMutex);
         auto client = metaMap.find(name);
@@ -105,25 +109,25 @@ public:
         return client->second;
     }
 
-    void SetClientDesc(const std::string& name, ClientDesc* meta)
+    void SetClientDesc(const std::string &name, ClientDesc *meta)
     {
         std::lock_guard<std::mutex> guard(metaMutex);
         metaMap[name] = meta;
     }
 
-    void RemoveClientDesc(const std::string& name)
+    void RemoveClientDesc(const std::string &name)
     {
         std::lock_guard<std::mutex> guard(metaMutex);
         metaMap.erase(name);
     }
 
-    void AddClientDescRef(const std::string& name)
+    void AddClientDescRef(const std::string &name)
     {
         std::lock_guard<std::mutex> guard(metaMutex);
         ++refCount[name];
     }
 
-    int32_t GetClientDescRef(const std::string& name)
+    int32_t GetClientDescRef(const std::string &name)
     {
         std::lock_guard<std::mutex> guard(metaMutex);
         auto it = refCount.find(name);
@@ -133,7 +137,7 @@ public:
         return refCount[name];
     }
 
-    int32_t ReleaseClientDescRef(const std::string& name)
+    int32_t ReleaseClientDescRef(const std::string &name)
     {
         std::lock_guard<std::mutex> guard(metaMutex);
         auto it = refCount.find(name);
@@ -147,7 +151,7 @@ public:
         return it->second;
     }
 
-    void RemoveClientDescRef(const std::string& name)
+    void RemoveClientDescRef(const std::string &name)
     {
         std::lock_guard<std::mutex> guard(metaMutex);
         auto it = refCount.find(name);
@@ -160,8 +164,8 @@ public:
     {
         std::lock_guard<std::mutex> guard(metaMutex);
         std::vector<std::string> result;
-        for (const auto& entry : metaMap) {
-            const auto& name = entry.first;
+        for (const auto &entry : metaMap) {
+            const auto &name = entry.first;
             result.emplace_back(name);
         }
         return result;
@@ -171,16 +175,16 @@ private:
     DLockContext() = default;
 
 private:
-    std::atomic<size_t> clientIndex = { 0 };
+    std::atomic<size_t> clientIndex = {0};
     bool isNeedServerDeinit = false;
     bool isHeartBeatActive = true;
     DLockConfig cfg;
     std::vector<int32_t> index2ClientId;
-    std::vector<ClientDesc*> dlockClients;
+    std::vector<ClientDesc *> dlockClients;
     mutable std::mutex metaMutex;
-    std::unordered_map<std::string, ClientDesc*> metaMap;
+    std::unordered_map<std::string, ClientDesc *> metaMap;
     std::unordered_map<std::string, uint32_t> refCount;
 };
-}  // namespace dlock_utils
-}  // namespace ock
-#endif  // UBSM_DLOCK_DLOCK_CONTEXT_H
+} // namespace dlock_utils
+} // namespace ock
+#endif // UBSM_DLOCK_DLOCK_CONTEXT_H

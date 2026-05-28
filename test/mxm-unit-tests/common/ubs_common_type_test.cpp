@@ -1,9 +1,9 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
+#include <dlfcn.h>
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
-#include <dlfcn.h>
 
 #include "ubs_common_types.h"
 
@@ -14,8 +14,7 @@ using namespace ock::ubsm;
 
 class UbsCommonTypeTestSuite : public Test {
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
     void TearDown() override
     {
@@ -30,4 +29,4 @@ TEST_F(UbsCommonTypeTestSuite, TestAppContext)
     context.Fill(1, 1, 1);
     ASSERT_EQ(context.GetString(), "1:1:1");
 }
-}  // namespace UT
+} // namespace UT

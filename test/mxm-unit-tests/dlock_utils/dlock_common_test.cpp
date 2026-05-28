@@ -1,6 +1,6 @@
+#include "dlock_common.h"
 #include <gtest/gtest.h>
 #include "log.h"
-#include "dlock_common.h"
 
 namespace UT {
 using namespace ock::dlock_utils;
@@ -23,4 +23,4 @@ TEST(DLockCommonTest, MapUbsmLogLevel2DLockLevel)
     EXPECT_EQ(MapUbsmLogLevel2DLockLevel(DBG_LOG_CRITICAL), DLOCK_LOG_LEVEL_CRIT);
     EXPECT_EQ(MapUbsmLogLevel2DLockLevel(-1), DLOCK_LOG_LEVEL_INFO);
 }
-}
+} // namespace UT

@@ -1,8 +1,8 @@
 /*
 * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <sys/socket.h>
 #include "mxm_com.h"
+#include <sys/socket.h>
 #ifdef DEBUG_MEM_UT
 #define private public
 #define protected public
@@ -16,7 +16,7 @@ using namespace ock::com;
 
 TEST_F(MxmComTestSuite, TestRemoveHandler)
 {
-    auto opCode = 11; // 11
+    auto opCode = 11;     // 11
     auto moduleCode = 22; // 22
     MxmComIpcServiceHandler handler{};
     MxmComBaseMessageHandlerPtr handlerPtr = new (std::nothrow) MxmNetMessageHandler(opCode, moduleCode, handler);
@@ -43,7 +43,7 @@ TEST_F(MxmComTestSuite, TestMxmComBaseNotify)
     auto vec = MxmComBase::GetLinkInfoFromMap(engineName, pid);
     EXPECT_NE(vec.size(), 0);
 
-    LinkNotifyFunction executor = [](const std::vector<MxmLinkInfo>&) {
+    LinkNotifyFunction executor = [](const std::vector<MxmLinkInfo> &) {
         std::cout << "LinkNotifyFunction..." << std::endl;
     };
     ipc::MxmIpcClient ipcClient("/uds", "UT", "1");
@@ -52,14 +52,14 @@ TEST_F(MxmComTestSuite, TestMxmComBaseNotify)
 
 TEST_F(MxmComTestSuite, TestMxmComBaseInterface)
 {
-    HandlerExecutor executor = [](const std::function<void()>& task) {
+    HandlerExecutor executor = [](const std::function<void()> &task) {
         std::cout << "Executing task..." << std::endl;
         task(); // 执行传入的任务
         std::cout << "Task executed." << std::endl;
     };
     MxmComBase::SetHandlerExecutor(executor);
     MxmComBase::SetIpcHandlerExecutor(executor);
-    LinkEventHandler eventHandler = [](const std::vector<MxmLinkInfo>& linkInfoList) {
+    LinkEventHandler eventHandler = [](const std::vector<MxmLinkInfo> &linkInfoList) {
         std::cout << "linkInfoList size " << linkInfoList.size() << std::endl;
     };
     MxmComBase::SetLinkEventHandler(eventHandler);
@@ -74,7 +74,7 @@ TEST_F(MxmComTestSuite, TestMxmComBaseInterface)
 TEST_F(MxmComTestSuite, TestMxmComBaseInterface2)
 {
     MxmComEngineInfo info{};
-    info.SetMaxSendReceiveSize(4096); // 4096
+    info.SetMaxSendReceiveSize(4096);  // 4096
     info.SetSendReceiveSegCount(4096); // 4096
     auto res = info.IsServerSide();
     res = info.IsUds();
@@ -159,4 +159,4 @@ TEST_F(MxmComTestSuite, TestMxmComBaseInterface5)
     delete[] messagePtr;
     ctx.FreeMessage();
 }
-}  // namespace UT
+} // namespace UT

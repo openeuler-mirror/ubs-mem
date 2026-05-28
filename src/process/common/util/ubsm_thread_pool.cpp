@@ -10,9 +10,9 @@
  * See the Mulan PSL v2 for more details.
  */
 #include <algorithm>
-#include <string>
-#include <cstring>
 #include <chrono>
+#include <cstring>
+#include <string>
 
 #include "log.h"
 #include "ubsm_thread_pool.h"
@@ -22,7 +22,9 @@ const static int DEFAULT_THREAD_NUM = 6;
 using namespace ock::ubsm;
 
 UBSMThreadPool::UBSMThreadPool(int thCount, std::string name) noexcept
-    : running(false), threadNum{thCount}, poolName{std::move(name)}
+    : running(false),
+      threadNum{thCount},
+      poolName{std::move(name)}
 {
 }
 

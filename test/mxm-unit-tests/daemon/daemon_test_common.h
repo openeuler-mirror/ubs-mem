@@ -4,13 +4,13 @@
 #ifndef DAEMON_TEST_COMMON_H
 #define DAEMON_TEST_COMMON_H
 
-#include <gtest/gtest.h>
-#include <iostream>
-#include <unistd.h>
 #include <fcntl.h>
+#include <gtest/gtest.h>
+#include <unistd.h>
+#include <iostream>
+#include "logger/ubsmem_logger_manager.h"
 #include "util/common_headers.h"
 #include "util/kv_parser.h"
-#include "logger/ubsmem_logger_manager.h"
 
 using namespace ubsmem::log;
 
@@ -64,6 +64,6 @@ public:
         return 0;
     }
 };
-}
+} // namespace UT::Daemon
 
 #endif

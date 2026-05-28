@@ -9,13 +9,13 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "log.h"
-#include "ubs_mem_def.h"
 #include "BorrowAppMetaMgr.h"
+#include "ubs_mem_def.h"
+#include "log.h"
 
 namespace ock::mxmd {
 using namespace ock::common;
-uint32_t BorrowAppMetaMgr::AddMeta(const void* addr, const AppBorrowMetaDesc& desc)
+uint32_t BorrowAppMetaMgr::AddMeta(const void *addr, const AppBorrowMetaDesc &desc)
 {
     if (addr == nullptr) {
         DBG_LOGERROR("Param is invalid.");
@@ -34,7 +34,7 @@ uint32_t BorrowAppMetaMgr::AddMeta(const void* addr, const AppBorrowMetaDesc& de
     return UBSM_OK;
 }
 
-int32_t BorrowAppMetaMgr::SetMetaHasUnmapped(const void* addr, bool val)
+int32_t BorrowAppMetaMgr::SetMetaHasUnmapped(const void *addr, bool val)
 {
     if (addr == nullptr) {
         DBG_LOGERROR("SetMetaHasUnmapped error. addr is null");
@@ -53,7 +53,7 @@ int32_t BorrowAppMetaMgr::SetMetaHasUnmapped(const void* addr, bool val)
     return UBSM_OK;
 }
 
-int32_t BorrowAppMetaMgr::SetMetaIsLockAddress(const void* addr, bool val)
+int32_t BorrowAppMetaMgr::SetMetaIsLockAddress(const void *addr, bool val)
 {
     if (addr == nullptr) {
         DBG_LOGERROR("SetMetaIsLockAddress error. addr is null");
@@ -72,7 +72,7 @@ int32_t BorrowAppMetaMgr::SetMetaIsLockAddress(const void* addr, bool val)
     return UBSM_OK;
 }
 
-bool BorrowAppMetaMgr::GetMetaHasUnmapped(const void* addr)
+bool BorrowAppMetaMgr::GetMetaHasUnmapped(const void *addr)
 {
     if (addr == nullptr) {
         DBG_LOGERROR("GetMetaHasUnmapped error. addr is null");
@@ -90,7 +90,7 @@ bool BorrowAppMetaMgr::GetMetaHasUnmapped(const void* addr)
     mapLock[key].UnLock();
     return hasUnmap;
 }
-bool BorrowAppMetaMgr::GetMetaIsLockAddress(const void* addr)
+bool BorrowAppMetaMgr::GetMetaIsLockAddress(const void *addr)
 {
     if (addr == nullptr) {
         DBG_LOGERROR("GetMetaIsLockAddress error. addr is null");
@@ -122,7 +122,7 @@ uint32_t BorrowAppMetaMgr::GetAllUsedMemoryNames(std::vector<std::string> &names
     return MXM_OK;
 }
 
-uint32_t BorrowAppMetaMgr::RemoveMeta(const void* addr)
+uint32_t BorrowAppMetaMgr::RemoveMeta(const void *addr)
 {
     if (addr == nullptr) {
         DBG_LOGERROR("Param is invalid.");
@@ -141,7 +141,7 @@ uint32_t BorrowAppMetaMgr::RemoveMeta(const void* addr)
     return UBSM_OK;
 }
 
-uint32_t BorrowAppMetaMgr::GetMeta(const void* addr, AppBorrowMetaDesc& desc)
+uint32_t BorrowAppMetaMgr::GetMeta(const void *addr, AppBorrowMetaDesc &desc)
 {
     if (addr == nullptr) {
         DBG_LOGERROR("Param is invalid.");
@@ -164,7 +164,7 @@ uint32_t BorrowAppMetaMgr::GetMeta(const void* addr, AppBorrowMetaDesc& desc)
     return UBSM_OK;
 }
 
-uint32_t BorrowAppMetaMgr::UpdateMeta(const void* addr, AppBorrowMetaDesc& desc)
+uint32_t BorrowAppMetaMgr::UpdateMeta(const void *addr, AppBorrowMetaDesc &desc)
 {
     if (addr == nullptr) {
         DBG_LOGERROR("Param is invalid.");
@@ -184,5 +184,5 @@ uint32_t BorrowAppMetaMgr::UpdateMeta(const void* addr, AppBorrowMetaDesc& desc)
     return UBSM_OK;
 }
 
-}  // namespace ock::mxmd
-// ock
+} // namespace ock::mxmd
+  // ock

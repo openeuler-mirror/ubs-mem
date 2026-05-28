@@ -12,17 +12,17 @@
 #ifndef OCK_DAEMON_H
 #define OCK_DAEMON_H
 
-#include <mutex>
 #include <atomic>
-#include <memory>
 #include <chrono>
 #include <condition_variable>
-#include "util/common_headers.h"
-#include "ock_service_manager.h"
+#include <memory>
+#include <mutex>
+#include "log.h"
 #include "ock_service_adapter.h"
+#include "ock_service_manager.h"
+#include "util/common_headers.h"
 #include "util/log_adapter.h"
 #include "util/systemd_wrapper.h"
-#include "log.h"
 
 namespace ock {
 namespace daemon {
@@ -35,14 +35,14 @@ public:
 
     HRESULT CheckParam(const std::string &binPath);
     HRESULT Initialize();
-    HRESULT Start(const std::chrono::time_point<std::chrono::steady_clock>& start);
+    HRESULT Start(const std::chrono::time_point<std::chrono::steady_clock> &start);
     void TryStop();
     HRESULT InitHandler();
     virtual HRESULT Shutdown();
     HRESULT Uninitialize();
     HRESULT ValidateConfiguration(const std::string &confPath);
     virtual HRESULT CheckServicesCount();
-    static void PrintStartTime(const std::chrono::time_point<std::chrono::steady_clock>& start, const std::string& log);
+    static void PrintStartTime(const std::chrono::time_point<std::chrono::steady_clock> &start, const std::string &log);
     bool GetHtracerEnable()
     {
         return mHtracerEnable;
@@ -59,7 +59,8 @@ private:
     int32_t InitRpcTlsConfig();
     int32_t InitLockTlsConfig();
 
-    enum class ServerStatus {
+    enum class ServerStatus
+    {
         UNINITIALIZED = 0,
         INITIALIZED = 1,
         WAITING = 2
@@ -69,7 +70,8 @@ private:
     ock::common::ConfigurationPtr mConf = nullptr;
     std::string mHomePath = "";
 
-    enum KeepAliveStatus : int {
+    enum KeepAliveStatus : int
+    {
         KEEP_ALIVE_IDLE,
         KEEP_ALIVE_RUNNING,
         KEEP_ALIVE_STOPPING,

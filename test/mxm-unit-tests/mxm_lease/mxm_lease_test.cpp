@@ -13,12 +13,8 @@ public:
         mockcpp::GlobalMockObject::reset();
     }
 
-    void SetUp() override
-    {
-    }
+    void SetUp() override {}
 
-    void TearDown() override
-    {
-    }
+    void TearDown() override {}
 };
-}
+} // namespace UT

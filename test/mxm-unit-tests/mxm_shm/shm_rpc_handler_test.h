@@ -4,9 +4,9 @@
 #ifndef UBSM_TEST_SHM_IPC_HANDLER_TEST_H
 #define UBSM_TEST_SHM_IPC_HANDLER_TEST_H
 
-#include <zen_discovery.h>
 #include <gtest/gtest.h>
 #include <mockcpp/mokc.h>
+#include <zen_discovery.h>
 #include <mockcpp/mockcpp.hpp>
 namespace UT {
 #ifndef MOCKER_CPP
@@ -25,5 +25,5 @@ public:
     };
 };
 
-}  // namespace UT
-#endif  // UBSM_TEST_SHM_IPC_HANDLER_TEST_H
+} // namespace UT
+#endif // UBSM_TEST_SHM_IPC_HANDLER_TEST_H

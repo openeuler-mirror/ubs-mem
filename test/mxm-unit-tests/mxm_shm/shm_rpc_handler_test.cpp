@@ -2,11 +2,11 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
 
-#include "mxm_shm/rpc_handler.h"
-#include "zen_discovery.h"
-#include "dlock_context.h"
-#include "ubsm_lock.h"
 #include "shm_rpc_handler_test.h"
+#include "dlock_context.h"
+#include "mxm_shm/rpc_handler.h"
+#include "ubsm_lock.h"
+#include "zen_discovery.h"
 
 using namespace UT;
 using namespace ock::rpc::service;
@@ -65,7 +65,7 @@ TEST_F(ShmRpcHandlerTestSuite, TestQueryNodeInfoErrRequest)
 
 TEST_F(ShmRpcHandlerTestSuite, TestPingRequestInfo)
 {
-    MOCKER_CPP(&ZenDiscovery::HandlePingRequest, void (*)(const std::string& fromNodeId))
+    MOCKER_CPP(&ZenDiscovery::HandlePingRequest, void (*)(const std::string &fromNodeId))
         .stubs()
         .will(returnValue(nullptr));
     auto request = std::make_shared<PingRequest>();
@@ -96,7 +96,7 @@ TEST_F(ShmRpcHandlerTestSuite, TestPingRequestInfoErrRequest)
 
 TEST_F(ShmRpcHandlerTestSuite, TestPingRequestInfoNull)
 {
-    ZenDiscovery* zen = nullptr;
+    ZenDiscovery *zen = nullptr;
     MOCKER_CPP(&ock::zendiscovery::ZenDiscovery::GetInstance, ock::zendiscovery::ZenDiscovery * (*)())
         .stubs()
         .will(returnValue(zen));
@@ -116,7 +116,7 @@ TEST_F(ShmRpcHandlerTestSuite, TestPingRequestInfoNull)
 TEST_F(ShmRpcHandlerTestSuite, TestJoinRequestInfo)
 {
     MOCKER_CPP(&ock::zendiscovery::ZenDiscovery::HandleJoinRequest,
-               ock::rpc::NodeType(*)(const std::string& fromNodeId))
+               ock::rpc::NodeType(*)(const std::string &fromNodeId))
         .stubs()
         .will(returnValue(0));
 
@@ -148,7 +148,7 @@ TEST_F(ShmRpcHandlerTestSuite, TestJoinRequestInfoErrRequest)
 
 TEST_F(ShmRpcHandlerTestSuite, TestJoinRequestInfoNull)
 {
-    ZenDiscovery* zen = nullptr;
+    ZenDiscovery *zen = nullptr;
     MOCKER_CPP(&ock::zendiscovery::ZenDiscovery::GetInstance, ock::zendiscovery::ZenDiscovery * (*)())
         .stubs()
         .will(returnValue(zen));
@@ -168,7 +168,7 @@ TEST_F(ShmRpcHandlerTestSuite, TestJoinRequestInfoNull)
 TEST_F(ShmRpcHandlerTestSuite, TestVoteRequestInfo)
 {
     MOCKER_CPP(&ock::zendiscovery::ZenDiscovery::HandleVoteRequest,
-               bool (*)(const std::string& fromNodeId, const std::string& candidate, int term))
+               bool (*)(const std::string &fromNodeId, const std::string &candidate, int term))
         .stubs()
         .will(returnValue(true));
 
@@ -187,7 +187,7 @@ TEST_F(ShmRpcHandlerTestSuite, TestVoteRequestInfo)
 
 TEST_F(ShmRpcHandlerTestSuite, TestVoteRequestInfoNull)
 {
-    ZenDiscovery* zen = nullptr;
+    ZenDiscovery *zen = nullptr;
     MOCKER_CPP(&ock::zendiscovery::ZenDiscovery::GetInstance, ock::zendiscovery::ZenDiscovery * (*)())
         .stubs()
         .will(returnValue(zen));
@@ -206,7 +206,7 @@ TEST_F(ShmRpcHandlerTestSuite, TestVoteRequestInfoNull)
 
 TEST_F(ShmRpcHandlerTestSuite, TestSendTransElectedInfoNull)
 {
-    ZenDiscovery* zen = nullptr;
+    ZenDiscovery *zen = nullptr;
     MOCKER_CPP(&ock::zendiscovery::ZenDiscovery::GetInstance, ock::zendiscovery::ZenDiscovery * (*)())
         .stubs()
         .will(returnValue(zen));
@@ -226,7 +226,7 @@ TEST_F(ShmRpcHandlerTestSuite, TestSendTransElectedInfoNull)
 TEST_F(ShmRpcHandlerTestSuite, TestSendTransElectedInfo)
 {
     MOCKER_CPP(&ock::zendiscovery::ZenDiscovery::HandleSendTransElected,
-               void (*)(const std::string& fromNodeId, const std::vector<std::string>& nodeList, int term))
+               void (*)(const std::string &fromNodeId, const std::vector<std::string> &nodeList, int term))
         .stubs()
         .will(returnValue(0));
 
@@ -260,7 +260,7 @@ TEST_F(ShmRpcHandlerTestSuite, TestMasterElectedInfo)
 
 TEST_F(ShmRpcHandlerTestSuite, TestMasterElectedInfoNull)
 {
-    ZenDiscovery* zen = nullptr;
+    ZenDiscovery *zen = nullptr;
     MOCKER_CPP(&ock::zendiscovery::ZenDiscovery::GetInstance, ock::zendiscovery::ZenDiscovery * (*)())
         .stubs()
         .will(returnValue(zen));
@@ -278,7 +278,7 @@ TEST_F(ShmRpcHandlerTestSuite, TestMasterElectedInfoNull)
 
 TEST_F(ShmRpcHandlerTestSuite, TestBroadCastRequestInfoNull)
 {
-    ZenDiscovery* zen = nullptr;
+    ZenDiscovery *zen = nullptr;
     MOCKER_CPP(&ock::zendiscovery::ZenDiscovery::GetInstance, ock::zendiscovery::ZenDiscovery * (*)())
         .stubs()
         .will(returnValue(zen));
@@ -297,7 +297,7 @@ TEST_F(ShmRpcHandlerTestSuite, TestBroadCastRequestInfoNull)
 TEST_F(ShmRpcHandlerTestSuite, TestBroadCastRequestInfo)
 {
     MOCKER_CPP(&ock::zendiscovery::ZenDiscovery::HandleBroadCastRequest,
-               void (*)(const std::string& fromNodeId, const std::map<std::string, ock::rpc::ClusterNode>& nodeList,
+               void (*)(const std::string &fromNodeId, const std::map<std::string, ock::rpc::ClusterNode> &nodeList,
                         bool isSeverInited))
         .stubs()
         .will(returnValue(0));
@@ -348,7 +348,7 @@ TEST_F(ShmRpcHandlerTestSuite, TestDLockClientReinitFail)
 TEST_F(ShmRpcHandlerTestSuite, TestHandleMemLock)
 {
     MOCKER_CPP(&ock::dlock_utils::UbsmLock::Lock,
-               int32_t(*)(const std::string& name, bool isExclusive, ock::dlock_utils::LockUdsInfo& udsInfo))
+               int32_t(*)(const std::string &name, bool isExclusive, ock::dlock_utils::LockUdsInfo &udsInfo))
         .stubs()
         .will(returnValue(-1));
     auto request = std::make_shared<LockRequest>();
@@ -367,7 +367,7 @@ TEST_F(ShmRpcHandlerTestSuite, TestHandleMemLock)
 TEST_F(ShmRpcHandlerTestSuite, TestHandleMemUnLock)
 {
     MOCKER_CPP(&ock::dlock_utils::UbsmLock::Unlock,
-               int32_t(*)(const std::string& name, const ock::dlock_utils::LockUdsInfo& udsInfo))
+               int32_t(*)(const std::string &name, const ock::dlock_utils::LockUdsInfo &udsInfo))
         .stubs()
         .will(returnValue(-1));
     auto request = std::make_shared<UnLockRequest>();

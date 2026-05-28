@@ -17,8 +17,8 @@
 #include <mutex>
 #include <string>
 #include "log.h"
-#include "ubs_common_types.h"
 #include "record_store.h"
+#include "ubs_common_types.h"
 #include "ubse_mem_adapter.h"
 
 namespace ock::lease::service {
@@ -60,7 +60,7 @@ struct MLSMemInfo {
 
 class MLSManager {
 public:
-    static MLSManager& GetInstance()
+    static MLSManager &GetInstance()
     {
         static MLSManager instance;
         return instance;
@@ -74,41 +74,41 @@ public:
     int32_t ReuseBufferedMem(uint64_t size, uint16_t isNuma, const std::string &regionName,
                              const ock::ubsm::AppContext &context, MLSMemInfo &info);
     // 如果缓存空间有剩余，直接放到缓存空间，否则将record状态置为PRE_DEL
-    int32_t PreDeleteUsedMem(const std::string& name);
-    int32_t DeleteUsedMem(const std::string& name);
+    int32_t PreDeleteUsedMem(const std::string &name);
+    int32_t DeleteUsedMem(const std::string &name);
     int32_t DeleteAllBufferedMem();
     std::vector<MLSMemInfo> ListAllMem();
-    int32_t GetUsedMemByName(const std::string& name, MLSMemInfo &info);
+    int32_t GetUsedMemByName(const std::string &name, MLSMemInfo &info);
     std::vector<MLSMemInfo> GetUsedMemByPid(uint32_t pid);
     std::string GenerateMemName(uint64_t size);
 
     int PreAddUsedMem(const std::string &name, size_t size, const ubsm::AppContext &usr, bool isNuma,
                       uint16_t perfLevel);
     int FinishAddUsedMem(const std::string &name, int64_t numaId, size_t unitSize, uint32_t slotId,
-                         const std::vector<uint64_t>& memIds);
+                         const std::vector<uint64_t> &memIds);
 
     int32_t UpdateMemRecordState(const std::string &name, ock::ubsm::RecordState state);
 
 private:
     MLSManager() = default;
-    MLSManager(const MLSManager& other) = delete;
-    MLSManager(MLSManager&& other) = delete;
-    MLSManager& operator=(const MLSManager& other) = delete;
-    MLSManager& operator=(MLSManager&& other) noexcept = delete;
+    MLSManager(const MLSManager &other) = delete;
+    MLSManager(MLSManager &&other) = delete;
+    MLSManager &operator=(const MLSManager &other) = delete;
+    MLSManager &operator=(MLSManager &&other) noexcept = delete;
     int32_t BufferUsedMemory(MLSMemInfo &usedInfo);
     int32_t ReuseMemInSlotId(uint64_t size, uint16_t isNuma, const std::vector<uint32_t> &slotIds,
                              const ubsm::AppContext &context, MLSMemInfo &bufferInfo);
 
-    int32_t RemovePreAddRecord(ock::ubsm::MemLeaseInfo& record, bool& needToDelete);
-    int32_t RollbackPreDeleteRecord(const ock::ubsm::MemLeaseInfo& record, ock::ubsm::RecordState& recordState);
+    int32_t RemovePreAddRecord(ock::ubsm::MemLeaseInfo &record, bool &needToDelete);
+    int32_t RollbackPreDeleteRecord(const ock::ubsm::MemLeaseInfo &record, ock::ubsm::RecordState &recordState);
     bool isEnableLeaseBuffered_{true};
     uint32_t maxBufferedMemNum_{DEFAULT_MAX_BUFFER_MEM_NUM};
-    
+
     std::mutex mapMutex_{};
     std::map<std::string, MLSMemInfo> usedMemory_{};
     std::map<MLSMemKey, MLSMemInfo> numaBufferedMemory_{};
     std::map<MLSMemKey, MLSMemInfo> fdBufferedMemory_{};
 };
 
-}  // namespace ock::lease::service
+} // namespace ock::lease::service
 #endif // OCK_MEM_LEASE_MANAGER_H

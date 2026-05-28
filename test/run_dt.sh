@@ -88,7 +88,7 @@ EOF
 compile_and_run() {
   set -e
   DEBUG_FUZZ=OFF
-  cmake -DCMAKE_BUILD_TYPE=Debug -DASAN_BUILD=ON -DDEBUG_UT=ON -DDEBUG_FUZZ=${DEBUG_FUZZ} -S $SRC_PATH -B $BUILD_PATH
+  cmake -DCMAKE_BUILD_TYPE=Debug -DASAN_BUILD=ON -DDEBUG_UT=ON -DDEBUG_FUZZ=${DEBUG_FUZZ} -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -S $SRC_PATH -B $BUILD_PATH
   echo "end cmake."
   cd $BUILD_PATH
   pwd;
@@ -96,6 +96,9 @@ compile_and_run() {
   echo "$N_CPUS processors detected."
   make -j $N_CPUS install;
   echo "end make install."
+  if [ "$SKIP_RUN_TESTS" = true ]; then
+    return
+  fi
   cp $BUILD_PATH/output/bin/* $BUILD_PATH
   cp $BUILD_PATH/output/lib/* $BUILD_PATH
   run_encrypt_tool
@@ -106,6 +109,15 @@ compile_and_run() {
     LD_PRELOAD=$ASAN_PATH:$LD_PRELOAD LD_LIBRARY_PATH=$BUILD_PATH:$LD_LIBRARY_PATH HSECEASY_PATH=$BUILD_PATH ${BUILD_PATH}/mxmd_fuzz --gtest_output=xml:gcover_report/test_fuzz_detail.xml
   fi
 }
+
+SKIP_RUN_TESTS=false
+for arg in "$@"; do
+  case "$arg" in
+    --skip-run-tests)
+      SKIP_RUN_TESTS=true
+      ;;
+  esac
+done
 
 CURRENT_PATH=$(cd "$(dirname "$0")"; pwd)
 BUILD_PATH="${CURRENT_PATH}/build"
@@ -120,12 +132,15 @@ start_compile=$(date +%s%3N)
 compile_and_run
 end_compile=$(date +%s%3N)
 
-# sh coverage.sh ${SRC_PATH} ${TEST_PATH} 统计覆盖率
-start_coverage=$(date +%s%3N)
-sh  ${CURRENT_PATH}/coverage.sh ${SRC_PATH} ${CURRENT_PATH}
-end_coverage=$(date +%s%3N)
+if [ "$SKIP_RUN_TESTS" = false ]; then
+  start_coverage=$(date +%s%3N)
+  sh  ${CURRENT_PATH}/coverage.sh ${SRC_PATH} ${CURRENT_PATH}
+  end_coverage=$(date +%s%3N)
+fi
 
 echo "The time consumed by each step is as follows:"
 echo "update_deps: $(((end_update_deps - start_update_deps)/1000)).$(((end_update_deps - start_update_deps)%1000))s"
 echo "compile_and_run: $(((end_compile - start_compile)/1000)).$(((end_compile - start_compile)%1000))s"
-echo "coverage: $(((end_coverage - start_coverage)/1000)).$(((end_coverage - start_coverage)%1000))s"
+if [ "$SKIP_RUN_TESTS" = false ]; then
+  echo "coverage: $(((end_coverage - start_coverage)/1000)).$(((end_coverage - start_coverage)%1000))s"
+fi

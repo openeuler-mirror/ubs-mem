@@ -19,9 +19,7 @@ OckServiceArgs *OckServiceAdapter::CreateServiceArgs(const std::vector<std::stri
     auto argKeys = argNames;
     if (argKeys.empty()) {
         using namespace ock::common::ConfConstant;
-        argKeys = {"",
-                   MXMD_DAEMON_BINPATH.first,
-                   MXMD_SERVER_LOG_LEVEL.first};
+        argKeys = {"", MXMD_DAEMON_BINPATH.first, MXMD_SERVER_LOG_LEVEL.first};
     }
     for (auto &name : argKeys) {
         auto config = Configuration::GetInstance();
@@ -31,7 +29,7 @@ OckServiceArgs *OckServiceAdapter::CreateServiceArgs(const std::vector<std::stri
         std::string singleArg = config->GetConvertedValue(name);
         args.push_back(singleArg);
     }
-    OckServiceArgs* serviceArg = new (std::nothrow) OckServiceArgs();
+    OckServiceArgs *serviceArg = new (std::nothrow) OckServiceArgs();
     if (serviceArg == nullptr) {
         return nullptr;
     }
@@ -42,5 +40,5 @@ OckServiceArgs *OckServiceAdapter::CreateServiceArgs(const std::vector<std::stri
     }
     return serviceArg;
 }
-}
-}
+} // namespace daemon
+} // namespace ock

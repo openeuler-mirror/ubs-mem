@@ -15,8 +15,7 @@ constexpr uint64_t MOCK_SIZE = 4096;
 
 class MxmemLeaseTestSuite : public testing::Test {
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
     void TearDown() override
     {
@@ -27,7 +26,7 @@ protected:
 
 TEST_F(MxmemLeaseTestSuite, TestUbsmemLeaseMallocRegionNameNull)
 {
-    void* ptr = nullptr;
+    void *ptr = nullptr;
     uint32_t ret = ubsmem_lease_malloc_impl(nullptr, MOCK_SIZE, DISTANCE_DIRECT_NODE, 0, &ptr);
     ASSERT_EQ(ret, MXM_ERR_PARAM_INVALID);
     ASSERT_EQ(ubsmem_lease_malloc(nullptr, MOCK_SIZE, DISTANCE_DIRECT_NODE, 0, &ptr),
@@ -36,27 +35,27 @@ TEST_F(MxmemLeaseTestSuite, TestUbsmemLeaseMallocRegionNameNull)
 
 TEST_F(MxmemLeaseTestSuite, TestUbsmemLeaseMallocWithLocation)
 {
-    void* ptr = nullptr;
+    void *ptr = nullptr;
     uint32_t ret = ubsmem_lease_malloc_with_location(nullptr, MOCK_SIZE, 0, &ptr);
     ASSERT_EQ(ret, UBSM_ERR_PARAM_INVALID);
 
     ubs_mem_location_t lender = {0};
     ret = ubsmem_lease_malloc_with_location(&lender, MOCK_SIZE, 0, nullptr);
     ASSERT_EQ(ret, UBSM_ERR_PARAM_INVALID);
-    
+
     ret = ubsmem_lease_malloc_with_location(&lender, -1, 0, &ptr);
     ASSERT_EQ(ret, UBSM_ERR_PARAM_INVALID);
 
     ret = ubsmem_lease_malloc_with_location(&lender, MOCK_SIZE, 0, &ptr);
     ASSERT_EQ(ret, UBSM_ERR_PARAM_INVALID);
 
-    void* mockAddr = reinterpret_cast<void*>(0x12345678);
-    MOCKER_CPP(&MxmComIpcClientSend,
-               int (*)(uint16_t opCode, MsgBase* request, MsgBase* response))
+    void *mockAddr = reinterpret_cast<void *>(0x12345678);
+    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase * request, MsgBase * response))
         .stubs()
         .will(invoke(MxmComIpcClientSendStub));
-    MOCKER_CPP(&RackMem::MemoryIDUsedByFd, void* (*)(AppBorrowMetaDesc & desc, const std::vector<uint64_t>& memIds,
-        int64_t numaId, size_t unitSize, const std::string& name, uint64_t))
+    MOCKER_CPP(&RackMem::MemoryIDUsedByFd,
+               void *(*)(AppBorrowMetaDesc & desc, const std::vector<uint64_t> &memIds, int64_t numaId, size_t unitSize,
+                         const std::string &name, uint64_t))
         .stubs()
         .will(returnValue(mockAddr));
     ret = ubsmem_lease_malloc_with_location(&lender, MOCK_SIZE * 1024, 0, &ptr);
@@ -66,7 +65,7 @@ TEST_F(MxmemLeaseTestSuite, TestUbsmemLeaseMallocWithLocation)
 
 TEST_F(MxmemLeaseTestSuite, TestUbsmemLeaseMallocRegionNameEmpty)
 {
-    void* ptr = nullptr;
+    void *ptr = nullptr;
     std::string emptyName = "";
     uint32_t ret = ubsmem_lease_malloc_impl(emptyName.c_str(), MOCK_SIZE, DISTANCE_DIRECT_NODE, 0, &ptr);
     ASSERT_EQ(ret, MXM_ERR_PARAM_INVALID);
@@ -74,7 +73,7 @@ TEST_F(MxmemLeaseTestSuite, TestUbsmemLeaseMallocRegionNameEmpty)
 
 TEST_F(MxmemLeaseTestSuite, TestUbsmemLeaseMallocRegionNameTooLong)
 {
-    void* ptr = nullptr;
+    void *ptr = nullptr;
     std::string longName = std::string(MAX_REGION_NAME_DESC_LENGTH, 'a');
     uint32_t ret = ubsmem_lease_malloc_impl(longName.c_str(), MOCK_SIZE, DISTANCE_DIRECT_NODE, 0, &ptr);
     ASSERT_EQ(ret, MXM_ERR_PARAM_INVALID);
@@ -89,18 +88,16 @@ TEST_F(MxmemLeaseTestSuite, TestUbsmemLeaseMallocLocalPtrNull)
 
 TEST_F(MxmemLeaseTestSuite, TestUbsmemLeaseMallocInvalidSize)
 {
-    void* ptr = nullptr;
+    void *ptr = nullptr;
     std::string name = "valid_region";
-    MOCKER(CheckRackMemSize)
-        .stubs()
-        .will(returnValue(false));
+    MOCKER(CheckRackMemSize).stubs().will(returnValue(false));
     uint32_t ret = ubsmem_lease_malloc_impl(name.c_str(), 0, DISTANCE_DIRECT_NODE, 0, &ptr);
     ASSERT_EQ(ret, MXM_ERR_PARAM_INVALID);
 }
 
 TEST_F(MxmemLeaseTestSuite, TestUbsmemLeaseMallocInvalidDistance)
 {
-    void* ptr = nullptr;
+    void *ptr = nullptr;
     std::string name = "valid_region";
     ubsmem_distance_t invalidDist = DISTANCE_HOP_NODE;
     uint32_t ret = ubsmem_lease_malloc_impl(name.c_str(), MOCK_SIZE, invalidDist, 0, &ptr);
@@ -109,15 +106,13 @@ TEST_F(MxmemLeaseTestSuite, TestUbsmemLeaseMallocInvalidDistance)
 
 TEST_F(MxmemLeaseTestSuite, TestUbsmemLeaseMallocSuccess)
 {
-    void* mockPtr = reinterpret_cast<void*>(0x12345678);
-    void* outputPtr = nullptr;
+    void *mockPtr = reinterpret_cast<void *>(0x12345678);
+    void *outputPtr = nullptr;
     std::string name = "valid_region";
 
-    MOCKER(CheckRackMemSize)
-        .stubs()
-        .will(returnValue(true));
+    MOCKER(CheckRackMemSize).stubs().will(returnValue(true));
 
-    MOCKER_CPP(&RackMem::UbsMemMalloc, int(*)(const std::string&, size_t, PerfLevel, uint64_t, void **))
+    MOCKER_CPP(&RackMem::UbsMemMalloc, int (*)(const std::string &, size_t, PerfLevel, uint64_t, void **))
         .expects(once())
         .will(returnValue(0));
 
@@ -127,16 +122,14 @@ TEST_F(MxmemLeaseTestSuite, TestUbsmemLeaseMallocSuccess)
 
 TEST_F(MxmemLeaseTestSuite, TestUbsmemLeaseMallocAllocationFailed)
 {
-    void* outputPtr = nullptr;
+    void *outputPtr = nullptr;
     std::string name = "valid_region";
 
-    MOCKER(CheckRackMemSize)
-        .stubs()
-        .will(returnValue(true));
+    MOCKER(CheckRackMemSize).stubs().will(returnValue(true));
 
-    MOCKER_CPP(&RackMem::UbsMemMalloc, int(*)(const std::string&, size_t, PerfLevel, uint64_t, void **))
-            .expects(once())
-            .will(returnValue(1));
+    MOCKER_CPP(&RackMem::UbsMemMalloc, int (*)(const std::string &, size_t, PerfLevel, uint64_t, void **))
+        .expects(once())
+        .will(returnValue(1));
 
     uint32_t ret = ubsmem_lease_malloc_impl(name.c_str(), MOCK_SIZE, DISTANCE_DIRECT_NODE, 0, &outputPtr);
     ASSERT_EQ(ret, 1);
@@ -152,21 +145,17 @@ TEST_F(MxmemLeaseTestSuite, TestUbsmemLeaseFreeNullPtr)
 
 TEST_F(MxmemLeaseTestSuite, TestUbsmemLeaseFreeSuccess)
 {
-    void* ptr = reinterpret_cast<void*>(0x1234);
-    MOCKER_CPP(&RackMem::UbsMemFree, int(*)(void *))
-        .expects(once())
-        .will(returnValue(0));
+    void *ptr = reinterpret_cast<void *>(0x1234);
+    MOCKER_CPP(&RackMem::UbsMemFree, int (*)(void *)).expects(once()).will(returnValue(0));
     uint32_t ret = ubsmem_lease_free_impl(ptr);
     ASSERT_EQ(ret, 0);
 }
 
 TEST_F(MxmemLeaseTestSuite, TestUbsmemLeaseFreeFailed)
 {
-    void* ptr = reinterpret_cast<void*>(0x1234);
+    void *ptr = reinterpret_cast<void *>(0x1234);
     const int expectedErr = -5;
-    MOCKER_CPP(&RackMem::UbsMemFree, int(*)(void *))
-        .stubs()
-        .will(returnValue(expectedErr));
+    MOCKER_CPP(&RackMem::UbsMemFree, int (*)(void *)).stubs().will(returnValue(expectedErr));
     uint32_t ret = ubsmem_lease_free_impl(ptr);
     ASSERT_EQ(ret, expectedErr);
 }

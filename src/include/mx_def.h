@@ -16,25 +16,26 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-typedef enum RackMemPerfLevel {
+typedef enum RackMemPerfLevel
+{
     L0, /* *L0对应直连节点 */
     L1, /* *L1对应通过1跳节点，暂不支持 */
-    L2 /* *L2对应过超过1跳节点 ，暂不支持 */
+    L2  /* *L2对应过超过1跳节点 ，暂不支持 */
 } PerfLevel;
 
 struct NodeBorrowMemInfo {
-    uint64_t availBorrowMemSize;  // 当前可借入内存的大小，单位字节
-    uint64_t borrowedMemSize;  // 已经借入的内存大小，单位字节
-    uint64_t availLendMemSize;  // 当前可借出内存的大小，单位字节
-    uint64_t lentMemSize;  // 已经借出的内存大小，单位字节
+    uint64_t availBorrowMemSize; // 当前可借入内存的大小，单位字节
+    uint64_t borrowedMemSize;    // 已经借入的内存大小，单位字节
+    uint64_t availLendMemSize;   // 当前可借出内存的大小，单位字节
+    uint64_t lentMemSize;        // 已经借出的内存大小，单位字节
 };
 
 typedef struct NodeBorrowMemInfo QueryLocalBorrowMemInfo;
 
 #define MEM_TOPOLOGY_MAX_HOSTS 16
-#define MEM_MAX_ID_LENGTH 48  // 节点id，共享内存name，最大限制1024
+#define MEM_MAX_ID_LENGTH 48 // 节点id，共享内存name，最大限制1024
 
 #ifdef __cplusplus
 }
 #endif
-#endif  // MX_DEF_H
+#endif // MX_DEF_H

@@ -42,32 +42,33 @@ extern "C" {
 
 #define UBSM_FLAG_CACHE 0x0UL
 #define UBSM_FLAG_WITH_LOCK 0x1UL
-#define UBSM_FLAG_NONCACHE 0x2UL  // open O_SYNC
-#define UBSM_FLAG_WR_DELAY_COMP 0x4UL // obmm import with wr_delay_comp
+#define UBSM_FLAG_NONCACHE 0x2UL             // open O_SYNC
+#define UBSM_FLAG_WR_DELAY_COMP 0x4UL        // obmm import with wr_delay_comp
 #define UBSM_FLAG_ONLY_IMPORT_NONCACHE 0X8UL // only import open O_SYNC
-#define UBSM_FLAG_MEM_ANONYMOUS 0x10UL // auto cleanup when all references in domain drop to zero
+#define UBSM_FLAG_MEM_ANONYMOUS 0x10UL       // auto cleanup when all references in domain drop to zero
 // mapping OBMM memory with a 2M granularity
 #define UBSM_FLAG_MMAP_HUGETLB_PMD 0x20UL
 #define UBSM_FLAG_MALLOC_WITH_NUMA 0x40UL // create a remote numa when malloc
 #define FOUR_KB 4096
 
-typedef enum {
+typedef enum
+{
     UBSM_OK = 0,
     // common error
     UBSM_ERR_PARAM_INVALID = 6010,
-    UBSM_ERR_NOPERM = 6011,  // no permision
-    UBSM_ERR_MEMORY = 6012,  // memcpy or other mem func failed
-    UBSM_ERR_UNIMPL = 6013,  // not implement
+    UBSM_ERR_NOPERM = 6011,           // no permision
+    UBSM_ERR_MEMORY = 6012,           // memcpy or other mem func failed
+    UBSM_ERR_UNIMPL = 6013,           // not implement
     UBSM_CHECK_RESOURCE_ERROR = 6014, // resource check failed.
-    UBSM_ERR_MEMLIB = 6015,  // mem lib failed
-    UBSM_ERR_NO_NEEDED = 6016, // default region no need to create
+    UBSM_ERR_MEMLIB = 6015,           // mem lib failed
+    UBSM_ERR_NO_NEEDED = 6016,        // default region no need to create
     UBSM_ERR_BUSY = 6017,
     // resource error
     UBSM_ERR_NOT_FOUND = 6020,
     UBSM_ERR_ALREADY_EXIST = 6021,
     UBSM_ERR_MALLOC_FAIL = 6022,
     UBSM_ERR_RECORD = 6023,
-    UBSM_ERR_IN_USING = 6024, // shm is in use (usrNum > 0)
+    UBSM_ERR_IN_USING = 6024,      // shm is in use (usrNum > 0)
     UBSM_ERR_NOT_SUPPORTED = 6025, // operation not support
 
     // net error
@@ -87,7 +88,8 @@ typedef enum {
 /**
  * Memory distance, describes the physical memory resource distance relative to the current PE.
  */
-typedef enum {
+typedef enum
+{
     /** direct connect node is provided, same as PerfLevel::L0 */
     DISTANCE_DIRECT_NODE = 0,
     /** one hop connect node is provided, same as PerfLevel::L1, not support 930 */
@@ -99,7 +101,7 @@ typedef struct {
 } ubsmem_options_t;
 
 typedef struct {
-    char host_name[MAX_HOST_NAME_DESC_LENGTH];  // include '\0'
+    char host_name[MAX_HOST_NAME_DESC_LENGTH]; // include '\0'
     bool affinity;
 } ubsmem_region_node_desc_t;
 
@@ -120,14 +122,14 @@ typedef struct {
 } ubsmem_region_desc_t;
 
 typedef struct {
-    uint32_t slot_id;            // 节点唯一标识, 采用slotid, 与lcne保持一致
-    uint32_t socket_id;          // socket id
-    uint32_t numa_id;            // 节点中的numa id
-    uint32_t mem_lend_ratio;     // 池化内存借出比例上限
-    uint64_t mem_total;          // 内存总量, 单位字节
-    uint64_t mem_free;           // 内存空闲量, 单位字节
-    uint64_t mem_borrow;         // 借用的内存，单位字节
-    uint64_t mem_lend;           // 借出的内存，单位字节
+    uint32_t slot_id;        // 节点唯一标识, 采用slotid, 与lcne保持一致
+    uint32_t socket_id;      // socket id
+    uint32_t numa_id;        // 节点中的numa id
+    uint32_t mem_lend_ratio; // 池化内存借出比例上限
+    uint64_t mem_total;      // 内存总量, 单位字节
+    uint64_t mem_free;       // 内存空闲量, 单位字节
+    uint64_t mem_borrow;     // 借用的内存，单位字节
+    uint64_t mem_lend;       // 借出的内存，单位字节
     uint8_t resv[MAX_NUMA_RESV_LEN];
 } ubsmem_numa_mem_t;
 
@@ -138,7 +140,7 @@ typedef struct {
 } ubsmem_host_info_t;
 
 typedef struct {
-    int host_num;  // 集群可用节点数量
+    int host_num; // 集群可用节点数量
     ubsmem_host_info_t host[MAX_HOST_NUM];
 } ubsmem_cluster_info_t;
 
@@ -155,7 +157,8 @@ typedef struct {
     uint64_t mem_id_list[MAX_MEMID_NUM];
 } ubsmem_shmem_info_t;
 
-typedef enum {
+typedef enum
+{
     UBMEM_ATOMIC_DATA_ERR = 0,
     UBMEM_READ_DATA_ERR,
     UBMEM_FLOW_POISON,
@@ -180,10 +183,10 @@ typedef enum {
 typedef int32_t (*shmem_faults_func)(const char *shm_name, ubsmem_fault_type_t fault_type);
 
 typedef struct {
-    uint32_t slot_id;     // 节点唯一标识, 采用slotid, 与lcne保持一致
-    uint32_t socket_id;   // socket id
-    uint32_t numa_id;     // 节点中的numa id
-    uint32_t port_id;     // 指定链路借用
+    uint32_t slot_id;   // 节点唯一标识, 采用slotid, 与lcne保持一致
+    uint32_t socket_id; // socket id
+    uint32_t numa_id;   // 节点中的numa id
+    uint32_t port_id;   // 指定链路借用
 } ubs_mem_location_t;
 
 typedef struct {
@@ -197,4 +200,4 @@ typedef struct {
 }
 #endif
 
-#endif  // __UBSM_SHMEM_DEF_H__
+#endif // __UBSM_SHMEM_DEF_H__

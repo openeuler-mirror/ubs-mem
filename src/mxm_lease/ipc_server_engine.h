@@ -21,15 +21,15 @@ using namespace ock::mxmd;
 
 namespace ock::lease::service {
 struct HcomServiceHandle {
-    void (*func)(const MxmComUdsInfo& udsInfo, const MsgBase*, MsgBase*);
+    void (*func)(const MxmComUdsInfo &udsInfo, const MsgBase *, MsgBase *);
 };
 class IpcServerEngine final {
 public:
     void Initialize() {}
 
-    uint32_t RegisterOpcode(MxmComEndpoint opcode, const HcomServiceHandle& handle);
+    uint32_t RegisterOpcode(MxmComEndpoint opcode, const HcomServiceHandle &handle);
 
-    static IpcServerEngine& GetInstance()
+    static IpcServerEngine &GetInstance()
     {
         static IpcServerEngine instance;
         return instance;
@@ -38,5 +38,5 @@ public:
 private:
     IpcServerEngine() = default;
 };
-}  // namespace ock::lease::service
-#endif  // IOAK_CACHE_IPC_SERVER_LEASE_H
+} // namespace ock::lease::service
+#endif // IOAK_CACHE_IPC_SERVER_LEASE_H

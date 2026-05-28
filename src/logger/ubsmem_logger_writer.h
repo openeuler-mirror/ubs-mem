@@ -25,9 +25,9 @@ using namespace ock::dagger;
 
 struct UbsmemLoggerOptions {
     UbsmemLogLevel minLogLevel = UbsmemLogLevel::INFO;
-    uint32_t maxFileSizeInMB = 2;   // 日志文件最大大小
-    uint32_t rotationFileCount = 2; // 绕接个数
-    uint32_t bufferMaxItem = DEFAULT_BUFFER_MAX_ITEM;   // 日志缓冲区最大日志条目
+    uint32_t maxFileSizeInMB = 2;                     // 日志文件最大大小
+    uint32_t rotationFileCount = 2;                   // 绕接个数
+    uint32_t bufferMaxItem = DEFAULT_BUFFER_MAX_ITEM; // 日志缓冲区最大日志条目
     UbsmemLogLevel minSyslogLevel = UbsmemLogLevel::INFO;
     std::string logPath;
     bool syslogOpen = false;

@@ -10,18 +10,17 @@
  * See the Mulan PSL v2 for more details.
  */
 
-
-#include <sys/mman.h>
-#include <numaif.h>
-#include "log.h"
-#include <securec.h>
-#include "ipc_command.h"
-#include "BorrowAppMetaMgr.h"
-#include "rack_mem_fd_map.h"
-#include "ubs_mem_def.h"
-#include "ubsm_ptracer.h"
-#include "system_adapter.h"
 #include "RackMem.h"
+#include <numaif.h>
+#include <securec.h>
+#include <sys/mman.h>
+#include "ubs_mem_def.h"
+#include "BorrowAppMetaMgr.h"
+#include "ipc_command.h"
+#include "log.h"
+#include "rack_mem_fd_map.h"
+#include "system_adapter.h"
+#include "ubsm_ptracer.h"
 
 namespace ock::mxmd {
 using namespace ock::common;
@@ -33,9 +32,9 @@ void *RackMem::MemoryIDUsedByNuma(AppBorrowMetaDesc &desc, const std::vector<uin
         DBG_LOGERROR("numaid invalid, numaid is " << numaId);
         return nullptr;
     }
-    void* mappedMemory = nullptr;
-    DBG_LOGINFO("Borrowing memory by numa, name=" << name << ", numa id=" << numaId << ", size="
-                                                  << desc.GetFileSize() << "mem ids");
+    void *mappedMemory = nullptr;
+    DBG_LOGINFO("Borrowing memory by numa, name=" << name << ", numa id=" << numaId << ", size=" << desc.GetFileSize()
+                                                  << "mem ids");
     TP_TRACE_BEGIN(TP_UBSM_MALLOC_NUMA_MAP);
     mappedMemory = SystemAdapter::MemoryMap(nullptr, desc.GetFileSize(), PROT_READ | PROT_WRITE,
                                             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -154,8 +153,8 @@ int RackMem::UbsMemMap(size_t size, uint64_t flags, std::shared_ptr<AppMallocMem
             DBG_LOGERROR("MemIds is empty, malloc size=" << size);
             return MXM_ERR_PARAM_INVALID;
         }
-        mappedMemory = GetInstance().MemoryIDUsedByFd(desc, response->memIds_, response->unitSize_, response->name_,
-                                                      flags);
+        mappedMemory =
+            GetInstance().MemoryIDUsedByFd(desc, response->memIds_, response->unitSize_, response->name_, flags);
     }
     if (mappedMemory == nullptr) {
         DBG_LOGERROR("Lease memory map failed, flags=" << flags);
@@ -314,5 +313,5 @@ uint32_t RackMem::ForceFreeCachedMemory()
     return HOK;
 }
 
-}  // namespace ock::mxmd
-   // ock
+} // namespace ock::mxmd
+  // ock

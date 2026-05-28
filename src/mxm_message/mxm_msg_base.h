@@ -30,14 +30,15 @@ struct MsgBase {
     virtual ~MsgBase() = default;
 };
 
-enum MXM_MSG_OPCODE : int16_t {
+enum MXM_MSG_OPCODE : int16_t
+{
     MXM_MSG_SHM_ALLOCATE = 66,
     MXM_MSG_SHM_DEALLOCATE,
 
     MXM_MSG_BUTT,
 };
 
-}  // namespace mxmd
-}  // namespace ock
+} // namespace mxmd
+} // namespace ock
 
-#endif  // MXMD_MSG_BASE_H
+#endif // MXMD_MSG_BASE_H

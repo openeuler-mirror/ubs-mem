@@ -85,7 +85,9 @@ TEST(ulog, test_logger_entry_operators)
     UBSMEM_LOG_CRIT << uint64_t(999);
     UBSMEM_LOG_INFO << 3.14;
     UBSMEM_LOG_INFO << 'X';
-    UBSMEM_LOG_INFO << "multi" << " " << "args";
+    UBSMEM_LOG_INFO << "multi"
+                    << " "
+                    << "args";
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     DestroyLoggerForTest();
@@ -388,4 +390,4 @@ TEST(ulog, test_filesink_is_file_status_changed)
     std::string cmd = std::string("rm -rf ") + dir;
     system(cmd.c_str());
 }
-}  // namespace UT
+} // namespace UT

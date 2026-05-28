@@ -64,9 +64,8 @@ HRESULT LogAdapter::LogServerInit(int minLogLevel, const std::string &path, int 
 
     std::shared_ptr<ubsmem::log::UbsmemLoggerFilesink> sink;
     try {
-        sink = std::make_shared<ubsmem::log::UbsmemLoggerFilesink>(
-            dirPath, static_cast<uint32_t>(rotationFileSize),
-            static_cast<uint32_t>(rotationFileCount));
+        sink = std::make_shared<ubsmem::log::UbsmemLoggerFilesink>(dirPath, static_cast<uint32_t>(rotationFileSize),
+                                                                   static_cast<uint32_t>(rotationFileCount));
     } catch (const std::exception &e) {
         std::cerr << "Failed to create log file sink: " << e.what() << std::endl;
         return HFAIL;
@@ -102,8 +101,7 @@ HRESULT LogAdapter::AuditLogInit(const std::string &path, int rotationFileSize, 
         auditPath = ConfConstant::MXMD_SERVER_AUDIT_LOG_PATH.second;
     }
     if (!ubsmem::log::UbsmemLoggerManager::Instance()->InitializeAuditSink(
-        auditPath, static_cast<uint32_t>(rotationFileSize),
-        static_cast<uint32_t>(rotationFileCount))) {
+            auditPath, static_cast<uint32_t>(rotationFileSize), static_cast<uint32_t>(rotationFileCount))) {
         DBG_LOGWARN("Failed to initialize audit log sink");
         return HFAIL;
     }

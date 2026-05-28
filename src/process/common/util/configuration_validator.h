@@ -12,15 +12,15 @@
 #ifndef OCK_COMMON_CONFIGURATION_VALIDATOR_H
 #define OCK_COMMON_CONFIGURATION_VALIDATOR_H
 
-#include <string>
-#include <unistd.h>
-#include <iostream>
-#include <climits>
 #include <sys/stat.h>
+#include <unistd.h>
+#include <climits>
+#include <iostream>
+#include <string>
 
-#include "ref.h"
-#include "functions.h"
 #include "conf_constants.h"
+#include "functions.h"
+#include "ref.h"
 #include "rpc_config.h"
 
 namespace ock {
@@ -36,18 +36,33 @@ public:
     ~Validator() override = default;
 
     virtual bool Initialize() = 0;
-    virtual bool Validate(const std::string&) { return true; }
+    virtual bool Validate(const std::string &)
+    {
+        return true;
+    }
 
-    virtual bool Validate(int) { return true; }
+    virtual bool Validate(int)
+    {
+        return true;
+    }
 
-    virtual bool Validate(float) { return true; }
+    virtual bool Validate(float)
+    {
+        return true;
+    }
 
-    virtual bool Validate(long) { return true; }
+    virtual bool Validate(long)
+    {
+        return true;
+    }
 
-    const std::string& ErrorMessage() { return mErrMsg; }
+    const std::string &ErrorMessage()
+    {
+        return mErrMsg;
+    }
 
 protected:
-    explicit Validator(const std::string& name) : mName(name) {}
+    explicit Validator(const std::string &name) : mName(name) {}
 
 protected:
     std::string mName;
@@ -57,23 +72,29 @@ using ValidatorPtr = Ref<Validator>;
 
 class VNoCheck : public Validator {
 public:
-    static ValidatorPtr Create(const std::string& name = "") { return ValidatorPtr(new (std::nothrow) VNoCheck(name)); }
+    static ValidatorPtr Create(const std::string &name = "")
+    {
+        return ValidatorPtr(new (std::nothrow) VNoCheck(name));
+    }
 
-    explicit VNoCheck(const std::string& name) : Validator(name) {}
+    explicit VNoCheck(const std::string &name) : Validator(name) {}
 
     ~VNoCheck() override = default;
 
-    bool Initialize() override { return true; }
+    bool Initialize() override
+    {
+        return true;
+    }
 };
 
 class VStrEnum : public Validator {
 public:
-    static ValidatorPtr Create(const std::string& name, const std::string& enumStr)
+    static ValidatorPtr Create(const std::string &name, const std::string &enumStr)
     {
         return ValidatorPtr(new (std::nothrow) VStrEnum(name, enumStr));
     }
 
-    VStrEnum(const std::string& name, const std::string& enumStr) : Validator(name), mEnumString(enumStr) {}
+    VStrEnum(const std::string &name, const std::string &enumStr) : Validator(name), mEnumString(enumStr) {}
 
     ~VStrEnum() override = default;
 
@@ -90,7 +111,7 @@ public:
         return true;
     }
 
-    bool Validate(const std::string& value) override
+    bool Validate(const std::string &value) override
     {
         // if value has ||
         // for example rc||tcp
@@ -115,12 +136,12 @@ private:
 
 class VStrInSet : public Validator {
 public:
-    static ValidatorPtr Create(const std::string& name, const std::string& enumStr)
+    static ValidatorPtr Create(const std::string &name, const std::string &enumStr)
     {
         return ValidatorPtr(new (std::nothrow) VStrInSet(name, enumStr));
     }
 
-    VStrInSet(const std::string& name, const std::string& enumStr) : Validator(name), mEnumString(enumStr)
+    VStrInSet(const std::string &name, const std::string &enumStr) : Validator(name), mEnumString(enumStr)
     {
         Initialize();
     }
@@ -137,7 +158,7 @@ public:
         return true;
     }
 
-    bool Validate(const std::string& value) override
+    bool Validate(const std::string &value) override
     {
         std::vector<std::string> validValues;
         SplitStr(value, "|", validValues);
@@ -157,15 +178,21 @@ private:
 
 class VStrNotNull : public Validator {
 public:
-    static ValidatorPtr Create(const std::string& name) { return ValidatorPtr(new (std::nothrow) VStrNotNull(name)); }
+    static ValidatorPtr Create(const std::string &name)
+    {
+        return ValidatorPtr(new (std::nothrow) VStrNotNull(name));
+    }
 
-    explicit VStrNotNull(const std::string& name) : Validator(name) {};
+    explicit VStrNotNull(const std::string &name) : Validator(name){};
 
     ~VStrNotNull() override = default;
 
-    bool Initialize() override { return true; }
+    bool Initialize() override
+    {
+        return true;
+    }
 
-    bool Validate(const std::string& value) override
+    bool Validate(const std::string &value) override
     {
         if (value.empty()) {
             mErrMsg = "Invalid value for <" + mName + ">, it should not be empty";
@@ -177,11 +204,11 @@ public:
 
 class VIntRange : public Validator {
 public:
-    static ValidatorPtr Create(const std::string& name, const int& start, const int& end)
+    static ValidatorPtr Create(const std::string &name, const int &start, const int &end)
     {
         return ValidatorPtr(new (std::nothrow) VIntRange(name, start, end));
     }
-    VIntRange(const std::string& name, const int& start, const int& end) : Validator(name), mStart(start), mEnd(end) {};
+    VIntRange(const std::string &name, const int &start, const int &end) : Validator(name), mStart(start), mEnd(end){};
 
     ~VIntRange() override = default;
 
@@ -216,18 +243,24 @@ private:
 
 class VPathAccess : public Validator {
 public:
-    static ValidatorPtr Create(const std::string& name, int flag)
+    static ValidatorPtr Create(const std::string &name, int flag)
     {
         return ValidatorPtr(new (std::nothrow) VPathAccess(name, flag));
     }
 
-    VPathAccess(const std::string& name, int flag) : Validator(name) { mFlag = flag; }
+    VPathAccess(const std::string &name, int flag) : Validator(name)
+    {
+        mFlag = flag;
+    }
 
     ~VPathAccess() override = default;
 
-    bool Initialize() override { return true; }
+    bool Initialize() override
+    {
+        return true;
+    }
 
-    bool Validate(const std::string& path) override
+    bool Validate(const std::string &path) override
     {
         if (path.empty()) {
             mErrMsg = "Invalid value for " + mName + ", path is empty.";
@@ -235,7 +268,7 @@ public:
         }
         std::string normalizedPath;
         char realPath[PATH_MAX + 1] = {0};
-        char* ret = realpath(path.c_str(), realPath);
+        char *ret = realpath(path.c_str(), realPath);
         if (ret == nullptr) {
             mErrMsg = "Invalid value (" + path + ") for <" + mName + ">. Error: " + strerror(errno);
             return false;
@@ -259,7 +292,7 @@ public:
                 if (access(tmp.c_str(), F_OK) != 0) {
                     break;
                 }
-                existDeepestDir = std::string(tmp);  // 记录当前存在的路径
+                existDeepestDir = std::string(tmp); // 记录当前存在的路径
             }
             posLeft = posRight + 1;
         }
@@ -267,14 +300,14 @@ public:
     }
 
 private:
-    bool PathCheck(const std::string& existDeepestDir, const std::string& rest, const std::string& path)
+    bool PathCheck(const std::string &existDeepestDir, const std::string &rest, const std::string &path)
     {
         // 检查路径是否合法
         char realBinPath[PATH_MAX + 1] = {0x00};
         if (existDeepestDir.length() > PATH_MAX) {
             return false;
         }
-        char* tmp = realpath(existDeepestDir.c_str(), realBinPath);
+        char *tmp = realpath(existDeepestDir.c_str(), realBinPath);
         if (tmp == nullptr) {
             mErrMsg = "Invalid value (" + path + ") for <" + mName + ">. Permission denied.";
             return false;
@@ -286,7 +319,7 @@ private:
         }
         // 检查待创建路径是否存在禁止字符
         if (!rest.empty()) {
-            for (auto& forbidden : forbiddenWords) {
+            for (auto &forbidden : forbiddenWords) {
                 auto pos = rest.find(forbidden + "/");
                 if (pos != std::string::npos) {
                     mErrMsg = "Invalid value (" + path + ") for <" + mName +
@@ -306,12 +339,12 @@ private:
 
 class VIpAndPort : public Validator {
 public:
-    static ValidatorPtr Create(const std::string& name)
+    static ValidatorPtr Create(const std::string &name)
     {
         return ValidatorPtr(new (std::nothrow) VIpAndPort(name));
     }
 
-    explicit VIpAndPort(const std::string& name) : Validator(name) {}
+    explicit VIpAndPort(const std::string &name) : Validator(name) {}
 
     ~VIpAndPort() override = default;
 
@@ -320,7 +353,7 @@ public:
         return true;
     }
 
-    bool Validate(const std::string& value) override
+    bool Validate(const std::string &value) override
     {
         if (mName == ConfConstant::MXMD_SERVER_RPC_LOCAL_IPSEG.first) {
             std::pair<std::string, uint16_t> ipAndPort;
@@ -349,7 +382,7 @@ public:
     }
 
 private:
-    bool ValidateIpAndPort(std::string ipSeg, std::pair<std::string, uint16_t>& ipAndPort)
+    bool ValidateIpAndPort(std::string ipSeg, std::pair<std::string, uint16_t> &ipAndPort)
     {
         std::vector<std::string> validSet;
         SplitStr(ipSeg, ":", validSet);
@@ -410,18 +443,24 @@ private:
 
 class VFileAccess : public Validator {
 public:
-    static ValidatorPtr Create(const std::string& name, bool flag)
+    static ValidatorPtr Create(const std::string &name, bool flag)
     {
         return ValidatorPtr(new (std::nothrow) VFileAccess(name, flag));
     }
 
-    VFileAccess(const std::string& name, bool flag) : Validator(name) { mFlag = flag; }
+    VFileAccess(const std::string &name, bool flag) : Validator(name)
+    {
+        mFlag = flag;
+    }
 
     ~VFileAccess() override = default;
 
-    bool Initialize() override { return true; }
+    bool Initialize() override
+    {
+        return true;
+    }
 
-    bool Validate(const std::string& filePath) override
+    bool Validate(const std::string &filePath) override
     {
         if (filePath.empty()) {
             if (!mFlag) {
@@ -430,12 +469,12 @@ public:
             mErrMsg = "Invalid value for " + mName + ", path is empty.";
             return false;
         }
-        
+
         return PathCheck(filePath);
     }
 
 private:
-    bool PathCheck(const std::string& filePath)
+    bool PathCheck(const std::string &filePath)
     {
         if (filePath[0] != '/') {
             mErrMsg = "The file path(" + filePath + ") is not absolute path.";
@@ -473,7 +512,7 @@ private:
     bool mFlag = false;
 };
 
-}  // namespace common
-}  // namespace ock
+} // namespace common
+} // namespace ock
 
 #endif

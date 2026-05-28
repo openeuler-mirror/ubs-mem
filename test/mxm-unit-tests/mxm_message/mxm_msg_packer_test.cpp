@@ -1,6 +1,6 @@
+#include "mxm_msg_packer.h"
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
-#include "mxm_msg_packer.h"
 #include "rpc_config.h"
 
 namespace UT {
@@ -241,4 +241,4 @@ TEST_F(MxmMsgPackerTest, StringRoundTrip)
     EXPECT_EQ(rb, "test_string");
     EXPECT_EQ(rc, 0xDEADBEEF);
 }
-}
+} // namespace UT

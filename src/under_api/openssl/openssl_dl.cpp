@@ -10,16 +10,16 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mutex>
-#include <cstdio>
-#include <cstdlib>
+#include "openssl_dl.h"
 #include <dlfcn.h>
 #include <chrono>
-#include <ctime>
-#include <string>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <ctime>
+#include <mutex>
+#include <string>
 #include "log.h"
-#include "openssl_dl.h"
 
 static void *g_cryptoHandle = nullptr;
 static void *g_sslHandle = nullptr;
@@ -244,7 +244,7 @@ int InitOpensslDl()
     return LoadOpensslFunc();
 }
 
-void VerifyFreeRes(X509_STORE* store, X509* caCert, X509* cert, X509_CRL* crl, X509_STORE_CTX* ctx)
+void VerifyFreeRes(X509_STORE *store, X509 *caCert, X509 *cert, X509_CRL *crl, X509_STORE_CTX *ctx)
 {
     if (cert != nullptr) {
         g_x509Free(cert);
@@ -263,7 +263,7 @@ void VerifyFreeRes(X509_STORE* store, X509* caCert, X509* cert, X509_CRL* crl, X
     }
 }
 
-bool CheckExpired(X509* cert, int64_t expireThreshold, const std::string& fileName)
+bool CheckExpired(X509 *cert, int64_t expireThreshold, const std::string &fileName)
 {
     struct tm asnTm = {0};
     auto asnExpireTime = g_x509Get0NotAfter(cert);
@@ -290,14 +290,14 @@ bool CheckExpired(X509* cert, int64_t expireThreshold, const std::string& fileNa
     auto hours = (totalMinutes % MINUTES_PER_DAY) / MINUTES_PER_HOUR;
     auto minutes = totalMinutes % MINUTES_PER_HOUR;
     if (totalMinutes <= expireThreshold) {
-        DBG_LOGWARN("[" << fileName.c_str() << "] will expire in " << days
-            << " days " << hours << " hours " << minutes << " minutes");
+        DBG_LOGWARN("[" << fileName.c_str() << "] will expire in " << days << " days " << hours << " hours " << minutes
+                        << " minutes");
     }
     return true;
 }
 
 int VerifyCertificate(const char *caPath, const char *certPath, const char *crlPath, const char *caFileName,
-    const char *certFileName, int64_t expireThreshold)
+                      const char *certFileName, int64_t expireThreshold)
 {
     auto ret = InitOpensslDl();
     if (ret != 0) {
@@ -305,11 +305,11 @@ int VerifyCertificate(const char *caPath, const char *certPath, const char *crlP
         return -1;
     }
 
-    X509_STORE* store = nullptr;
-    X509* caCert = nullptr;
-    X509* cert = nullptr;
-    X509_CRL* crl = nullptr;
-    X509_STORE_CTX* ctx = nullptr;
+    X509_STORE *store = nullptr;
+    X509 *caCert = nullptr;
+    X509 *cert = nullptr;
+    X509_CRL *crl = nullptr;
+    X509_STORE_CTX *ctx = nullptr;
     do {
         store = g_x509StoreNew();
         if (store == nullptr) {
@@ -318,7 +318,7 @@ int VerifyCertificate(const char *caPath, const char *certPath, const char *crlP
             break;
         }
 
-        FILE* fp = fopen(caPath, "r");
+        FILE *fp = fopen(caPath, "r");
         if (fp == nullptr) {
             DBG_LOGERROR("Failed to open CA file: " << caPath);
             ret = -1;

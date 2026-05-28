@@ -15,18 +15,19 @@
 #include <map>
 #include <vector>
 
+#include "conf_constants.h"
+#include "configuration_converter.h"
+#include "configuration_validator.h"
 #include "defines.h"
 #include "lock.h"
 #include "ref.h"
-#include "configuration_validator.h"
-#include "configuration_converter.h"
-#include "conf_constants.h"
 
 namespace ock {
 namespace common {
 constexpr uint32_t CONF_MUST = 1;
 
-enum class ConfValueType {
+enum class ConfValueType
+{
     VINT = 0,
     VFLOAT = 1,
     VSTRING = 2,
@@ -35,8 +36,7 @@ enum class ConfValueType {
 };
 
 const std::unordered_map<std::string, std::string> ConfigUnitValues = {
-    {ConfConstant::MXMD_LOCK_EXPIRE_TIME.first, "seconds"}
-};
+    {ConfConstant::MXMD_LOCK_EXPIRE_TIME.first, "seconds"}};
 
 class Configuration;
 using ConfigurationPtr = Ref<Configuration>;
@@ -48,11 +48,11 @@ public:
 
     // forbid copy operation
     Configuration(const Configuration &) = delete;
-    Configuration &operator = (const Configuration &) = delete;
+    Configuration &operator=(const Configuration &) = delete;
 
     // forbid move operation
     Configuration(const Configuration &&) = delete;
-    Configuration &operator = (const Configuration &&) = delete;
+    Configuration &operator=(const Configuration &&) = delete;
 
     static ConfigurationPtr FromFile(const std::string &filePath);
     static ConfigurationPtr GetInstance(const std::string &filePath);
@@ -76,14 +76,14 @@ public:
 
     void DumpConfig();
     void AddIntConf(const std::pair<std::string, int> &pair, const ValidatorPtr &validator = nullptr,
-        uint32_t flag = CONF_MUST);
+                    uint32_t flag = CONF_MUST);
     void AddStrConf(const std::pair<std::string, std::string> &pair, const ValidatorPtr &validator = nullptr,
-        uint32_t flag = CONF_MUST);
+                    uint32_t flag = CONF_MUST);
     void AddConverter(const std::string &key, const ConverterPtr &converter);
     void AddPathConf(const std::pair<std::string, std::string> &pair, const ValidatorPtr &validator = nullptr,
-        uint32_t flag = CONF_MUST);
+                     uint32_t flag = CONF_MUST);
     std::vector<std::string> Validate(bool isAuth = false, bool isTLS = false, bool isAuthor = false,
-        bool isZKSecure = false);
+                                      bool isZKSecure = false);
     std::vector<std::string> ValidateDaemonConf();
     std::vector<std::string> ValidateFilePath(std::vector<std::pair<std::string, bool>> &filePaths);
 
@@ -106,8 +106,8 @@ private:
     void SetValidator(const std::string &key, const ValidatorPtr &validator, uint32_t flag);
 
     void ValidateOneValueMap(std::vector<std::string> &errors,
-        const std::map<std::string, ValidatorPtr> &valueValidator);
-    
+                             const std::map<std::string, ValidatorPtr> &valueValidator);
+
     template <class T>
     void AddValidateError(const ValidatorPtr &validator, std::vector<std::string> &errors, const T &iter)
     {
@@ -119,8 +119,8 @@ private:
             errors.push_back(validator->ErrorMessage());
         }
     }
-    void ValidateOneType(const std::string &key, const ValidatorPtr &validator,
-        std::vector<std::string> &errors, ConfValueType &vType);
+    void ValidateOneType(const std::string &key, const ValidatorPtr &validator, std::vector<std::string> &errors,
+                         ConfValueType &vType);
 
     void ValidateItem(const std::string &itemKey, std::vector<std::string> &errors);
 
@@ -129,38 +129,34 @@ private:
     void LoadDefault()
     {
         using namespace ConfConstant;
-        AddPathConf(MXMD_SERVER_LOG_PATH,
-            VPathAccess::Create(MXMD_SERVER_LOG_PATH.first, R_OK | W_OK | X_OK));
+        AddPathConf(MXMD_SERVER_LOG_PATH, VPathAccess::Create(MXMD_SERVER_LOG_PATH.first, R_OK | W_OK | X_OK));
         AddStrConf(MXMD_SERVER_LOG_LEVEL,
-            VStrEnum::Create(MXMD_SERVER_LOG_LEVEL.first, "DEBUG||INFO||WARN||ERROR||CRITICAL"));
+                   VStrEnum::Create(MXMD_SERVER_LOG_LEVEL.first, "DEBUG||INFO||WARN||ERROR||CRITICAL"));
         AddConverter(MXMD_SERVER_LOG_LEVEL.first, ConLogLevel::Create());
         AddIntConf(MXMD_SERVER_LOG_ROTATION_FILE_SIZE,
-            VIntRange::Create(MXMD_SERVER_LOG_ROTATION_FILE_SIZE.first, MIN_LOG_FILE_SIZE, MAX_LOG_FILE_SIZE));
+                   VIntRange::Create(MXMD_SERVER_LOG_ROTATION_FILE_SIZE.first, MIN_LOG_FILE_SIZE, MAX_LOG_FILE_SIZE));
 
         AddIntConf(UBSMD_MAX_HCOM_CONNECT_NUM,
                    VIntRange::Create(UBSMD_MAX_HCOM_CONNECT_NUM.first, MIN_HCOM_CONNECT_NUM, MAX_HCOM_CONNECT_NUM));
 
-        AddIntConf(MXMD_SERVER_LOG_ROTATION_FILE_COUNT,
-            VIntRange::Create(MXMD_SERVER_LOG_ROTATION_FILE_COUNT.first, MIN_LOG_FILE_COUNT,
-                              MAX_LOG_FILE_COUNT));
-        AddStrConf(MXMD_SERVER_AUDIT_ENABLE,
-            VStrEnum::Create(MXMD_SERVER_AUDIT_ENABLE.first, "on||off"));
+        AddIntConf(MXMD_SERVER_LOG_ROTATION_FILE_COUNT, VIntRange::Create(MXMD_SERVER_LOG_ROTATION_FILE_COUNT.first,
+                                                                          MIN_LOG_FILE_COUNT, MAX_LOG_FILE_COUNT));
+        AddStrConf(MXMD_SERVER_AUDIT_ENABLE, VStrEnum::Create(MXMD_SERVER_AUDIT_ENABLE.first, "on||off"));
         AddStrConf(MXMD_SEVER_PERFORMANCE_STATISTICS_ENABLE,
-            VStrEnum::Create(MXMD_SEVER_PERFORMANCE_STATISTICS_ENABLE.first, "on||off"));
+                   VStrEnum::Create(MXMD_SEVER_PERFORMANCE_STATISTICS_ENABLE.first, "on||off"));
         AddPathConf(MXMD_SERVER_AUDIT_LOG_PATH,
-            VPathAccess::Create(MXMD_SERVER_AUDIT_LOG_PATH.first, R_OK | W_OK | X_OK));
+                    VPathAccess::Create(MXMD_SERVER_AUDIT_LOG_PATH.first, R_OK | W_OK | X_OK));
         AddIntConf(MXMD_SERVER_AUDIT_LOG_ROTATION_FILE_SIZE,
-            VIntRange::Create(MXMD_SERVER_AUDIT_LOG_ROTATION_FILE_SIZE.first, MIN_AUDIT_LOG_FILE_SIZE,
-                              MAX_AUDIT_LOG_FILE_SIZE));
+                   VIntRange::Create(MXMD_SERVER_AUDIT_LOG_ROTATION_FILE_SIZE.first, MIN_AUDIT_LOG_FILE_SIZE,
+                                     MAX_AUDIT_LOG_FILE_SIZE));
         AddIntConf(MXMD_SERVER_AUDIT_LOG_ROTATION_FILE_COUNT,
-            VIntRange::Create(MXMD_SERVER_AUDIT_LOG_ROTATION_FILE_COUNT.first, MIN_AUDIT_LOG_FILE_COUNT,
-                              MAX_AUDIT_LOG_FILE_COUNT));
+                   VIntRange::Create(MXMD_SERVER_AUDIT_LOG_ROTATION_FILE_COUNT.first, MIN_AUDIT_LOG_FILE_COUNT,
+                                     MAX_AUDIT_LOG_FILE_COUNT));
         AddIntConf(MXMD_DISCOVERY_ELECTION_TIMEOUT,
-            VIntRange::Create(MXMD_DISCOVERY_ELECTION_TIMEOUT.first, MIN_DISCOVERY_ELECTION_TIMEOUT,
-                              MAX_DISCOVERY_ELECTION_TIMEOUT));
+                   VIntRange::Create(MXMD_DISCOVERY_ELECTION_TIMEOUT.first, MIN_DISCOVERY_ELECTION_TIMEOUT,
+                                     MAX_DISCOVERY_ELECTION_TIMEOUT));
         AddIntConf(MXMD_DISCOVERY_MIN_NODES,
-            VIntRange::Create(MXMD_DISCOVERY_MIN_NODES.first, MIN_DISCOVERY_MIN_NODES,
-                              MAX_DISCOVERY_MIN_NODES));
+                   VIntRange::Create(MXMD_DISCOVERY_MIN_NODES.first, MIN_DISCOVERY_MIN_NODES, MAX_DISCOVERY_MIN_NODES));
         AddStrConf(MXMD_SERVER_RPC_LOCAL_IPSEG, VIpAndPort::Create(MXMD_SERVER_RPC_LOCAL_IPSEG.first), 0);
         AddStrConf(MXMD_SERVER_RPC_REMOTE_IPSEG, VIpAndPort::Create(MXMD_SERVER_RPC_REMOTE_IPSEG.first), 0);
         AddStrConf(MXMD_IS_LOCK_ENABLE, VStrEnum::Create(MXMD_IS_LOCK_ENABLE.first, "on||off"));
@@ -176,15 +172,15 @@ private:
         AddIntConf(MXMD_LOCK_EXPIRE_TIME,
                    VIntRange::Create(MXMD_LOCK_EXPIRE_TIME.first, MIN_LOCK_EXPIRE_TIME, MAX_LOCK_EXPIRE_TIME));
         AddStrConf(UBSMD_SERVER_TLS_ENABLE, VStrEnum::Create(UBSMD_SERVER_TLS_ENABLE.first, "on||off"));
-        AddStrConf(UBSMD_SERVER_TLS_CIPHERSUITS, VStrEnum::Create(UBSMD_SERVER_TLS_CIPHERSUITS.first,
-            "aes_gcm_128||aes_gcm_256||aes_ccm_128||chacha20_poly1305"));
+        AddStrConf(UBSMD_SERVER_TLS_CIPHERSUITS,
+                   VStrEnum::Create(UBSMD_SERVER_TLS_CIPHERSUITS.first,
+                                    "aes_gcm_128||aes_gcm_256||aes_ccm_128||chacha20_poly1305"));
         AddStrConf(UBSMD_SERVER_TLS_CA_PATH, VNoCheck::Create(), 0);
         AddStrConf(UBSMD_SERVER_TLS_CRL_PATH, VNoCheck::Create(), 0);
         AddStrConf(UBSMD_SERVER_TLS_CERT_PATH, VNoCheck::Create(), 0);
         AddStrConf(UBSMD_SERVER_TLS_KEY_PATH, VNoCheck::Create(), 0);
         AddStrConf(UBSMD_SERVER_TLS_KEYPASS_PATH, VNoCheck::Create(), 0);
-        AddStrConf(MXMD_SERVER_LEASE_CACHE_ENABLE,
-            VStrEnum::Create(MXMD_SERVER_LEASE_CACHE_ENABLE.first, "on||off"));
+        AddStrConf(MXMD_SERVER_LEASE_CACHE_ENABLE, VStrEnum::Create(MXMD_SERVER_LEASE_CACHE_ENABLE.first, "on||off"));
     }
 
 private:
@@ -207,8 +203,8 @@ private:
     std::vector<std::string> mLoadDefaultErrors;
 
     std::vector<std::string> mPathConfs;
-    std::vector<std::string> mExceptPrintConfs {ConfConstant::MXMD_DAEMON_BINPATH.first};
-    std::vector<std::string> mInvalidSetConfs {ConfConstant::MXMD_DAEMON_BINPATH.first};
+    std::vector<std::string> mExceptPrintConfs{ConfConstant::MXMD_DAEMON_BINPATH.first};
+    std::vector<std::string> mInvalidSetConfs{ConfConstant::MXMD_DAEMON_BINPATH.first};
 
     bool mInitialized = false;
     Lock mLock;

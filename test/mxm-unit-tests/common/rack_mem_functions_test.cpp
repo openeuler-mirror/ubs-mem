@@ -1,9 +1,9 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
+#include <dlfcn.h>
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
-#include <dlfcn.h>
 
 #include "rack_mem_functions.h"
 
@@ -15,8 +15,7 @@ using namespace ock::mxmd;
 class RackMemFunctionsTestSuite : public Test {
 public:
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
     void TearDown() override
     {
@@ -163,4 +162,4 @@ TEST_F(RackMemFunctionsTestSuite, TestGetHugeTlbPmdSize)
     auto size = GetHugeTlbPmdSize();
     EXPECT_TRUE(size == HUGE_PAGES_2M || size == HUGE_PAGES_512M);
 }
-}  // namespace UT
+} // namespace UT

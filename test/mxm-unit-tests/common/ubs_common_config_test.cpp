@@ -1,9 +1,9 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
+#include <dlfcn.h>
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
-#include <dlfcn.h>
 
 #include "ubs_common_config.h"
 
@@ -14,8 +14,7 @@ using namespace ock::ubsm;
 
 class UbsCommonConfigTestSuite : public Test {
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
     void TearDown() override
     {
@@ -30,7 +29,7 @@ TEST_F(UbsCommonConfigTestSuite, TestSetGetSwitch)
     UbsCommonConfig::GetInstance().SetLeaseCacheSwitch(true);
     ASSERT_TRUE(UbsCommonConfig::GetInstance().GetLeaseCachedSwitch());
     UbsCommonConfig::GetInstance().SetLeaseCacheSwitch(original);
-    
+
     original = UbsCommonConfig::GetInstance().GetTlsSwitch();
     UbsCommonConfig::GetInstance().SetTlsSwitch(true);
     ASSERT_TRUE(UbsCommonConfig::GetInstance().GetTlsSwitch());
@@ -54,16 +53,16 @@ TEST_F(UbsCommonConfigTestSuite, TestSetCipherSuit)
     }
     UbsCommonConfig::GetInstance().SetCipherSuit(CIPHER_STR_AES_GCM_128);
     ASSERT_EQ(UbsCommonConfig::GetInstance().GetCipherSuit(), ock::hcom::UBSHcomNetCipherSuite::AES_GCM_128);
-    
+
     UbsCommonConfig::GetInstance().SetCipherSuit(CIPHER_STR_AES_GCM_256);
     ASSERT_EQ(UbsCommonConfig::GetInstance().GetCipherSuit(), ock::hcom::UBSHcomNetCipherSuite::AES_GCM_256);
-    
+
     UbsCommonConfig::GetInstance().SetCipherSuit(CIPHER_STR_AES_CCM_128);
     ASSERT_EQ(UbsCommonConfig::GetInstance().GetCipherSuit(), ock::hcom::UBSHcomNetCipherSuite::AES_CCM_128);
-    
+
     UbsCommonConfig::GetInstance().SetCipherSuit(CIPHER_STR_CHACHA20_POLY1305);
     ASSERT_EQ(UbsCommonConfig::GetInstance().GetCipherSuit(), ock::hcom::UBSHcomNetCipherSuite::CHACHA20_POLY1305);
-    
+
     UbsCommonConfig::GetInstance().SetCipherSuit("");
     ASSERT_EQ(UbsCommonConfig::GetInstance().GetCipherSuit(), ock::hcom::UBSHcomNetCipherSuite::AES_GCM_128);
 
@@ -145,4 +144,4 @@ TEST_F(UbsCommonConfigTestSuite, TestSetGetLockPath)
     ASSERT_EQ(UbsCommonConfig::GetInstance().GetLockKsfStandbyPath(), "/test/lockksfstandby");
     UbsCommonConfig::GetInstance().SetLockKsfStandbyPath(original);
 }
-}  // namespace UT
+} // namespace UT

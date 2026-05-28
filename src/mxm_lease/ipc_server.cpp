@@ -14,10 +14,10 @@
 #include "ipc_server_engine.h"
 #include "log.h"
 
-#include "referable/dg_ref.h"
-#include "mxm_ipc_server_interface.h"
 #include "ipc_handler.h"
 #include "mls_manager.h"
+#include "mxm_ipc_server_interface.h"
+#include "referable/dg_ref.h"
 #include "ubse_mem_adapter.h"
 
 using namespace ock::mxmd;
@@ -30,8 +30,8 @@ namespace ock::lease::service {
 static std::map<uint32_t, MsgExecFuc> execMap;
 static std::unordered_map<int, HcomServiceHandle> callBackMap;
 
-void IpcServer::Handle(const MxmComUdsInfo& udsInfo, uint16_t opCode, const MsgBase* req, MsgBase* rsp,
-                       const MsgExecFuc& exePtr)
+void IpcServer::Handle(const MxmComUdsInfo &udsInfo, uint16_t opCode, const MsgBase *req, MsgBase *rsp,
+                       const MsgExecFuc &exePtr)
 {
     if (exePtr == nullptr) {
         DBG_LOGERROR("Execution function is nullptr, opCode=" << opCode);
@@ -45,30 +45,30 @@ void IpcServer::Handle(const MxmComUdsInfo& udsInfo, uint16_t opCode, const MsgB
     }
 }
 
-const std::unordered_map<int, HcomServiceHandle>& IpcServer::GetIpcCallbackTable()
+const std::unordered_map<int, HcomServiceHandle> &IpcServer::GetIpcCallbackTable()
 {
     IpcServer::GetInstance().InitExecMap();
     callBackMap.clear();
-    callBackMap[IPC_MALLOC_MEMORY] = {[](const MxmComUdsInfo& udsInfo, const MsgBase* req, MsgBase* rsp) {
+    callBackMap[IPC_MALLOC_MEMORY] = {[](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
         GetInstance().MsgHandle(udsInfo, IPC_MALLOC_MEMORY, req, rsp, execMap.at(IPC_MALLOC_MEMORY));
     }};
-    callBackMap[IPC_MALLOC_MEMORY_LOC] = {[](const MxmComUdsInfo& udsInfo, const MsgBase* req, MsgBase* rsp) {
+    callBackMap[IPC_MALLOC_MEMORY_LOC] = {[](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
         GetInstance().MsgHandle(udsInfo, IPC_MALLOC_MEMORY_LOC, req, rsp, execMap.at(IPC_MALLOC_MEMORY_LOC));
     }};
-    callBackMap[IPC_CHECK_MEMORY_LEASE] = {[](const MxmComUdsInfo& udsInfo, const MsgBase* req, MsgBase* rsp) {
+    callBackMap[IPC_CHECK_MEMORY_LEASE] = {[](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
         GetInstance().MsgHandle(udsInfo, IPC_CHECK_MEMORY_LEASE, req, rsp, execMap.at(IPC_CHECK_MEMORY_LEASE));
     }};
-    callBackMap[IPC_FREE_RACKMEM] = {[](const MxmComUdsInfo& udsInfo, const MsgBase* req, MsgBase* rsp) {
+    callBackMap[IPC_FREE_RACKMEM] = {[](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
         GetInstance().MsgHandle(udsInfo, IPC_FREE_RACKMEM, req, rsp, execMap.at(IPC_FREE_RACKMEM));
     }};
-    callBackMap[IPC_QUERY_CLUSTERINFO] = {[](const MxmComUdsInfo& udsInfo, const MsgBase* req, MsgBase* rsp) {
+    callBackMap[IPC_QUERY_CLUSTERINFO] = {[](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
         GetInstance().MsgHandle(udsInfo, IPC_QUERY_CLUSTERINFO, req, rsp, execMap.at(IPC_QUERY_CLUSTERINFO));
     }};
-    callBackMap[IPC_FORCE_FREE_CACHED_MEMORY] = {[](const MxmComUdsInfo& udsInfo, const MsgBase* req, MsgBase* rsp) {
+    callBackMap[IPC_FORCE_FREE_CACHED_MEMORY] = {[](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
         GetInstance().MsgHandle(udsInfo, IPC_FORCE_FREE_CACHED_MEMORY, req, rsp,
                                 execMap.at(IPC_FORCE_FREE_CACHED_MEMORY));
     }};
-    callBackMap[IPC_QUERY_CACHED_MEMORY] = {[](const MxmComUdsInfo& udsInfo, const MsgBase* req, MsgBase* rsp) {
+    callBackMap[IPC_QUERY_CACHED_MEMORY] = {[](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
         GetInstance().MsgHandle(udsInfo, IPC_QUERY_CACHED_MEMORY, req, rsp, execMap.at(IPC_QUERY_CACHED_MEMORY));
     }};
     return callBackMap;
@@ -77,7 +77,7 @@ const std::unordered_map<int, HcomServiceHandle>& IpcServer::GetIpcCallbackTable
 uint32_t IpcServer::InitializeIpcCallbackTable()
 {
     auto map = IpcServer::GetInstance().GetIpcCallbackTable();
-    for (auto& op : map) {
+    for (auto &op : map) {
         MxmComEndpoint endpoint;
         endpoint.address = "mem_lease";
         endpoint.moduleId = 0x0;
@@ -100,7 +100,7 @@ uint32_t IpcServer::InitExecMap()
     execMap.emplace(IPC_QUERY_CLUSTERINFO, MxmServerMsgHandle::AppQueryClusterInfo);
     execMap.emplace(IPC_FORCE_FREE_CACHED_MEMORY, MxmServerMsgHandle::AppForceFreeCachedMemory);
     execMap.emplace(IPC_QUERY_CACHED_MEMORY, MxmServerMsgHandle::AppQueryCachedMemory);
-    for (auto& iter : execMap) {
+    for (auto &iter : execMap) {
         if (iter.second == nullptr) {
             DBG_LOGERROR("RPC init exe map error, no func");
             return MXM_ERR_REGISTER_HANDLER_NULL;
@@ -122,5 +122,8 @@ uint32_t IpcServer::RackMemConBaseInitialize()
     return HOK;
 }
 
-uint32_t IpcServer::Stop() { return HOK; }
-}  // namespace ock::lease::service
+uint32_t IpcServer::Stop()
+{
+    return HOK;
+}
+} // namespace ock::lease::service

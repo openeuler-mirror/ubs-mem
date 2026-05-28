@@ -14,8 +14,7 @@
 
 namespace ock::com::ipc {
 
-static void IPCClientHandlerWork(void (*handler)(MxmComMessageCtx& messageCtx),
-                                 MxmComMessageCtx& messageCtx)
+static void IPCClientHandlerWork(void (*handler)(MxmComMessageCtx &messageCtx), MxmComMessageCtx &messageCtx)
 {
     if (handler != nullptr) {
         handler(messageCtx);

@@ -17,17 +17,16 @@ using namespace ock::com::rpc;
 using namespace ock::mxmd;
 namespace ock::rpc::service {
 
-    uint32_t RpcServerEngine::RegisterOpcode(MxmComEndpoint opcode, const HcomServiceHandle& handle)
-    {
-        opcode.moduleId = 1;
-        auto ret = MxmRegRpcService(
-            opcode, [opcode, handle](const MsgBase* req, MsgBase* resp) -> void {
-                handle.func(req, resp);
-                return;
-            });
-        if (ret != 0) {
-            return MXM_ERR_REGISTER_OP_CODE;
-        }
-        return HOK;
+uint32_t RpcServerEngine::RegisterOpcode(MxmComEndpoint opcode, const HcomServiceHandle &handle)
+{
+    opcode.moduleId = 1;
+    auto ret = MxmRegRpcService(opcode, [opcode, handle](const MsgBase *req, MsgBase *resp) -> void {
+        handle.func(req, resp);
+        return;
+    });
+    if (ret != 0) {
+        return MXM_ERR_REGISTER_OP_CODE;
     }
-}  // namespace ock::lease::service
+    return HOK;
+}
+} // namespace ock::rpc::service

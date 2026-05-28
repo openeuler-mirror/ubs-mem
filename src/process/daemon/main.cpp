@@ -11,8 +11,8 @@
  */
 #include <fcntl.h>
 #include <unistd.h>
-#include "syslog.h"
 #include "ock_daemon.h"
+#include "syslog.h"
 
 using namespace ock::daemon;
 
@@ -41,7 +41,7 @@ bool CheckIsRunning()
     return false;
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
     auto start = std::chrono::steady_clock::now();
     auto uid = getuid();
@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
     if (CheckIsRunning()) {
         return ERROR_EXIT_CODE;
     }
-    ock::daemon::OCKDaemonPtr daemon = new(std::nothrow) ock::daemon::OckDaemon();
+    ock::daemon::OCKDaemonPtr daemon = new (std::nothrow) ock::daemon::OckDaemon();
     if (daemon == nullptr) {
         std::cerr << "Failed to new ock daemon, maybe out of memory" << std::endl;
         return ERROR_EXIT_CODE;

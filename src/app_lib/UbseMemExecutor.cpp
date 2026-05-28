@@ -10,8 +10,8 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "UbseMemExecutor.h"
-#include "dlfcn.h"
 #include "defines.h"
+#include "dlfcn.h"
 #include "rack_mem_err.h"
 #include "system_adapter.h"
 namespace ock::mxmd {
@@ -86,4 +86,4 @@ int32_t UbseMemExecutor::RegisterShmFaultEvent(ShmFaultFuncPtr registerFunc)
     }
     return HOK;
 }
-}
+} // namespace ock::mxmd

@@ -12,25 +12,31 @@
 #ifndef RACK_MEM_SHM_H
 #define RACK_MEM_SHM_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <sys/types.h>
-#include "mx_def.h"
 #include "ubs_mem_def.h"
+#include "mx_def.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef enum RackMemShmRegionType {
+typedef enum RackMemShmRegionType
+{
     ALL2ALL_SHARE = 0, /* *SHM域类型为域内任何节点提供内存都可以被域内所有节点共享访问 */
-    ONE2ALL_SHARE, /* *SHM域类型为域内单一节点作为提供方都可以被域内所有节点共享访问 */
-    INCLUDE_ALL_TYPE, /* *请求所有类型 */
+    ONE2ALL_SHARE,     /* *SHM域类型为域内单一节点作为提供方都可以被域内所有节点共享访问 */
+    INCLUDE_ALL_TYPE,  /* *请求所有类型 */
 } ShmRegionType;
 
-typedef enum RackMemShmCacheOptType { RACK_FLUSH = 0, RACK_INVALID } ShmCacheOpt;
+typedef enum RackMemShmCacheOptType
+{
+    RACK_FLUSH = 0,
+    RACK_INVALID
+} ShmCacheOpt;
 
-typedef enum RackMemShmOwnStatus {
+typedef enum RackMemShmOwnStatus
+{
     UNACCESS = 0,
     WRITE,
     READ,
@@ -44,7 +50,8 @@ typedef struct TagRackMemSHMRegionDesc {
     int num;
     bool affinity[MEM_TOPOLOGY_MAX_HOSTS];
     char nodeId[MEM_TOPOLOGY_MAX_HOSTS][MEM_MAX_ID_LENGTH];
-    char hostName[MEM_TOPOLOGY_MAX_HOSTS][MAX_HOST_NAME_DESC_LENGTH];  // nodeId对应的hostname，最长MAX_HOST_NAME_DESC_LENGTH
+    char hostName[MEM_TOPOLOGY_MAX_HOSTS]
+                 [MAX_HOST_NAME_DESC_LENGTH]; // nodeId对应的hostname，最长MAX_HOST_NAME_DESC_LENGTH
 } SHMRegionDesc;
 
 typedef struct TagRackMemSHMRegions {
