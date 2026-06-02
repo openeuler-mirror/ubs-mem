@@ -12,6 +12,7 @@
 #ifndef OCK_HCOM_NET_MONOTONIC_H
 #define OCK_HCOM_NET_MONOTONIC_H
 
+#include <cstdint>
 #include <cstdio>
 #include <fstream>
 #include <string>

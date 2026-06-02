@@ -20,8 +20,8 @@
 namespace ock {
 namespace dlock_utils {
 
-constexpr auto DLOCKS_PATH = "/usr/lib64/libdlocks.so.0";
-constexpr auto DLOCKC_PATH = "/usr/lib64/libdlockc.so.0";
+constexpr auto DLOCKS_PATH = SYS_LIB_DIR "/libdlocks.so.0";
+constexpr auto DLOCKC_PATH = SYS_LIB_DIR "/libdlockc.so.0";
 
 using DLockSeverLibInitPtr = int (*)(unsigned int max_server_num);
 using DLockSeverLibDeInitPtr = void (*)();

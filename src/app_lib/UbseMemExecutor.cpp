@@ -23,7 +23,7 @@ uint32_t UbseMemExecutor::Initialize()
     if (initialized_) {
         return HOK;
     }
-    static constexpr auto soPath = "/usr/lib64/libubse-client.so.1";
+    static constexpr auto soPath = ARCH_LIB_DIR "/libubse-client.so.1";
     handle = SystemAdapter::DlOpen(soPath, RTLD_NOW);
     if (handle == nullptr) {
         DBG_LOGERROR("Dlopen libubse-client.so.1 failed, error is " << dlerror());
