@@ -76,7 +76,7 @@ int UbseMemAdapter::Initialize()
 #ifdef DEBUG_MEM_UT
     auto soPath = "libubse-client.so";
 #else
-    auto soPath = "/usr/lib64/libubse-client.so.1";
+    auto soPath = ARCH_LIB_DIR "/libubse-client.so.1";
 #endif
     auto ret = DlopenLibUbse(soPath);
     if (ret != 0) {
