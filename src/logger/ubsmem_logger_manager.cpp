@@ -55,6 +55,7 @@ int UbsmemLoggerManager::EnsureInited()
     UbsmemLoggerOptions opts;
     opts.minLogLevel = UbsmemLogLevel::DEBUG;
     opts.bufferMaxItem = DEFAULT_BUFFER_MAX_ITEM;
+    syncMode_ = true;
     return Init(opts, writer);
 }
 
@@ -81,23 +82,27 @@ int UbsmemLoggerManager::Init(const UbsmemLoggerOptions &options, const std::sha
     this->syslogOpen_ = options.syslogOpen;
     this->syslogType_ = options.syslogType;
     gInstance->writer_ = logWriter;
-    threadRunning_.store(true);
-    try {
-        logBuffer_ = std::make_unique<UbsmemLoggerDoubleBuffer>(options.bufferMaxItem);
-        loggingThread_ = std::thread([this] { UbsmemLoggerManager::Pop(); });
-    } catch (...) {
-        std::cerr << "Out of memory or create thread failed." << std::endl;
-        gInstance->writer_.reset();
-        threadRunning_.store(false);
-        return -1;
+    if (!syncMode_) {
+        threadRunning_.store(true);
+        try {
+            logBuffer_ = std::make_unique<UbsmemLoggerDoubleBuffer>(options.bufferMaxItem);
+            loggingThread_ = std::thread([this] { UbsmemLoggerManager::Pop(); });
+        } catch (...) {
+            std::cerr << "Out of memory or create thread failed." << std::endl;
+            gInstance->writer_.reset();
+            threadRunning_.store(false);
+            return -1;
+        }
     }
-
     gInited_ = true;
     return 0;
 }
 
 void UbsmemLoggerManager::Exit()
 {
+    if (logBuffer_ == nullptr) {
+        return;
+    }
     std::unique_lock<std::shared_mutex> lock(logBuffer_->mtx_);
     logBuffer_->stop_ = true;
     lock.unlock();
@@ -114,6 +119,20 @@ bool UbsmemLoggerManager::IsLog(UbsmemLogLevel level)
 
 void UbsmemLoggerManager::Push(UbsmemLoggerEntry &&loggerEntry)
 {
+    if (syncMode_) {
+        if (externLogCallback_ != nullptr) {
+            std::ostringstream oss;
+            oss << "[UBS_SDK " << loggerEntry.GetFile() << ":" << loggerEntry.GetLine() << "] ";
+            loggerEntry.DecodePayload(oss);
+            externLogCallback_(static_cast<int>(loggerEntry.GetLogLevel()), oss.str().c_str());
+        } else {
+            writer_->Write(loggerEntry);
+        }
+        if (syslogOpen_) {
+            LogToSyslog(loggerEntry);
+        }
+        return;
+    }
     if (logBuffer_ == nullptr) {
         return;
     }

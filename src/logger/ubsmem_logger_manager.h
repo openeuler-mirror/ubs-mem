@@ -82,6 +82,7 @@ private:
     bool syslogOpen_ = false;
     uint32_t syslogType_ = LOG_USER;
     static std::atomic<bool> threadRunning_;
+    bool syncMode_ = false;
     std::unique_ptr<UbsmemLoggerDoubleBuffer> logBuffer_;
     std::thread loggingThread_;
     std::shared_ptr<UbsmemLoggerWriter> writer_;

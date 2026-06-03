@@ -38,8 +38,7 @@ static uint64_t GetTimeStamp()
 
 static pid_t GetProcessId()
 {
-    static pid_t pid = getpid();
-    return pid;
+    return getpid();
 }
 
 static unsigned long GetThreadId()
