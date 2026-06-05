@@ -436,7 +436,7 @@ int ubsmem_shmem_map(void *addr, size_t length, int prot, int flags, const char 
 |--|--|--|--|
 |addr|void *|入参|指定期望的地址。|
 |length|size_t|入参|映射长度。当前仅支持整个共享内存映射，此值必须为共享内存size。|
-|prot|int|入参|映射内存权限。当前支持的组合值包含：<ul><li>PROT_NONE</li><li>PROT_READ</li><li>PROT_READ</li></ul>|PROT_WRITE|
+|prot|int|入参|映射内存权限。当前支持的组合值包含：<ul><li>PROT_NONE</li><li>PROT_READ</li><li>PROT_READ\|PROT_WRITE</li></ul>|
 |flags|int|入参|引用系统mmap的取值，可选如下参数：<ul><li>MAP_SHARED</li><li>MAP_PRIVATE</li><li>MAP_FIXED</li><li>MAP_FIXED_NOREPLACE</li></ul>|
 |name|const char *|入参|通过 ubsmem_shmem_allocate 创建的共享内存的名称。|
 |offset|off_t|入参|映射的起始偏移。当前仅支持整个共享内存映射，此值必须为0。|
@@ -617,7 +617,7 @@ int ubsmem_shmem_set_ownership(const char *name, void *start, size_t length, int
 |name|const char *|入参|通过 ubsmem_shmem_allocate 创建的共享内存的名称。|
 |start|void *|入参|由 ubsmem_shmem_map 得到的地址。支持刷新某一段地址的共享内存。|
 |length|size_t|入参|共享内存的大小。最小值为内核页的大小，且内存地址需与mmap分配的起始地址保持内核页的大小对齐。|
-|prot|int|入参|内存权限。当前支持的组合值包含：<ul><li>PROT_NONE</li><li>PROT_READ</li><li>PROT_READ</li></ul>|PROT_WRITE|
+|prot|int|入参|内存权限。当前支持的组合值包含：<ul><li>PROT_NONE</li><li>PROT_READ</li><li>PROT_READ\|PROT_WRITE</li></ul>|
 
 **返回值**
 
