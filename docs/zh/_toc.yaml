@@ -1,6 +1,8 @@
 isManual: true
 label: UBS Memory Usage Guidance
 sections:
+  - label: 安装部署
+    href: ./installation_deployment.md
   - label: 接口说明
     href: ./api_description.md
   - label: 配置说明
