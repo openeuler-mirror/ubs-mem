@@ -240,29 +240,30 @@ bool ValidateFlag(uint64_t flags)
         DBG_LOGERROR("ValidateFlag failed, Invalid flags:" << flags << " mask: " << FLAGS_MASK);
         return false;
     }
+
+    constexpr uint64_t COMMON_MASK = UBSM_FLAG_MEM_ANONYMOUS | UBSM_FLAG_MMAP_HUGETLB_PMD;
     // NC flag的 只能选这几个flag
-    constexpr uint64_t NC_MASK = UBSM_FLAG_NONCACHE | UBSM_FLAG_WR_DELAY_COMP | UBSM_FLAG_MEM_ANONYMOUS;
+    constexpr uint64_t NC_MASK = UBSM_FLAG_NONCACHE | UBSM_FLAG_WR_DELAY_COMP | COMMON_MASK;
     if ((flags & UBSM_FLAG_NONCACHE) != 0 && ((flags & NC_MASK) != flags)) {
         DBG_LOGERROR("ValidateFlag failed, Invalid flags:" << flags);
         return false;
     }
 
     // IMPORT_NC flag的 只能选这几个flag
-    constexpr uint64_t IMPORT_NC_MASK = UBSM_FLAG_ONLY_IMPORT_NONCACHE | UBSM_FLAG_WR_DELAY_COMP |
-                                        UBSM_FLAG_MEM_ANONYMOUS | UBSM_FLAG_MMAP_HUGETLB_PMD;
+    constexpr uint64_t IMPORT_NC_MASK = UBSM_FLAG_ONLY_IMPORT_NONCACHE | UBSM_FLAG_WR_DELAY_COMP | COMMON_MASK;
     if ((flags & UBSM_FLAG_ONLY_IMPORT_NONCACHE) != 0 && ((flags & IMPORT_NC_MASK) != flags)) {
         DBG_LOGERROR("ValidateFlag failed, Invalid flags:" << flags);
         return false;
     }
     // WITH_LOCK flag的 只能选这几个flag
-    constexpr uint64_t LOCK_MASK = UBSM_FLAG_WITH_LOCK | UBSM_FLAG_MEM_ANONYMOUS;
+    constexpr uint64_t LOCK_MASK = UBSM_FLAG_WITH_LOCK | COMMON_MASK;
     if ((flags & UBSM_FLAG_WITH_LOCK) != 0 && ((flags & LOCK_MASK) != flags)) {
         DBG_LOGERROR("ValidateFlag failed, Invalid flags:" << flags);
         return false;
     }
 
     // CC flag的 只能选这几个flag
-    constexpr uint64_t CC_MASK = UBSM_FLAG_CACHE | UBSM_FLAG_MEM_ANONYMOUS;
+    constexpr uint64_t CC_MASK = UBSM_FLAG_CACHE | COMMON_MASK;
     if (WithCacheableFlag(flags) && ((flags & CC_MASK) != flags)) {
         DBG_LOGERROR("ValidateFlag failed, Invalid flags:" << flags);
         return false;
@@ -448,6 +449,10 @@ uint32_t ubsmem_shmem_map_impl(void *addr, size_t length, int prot, int flags, c
     auto len = strnlen(name, MAX_SHM_NAME_LENGTH);
     if (len == 0 || len >= MAX_SHM_NAME_LENGTH) {
         DBG_LOGERROR("name length(" << len << ") is 0 or over limit (" << MAX_SHM_NAME_LENGTH << ").");
+        return MXM_ERR_PARAM_INVALID;
+    }
+    if ((flags | MAP_PRIVATE) == MAP_PRIVATE) {
+        DBG_LOGERROR("The parameter flags=" << flags << " is invalid.");
         return MXM_ERR_PARAM_INVALID;
     }
 
