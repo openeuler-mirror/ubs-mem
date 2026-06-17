@@ -1,5 +1,12 @@
 # 安全管理与加固
 
+## 信任模型
+
+UBS Memory (ubsmem) 运行于超节点集群内部，其安全设计基于以下信任假设：
+
+- **节点间互信**：ubsmd 节点之间通过 TLS 证书互相认证，RPC 通道仅对受信节点开放。RPC 消息中携带的 `uid`、`gid`、`pid` 由 IPC 入口端通过 Unix Domain Socket 从内核获取（`SO_PEERCRED`），经由已认证的 ubsmd 节点转发至服务端，链路各环节具备身份保证。
+- **集群边界防护**：服务仅监听超节点内部网络，不暴露于外部不可信网络。集群外的非法访问应由网络层防火墙及访问控制策略阻断。
+
 ## 安全管理
 
 ### 防病毒软件例行检查
@@ -177,3 +184,11 @@ chmod 500 /usr/local/ubs_mem/lib/libdecrypt.so
 |用户|描述|初始密码|密码修改方法|
 |--|--|--|--|
 |ubsmd|UBS Memory服务所属用户。|系统用户，无密码，不可登录。|-|
+
+## 通信矩阵
+
+| 通道 | 源 | 目标 | 协议 | 端口/路径 | TLS | 用途 |
+|------|----|------|------|----------|-----|------|
+| IPC通信 | 应用进程 (UBSM SDK) | ubsmd | UDS (Unix Domain Socket) | `/run/matrix/memory/MxmAgentIpcServer` | 否 | 内存借用、共享内存管理、锁/解锁、集群信息查询 |
+| RPC通信 | ubsmd | ubsmd | TCP | `ubsm.server.rpc.local.ipseg` / `ubsm.server.rpc.remote.ipseg` | 可选（`ubsm.server.tls.enable`，默认 `on`） | 主节点选举 (ZenDiscovery)、节点信息查询 |
+| DLock通信 | ubsmd | ubsmd | UB | `ubsm.lock.dev.name` / `ubsm.lock.dev.eid` | 可选（`ubsm.lock.tls.enable`，默认 `on`） | 分布式排他锁/共享锁/解锁/心跳 |
