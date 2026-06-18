@@ -10,18 +10,17 @@
  * See the Mulan PSL v2 for more details.
  */
 
-
 #include <sys/mman.h>
-#include "mx_shm.h"
 #include "ubs_mem.h"
 #include "RackMemShm.h"
+#include "UbseMemExecutor.h"
+#include "log.h"
+#include "mx_shm.h"
+#include "rack_mem_functions.h"
 #include "rack_mem_lib.h"
 #include "rack_mem_macros.h"
-#include "log.h"
-#include "rack_mem_functions.h"
-#include "ubsm_ptracer.h"
 #include "shm_ipc_command.h"
-#include "UbseMemExecutor.h"
+#include "ubsm_ptracer.h"
 
 using namespace ock::mxmd;
 using namespace ock::common;
@@ -76,7 +75,7 @@ static int find_region_desc(const char *region_name, SHMRegionDesc *region)
     return UBSM_OK;
 }
 
-static int translate_to_region_attributes(SHMRegionDesc* regionDesc, ubsmem_region_attributes_t* region_attr)
+static int translate_to_region_attributes(SHMRegionDesc *regionDesc, ubsmem_region_attributes_t *region_attr)
 {
     region_attr->host_num = regionDesc->num;
 
@@ -87,14 +86,14 @@ static int translate_to_region_attributes(SHMRegionDesc* regionDesc, ubsmem_regi
             return MXM_ERR_MEMORY;
         }
         region_attr->hosts[i].affinity = regionDesc->affinity[i];
-        DBG_LOGINFO("Coping region name=" << region_attr->hosts[i].host_name << ", affinity="
-                    << region_attr->hosts[i].affinity << " to list");
+        DBG_LOGINFO("Coping region name=" << region_attr->hosts[i].host_name
+                                          << ", affinity=" << region_attr->hosts[i].affinity << " to list");
     }
 
     return UBSM_OK;
 }
- 
-static int translate_to_regions(SHMRegions* list, ubsmem_regions_t* regions)
+
+static int translate_to_regions(SHMRegions *list, ubsmem_regions_t *regions)
 {
     regions->num = list->num;
 
@@ -109,8 +108,8 @@ static int translate_to_regions(SHMRegions* list, ubsmem_regions_t* regions)
     return UBSM_OK;
 }
 
-static int translate_to_region_desc(
-    const char *region_name, SHMRegionDesc *regionDesc, ubsmem_region_desc_t *region_desc)
+static int translate_to_region_desc(const char *region_name, SHMRegionDesc *regionDesc,
+                                    ubsmem_region_desc_t *region_desc)
 {
     auto ret = strcpy_s(region_desc->region_name, MAX_REGION_NAME_DESC_LENGTH, region_name);
     if (ret != UBSM_OK) {
@@ -126,9 +125,9 @@ static int translate_to_region_desc(
     return UBSM_OK;
 }
 
-static bool contain_all_hosts_in_attr(SHMRegionDesc* regionDesc, const ubsmem_region_attributes_t* reg_attr)
+static bool contain_all_hosts_in_attr(SHMRegionDesc *regionDesc, const ubsmem_region_attributes_t *reg_attr)
 {
-    bool flag[MAX_REGION_NODE_NUM] = { false };
+    bool flag[MAX_REGION_NODE_NUM] = {false};
     int i;
     int j;
 
@@ -141,7 +140,7 @@ static bool contain_all_hosts_in_attr(SHMRegionDesc* regionDesc, const ubsmem_re
             if (strcmp(reg_attr->hosts[i].host_name, regionDesc->hostName[j]) == 0) {
                 flag[j] = true;
                 regionDesc->affinity[j] = reg_attr->hosts[i].affinity;
-                DBG_LOGDEBUG("affinity["<< j << "]=" << regionDesc->affinity[j] << ", i=" << i);
+                DBG_LOGDEBUG("affinity[" << j << "]=" << regionDesc->affinity[j] << ", i=" << i);
                 break;
             }
         }
@@ -174,7 +173,7 @@ static bool contain_all_hosts_in_attr(SHMRegionDesc* regionDesc, const ubsmem_re
     return true;
 }
 
-static int filter_all_hosts_in_attr(SHMRegions *list, const ubsmem_region_attributes_t* reg_attr, int &index)
+static int filter_all_hosts_in_attr(SHMRegions *list, const ubsmem_region_attributes_t *reg_attr, int &index)
 {
     for (int i = 0; i < list->num; i++) {
         if (contain_all_hosts_in_attr(&list->region[i], reg_attr)) {
@@ -187,7 +186,7 @@ static int filter_all_hosts_in_attr(SHMRegions *list, const ubsmem_region_attrib
     return MXM_ERR_CHECK_RESOURCE;
 }
 
-static int create_region_check(const char* region_name, size_t size, const ubsmem_region_attributes_t* reg_attr)
+static int create_region_check(const char *region_name, size_t size, const ubsmem_region_attributes_t *reg_attr)
 {
     if (region_name == nullptr || reg_attr == nullptr) {
         DBG_LOGERROR("regions is nullptr.");
@@ -201,25 +200,23 @@ static int create_region_check(const char* region_name, size_t size, const ubsme
 
     if (size != 0 || reg_attr->host_num > MAX_REGION_NODE_NUM || reg_attr->host_num < NO_2) {
         DBG_LOGERROR("size or host num is invalid, size=" << size << ", host number=" << reg_attr->host_num
-                                                          << ", it should be in (" << MAX_REGION_NODE_NUM
-                                                          << ", " << NO_2 << ")");
+                                                          << ", it should be in (" << MAX_REGION_NODE_NUM << ", "
+                                                          << NO_2 << ")");
         return MXM_ERR_PARAM_INVALID;
     }
 
     auto length = strnlen(region_name, MAX_REGION_NAME_DESC_LENGTH);
     if (length == 0 || length >= MAX_REGION_NAME_DESC_LENGTH) {
-        DBG_LOGERROR(
-            "region name(" << region_name << ") length(" << length << ") is 0 or over limit ("
-                           << MAX_REGION_NAME_DESC_LENGTH << ").");
+        DBG_LOGERROR("region name(" << region_name << ") length(" << length << ") is 0 or over limit ("
+                                    << MAX_REGION_NAME_DESC_LENGTH << ").");
         return MXM_ERR_PARAM_INVALID;
     }
 
     for (int i = 0; i < reg_attr->host_num; i++) {
         auto len = strnlen(reg_attr->hosts[i].host_name, MAX_HOST_NAME_DESC_LENGTH);
         if (len == 0 || len >= MAX_HOST_NAME_DESC_LENGTH) {
-            DBG_LOGERROR(
-                "host name(" << reg_attr->hosts[i].host_name << ") length(" << len << ") is 0 or over limit ("
-                             << MAX_HOST_NAME_DESC_LENGTH << ").");
+            DBG_LOGERROR("host name(" << reg_attr->hosts[i].host_name << ") length(" << len << ") is 0 or over limit ("
+                                      << MAX_HOST_NAME_DESC_LENGTH << ").");
             return MXM_ERR_PARAM_INVALID;
         }
     }
@@ -229,8 +226,8 @@ static int create_region_check(const char* region_name, size_t size, const ubsme
 
 bool WithCacheableFlag(uint64_t flags)
 {
-    return (flags & UBSM_FLAG_NONCACHE) == 0 && (flags & UBSM_FLAG_ONLY_IMPORT_NONCACHE) == 0 && (
-               flags & UBSM_FLAG_WITH_LOCK) == 0;
+    return (flags & UBSM_FLAG_NONCACHE) == 0 && (flags & UBSM_FLAG_ONLY_IMPORT_NONCACHE) == 0 &&
+           (flags & UBSM_FLAG_WITH_LOCK) == 0;
 }
 
 bool ValidateFlag(uint64_t flags)
@@ -243,29 +240,30 @@ bool ValidateFlag(uint64_t flags)
         DBG_LOGERROR("ValidateFlag failed, Invalid flags:" << flags << " mask: " << FLAGS_MASK);
         return false;
     }
+
+    constexpr uint64_t COMMON_MASK = UBSM_FLAG_MEM_ANONYMOUS | UBSM_FLAG_MMAP_HUGETLB_PMD;
     // NC flag的 只能选这几个flag
-    constexpr uint64_t NC_MASK = UBSM_FLAG_NONCACHE | UBSM_FLAG_WR_DELAY_COMP | UBSM_FLAG_MEM_ANONYMOUS;
+    constexpr uint64_t NC_MASK = UBSM_FLAG_NONCACHE | UBSM_FLAG_WR_DELAY_COMP | COMMON_MASK;
     if ((flags & UBSM_FLAG_NONCACHE) != 0 && ((flags & NC_MASK) != flags)) {
         DBG_LOGERROR("ValidateFlag failed, Invalid flags:" << flags);
         return false;
     }
 
     // IMPORT_NC flag的 只能选这几个flag
-    constexpr uint64_t IMPORT_NC_MASK = UBSM_FLAG_ONLY_IMPORT_NONCACHE | UBSM_FLAG_WR_DELAY_COMP |
-                                        UBSM_FLAG_MEM_ANONYMOUS | UBSM_FLAG_MMAP_HUGETLB_PMD;
+    constexpr uint64_t IMPORT_NC_MASK = UBSM_FLAG_ONLY_IMPORT_NONCACHE | UBSM_FLAG_WR_DELAY_COMP | COMMON_MASK;
     if ((flags & UBSM_FLAG_ONLY_IMPORT_NONCACHE) != 0 && ((flags & IMPORT_NC_MASK) != flags)) {
         DBG_LOGERROR("ValidateFlag failed, Invalid flags:" << flags);
         return false;
     }
     // WITH_LOCK flag的 只能选这几个flag
-    constexpr uint64_t LOCK_MASK = UBSM_FLAG_WITH_LOCK | UBSM_FLAG_MEM_ANONYMOUS;
+    constexpr uint64_t LOCK_MASK = UBSM_FLAG_WITH_LOCK | COMMON_MASK;
     if ((flags & UBSM_FLAG_WITH_LOCK) != 0 && ((flags & LOCK_MASK) != flags)) {
         DBG_LOGERROR("ValidateFlag failed, Invalid flags:" << flags);
         return false;
     }
 
     // CC flag的 只能选这几个flag
-    constexpr uint64_t CC_MASK = UBSM_FLAG_CACHE | UBSM_FLAG_MEM_ANONYMOUS;
+    constexpr uint64_t CC_MASK = UBSM_FLAG_CACHE | COMMON_MASK;
     if (WithCacheableFlag(flags) && ((flags & CC_MASK) != flags)) {
         DBG_LOGERROR("ValidateFlag failed, Invalid flags:" << flags);
         return false;
@@ -299,7 +297,11 @@ uint32_t ubsmem_shmem_allocate_impl(const char *region_name, const char *name, s
         DBG_LOGERROR("Invalid flags=" << flags);
         return MXM_ERR_PARAM_INVALID;
     }
-
+    static auto hugePageSize = GetHugeTlbPmdSize();
+    if ((flags & UBSM_FLAG_MMAP_HUGETLB_PMD) == UBSM_FLAG_MMAP_HUGETLB_PMD && size % hugePageSize != 0) {
+        DBG_LOGERROR("The size is not aligned to " << hugePageSize << ", size=" << size);
+        return MXM_ERR_PARAM_INVALID;
+    }
     DBG_LOGINFO("Allocating shared memory, region=" << region_name << ", name=" << name << ", size=" << size);
     std::string regionName = region_name;
     std::string baseNid;
@@ -338,7 +340,7 @@ SHMEM_API int ubsmem_shmem_allocate(const char *region_name, const char *name, s
     return GetErrCode(ret);
 }
 
-uint32_t ubsmem_shmem_allocate_with_provider_impl(const ubs_mem_provider_t* src_loc, const char* name, size_t size,
+uint32_t ubsmem_shmem_allocate_with_provider_impl(const ubs_mem_provider_t *src_loc, const char *name, size_t size,
                                                   mode_t mode, uint64_t flags)
 {
     if (name == nullptr || src_loc == nullptr) {
@@ -403,8 +405,8 @@ uint32_t ubsmem_shmem_deallocate_impl(const char *name)
     }
     auto length = strnlen(name, MAX_SHM_NAME_LENGTH);
     if (length == 0 || length >= MAX_SHM_NAME_LENGTH) {
-        DBG_LOGERROR("name(" << name << ") length(" << length << ") is 0 or over limit ("
-                             << MAX_SHM_NAME_LENGTH << ").");
+        DBG_LOGERROR("name(" << name << ") length(" << length << ") is 0 or over limit (" << MAX_SHM_NAME_LENGTH
+                             << ").");
         return MXM_ERR_PARAM_INVALID;
     }
     DBG_LOGDEBUG("Start to delete shm, name=" << name);
@@ -426,7 +428,7 @@ SHMEM_API int ubsmem_shmem_deallocate(const char *name)
 }
 
 uint32_t ubsmem_shmem_map_impl(void *addr, size_t length, int prot, int flags, const char *name, off_t offset,
-    void **local_ptr)
+                               void **local_ptr)
 {
     if (name == nullptr) {
         DBG_LOGERROR("Name is empty.");
@@ -449,9 +451,13 @@ uint32_t ubsmem_shmem_map_impl(void *addr, size_t length, int prot, int flags, c
         DBG_LOGERROR("name length(" << len << ") is 0 or over limit (" << MAX_SHM_NAME_LENGTH << ").");
         return MXM_ERR_PARAM_INVALID;
     }
-    
-    DBG_LOGINFO("Mmapping shared memory, name=" << name << ", length=" << length << ", offset="
-                                                << offset << ", prot=" << prot);
+    if ((flags | MAP_PRIVATE) == MAP_PRIVATE) {
+        DBG_LOGERROR("The parameter flags=" << flags << " is invalid.");
+        return MXM_ERR_PARAM_INVALID;
+    }
+
+    DBG_LOGINFO("Mmapping shared memory, name=" << name << ", length=" << length << ", offset=" << offset
+                                                << ", prot=" << prot);
     const size_t pageLength = ROUND_UP(length, PAGE_SIZE);
     const off_t pageOffset = ROUND_UP(static_cast<unsigned long int>(offset), PAGE_SIZE);
 
@@ -477,7 +483,7 @@ uint32_t ubsmem_shmem_map_impl(void *addr, size_t length, int prot, int flags, c
 }
 
 SHMEM_API int ubsmem_shmem_map(void *addr, size_t length, int prot, int flags, const char *name, off_t offset,
-    void **local_ptr)
+                               void **local_ptr)
 {
     TP_TRACE_BEGIN(TP_UBSM_SHM_MAP);
     const auto ret = ubsmem_shmem_map_impl(addr, length, prot, flags, name, offset, local_ptr);
@@ -514,7 +520,7 @@ SHMEM_API int ubsmem_shmem_unmap(void *local_ptr, size_t length)
     return GetErrCode(ret);
 }
 
-uint32_t ubsmem_shmem_set_ownership_impl(const char* name, void* start, size_t length, int prot)
+uint32_t ubsmem_shmem_set_ownership_impl(const char *name, void *start, size_t length, int prot)
 {
     if (name == nullptr) {
         DBG_LOGERROR("name is nullptr.");
@@ -558,7 +564,7 @@ uint32_t ubsmem_shmem_set_ownership_impl(const char* name, void* start, size_t l
     return UBSM_OK;
 }
 
-SHMEM_API int ubsmem_shmem_set_ownership(const char* name, void* start, size_t length, int prot)
+SHMEM_API int ubsmem_shmem_set_ownership(const char *name, void *start, size_t length, int prot)
 {
     TP_TRACE_BEGIN(TP_UBSM_SET_SHMEM_OWERSHIP);
     const auto hr = ubsmem_shmem_set_ownership_impl(name, start, length, prot);
@@ -566,7 +572,7 @@ SHMEM_API int ubsmem_shmem_set_ownership(const char* name, void* start, size_t l
     return GetErrCode(hr);
 }
 
-uint32_t ubsm_lookup_regions_ompl(ubsmem_regions_t* regions)
+uint32_t ubsm_lookup_regions_ompl(ubsmem_regions_t *regions)
 {
     if (regions == nullptr) {
         DBG_LOGERROR("regions is nullptr.");
@@ -606,7 +612,7 @@ uint32_t ubsm_lookup_regions_ompl(ubsmem_regions_t* regions)
     return UBSM_OK;
 }
 
-int ubsmem_lookup_regions(ubsmem_regions_t* regions)
+int ubsmem_lookup_regions(ubsmem_regions_t *regions)
 {
     TP_TRACE_BEGIN(TP_UBSM_LOOKUP_REGIONS);
     uint32_t hr = ubsm_lookup_regions_ompl(regions);
@@ -614,7 +620,7 @@ int ubsmem_lookup_regions(ubsmem_regions_t* regions)
     return GetErrCode(hr);
 }
 
-uint32_t ubsmem_create_region_impl(const char* region_name, size_t size, const ubsmem_region_attributes_t* reg_attr)
+uint32_t ubsmem_create_region_impl(const char *region_name, size_t size, const ubsmem_region_attributes_t *reg_attr)
 {
     auto ret = create_region_check(region_name, size, reg_attr);
     if (ret != UBSM_OK) {
@@ -672,7 +678,7 @@ uint32_t ubsmem_create_region_impl(const char* region_name, size_t size, const u
     return UBSM_OK;
 }
 
-int ubsmem_create_region(const char* region_name, size_t size, const ubsmem_region_attributes_t* reg_attr)
+int ubsmem_create_region(const char *region_name, size_t size, const ubsmem_region_attributes_t *reg_attr)
 {
     TP_TRACE_BEGIN(TP_UBSM_CREATE_REGIONS);
     uint32_t hr = ubsmem_create_region_impl(region_name, size, reg_attr);
@@ -680,7 +686,7 @@ int ubsmem_create_region(const char* region_name, size_t size, const ubsmem_regi
     return GetErrCode(hr);
 }
 
-uint32_t ubsmem_lookup_region_impl(const char* region_name, ubsmem_region_desc_t* region_desc)
+uint32_t ubsmem_lookup_region_impl(const char *region_name, ubsmem_region_desc_t *region_desc)
 {
     if (region_name == nullptr || region_desc == nullptr) {
         DBG_LOGERROR("regions is nullptr.");
@@ -689,8 +695,8 @@ uint32_t ubsmem_lookup_region_impl(const char* region_name, ubsmem_region_desc_t
 
     auto length = strnlen(region_name, MAX_REGION_NAME_DESC_LENGTH);
     if (length == 0 || length >= MAX_REGION_NAME_DESC_LENGTH) {
-        DBG_LOGERROR(
-            "region_name length(" << length << ") is 0 or over limit (" << MAX_REGION_NAME_DESC_LENGTH << ").");
+        DBG_LOGERROR("region_name length(" << length << ") is 0 or over limit (" << MAX_REGION_NAME_DESC_LENGTH
+                                           << ").");
         return MXM_ERR_PARAM_INVALID;
     }
 
@@ -727,7 +733,7 @@ uint32_t ubsmem_lookup_region_impl(const char* region_name, ubsmem_region_desc_t
     return UBSM_OK;
 }
 
-int ubsmem_lookup_region(const char* region_name, ubsmem_region_desc_t* region_desc)
+int ubsmem_lookup_region(const char *region_name, ubsmem_region_desc_t *region_desc)
 {
     TP_TRACE_BEGIN(TP_UBSM_LOOKUP_REGION);
     uint32_t hr = ubsmem_lookup_region_impl(region_name, region_desc);
@@ -735,7 +741,7 @@ int ubsmem_lookup_region(const char* region_name, ubsmem_region_desc_t* region_d
     return GetErrCode(hr);
 }
 
-uint32_t ubsmem_destroy_region_impl(const char* region_name)
+uint32_t ubsmem_destroy_region_impl(const char *region_name)
 {
     if (region_name == nullptr) {
         DBG_LOGERROR("regions is nullptr.");
@@ -749,8 +755,8 @@ uint32_t ubsmem_destroy_region_impl(const char* region_name)
 
     auto length = strnlen(region_name, MAX_REGION_NAME_DESC_LENGTH);
     if (length == 0 || length >= MAX_REGION_NAME_DESC_LENGTH) {
-        DBG_LOGERROR(
-            "region_name length(" << length << ") is 0 or over limit (" << MAX_REGION_NAME_DESC_LENGTH << ").");
+        DBG_LOGERROR("region_name length(" << length << ") is 0 or over limit (" << MAX_REGION_NAME_DESC_LENGTH
+                                           << ").");
         return MXM_ERR_PARAM_INVALID;
     }
 
@@ -772,7 +778,7 @@ uint32_t ubsmem_destroy_region_impl(const char* region_name)
     return UBSM_OK;
 }
 
-int ubsmem_destroy_region(const char* region_name)
+int ubsmem_destroy_region(const char *region_name)
 {
     TP_TRACE_BEGIN(TP_UBSM_DESTORY_REGION);
     auto ret = ubsmem_destroy_region_impl(region_name);
@@ -1012,7 +1018,7 @@ uint32_t ubsmem_local_nid_query_impl(uint32_t *nid)
     return UBSM_OK;
 }
 
-SHMEM_API int ubsmem_local_nid_query(uint32_t* nid)
+SHMEM_API int ubsmem_local_nid_query(uint32_t *nid)
 {
     if (nid == nullptr) {
         DBG_LOGERROR("nid is nullptr.");

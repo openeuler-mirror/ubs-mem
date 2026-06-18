@@ -10,13 +10,13 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "rack_mem_fd_map.h"
-#include "log.h"
 #include "ubs_mem_def.h"
+#include "log.h"
 #include "system_adapter.h"
 
 namespace ock::mxmd {
 using namespace ock::common;
-uint32_t RackMemFdMap::FileMapByTotalSize(const uint64_t size, void*& virtualAddr, int prot)
+uint32_t RackMemFdMap::FileMapByTotalSize(const uint64_t size, void *&virtualAddr, int prot)
 {
     if (size == 0) {
         DBG_LOGERROR("Size=" << size << " is invalid.");
@@ -31,7 +31,7 @@ uint32_t RackMemFdMap::FileMapByTotalSize(const uint64_t size, void*& virtualAdd
     return UBSM_OK;
 }
 
-uint32_t RackMemFdMap::MapAnonymousMemory(void* start, uint64_t size, void*& virtualAddr)
+uint32_t RackMemFdMap::MapAnonymousMemory(void *start, uint64_t size, void *&virtualAddr)
 {
     if (size == 0) {
         DBG_LOGERROR("Size=" << size << " is invalid.");
@@ -63,8 +63,8 @@ uint32_t RackMemFdMap::MapForEachFd(void *startAddr, size_t length, int fd, int 
     return UBSM_OK;
 }
 
-void RackMemFdMap::GetActualMapSize(const uint64_t appMmapSize, const uint64_t unitSize, uint64_t& actualMapSize,
-                                    uint64_t& mmapCount)
+void RackMemFdMap::GetActualMapSize(const uint64_t appMmapSize, const uint64_t unitSize, uint64_t &actualMapSize,
+                                    uint64_t &mmapCount)
 {
     if (unitSize == 0) {
         DBG_LOGERROR("error, unit size=" << unitSize);
@@ -85,22 +85,21 @@ void RackMemFdMap::GetActualMapSize(const uint64_t appMmapSize, const uint64_t u
                                    << ", unit size=" << unitSize << ", mmapCount=" << mmapCount);
 }
 
-int RackMemFdMap::MemoryMap2MAligned(size_t size, void *&result)
+int RackMemFdMap::MemoryMapAligned(size_t size, void *&result, size_t align)
 {
-    constexpr uint64_t ALIGN_2M = 1 << 21;
     void *alignedMemory = nullptr;
-    auto ret = posix_memalign(&alignedMemory, ALIGN_2M, size);
+    auto ret = posix_memalign(&alignedMemory, align, size);
     if (ret != 0) {
-        DBG_LOGERROR("Failed to align memory size, error info=" << std::strerror(errno));
+        DBG_LOGERROR("Failed to align memory size, align=" << align << ", error info=" << std::strerror(errno));
         return MXM_ERR_MALLOC_FAIL;
     }
     result = mmap(alignedMemory, size, PROT_NONE, MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
     if (result == MAP_FAILED) {
-        DBG_LOGERROR("Failed to mmap memory, error info=" << std::strerror(errno) << ", size="
-                                                          << size << ", prot=" << PROT_NONE);
+        DBG_LOGERROR("Failed to mmap memory, error info=" << std::strerror(errno) << ", size=" << size
+                                                          << ", prot=" << PROT_NONE);
         free(alignedMemory);
         return MXM_ERR_MMAP_VA_FAILED;
     }
     return MXM_OK;
 }
-}  // namespace ock::mxmd
+} // namespace ock::mxmd

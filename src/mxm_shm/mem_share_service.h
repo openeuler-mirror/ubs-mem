@@ -37,7 +37,8 @@ struct ModuleDesc {
           start(std::move(startFunc)),
           shutdown(std::move(shutdownFunc)),
           exit(std::move(exitFunc))
-    {}
+    {
+    }
 };
 
 class MemShareService : public ock::common::Service {
@@ -49,7 +50,10 @@ public:
         modules.clear();
     }
 
-    static inline bool Inited() { return inited.load(); }
+    static inline bool Inited()
+    {
+        return inited.load();
+    }
 
 protected:
     HRESULT OnServiceProcessArgs(int argc, char *argv[]) override;
@@ -61,15 +65,15 @@ protected:
         }
         for (auto it = modules.cbegin(); it != modules.cend(); ++it) {
             if (it->init == nullptr) {
-                DBG_LOGINFO("[UBSMD]module ({}) no initialize function, skip.", it->name);
+                DBG_LOGINFO("[UBSMD]module " << it->name << " no initialize function, skip.");
                 continue;
             }
-            DBG_LOGINFO("[UBSMD]module ({}) initialize begin...", it->name);
+            DBG_LOGINFO("[UBSMD]module " << it->name << " initialize begin...");
             auto ret = it->init();
             if (ret == 0) {
-                DBG_LOGINFO("[UBSMD]module ({}) initialize success.", it->name);
+                DBG_LOGINFO("[UBSMD]module " << it->name << " initialize success.");
             } else {
-                DBG_LOGERROR("[UBSMD]module ({}) initialize failed({}).", it->name, ret);
+                DBG_LOGERROR("[UBSMD]module " << it->name << " initialize failed(" << ret << ").");
                 RollbackInit(it);
                 return HFAIL;
             }
@@ -82,16 +86,16 @@ protected:
     {
         for (auto it = modules.cbegin(); it != modules.cend(); ++it) {
             if (it->start == nullptr) {
-                DBG_LOGINFO("module ({}) no start function, skip.", it->name);
+                DBG_LOGINFO("module " << it->name << " no start function, skip.");
                 continue;
             }
 
-            DBG_LOGINFO("module ({}) start begin...", it->name);
+            DBG_LOGINFO("module " << it->name << " start begin...");
             auto ret = it->start();
             if (ret == 0) {
-                DBG_LOGINFO("module ({}) start success.", it->name);
+                DBG_LOGINFO("module " << it->name << " start success.");
             } else {
-                DBG_LOGERROR("module ({}) start failed({}).", it->name, ret);
+                DBG_LOGERROR("module " << it->name << " start failed(" << ret << ").");
                 RollbackStart(it);
                 return HFAIL;
             }
@@ -110,13 +114,13 @@ protected:
     {
         for (auto it = modules.crbegin(); it != modules.crend(); ++it) {
             if (it->shutdown == nullptr) {
-                DBG_LOGINFO("module ({}) no shutdown function, skip.", it->name);
+                DBG_LOGINFO("module " << it->name << " no shutdown function, skip.");
                 continue;
             }
 
-            DBG_LOGINFO("module ({}) shutdown begin...", it->name);
+            DBG_LOGINFO("module " << it->name << " shutdown begin...");
             it->shutdown();
-            DBG_LOGINFO("module ({}) shutdown finished", it->name);
+            DBG_LOGINFO("module " << it->name << " shutdown finished");
         }
         return HOK;
     }
@@ -125,13 +129,13 @@ protected:
     {
         for (auto it = modules.crbegin(); it != modules.crend(); ++it) {
             if (it->exit == nullptr) {
-                DBG_LOGINFO("module ({}) no exit function, skip.", it->name);
+                DBG_LOGINFO("module " << it->name << " no exit function, skip.");
                 continue;
             }
 
-            DBG_LOGINFO("module ({}) exit begin...", it->name);
+            DBG_LOGINFO("module " << it->name << " exit begin...");
             it->exit();
-            DBG_LOGINFO("module ({}) exit finished", it->name);
+            DBG_LOGINFO("module " << it->name << " exit finished");
         }
 
         return HOK;
@@ -166,7 +170,6 @@ private:
     std::vector<ModuleDesc> modules;
     static std::atomic_bool inited;
 };
-} // namespace ock::lease::service {
-
+} // namespace ock::share::service
 
 #endif // IOFWD_FORWARD_SERVICE_H

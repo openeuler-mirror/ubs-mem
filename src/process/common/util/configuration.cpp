@@ -34,7 +34,7 @@ Configuration::~Configuration()
     mValueConverter.clear();
 }
 
-ConfigurationPtr Configuration::FromFile(const std::string& filePath)
+ConfigurationPtr Configuration::FromFile(const std::string &filePath)
 {
     ConfigurationPtr conf = new (std::nothrow) Configuration();
     if (conf == nullptr) {
@@ -95,7 +95,6 @@ void Configuration::DestroyInstance()
 {
     gInstance.Set(nullptr);
 }
-
 
 int32_t Configuration::GetInt(const std::string &key, int32_t defaultValue)
 {
@@ -278,7 +277,7 @@ void Configuration::AddIntConf(const std::pair<std::string, int> &pair, const Va
 }
 
 void Configuration::AddStrConf(const std::pair<std::string, std::string> &pair, const ValidatorPtr &validator,
-    uint32_t flag)
+                               uint32_t flag)
 {
     mStrItems.insert(pair);
     mValueTypes.insert(std::make_pair(pair.first, ConfValueType::VSTRING));
@@ -286,7 +285,7 @@ void Configuration::AddStrConf(const std::pair<std::string, std::string> &pair, 
 }
 
 void Configuration::AddPathConf(const std::pair<std::string, std::string> &pair, const ValidatorPtr &validator,
-    uint32_t flag)
+                                uint32_t flag)
 {
     AddStrConf(pair, validator, flag);
     mPathConfs.push_back(pair.first);
@@ -307,7 +306,7 @@ void Configuration::AddConverter(const std::string &key, const ConverterPtr &con
 }
 
 void Configuration::ValidateOneType(const std::string &key, const ValidatorPtr &validator,
-    std::vector<std::string> &errors, ConfValueType &vType)
+                                    std::vector<std::string> &errors, ConfValueType &vType)
 {
     if (validator == nullptr) {
         errors.push_back("Failed to validate <" + key + ">, validator is NULL");
@@ -355,7 +354,7 @@ void Configuration::ValidateOneType(const std::string &key, const ValidatorPtr &
 }
 
 void Configuration::ValidateOneValueMap(std::vector<std::string> &errors,
-    const std::map<std::string, ValidatorPtr> &valueValidator)
+                                        const std::map<std::string, ValidatorPtr> &valueValidator)
 {
     for (auto &item : valueValidator) {
         auto valueValidatorPtr = item.second.Get();
@@ -436,31 +435,31 @@ void Configuration::DumpConfig()
 {
     GUARD(&mLock, mLock);
     DBG_LOGINFO("The configuration for this startup is as follows:");
-    for (const auto& itemInt : mIntItems) {
+    for (const auto &itemInt : mIntItems) {
         if (std::find(mExceptPrintConfs.begin(), mExceptPrintConfs.end(), itemInt.first) == mExceptPrintConfs.end()) {
             const auto unitIter = ConfigUnitValues.find(itemInt.first);
             auto unit = unitIter != ConfigUnitValues.end() ? unitIter->second : "";
             DBG_LOGINFO(itemInt.first.c_str() << "=" << itemInt.second << unit);
         }
     }
-    for (const auto& itemFloat : mFloatItems) {
+    for (const auto &itemFloat : mFloatItems) {
         if (std::find(mExceptPrintConfs.begin(), mExceptPrintConfs.end(), itemFloat.first) == mExceptPrintConfs.end()) {
             const auto unitIter = ConfigUnitValues.find(itemFloat.first);
             auto unit = unitIter != ConfigUnitValues.end() ? unitIter->second : "";
             DBG_LOGINFO(itemFloat.first.c_str() << "=" << itemFloat.second << unit);
         }
     }
-    for (const auto& itemStr : mStrItems) {
+    for (const auto &itemStr : mStrItems) {
         if (std::find(mExceptPrintConfs.begin(), mExceptPrintConfs.end(), itemStr.first) == mExceptPrintConfs.end()) {
             DBG_LOGINFO(itemStr.first.c_str() << "=" << itemStr.second);
         }
     }
-    for (const auto& itemBool : mBoolItems) {
+    for (const auto &itemBool : mBoolItems) {
         if (std::find(mExceptPrintConfs.begin(), mExceptPrintConfs.end(), itemBool.first) == mExceptPrintConfs.end()) {
             DBG_LOGINFO(itemBool.first.c_str() << "=" << itemBool.second);
         }
     }
-    for (const auto& itemLong : mLongItems) {
+    for (const auto &itemLong : mLongItems) {
         if (std::find(mExceptPrintConfs.begin(), mExceptPrintConfs.end(), itemLong.first) == mExceptPrintConfs.end()) {
             const auto unitIter = ConfigUnitValues.find(itemLong.first);
             auto unit = unitIter != ConfigUnitValues.end() ? unitIter->second : "";

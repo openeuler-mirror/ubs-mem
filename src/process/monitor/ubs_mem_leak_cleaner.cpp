@@ -9,16 +9,16 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include "ubs_mem_leak_cleaner.h"
 #include <sys/stat.h>
 #include <sstream>
-#include "record_store.h"
-#include "shm_manager.h"
-#include "mls_manager.h"
-#include "ubse_mem_adapter.h"
 #include "ipc_handler.h"
 #include "log.h"
+#include "mls_manager.h"
+#include "record_store.h"
+#include "shm_manager.h"
 #include "ubs_mem_monitor.h"
-#include "ubs_mem_leak_cleaner.h"
+#include "ubse_mem_adapter.h"
 
 namespace ock {
 namespace ubsm {
@@ -30,9 +30,10 @@ using namespace ock::share::service;
 bool ProcessAlive(const uint32_t pid)
 {
     std::ostringstream oss;
-    oss << "/proc/" << pid;  // 该目录默认权限为 555
+    oss << "/proc/" << pid; // 该目录默认权限为 555
     std::string dir = oss.str();
-    struct stat info{};
+    struct stat info {
+    };
     if (stat(dir.c_str(), &info) != 0) {
         return false;
     }
@@ -82,16 +83,14 @@ int UBSMemLeakCleaner::SHMProcessDeadProcess(pid_t pid)
     auto memoryArr = SHMManager::GetInstance().GetMemoryUsersByPid(pid);
     for (auto memory : memoryArr) {
         if (memory.pids.empty() || memory.pids.find(pid) == memory.pids.end()) {
-            DBG_LOGERROR("User not in memory-users map. memory: " << memory.name
-                << " userNum: " << memory.pids.size());
+            DBG_LOGERROR("User not in memory-users map. memory: " << memory.name << " userNum: " << memory.pids.size());
             continue;
         }
 
         if (memory.pids.size() > 1) {
             auto ret = SHMManager::GetInstance().RemoveMemoryUserInfo(memory.name, pid);
             if (ret != 0) {
-                DBG_LOGERROR("RemoveMemoryUserInfo fail, errCode=" << ret << " name=" << memory.name
-                    << " pid=" << pid);
+                DBG_LOGERROR("RemoveMemoryUserInfo fail, errCode=" << ret << " name=" << memory.name << " pid=" << pid);
             }
             continue;
         }
@@ -100,7 +99,7 @@ int UBSMemLeakCleaner::SHMProcessDeadProcess(pid_t pid)
             DelayRemovedKey removedKey{memory.name, 0, false, ctx, false, false, false};
             if (!UBSMemMonitor::GetInstance().GetDelayRemoveRecord(removedKey)) {
                 DBG_LOGINFO("Clean removedKey, name=" << memory.name << " pid=" << ctx.pid
-                    << ", expires time=" << removedKey.expiresTime);
+                                                      << ", expires time=" << removedKey.expiresTime);
                 UBSMemMonitor::GetInstance().AddDelayRemoveRecord(removedKey);
             }
         }
@@ -136,8 +135,8 @@ int UBSMemLeakCleaner::CleanShareMemoryLeakWhenStart()
     return UBSM_OK;
 }
 
-int UBSMemLeakCleaner::CleanLeaseMemoryLeakInner(const std::string &name, const AppContext &ctx,
-    bool &changed, bool isTimeOutScene, bool isNumaLease)
+int UBSMemLeakCleaner::CleanLeaseMemoryLeakInner(const std::string &name, const AppContext &ctx, bool &changed,
+                                                 bool isTimeOutScene, bool isNumaLease)
 {
     DBG_LOGINFO("Start to clean leak lease memory. name=" << name << " pid=" << ctx.pid);
     if (isTimeOutScene) {
@@ -198,7 +197,7 @@ int UBSMemLeakCleaner::CleanLeaseMemoryLeakInner(const std::string &name, const 
     }
 
     ret = MLSManager::GetInstance().PreDeleteUsedMem(name);
-    if (ret == 0) {  // 0 means deleted, 1 means cached
+    if (ret == 0) { // 0 means deleted, 1 means cached
         DBG_LOGINFO("App free start, name is " << name);
         auto hr = mxm::UbseMemAdapter::LeaseFree(name, memory.isNuma);
         if (hr != 0 && hr != MXM_ERR_LEASE_NOT_EXIST) {
@@ -212,7 +211,7 @@ int UBSMemLeakCleaner::CleanLeaseMemoryLeakInner(const std::string &name, const 
         }
     }
 
-    if (ret != 1 && ret != 0) {  // 0 means deleted, 1 means cached
+    if (ret != 1 && ret != 0) { // 0 means deleted, 1 means cached
         DBG_LOGERROR("DeleteUsedMem fail. name: " << name << " ret: " << ret);
         return ret;
     }
@@ -221,7 +220,53 @@ int UBSMemLeakCleaner::CleanLeaseMemoryLeakInner(const std::string &name, const 
     return 0;
 }
 
-int UBSMemLeakCleaner::CleanShareMemoryLeakInner(const std::string &name, const AppContext &ctx, bool isTimeOutScene)
+int UBSMemLeakCleaner::TryRollBackTimeoutShmTask(const std::string &name, const AppContext &ctx, bool isAttach,
+                                                 uint64_t createSeqNo)
+{
+    DBG_LOGINFO("Try to rollback timeout shm task.");
+
+    ubs_mem_stage status = UBSE_END;
+    uint64_t storedSeqNo = UINT32_MAX;
+    auto ret = mxm::UbseMemAdapter::GetTimeOutShmTaskStatus(name, status, isAttach, storedSeqNo);
+    DBG_LOGINFO("GetTimeOutTaskStatus end. name=" << name << " pid=" << ctx.pid << ", ret=" << ret
+                                                  << ",status=" << static_cast<int>(status));
+    if (ret == MXM_ERR_SHM_NOT_EXIST || status == UBSE_NOT_EXIST) { // attach -超时 -返回
+        if (isAttach) {
+            SHMManager::GetInstance().RemoveMemoryInfo(name);
+        }
+        return MXM_OK;
+    }
+    if (ret == MXM_ERR_SHM_IN_USING) {
+        return MXM_OK;
+    }
+    if (ret != MXM_OK || (status == UBSE_CREATING || status == UBSE_DELETING)) {
+        // 返错，外层会重新加入
+        return MXM_TIME_OUT_TASK_NEED_RETRY;
+    }
+    // 调归还， 并删除
+    DBG_LOGINFO("Start to rollback, name=" << name << " isAttach=" << isAttach);
+    if (isAttach) {
+        auto hr = mxm::UbseMemAdapter::ShmDetach(name);
+        if (hr != 0) {
+            DBG_LOGERROR("get exception when ShmDetach " << name << "ret: " << hr);
+        }
+        SHMManager::GetInstance().RemoveMemoryInfo(name);
+        return hr;
+    }
+    if (createSeqNo != storedSeqNo) {
+        DBG_LOGINFO("The createSeqNo is different. No need to delete. createSeqNo=" << createSeqNo
+                                                                                    << " storedSeqNo=" << storedSeqNo);
+        return MXM_OK;
+    }
+    auto hr = mxm::UbseMemAdapter::ShmDelete(name, ctx);
+    if (hr != 0) {
+        DBG_LOGERROR("get exception when ShmDelete " << name << "ret: " << hr);
+    }
+    return hr;
+}
+
+int UBSMemLeakCleaner::CleanShareMemoryLeakInner(const std::string &name, const AppContext &ctx, bool isTimeOutScene,
+                                                 bool isAttach, uint64_t createSeqNo)
 {
     DBG_LOGINFO("Start to clean leak share memory. name=" << name << " pid=" << ctx.pid);
     if (name.empty()) {
@@ -230,37 +275,7 @@ int UBSMemLeakCleaner::CleanShareMemoryLeakInner(const std::string &name, const 
     }
 
     if (isTimeOutScene) {
-        ubs_mem_stage status = UBSE_END;
-        bool isAttach = false;
-        auto ret = mxm::UbseMemAdapter::GetTimeOutTaskStatus(name, false, false, status, isAttach);
-        DBG_LOGINFO("GetTimeOutTaskStatus end. name=" << name << " pid=" <<
-            ctx.pid << ", ret=" << ret << ",status=" << static_cast<int>(status));
-        if (ret == MXM_ERR_LEASE_NOT_EXIST || status == UBSE_NOT_EXIST) {
-            if (isAttach) {
-                SHMManager::GetInstance().RemoveMemoryInfo(name);
-            }
-            return MXM_OK;
-        }
-        if (ret != MXM_OK || (status == UBSE_CREATING || status == UBSE_DELETING)) {
-            // 返错，外层会重新加入
-            return MXM_TIME_OUT_TASK_NEED_RETRY;
-        }
-        // 调归还， 并删除
-        DBG_LOGINFO("Start to rollback, name=" << name << " isAttach=" << isAttach);
-        if (isAttach) {
-            auto hr = mxm::UbseMemAdapter::ShmDetach(name);
-            if (hr != 0) {
-                DBG_LOGERROR("get exception when ShmDetach " << name << "ret: " << hr);
-            }
-            SHMManager::GetInstance().RemoveMemoryInfo(name);
-            return hr;
-        } else {
-            auto hr = mxm::UbseMemAdapter::ShmDelete(name, ctx);
-            if (hr != 0) {
-                DBG_LOGERROR("get exception when ShmDelete " << name << "ret: " << hr);
-            }
-            return hr;
-        }
+        return TryRollBackTimeoutShmTask(name, ctx, isAttach, createSeqNo);
     }
     auto ret = SHMManager::GetInstance().RemoveMemoryUserInfo(name, ctx.pid);
     if (ret != HOK && ret != MXM_ERR_SHM_NOT_FOUND) {
@@ -289,5 +304,5 @@ int UBSMemLeakCleaner::CleanShareMemoryLeakInner(const std::string &name, const 
     }
     return UBSM_OK;
 }
-}  // namespace ubsm
-}  // namespace ock
+} // namespace ubsm
+} // namespace ock

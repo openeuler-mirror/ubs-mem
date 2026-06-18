@@ -1,14 +1,14 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
+#include "rack_mem_lib_common.h"
 #include <dlfcn.h>
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
-#include "ipc_command.h"
-#include "RackMemShm.h"
-#include "rack_mem_lib_common.h"
 #include "ubs_mem.h"
+#include "RackMemShm.h"
 #include "app_ipc_stub.h"
+#include "ipc_command.h"
 #include "shm_ipc_command.h"
 
 using namespace ock::mxmd;
@@ -19,8 +19,7 @@ namespace UT {
 constexpr uint64_t MOCK_MEMORY_LEN = 4096;
 class RackMemLibCommonTestSuite : public Test {
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
     void TearDown() override
     {
@@ -81,8 +80,7 @@ TEST_F(RackMemLibCommonTestSuite, ipc_command_cpp)
     std::vector<std::string> recordInf;
     ubsmem_cluster_info_t clusterInfo{};
 
-    MOCKER_CPP(&MxmComIpcClientSend,
-               int (*)(uint16_t opCode, MsgBase* request, MsgBase* response))
+    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase * request, MsgBase * response))
         .stubs()
         .will(invoke(MxmComIpcClientSendStub));
 
@@ -132,9 +130,8 @@ TEST_F(RackMemLibCommonTestSuite, RackMemShmCppStub)
     SHMRegionDesc region{};
     ubsmem_shmem_info_t shm_info;
     std::vector<ubsmem_shmem_desc_t> shm_list;
-   
-    MOCKER_CPP(&MxmComIpcClientSend,
-               int (*)(uint16_t opCode, MsgBase* request, MsgBase* response))
+
+    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase * request, MsgBase * response))
         .stubs()
         .will(invoke(MxmShmIpcClientSendStub));
 
@@ -208,8 +205,7 @@ TEST_F(RackMemLibCommonTestSuite, shm_ipc_command_cpp)
     ShmIpcCommand::IpcCallShmLookup(name, shm_info);
     ShmIpcCommand::IpcQueryNode(name, isNodeReady, false);
 
-    MOCKER_CPP(&MxmComIpcClientSend,
-               int (*)(uint16_t opCode, MsgBase* request, MsgBase* response))
+    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase * request, MsgBase * response))
         .stubs()
         .will(invoke(MxmComIpcClientSendStub));
     ASSERT_EQ(ShmIpcCommand::IpcQueryDlockStatus(isNodeReady), 0);
@@ -220,25 +216,25 @@ TEST_F(RackMemLibCommonTestSuite, ShmMetaDataMgrCppInvalid)
     uint64_t usedFirst = 1u;
     std::vector<int> indices{1u};
     ASSERT_EQ(ShmMetaDataMgr::GetInstance().Init(), 0);
-    ShmAppMetaData meta("name", {1u}, reinterpret_cast<void*>(1u), 128ULL * 1024 * 1024, ShmOwnStatus::UNACCESS, 0);
+    ShmAppMetaData meta("name", {1u}, reinterpret_cast<void *>(1u), 128ULL * 1024 * 1024, ShmOwnStatus::UNACCESS, 0);
     ShmMetaDataMgr::GetInstance().UpdateMetaData("name", meta);
     ShmMetaDataMgr::GetInstance().GetMetaIsLockAddress("name");
     ShmMetaDataMgr::GetInstance().GetMetaHasUnmapped("name");
     ShmMetaDataMgr::GetInstance().SetMetaHasUnmapped("name", true);
     ShmMetaDataMgr::GetInstance().SetMetaIsLockAddress("name", true);
     ShmMetaDataMgr::GetInstance().GetShmMetaFromName("name", meta);
-    ShmMetaDataMgr::GetInstance().CheckAddr("name", reinterpret_cast<void*>(1u), 128ULL * 1024 * 1024, meta, usedFirst,
+    ShmMetaDataMgr::GetInstance().CheckAddr("name", reinterpret_cast<void *>(1u), 128ULL * 1024 * 1024, meta, usedFirst,
                                             indices);
     auto ret = ShmMetaDataMgr::GetInstance().CheckNameExistAndGet(nullptr, 0, meta);
     ASSERT_EQ(ret, MXM_ERR_PARAM_INVALID);
-    ret = ShmMetaDataMgr::GetInstance().CheckNameExistAndGet(reinterpret_cast<void*>(1u), 128ULL * 1024 * 1024, meta);
+    ret = ShmMetaDataMgr::GetInstance().CheckNameExistAndGet(reinterpret_cast<void *>(1u), 128ULL * 1024 * 1024, meta);
     ASSERT_EQ(ret, MXM_ERR_SHM_NOT_FOUND);
 
     ret = ShmMetaDataMgr::GetInstance().RemoveMetaData(nullptr, "name");
     ASSERT_EQ(ret, MXM_ERR_NULLPTR);
-    ret = ShmMetaDataMgr::GetInstance().RemoveMetaData(reinterpret_cast<void*>(1u), "");
+    ret = ShmMetaDataMgr::GetInstance().RemoveMetaData(reinterpret_cast<void *>(1u), "");
     ASSERT_EQ(ret, MXM_ERR_PARAM_INVALID);
-    ret = ShmMetaDataMgr::GetInstance().RemoveMetaData(reinterpret_cast<void*>(1u), "name");
+    ret = ShmMetaDataMgr::GetInstance().RemoveMetaData(reinterpret_cast<void *>(1u), "name");
     ASSERT_EQ(ret, MXM_ERR_MEMLIB);
 
     std::vector<std::string> names;
@@ -256,27 +252,27 @@ TEST_F(RackMemLibCommonTestSuite, ShmMetaDataMgrCppOk)
     uint64_t usedFirst = 1u;
     std::vector<int> indices{1u};
     ASSERT_EQ(ShmMetaDataMgr::GetInstance().Init(), 0);
-    ShmAppMetaData meta("name", {1u}, reinterpret_cast<void*>(1u), 128ULL * 1024 * 1024, ShmOwnStatus::UNACCESS, 0);
-    meta.addrs.push_back(std::make_pair(reinterpret_cast<void*>(1u), 1u));
-    meta.addrs.push_back(std::make_pair(reinterpret_cast<void*>(2u), 2u));
-    
+    ShmAppMetaData meta("name", {1u}, reinterpret_cast<void *>(1u), 128ULL * 1024 * 1024, ShmOwnStatus::UNACCESS, 0);
+    meta.addrs.push_back(std::make_pair(reinterpret_cast<void *>(1u), 1u));
+    meta.addrs.push_back(std::make_pair(reinterpret_cast<void *>(2u), 2u));
+
     meta.unitSize = 1024u;
-    auto ret = ShmMetaDataMgr::GetInstance().AddMetaData("name", reinterpret_cast<void*>(1u), meta);
+    auto ret = ShmMetaDataMgr::GetInstance().AddMetaData("name", reinterpret_cast<void *>(1u), meta);
     ASSERT_EQ(ret, 0);
     /* 重复添加 */
-    ret = ShmMetaDataMgr::GetInstance().AddMetaData("name", reinterpret_cast<void*>(1u), meta);
+    ret = ShmMetaDataMgr::GetInstance().AddMetaData("name", reinterpret_cast<void *>(1u), meta);
     ASSERT_EQ(ret, 0);
 
-    void* addr = ShmMetaDataMgr::GetInstance().GetAddr("name");
-    ASSERT_EQ(addr, reinterpret_cast<void*>(1u));
+    void *addr = ShmMetaDataMgr::GetInstance().GetAddr("name");
+    ASSERT_EQ(addr, reinterpret_cast<void *>(1u));
 
-    ret = ShmMetaDataMgr::GetInstance().CheckAddr("name", reinterpret_cast<void*>(1u), 1, meta, usedFirst, indices);
+    ret = ShmMetaDataMgr::GetInstance().CheckAddr("name", reinterpret_cast<void *>(1u), 1, meta, usedFirst, indices);
     ASSERT_EQ(ret, 0);
 
-    ret = ShmMetaDataMgr::GetInstance().CheckNameExistAndGet(reinterpret_cast<void*>(1u), 1u, meta);
+    ret = ShmMetaDataMgr::GetInstance().CheckNameExistAndGet(reinterpret_cast<void *>(1u), 1u, meta);
     ASSERT_EQ(ret, MXM_ERR_PARAM_INVALID);
 
-    ret = ShmMetaDataMgr::GetInstance().CheckNameExistAndGet(reinterpret_cast<void*>(1u), 128ULL * 1024 * 1024, meta);
+    ret = ShmMetaDataMgr::GetInstance().CheckNameExistAndGet(reinterpret_cast<void *>(1u), 128ULL * 1024 * 1024, meta);
     ASSERT_EQ(ret, 0);
 
     ret = ShmMetaDataMgr::GetInstance().GetShmMetaFromName("name", meta);
@@ -301,7 +297,7 @@ TEST_F(RackMemLibCommonTestSuite, ShmMetaDataMgrCppOk)
     ret = ShmMetaDataMgr::GetInstance().UpdateMetaData("name", meta);
     ASSERT_EQ(ret, 0);
 
-    ret = ShmMetaDataMgr::GetInstance().RemoveMetaData(reinterpret_cast<void*>(1u), "name");
+    ret = ShmMetaDataMgr::GetInstance().RemoveMetaData(reinterpret_cast<void *>(1u), "name");
     ASSERT_EQ(ret, 0);
 
     ASSERT_EQ(ShmMetaDataMgr::GetInstance().Destroy(), 0);
@@ -312,37 +308,37 @@ TEST_F(RackMemLibCommonTestSuite, ShmMetaDataMgrCheckAddrUnok)
     uint64_t usedFirst = 1u;
     std::vector<int> indices{1u};
     ASSERT_EQ(ShmMetaDataMgr::GetInstance().Init(), 0);
-    ShmAppMetaData meta("name", {1u}, reinterpret_cast<void*>(1u), 128ULL * 1024 * 1024, ShmOwnStatus::UNACCESS, 0);
-    meta.addrs.push_back(std::make_pair(reinterpret_cast<void*>(1u), 1u));
-    meta.addrs.push_back(std::make_pair(reinterpret_cast<void*>(2u), 2u));
-    
+    ShmAppMetaData meta("name", {1u}, reinterpret_cast<void *>(1u), 128ULL * 1024 * 1024, ShmOwnStatus::UNACCESS, 0);
+    meta.addrs.push_back(std::make_pair(reinterpret_cast<void *>(1u), 1u));
+    meta.addrs.push_back(std::make_pair(reinterpret_cast<void *>(2u), 2u));
+
     meta.unitSize = 1024u;
-    auto ret = ShmMetaDataMgr::GetInstance().AddMetaData("name", reinterpret_cast<void*>(1u), meta);
+    auto ret = ShmMetaDataMgr::GetInstance().AddMetaData("name", reinterpret_cast<void *>(1u), meta);
     ASSERT_EQ(ret, 0);
-    
+
     ret = ShmMetaDataMgr::GetInstance().CheckAddr("name", nullptr, 1, meta, usedFirst, indices);
     ASSERT_EQ(ret, MXM_ERR_PARAM_INVALID);
-    ret = ShmMetaDataMgr::GetInstance().CheckAddr("name", reinterpret_cast<void*>(2u), 1, meta, usedFirst, indices);
+    ret = ShmMetaDataMgr::GetInstance().CheckAddr("name", reinterpret_cast<void *>(2u), 1, meta, usedFirst, indices);
     ASSERT_EQ(ret, MXM_ERR_PARAM_INVALID);
-    meta.addr = reinterpret_cast<void*>(2u);
-    ret = ShmMetaDataMgr::GetInstance().CheckAddr("name", reinterpret_cast<void*>(2u), 1, meta, usedFirst, indices);
+    meta.addr = reinterpret_cast<void *>(2u);
+    ret = ShmMetaDataMgr::GetInstance().CheckAddr("name", reinterpret_cast<void *>(2u), 1, meta, usedFirst, indices);
     ASSERT_EQ(ret, MXM_ERR_PARAM_INVALID);
-    meta.addr = reinterpret_cast<void*>(1u);
-    ret = ShmMetaDataMgr::GetInstance().CheckAddr("name", reinterpret_cast<void*>(2u),
-        256ULL * 1024 * 1024, meta, usedFirst, indices);
+    meta.addr = reinterpret_cast<void *>(1u);
+    ret = ShmMetaDataMgr::GetInstance().CheckAddr("name", reinterpret_cast<void *>(2u), 256ULL * 1024 * 1024, meta,
+                                                  usedFirst, indices);
     ASSERT_EQ(ret, MXM_ERR_PARAM_INVALID);
 
     meta.unitSize = 0;
-    ret = ShmMetaDataMgr::GetInstance().AddMetaData("name", reinterpret_cast<void*>(1u), meta);
+    ret = ShmMetaDataMgr::GetInstance().AddMetaData("name", reinterpret_cast<void *>(1u), meta);
     ASSERT_EQ(ret, 0);
-    
-    ret = ShmMetaDataMgr::GetInstance().CheckAddr("name", reinterpret_cast<void*>(1u), 1, meta, usedFirst, indices);
+
+    ret = ShmMetaDataMgr::GetInstance().CheckAddr("name", reinterpret_cast<void *>(1u), 1, meta, usedFirst, indices);
     ASSERT_EQ(ret, MXM_ERR_PARAM_INVALID);
 
-    ret = ShmMetaDataMgr::GetInstance().RemoveMetaData(reinterpret_cast<void*>(1u), "name");
+    ret = ShmMetaDataMgr::GetInstance().RemoveMetaData(reinterpret_cast<void *>(1u), "name");
     ASSERT_EQ(ret, 0);
 
     ASSERT_EQ(ShmMetaDataMgr::GetInstance().Destroy(), 0);
 }
 
-}  // namespace UT
+} // namespace UT

@@ -21,23 +21,6 @@ MACRO(TARGET_HCOM_HEADER_ONLY target)
 ENDMACRO()
 
 ######################################################################
-# Spdlog
-######################################################################
-SET(SPDLOG_LIBS_DIR /usr/lib64 PARENT_SCOPE)
-SET(SPDLOG_INCLUDE_DIR /usr/include PARENT_SCOPE)
-
-MACRO(TARGET_SPDLOG target)
-    TARGET_INCLUDE_DIRECTORIES(${target} SYSTEM PUBLIC ${SPDLOG_INCLUDE_DIR})
-    TARGET_LINK_LIBRARIES(${target} PUBLIC spdlog fmt)
-    TARGET_COMPILE_DEFINITIONS(${target} PUBLIC SPDLOG_FMT_EXTERNAL)
-ENDMACRO()
-
-MACRO(TARGET_SPDLOG_HEADER_ONLY target)
-    TARGET_INCLUDE_DIRECTORIES(${target} SYSTEM PUBLIC ${SPDLOG_INCLUDE_DIR})
-    TARGET_COMPILE_DEFINITIONS(${target} PUBLIC SPDLOG_FMT_EXTERNAL)
-ENDMACRO()
-
-######################################################################
 # libboundscheck
 ######################################################################
 SET(SECUREC_INCLUDE_DIR /usr/include/ PARENT_SCOPE)

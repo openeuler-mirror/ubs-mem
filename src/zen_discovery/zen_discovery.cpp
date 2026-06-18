@@ -11,18 +11,18 @@
  */
 
 #include <algorithm>
-#include <random>
 #include <chrono>
-#include <iostream>
-#include <string>
 #include <future>
+#include <iostream>
+#include <random>
+#include <string>
 
 #include "election_module.h"
-#include "ulog/log.h"
+#include "log.h"
 #include "mxm_msg.h"
+#include "rpc_config.h"
 #include "rpc_server.h"
 #include "ubsm_lock.h"
-#include "rpc_config.h"
 #include "zen_discovery.h"
 
 namespace ock::zendiscovery {
@@ -31,12 +31,9 @@ constexpr auto HEART_BEAT_RETRY_INTERVAL = 1;
 constexpr auto LOG_PRINT_INTERVAL = 100;
 
 std::mutex ZenDiscovery::mutex_;
-ZenDiscovery* ZenDiscovery::instance_;
+ZenDiscovery *ZenDiscovery::instance_;
 
-ZenDiscovery::ZenDiscovery(const std::string& nodeId,
-                           int pingTimeoutMs,
-                           int joinTimeoutMs,
-                           int electionTimeoutMs,
+ZenDiscovery::ZenDiscovery(const std::string &nodeId, int pingTimeoutMs, int joinTimeoutMs, int electionTimeoutMs,
                            int minimumMasterNodes)
     : nodeId_(nodeId),
       pingTimeoutMs_(pingTimeoutMs),
@@ -53,12 +50,12 @@ ZenDiscovery::~ZenDiscovery()
 {
     try {
         Stop();
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         DBG_LOGERROR("Exception in ZenDiscovery destructor: " << e.what());
     }
 }
 
-ZenDiscovery* ZenDiscovery::GetInstance()
+ZenDiscovery *ZenDiscovery::GetInstance()
 {
     std::lock_guard<std::mutex> lock(mutex_);
     if (instance_ == nullptr) {
@@ -68,12 +65,7 @@ ZenDiscovery* ZenDiscovery::GetInstance()
     return instance_;
 }
 
-void ZenDiscovery::Initialize(
-    int pingTimeoutMs,
-    int joinTimeoutMs,
-    int electionTimeoutMs,
-    int minimumMasterNodes
-    )
+void ZenDiscovery::Initialize(int pingTimeoutMs, int joinTimeoutMs, int electionTimeoutMs, int minimumMasterNodes)
 {
     std::lock_guard<std::mutex> lock(mutex_);
     if (instance_) {
@@ -81,13 +73,7 @@ void ZenDiscovery::Initialize(
         return;
     }
     std::string localNodeId = ock::rpc::NetRpcConfig::GetInstance().GetLocalNode().name;
-    instance_ = new ZenDiscovery(
-        localNodeId,
-        pingTimeoutMs,
-        joinTimeoutMs,
-        electionTimeoutMs,
-        minimumMasterNodes
-        );
+    instance_ = new ZenDiscovery(localNodeId, pingTimeoutMs, joinTimeoutMs, electionTimeoutMs, minimumMasterNodes);
 }
 
 void ZenDiscovery::CleanupInstance()
@@ -99,7 +85,7 @@ void ZenDiscovery::CleanupInstance()
             instance_->Stop(); // 确保先停止所有线程
             delete instance_;
             instance_ = nullptr;
-        } catch (const std::exception& e) {
+        } catch (const std::exception &e) {
             DBG_LOGERROR("Exception during CleanupInstance: " << e.what());
             // 紧急清理，即使有异常
             delete instance_;
@@ -161,30 +147,28 @@ void ZenDiscovery::Stop()
     }
 }
 
-void ZenDiscovery::HandlePingRequest(const std::string& fromNodeId)
+void ZenDiscovery::HandlePingRequest(const std::string &fromNodeId)
 {
     UpdateNodeLastSeen(fromNodeId);
     MarkNodeActive(fromNodeId, true);
-    DBG_LOGDEBUG("Get ping request from {}.", fromNodeId);
+    DBG_LOGDEBUG("Get ping request from " << fromNodeId << ".");
 }
 
-void ZenDiscovery::HandlePingResponse(const std::string& fromNodeId)
+void ZenDiscovery::HandlePingResponse(const std::string &fromNodeId)
 {
     UpdateNodeLastSeen(fromNodeId);
     MarkNodeActive(fromNodeId, true);
 }
 
-ock::rpc::NodeType ZenDiscovery::HandleJoinRequest(const std::string& fromNodeId)
+ock::rpc::NodeType ZenDiscovery::HandleJoinRequest(const std::string &fromNodeId)
 {
     UpdateNodeLastSeen(fromNodeId);
     MarkNodeActive(fromNodeId, true);
-    DBG_LOGDEBUG("Get join request from {}.", fromNodeId);
+    DBG_LOGDEBUG("Get join request from " << fromNodeId << ".");
     return type_;
 }
 
-bool ZenDiscovery::HandleVoteRequest(const std::string& fromNodeId,
-                                     const std::string& candidate,
-                                     int term)
+bool ZenDiscovery::HandleVoteRequest(const std::string &fromNodeId, const std::string &candidate, int term)
 {
     bool granted = false;
 
@@ -199,21 +183,20 @@ bool ZenDiscovery::HandleVoteRequest(const std::string& fromNodeId,
     } else {
         granted = false;
     }
-    DBG_LOGDEBUG("Get vote request from {}, chosen grant result={}, candidate is {}", fromNodeId, granted, candidate);
+    DBG_LOGDEBUG("Get vote request from " << fromNodeId << ", chosen grant result=" << granted << ", candidate is "
+                                          << candidate);
     return granted;
 }
 
-void ZenDiscovery::HandleVoteResponse(const std::string& fromNodeId,
-                                      bool granted)
+void ZenDiscovery::HandleVoteResponse(const std::string &fromNodeId, bool granted)
 {
-    DBG_LOGDEBUG("get vote response from {}, chosen grant is {}", fromNodeId, granted);
+    DBG_LOGDEBUG("get vote response from " << fromNodeId << ", chosen grant is " << granted);
     if (granted) {
         electionModule_->RecordVote(fromNodeId);
     }
 }
 
-void ZenDiscovery::HandleSendTransElected(const std::string& fromNodeId,
-                                          const std::vector<std::string>& nodeList,
+void ZenDiscovery::HandleSendTransElected(const std::string &fromNodeId, const std::vector<std::string> &nodeList,
                                           int term)
 {
     if (term < electionModule_->GetCurrentTerm()) {
@@ -223,13 +206,13 @@ void ZenDiscovery::HandleSendTransElected(const std::string& fromNodeId,
     if (term > electionModule_->GetCurrentTerm()) {
         electionModule_->SetCurrentTerm(term);
     }
-    DBG_LOGDEBUG("Get master election request from {}, masterNode is {}", fromNodeId, nodeId_);
+    DBG_LOGDEBUG("Get master election request from " << fromNodeId << ", masterNode is " << nodeId_);
     // 收到后成为临时主节点
     BecomeTempMaster(nodeList);
 }
 
-void ZenDiscovery::HandleBroadCastRequest(const std::string& fromNodeId,
-                                          const std::map<std::string, ock::rpc::ClusterNode>& nodeList,
+void ZenDiscovery::HandleBroadCastRequest(const std::string &fromNodeId,
+                                          const std::map<std::string, ock::rpc::ClusterNode> &nodeList,
                                           bool isSeverInited)
 {
     std::lock_guard<std::mutex> lock(nodesMutex_);
@@ -237,21 +220,21 @@ void ZenDiscovery::HandleBroadCastRequest(const std::string& fromNodeId,
     electedMaster_ = fromNodeId;
     state_ = NodeState::JOINED_CLUSTER;
 
-    for (const auto& pair : nodes_) {
-        const auto& node = pair.second;
+    for (const auto &pair : nodes_) {
+        const auto &node = pair.second;
         if (node.id == nodeId_ && node.type == ock::rpc::NodeType::VOTING_ONLY_NODE) {
             type_ = ock::rpc::NodeType::VOTING_ONLY_NODE;
             if (isSeverInited) {
-                electionModule_->notifyListeners(ElectionModule::ZenElectionEventType::BECOME_VOTE_NODE,
-                                                 electedMaster_, nodeId_);
+                electionModule_->notifyListeners(ElectionModule::ZenElectionEventType::BECOME_VOTE_NODE, electedMaster_,
+                                                 nodeId_);
             }
             continue;
         }
-        if (node.id == nodeId_ && node.type == ock::rpc::NodeType::ELIGIBLE_NODE
-            && type_ == ock::rpc::NodeType::VOTING_ONLY_NODE) {
+        if (node.id == nodeId_ && node.type == ock::rpc::NodeType::ELIGIBLE_NODE &&
+            type_ == ock::rpc::NodeType::VOTING_ONLY_NODE) {
             type_ = ock::rpc::NodeType::ELIGIBLE_NODE;
-            electionModule_->notifyListeners(ElectionModule::ZenElectionEventType::NODE_DEMOTED,
-                                             electedMaster_, nodeId_);
+            electionModule_->notifyListeners(ElectionModule::ZenElectionEventType::NODE_DEMOTED, electedMaster_,
+                                             nodeId_);
         }
     }
 }
@@ -260,9 +243,9 @@ std::string ZenDiscovery::GetSmallestNodeId()
 {
     std::lock_guard<std::mutex> lock(nodesMutex_);
     std::string minId = nodeId_;
-    for (const auto& entry : nodes_) {
-        const std::string& id = entry.first;
-        const ock::rpc::ClusterNode& node = entry.second;
+    for (const auto &entry : nodes_) {
+        const std::string &id = entry.first;
+        const ock::rpc::ClusterNode &node = entry.second;
         if (id < minId && node.isActive) {
             minId = id;
         }
@@ -274,9 +257,9 @@ std::string ZenDiscovery::GetBiggestNodeId()
 {
     std::lock_guard<std::mutex> lock(nodesMutex_);
     std::string maxId = "";
-    for (const auto& entry : nodes_) {
-        const std::string& id = entry.first;
-        const ock::rpc::ClusterNode& node = entry.second;
+    for (const auto &entry : nodes_) {
+        const std::string &id = entry.first;
+        const ock::rpc::ClusterNode &node = entry.second;
         if (id > maxId && node.isActive && !node.isMaster) {
             maxId = id;
         }
@@ -289,7 +272,7 @@ std::vector<ock::rpc::ClusterNode> ZenDiscovery::GetClusterNodes() const
 {
     std::lock_guard<std::mutex> lock(nodesMutex_);
     std::vector<ock::rpc::ClusterNode> nodes;
-    for (const auto& entry : nodes_) {
+    for (const auto &entry : nodes_) {
         nodes.push_back(entry.second);
     }
     return nodes;
@@ -316,7 +299,7 @@ bool ZenDiscovery::IsTempMaster() const
 }
 
 // 状态设置
-void ZenDiscovery::BecomeTempMaster(const std::vector<std::string>& candidates)
+void ZenDiscovery::BecomeTempMaster(const std::vector<std::string> &candidates)
 {
     if (IsTempMaster() || IsMaster()) {
         return;
@@ -324,10 +307,10 @@ void ZenDiscovery::BecomeTempMaster(const std::vector<std::string>& candidates)
     state_ = NodeState::TEMP_MASTER;
     electedMaster_ = nodeId_;
     tempNodeList_ = candidates;
-    DBG_LOGDEBUG("Node {} becomes temporary master", nodeId_);
+    DBG_LOGDEBUG("Node " << nodeId_ << " becomes temporary master");
 }
 
-void ZenDiscovery::SetMasterToJoin(const std::string& master)
+void ZenDiscovery::SetMasterToJoin(const std::string &master)
 {
     state_ = NodeState::JOINING_MASTER;
     masterNodeToJoin_ = master;
@@ -339,7 +322,7 @@ void ZenDiscovery::StepDownAsMaster()
     electedMaster_.clear();
 
     std::lock_guard<std::mutex> lock(nodesMutex_);
-    for (auto& entry : nodes_) {
+    for (auto &entry : nodes_) {
         entry.second.isMaster = false;
     }
     electionModule_->notifyListeners(ElectionModule::ZenElectionEventType::NODE_DEMOTED, "", "");
@@ -380,21 +363,21 @@ void ZenDiscovery::PerformPingCycle(const bool needRetry)
 {
     std::vector<std::string> activeNodes;
     std::unique_lock<std::mutex> lock(nodesMutex_);
-    for (const auto& pair : nodes_) {
-        const std::string& nodeId = pair.first;
-        const ock::rpc::ClusterNode& node = pair.second;
+    for (const auto &pair : nodes_) {
+        const std::string &nodeId = pair.first;
+        const ock::rpc::ClusterNode &node = pair.second;
         if (nodeId != nodeId_ && node.isActive) {
             activeNodes.push_back(nodeId);
         }
     }
     lock.unlock();
-    for (const auto& nodeId : activeNodes) {
-        DBG_LOGDEBUG("Send PingRequest to {}", nodeId);
+    for (const auto &nodeId : activeNodes) {
+        DBG_LOGDEBUG("Send PingRequest to " << nodeId);
         auto ret = SendPingRequest(nodeId);
         for (uint32_t i = 0; i < 3u && ret != 0 && needRetry; ++i) {
             std::this_thread::sleep_for(std::chrono::microseconds(500u));
             ret = SendPingRequest(nodeId);
-            DBG_LOGINFO("Send PingRequest to {} failed.", nodeId);
+            DBG_LOGINFO("Send PingRequest to " << nodeId << " failed.");
         }
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(pingTimeoutMs_));
@@ -433,13 +416,13 @@ void ZenDiscovery::PerformInitialDiscovery()
     ock::rpc::RpcNode ipAndPort;
     ock::rpc::NetRpcConfig::GetInstance().GetNodes(ipAndPortList, ipAndPort);
     std::vector<ock::rpc::RpcNode> wholeNodes;
-    for (const auto& node : ipAndPortList) {
+    for (const auto &node : ipAndPortList) {
         wholeNodes.push_back(node);
     }
     wholeNodes.push_back(ipAndPort);
     {
         std::lock_guard<std::mutex> lock(nodesMutex_);
-        for (const auto& rpcNode : wholeNodes) {
+        for (const auto &rpcNode : wholeNodes) {
             ock::rpc::ClusterNode node;
             node.id = rpcNode.name;
             node.isMaster = false;
@@ -458,13 +441,11 @@ void ZenDiscovery::InviteNodesToJoin()
 {
     electionModule_->ClearJoinsReceived();
 
-    std::vector<std::future<void> > futures;
+    std::vector<std::future<void>> futures;
 
-    for (const auto& nodeId : tempNodeList_) {
+    for (const auto &nodeId : tempNodeList_) {
         if (nodeId != nodeId_) {
-            futures.push_back(std::async(std::launch::async, [this, nodeId]() {
-                SendJoinRequest(nodeId);
-            }));
+            futures.push_back(std::async(std::launch::async, [this, nodeId]() { SendJoinRequest(nodeId); }));
         }
     }
     // 加入者先加入自己
@@ -479,7 +460,7 @@ void ZenDiscovery::InviteNodesToJoin()
     }
 }
 
-bool ZenDiscovery::CheckElectionResult(const std::chrono::steady_clock::time_point& startTime)
+bool ZenDiscovery::CheckElectionResult(const std::chrono::steady_clock::time_point &startTime)
 {
     // 检查超时
     auto now = std::chrono::steady_clock::now();
@@ -509,9 +490,9 @@ void ZenDiscovery::HandleAllJoined()
     ModifyNodeList();
     {
         std::lock_guard<std::mutex> lock(nodesMutex_);
-        for (const auto& pair : nodes_) {
-            const std::string& nodeId = pair.first;
-            const ock::rpc::ClusterNode& node = pair.second;
+        for (const auto &pair : nodes_) {
+            const std::string &nodeId = pair.first;
+            const ock::rpc::ClusterNode &node = pair.second;
             if (node.isActive && node.type == ock::rpc::NodeType::VOTING_ONLY_NODE) {
                 DBG_LOGINFO("nodeId: " << nodeId << " is NodeType::VOTING_ONLY_NODE, notify HAVE_JOINED.");
                 electionModule_->notifyListeners(ElectionModule::ZenElectionEventType::HAVE_JOINED, nodeId_, nodeId);
@@ -524,9 +505,9 @@ void ZenDiscovery::HandleAllJoined()
 void ZenDiscovery::ModifyNodeList()
 {
     std::lock_guard<std::mutex> lock(nodesMutex_);
-    for (auto& nodePair : nodes_) {
-        auto& nodeId = nodePair.first;
-        auto& node = nodePair.second;
+    for (auto &nodePair : nodes_) {
+        auto &nodeId = nodePair.first;
+        auto &node = nodePair.second;
 
         if (nodeId == nodeId_) {
             node.isActive = true;
@@ -543,7 +524,7 @@ void ZenDiscovery::LogMaintainAsMaster()
     static int printMasterCnt = 0;
     printMasterCnt++;
     if (printMasterCnt >= LOG_PRINT_INTERVAL) {
-        DBG_LOGINFO("Current node maintain as master, nodeId = {}", nodeId_);
+        DBG_LOGINFO("Current node maintain as master, nodeId = " << nodeId_);
         printMasterCnt = 0;
     }
 }
@@ -558,7 +539,7 @@ void ZenDiscovery::MaintainAsMaster()
     bool hasVoteOnlyNode = false;
 
     std::unique_lock<std::mutex> lock(nodesMutex_);
-    for (const auto& entry : nodes_) {
+    for (const auto &entry : nodes_) {
         if (entry.second.isActive) {
             activeCount++;
         }
@@ -585,7 +566,7 @@ void ZenDiscovery::MaintainAsMaster()
         lock.unlock();
     }
     lock.lock();
-    for (const auto& entry : nodes_) {
+    for (const auto &entry : nodes_) {
         if (entry.second.isActive) {
             activeCount++;
         }
@@ -594,9 +575,9 @@ void ZenDiscovery::MaintainAsMaster()
             hasVoteOnlyNode = true;
         }
     }
-    for (const auto& pair : nodes_) {
-        const std::string& nodeId = pair.first;
-        const ock::rpc::ClusterNode& node = pair.second;
+    for (const auto &pair : nodes_) {
+        const std::string &nodeId = pair.first;
+        const ock::rpc::ClusterNode &node = pair.second;
         if (nodeId != nodeId_ && node.isActive) {
             lock.unlock();
             SendBroadcastRequest(nodes_, nodeId);
@@ -611,7 +592,7 @@ void ZenDiscovery::MaintainAsClusterMember()
     static int printClusterCnt = 0;
     printClusterCnt++;
     if (printClusterCnt >= LOG_PRINT_INTERVAL) {
-        DBG_LOGINFO("Current node maintain as ClusterMember, nodeId = {}", nodeId_);
+        DBG_LOGINFO("Current node maintain as ClusterMember, nodeId = " << nodeId_);
         printClusterCnt = 0;
     }
     if (electedMaster_.empty()) {
@@ -637,7 +618,7 @@ void ZenDiscovery::MaintainAsClusterMember()
 }
 
 // 更新节点状态
-void ZenDiscovery::UpdateNodeLastSeen(const std::string& nodeId)
+void ZenDiscovery::UpdateNodeLastSeen(const std::string &nodeId)
 {
     auto now = std::chrono::system_clock::now().time_since_epoch().count();
     std::lock_guard<std::mutex> lock(nodesMutex_);
@@ -654,7 +635,7 @@ void ZenDiscovery::UpdateNodeLastSeen(const std::string& nodeId)
     }
 }
 
-void ZenDiscovery::MarkNodeActive(const std::string& nodeId, bool active)
+void ZenDiscovery::MarkNodeActive(const std::string &nodeId, bool active)
 {
     std::lock_guard<std::mutex> lock(nodesMutex_);
     auto it = nodes_.find(nodeId);
@@ -663,7 +644,7 @@ void ZenDiscovery::MarkNodeActive(const std::string& nodeId, bool active)
     }
 }
 
-int ZenDiscovery::SendPingRequest(const std::string& nodeId)
+int ZenDiscovery::SendPingRequest(const std::string &nodeId)
 {
     auto rpcReq = std::make_shared<PingRequest>(nodeId_);
     auto rpcRsp = std::make_shared<RpcQueryInfoResponse>();
@@ -682,14 +663,11 @@ int ZenDiscovery::SendPingRequest(const std::string& nodeId)
         }
         return retConnect;
     }
-    auto ret = ock::rpc::service::RpcServer::GetInstance().SendMsg(
-        RPC_PING_NODE_INFO,
-        rpcReq.get(),
-        rpcRsp.get(),
-        nodeId);
+    auto ret =
+        ock::rpc::service::RpcServer::GetInstance().SendMsg(RPC_PING_NODE_INFO, rpcReq.get(), rpcRsp.get(), nodeId);
     if (ret != 0) {
         DBG_LOGERROR("Local nodeId=" << nodeId_ << ", Send Ping Request to node(" << nodeId << ") failed, ret= " << ret
-                               << ", rsp code=" << rpcRsp->errCode_);
+                                     << ", rsp code=" << rpcRsp->errCode_);
         UpdateNodeLastSeen(nodeId);
         MarkNodeActive(nodeId, false);
         std::lock_guard<std::mutex> lock(nodesMutex_);
@@ -704,7 +682,7 @@ int ZenDiscovery::SendPingRequest(const std::string& nodeId)
     return 0;
 }
 
-int ZenDiscovery::PingDLock(const std::string& nodeId)
+int ZenDiscovery::PingDLock(const std::string &nodeId)
 {
     if (nodeId != electedMaster_) {
         return 0;
@@ -728,7 +706,7 @@ int ZenDiscovery::PingDLock(const std::string& nodeId)
     return 0;
 }
 
-int ZenDiscovery::SendJoinRequest(const std::string& nodeId)
+int ZenDiscovery::SendJoinRequest(const std::string &nodeId)
 {
     DBG_LOGDEBUG("Send Join Request to nodeId=", nodeId);
     auto rpcReq = std::make_shared<PingRequest>(nodeId);
@@ -742,14 +720,11 @@ int ZenDiscovery::SendJoinRequest(const std::string& nodeId)
         DBG_LOGERROR("ConnectToRpcNode failed, nodeId=" << nodeId << ", request type=JoinRequest");
         return retConnect;
     }
-    auto ret = ock::rpc::service::RpcServer::GetInstance().SendMsg(
-        RPC_JOIN_NODE_INFO,
-        rpcReq.get(),
-        rpcRsp.get(),
-        nodeId);
+    auto ret =
+        ock::rpc::service::RpcServer::GetInstance().SendMsg(RPC_JOIN_NODE_INFO, rpcReq.get(), rpcRsp.get(), nodeId);
     if (ret != 0) {
         DBG_LOGERROR("Local nodeId=" << nodeId_ << ", Send Join Request to node(" << nodeId << ") failed, ret= " << ret
-                               << ", rsp code=" << rpcRsp->errCode_);
+                                     << ", rsp code=" << rpcRsp->errCode_);
         return ret;
     }
     // 遍历添加nodeType
@@ -775,11 +750,8 @@ int ZenDiscovery::SendTransElectedRequest(const std::vector<std::string> &nodes,
         DBG_LOGERROR("ConnectToRpcNode failed, nodeId=" << electedMaster << ", request type=TransferElected");
         return retConnect;
     }
-    auto ret = ock::rpc::service::RpcServer::GetInstance().SendMsg(
-        RPC_SEND_ELECTED_MASTER_INFO,
-        rpcReq.get(),
-        rpcRsp.get(),
-        electedMaster);
+    auto ret = ock::rpc::service::RpcServer::GetInstance().SendMsg(RPC_SEND_ELECTED_MASTER_INFO, rpcReq.get(),
+                                                                   rpcRsp.get(), electedMaster);
     if (ret != 0) {
         DBG_LOGERROR("nodeId=" << electedMaster << ", Send Trans Elected Request failed, ret= " << ret
                                << ", rsp code=" << rpcRsp->errCode_);
@@ -788,7 +760,7 @@ int ZenDiscovery::SendTransElectedRequest(const std::vector<std::string> &nodes,
     return 0;
 }
 
-int ZenDiscovery::SendMasterElected(const std::string& nodeId, const std::string& masterNode, int term)
+int ZenDiscovery::SendMasterElected(const std::string &nodeId, const std::string &masterNode, int term)
 {
     auto rpcReq = std::make_shared<VoteRequest>(nodeId_, masterNode, term);
     auto rpcRsp = std::make_shared<RpcQueryInfoResponse>();
@@ -801,11 +773,8 @@ int ZenDiscovery::SendMasterElected(const std::string& nodeId, const std::string
         DBG_LOGERROR("ConnectToRpcNode failed, nodeId=" << nodeId << ", request type=MasterElected");
         return retConnect;
     }
-    auto ret = ock::rpc::service::RpcServer::GetInstance().SendMsg(
-        RPC_MASTER_ELECTED_NODE_INFO,
-        rpcReq.get(),
-        rpcRsp.get(),
-        nodeId);
+    auto ret = ock::rpc::service::RpcServer::GetInstance().SendMsg(RPC_MASTER_ELECTED_NODE_INFO, rpcReq.get(),
+                                                                   rpcRsp.get(), nodeId);
     if (ret != 0) {
         DBG_LOGERROR("Local nodeId=" << nodeId_ << ", Send Master Elected Request to node(" << nodeId
                                      << ") failed, ret= " << ret << ", rsp code=" << rpcRsp->errCode_);
@@ -814,7 +783,7 @@ int ZenDiscovery::SendMasterElected(const std::string& nodeId, const std::string
     return 0;
 }
 
-int ZenDiscovery::SendVoteRequest(const std::string& nodeId, const std::string& masterNode, int term)
+int ZenDiscovery::SendVoteRequest(const std::string &nodeId, const std::string &masterNode, int term)
 {
     auto rpcReq = std::make_shared<VoteRequest>(nodeId_, masterNode, term);
     auto rpcRsp = std::make_shared<RpcVoteInfoResponse>();
@@ -827,27 +796,27 @@ int ZenDiscovery::SendVoteRequest(const std::string& nodeId, const std::string& 
         DBG_LOGERROR("ConnectToRpcNode failed, nodeId=" << nodeId << ", request type=VoteRequest");
         return retConnect;
     }
-    auto ret = ock::rpc::service::RpcServer::GetInstance().SendMsg(
-        RPC_VOTE_NODE_INFO,
-        rpcReq.get(),
-        rpcRsp.get(),
-        nodeId);
+    auto ret =
+        ock::rpc::service::RpcServer::GetInstance().SendMsg(RPC_VOTE_NODE_INFO, rpcReq.get(), rpcRsp.get(), nodeId);
     if (ret != 0) {
         DBG_LOGERROR("Local nodeId=" << nodeId_ << ", Send Vote Request to node(" << nodeId << ") failed, ret= " << ret
-                               << ", rsp code=" << rpcRsp->errCode_);
+                                     << ", rsp code=" << rpcRsp->errCode_);
         return ret;
     }
     HandleVoteResponse(nodeId, rpcRsp->isGranted_);
     return 0;
 }
 
-int ZenDiscovery::SendBroadcastRequest(const std::map<std::string, ock::rpc::ClusterNode>& nodes,
-                                       const std::string& nodeId)
+int ZenDiscovery::SendBroadcastRequest(const std::map<std::string, ock::rpc::ClusterNode> &nodes,
+                                       const std::string &nodeId)
 {
-    auto rpcReq =
-        std::make_shared<BroadcastRequest>(electedMaster_, nodes, dlock_utils::UbsmLock::Instance().IsUbsmLockInit());
-    auto rpcRsp = std::make_shared<RpcQueryInfoResponse>();
-    if (rpcReq == nullptr || rpcRsp == nullptr) {
+    std::shared_ptr<BroadcastRequest> rpcReq;
+    std::shared_ptr<RpcQueryInfoResponse> rpcRsp;
+    try {
+        rpcReq = std::make_shared<BroadcastRequest>(electedMaster_, nodes,
+                                                    dlock_utils::UbsmLock::Instance().IsUbsmLockInit());
+        rpcRsp = std::make_shared<RpcQueryInfoResponse>();
+    } catch (...) {
         DBG_LOGERROR("invalid param.");
         return MXM_ERR_MALLOC_FAIL;
     }
@@ -856,11 +825,8 @@ int ZenDiscovery::SendBroadcastRequest(const std::map<std::string, ock::rpc::Clu
         DBG_LOGERROR("ConnectToRpcNode failed, nodeId=" << nodeId << ", request type=BroadcastRequest");
         return retConnect;
     }
-    auto ret = ock::rpc::service::RpcServer::GetInstance().SendMsg(
-        RPC_BROADCAST_NODE_INFO,
-        rpcReq.get(),
-        rpcRsp.get(),
-        nodeId);
+    auto ret = ock::rpc::service::RpcServer::GetInstance().SendMsg(RPC_BROADCAST_NODE_INFO, rpcReq.get(), rpcRsp.get(),
+                                                                   nodeId);
     if (ret != 0) {
         DBG_LOGERROR("nodeId=" << nodeId << ", Send Broadcast Request failed, ret = " << ret
                                << ", rsp code=" << rpcRsp->errCode_);
@@ -869,7 +835,7 @@ int ZenDiscovery::SendBroadcastRequest(const std::map<std::string, ock::rpc::Clu
     return 0;
 }
 
-int ZenDiscovery::ConnectToRpcNode(const std::string& nodeId, const std::string& reqType)
+int ZenDiscovery::ConnectToRpcNode(const std::string &nodeId, const std::string &reqType)
 {
     rpc::RpcNode rpcNode = {};
     auto ret = rpc::NetRpcConfig::GetInstance().ParseRpcNodeFromId(nodeId, rpcNode);
@@ -887,10 +853,10 @@ int ZenDiscovery::ConnectToRpcNode(const std::string& nodeId, const std::string&
     return 0;
 }
 
-int32_t ZenDiscovery::GetVoteOnlyNode(std::string& voteOnlyNode) const
+int32_t ZenDiscovery::GetVoteOnlyNode(std::string &voteOnlyNode) const
 {
     std::lock_guard<std::mutex> lock(nodesMutex_);
-    for (const auto& entry : nodes_) {
+    for (const auto &entry : nodes_) {
         if (entry.second.isActive && entry.second.type == ock::rpc::NodeType::VOTING_ONLY_NODE) {
             voteOnlyNode = entry.second.id;
             return 0;
@@ -898,4 +864,4 @@ int32_t ZenDiscovery::GetVoteOnlyNode(std::string& voteOnlyNode) const
     }
     return -1;
 }
-}
+} // namespace ock::zendiscovery

@@ -10,8 +10,8 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <numaif.h>
 #include "system_adapter.h"
+#include <numaif.h>
 namespace ock::ubsm {
 // mmap
 void *SystemAdapter::MemoryMap(void *addr, size_t len, int prot, int flags, int fd, off_t offset)
@@ -61,4 +61,4 @@ int SystemAdapter::DlClose(void *handle)
 {
     return dlclose(handle);
 }
-}
+} // namespace ock::ubsm

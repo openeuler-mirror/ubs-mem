@@ -13,12 +13,12 @@
 #ifndef UBSEMEMEXECUTOR_H
 #define UBSEMEMEXECUTOR_H
 #include <cstdint>
+#include "ubs_mem_def.h"
+#include "log.h"
 #include "ubs_engine_log.h"
 #include "ubs_engine_mem.h"
-#include "ubs_error.h"
 #include "ubs_engine_topo.h"
-#include "log.h"
-#include "ubs_mem_def.h"
+#include "ubs_error.h"
 namespace ock::mxmd {
 using UbseFaultEventRegisterPtr = int32_t (*)(ubs_mem_shm_fault_handler registerFunc);
 using ShmFaultFuncPtr = int32_t (*)(const char *name, ubsmem_fault_type_t type);
@@ -38,7 +38,7 @@ public:
     {
         try {
             Exit();
-        } catch (const std::exception& e) {
+        } catch (const std::exception &e) {
             DBG_LOGERROR("Exception in UbseMemExecutor destructor: ", e.what());
         }
     }
@@ -56,5 +56,5 @@ private:
     UbseLogCallBackRegisterPtr UbseLogCallBackRegisterFunc{};
     static ShmFaultFuncPtr ShmFaultFunc;
 };
-}
-#endif  // UBSEMEMEXECUTOR_H
+} // namespace ock::mxmd
+#endif // UBSEMEMEXECUTOR_H

@@ -4,13 +4,15 @@
 #ifndef DAEMON_TEST_COMMON_H
 #define DAEMON_TEST_COMMON_H
 
+#include <fcntl.h>
 #include <gtest/gtest.h>
-#include <iostream>
 #include <unistd.h>
+#include <iostream>
+#include "logger/ubsmem_logger_manager.h"
 #include "util/common_headers.h"
 #include "util/kv_parser.h"
 
-using namespace ock::utilities::log;
+using namespace ubsmem::log;
 
 namespace UT::Daemon {
 const size_t MAX_SIZE = 255;
@@ -28,12 +30,12 @@ public:
         return curDir;
     }
 
-    static void CreateConf(const std::string& conf)
+    static void CreateConf(const std::string &conf)
     {
         mode_t mode = S_IRWXU | S_IRWXG | S_IRWXO;
         int ret = 0;
         ret = mkdir((CWD() + "/config").c_str(), mode);
-        int fd = open((CWD() + "/config/ubsmd.conf").c_str(), O_RDWR|O_CREAT|O_TRUNC, mode);
+        int fd = open((CWD() + "/config/ubsmd.conf").c_str(), O_RDWR | O_CREAT | O_TRUNC, mode);
         std::string config = conf;
         ret = write(fd, config.data(), config.size());
         close(fd);
@@ -48,16 +50,7 @@ public:
 
     static void ClearUlog()
     {
-        // 清除Ulogger示例
-        spdlog::drop_all();
-        if (ULog::gLogger != nullptr) {
-            delete ULog::gLogger;
-            ULog::gLogger = nullptr;
-        }
-        if (ULog::gAuditLogger != nullptr) {
-            delete ULog::gAuditLogger;
-            ULog::gAuditLogger = nullptr;
-        }
+        ubsmem::log::UbsmemLoggerManager::Destroy();
     }
 
     static void RmLogFile()
@@ -68,9 +61,9 @@ public:
 
     static int RecoverUlog()
     {
-        return ULOG_Init(ock::utilities::log::STDOUT_TYPE, 0, nullptr, 2097152, 10);
+        return 0;
     }
 };
-}
+} // namespace UT::Daemon
 
 #endif

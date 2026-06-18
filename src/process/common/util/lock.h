@@ -21,9 +21,9 @@ public:
     ~Lock() = default;
 
     Lock(const Lock &) = delete;
-    Lock &operator = (const Lock &) = delete;
+    Lock &operator=(const Lock &) = delete;
     Lock(Lock &&) = delete;
-    Lock &operator = (Lock &&) = delete;
+    Lock &operator=(Lock &&) = delete;
 
     inline void DoLock()
     {
@@ -39,7 +39,8 @@ private:
     std::mutex mLock;
 };
 
-template <class T> class Locker {
+template <class T>
+class Locker {
 public:
     explicit Locker(T *lock) : mLock(lock)
     {
@@ -56,9 +57,9 @@ public:
     }
 
     Locker(const Locker &) = delete;
-    Locker &operator = (const Locker &) = delete;
+    Locker &operator=(const Locker &) = delete;
     Locker(Locker &&) = delete;
-    Locker &operator = (Locker &&) = delete;
+    Locker &operator=(Locker &&) = delete;
 
 private:
     T *mLock;

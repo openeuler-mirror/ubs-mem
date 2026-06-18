@@ -19,7 +19,7 @@ namespace ubsm {
 namespace tracer {
 class Tracepoint {
 public:
-    __always_inline void TraceBegin(const std::string& tpName)
+    __always_inline void TraceBegin(const std::string &tpName)
     {
         bool expectVal = false;
         if (nameValid_.compare_exchange_weak(expectVal, true)) {
@@ -65,21 +65,45 @@ public:
         total_ = 0;
     }
 
-    __always_inline const std::string& GetName() const { return name_; }
+    __always_inline const std::string &GetName() const
+    {
+        return name_;
+    }
 
-    __always_inline uint64_t GetBegin() const { return begin_.load(std::memory_order_relaxed); }
+    __always_inline uint64_t GetBegin() const
+    {
+        return begin_.load(std::memory_order_relaxed);
+    }
 
-    __always_inline uint64_t GetGoodEnd() const { return goodEnd_.load(std::memory_order_relaxed); }
+    __always_inline uint64_t GetGoodEnd() const
+    {
+        return goodEnd_.load(std::memory_order_relaxed);
+    }
 
-    __always_inline uint64_t GetBadEnd() const { return badEnd_.load(std::memory_order_relaxed); }
+    __always_inline uint64_t GetBadEnd() const
+    {
+        return badEnd_.load(std::memory_order_relaxed);
+    }
 
-    __always_inline uint64_t GetMin() const { return min_.load(std::memory_order_relaxed); }
+    __always_inline uint64_t GetMin() const
+    {
+        return min_.load(std::memory_order_relaxed);
+    }
 
-    __always_inline uint64_t GetMax() const { return max_.load(std::memory_order_relaxed); }
+    __always_inline uint64_t GetMax() const
+    {
+        return max_.load(std::memory_order_relaxed);
+    }
 
-    __always_inline uint64_t GetTotal() const { return total_.load(std::memory_order_relaxed); }
+    __always_inline uint64_t GetTotal() const
+    {
+        return total_.load(std::memory_order_relaxed);
+    }
 
-    __always_inline bool Valid() const { return nameValid_ && begin_.load(std::memory_order_relaxed) > previousBegin_; }
+    __always_inline bool Valid() const
+    {
+        return nameValid_ && begin_.load(std::memory_order_relaxed) > previousBegin_;
+    }
 
     void UpdatePreviousData()
     {
@@ -134,13 +158,13 @@ private:
 
 class TracepointCollection {
 public:
-    static __always_inline Tracepoint** GetTracepoints()
+    static __always_inline Tracepoint **GetTracepoints()
     {
-        static Tracepoint** tracePoints = CreateInstance();
+        static Tracepoint **tracePoints = CreateInstance();
         return tracePoints;
     }
 
-    static __always_inline Tracepoint* GetTracepoint(uint32_t tpId)
+    static __always_inline Tracepoint *GetTracepoint(uint32_t tpId)
     {
         auto tracePoints = GetTracepoints();
         if (PTRACER_UNLIKELY(tracePoints == nullptr)) {
@@ -149,14 +173,14 @@ public:
 
         uint32_t moduleId = GetModuleId(tpId);
         uint32_t traceId = GetTraceId(tpId);
-        if (PTRACER_UNLIKELY(moduleId > MAX_MODULE_COUNT || traceId > MAX_TRACE_ID_COUNT)) {
+        if (PTRACER_UNLIKELY(moduleId >= MAX_MODULE_COUNT || traceId >= MAX_TRACE_ID_COUNT)) {
             return nullptr;
         }
 
         return &tracePoints[moduleId][traceId];
     }
 
-    static __always_inline void TraceBegin(uint32_t tpId, const std::string& tpName)
+    static __always_inline void TraceBegin(uint32_t tpId, const std::string &tpName)
     {
         auto tracepoint = GetTracepoint(tpId);
         if (PTRACER_UNLIKELY(tracepoint == nullptr)) {
@@ -166,7 +190,7 @@ public:
         tracepoint->TraceBegin(tpName);
     }
 
-    static __always_inline void TraceEnd(uint32_t tpId, const uint64_t& diff, int32_t goodBadExecution)
+    static __always_inline void TraceEnd(uint32_t tpId, const uint64_t &diff, int32_t goodBadExecution)
     {
         auto tracepoint = GetTracepoint(tpId);
         if (PTRACER_UNLIKELY(tracepoint == nullptr)) {
@@ -181,9 +205,9 @@ public:
     static constexpr int32_t MAX_TRACE_ID_COUNT = 1024;
 
 private:
-    static __always_inline Tracepoint** CreateInstance()
+    static __always_inline Tracepoint **CreateInstance()
     {
-        auto** instance = new (std::nothrow) Tracepoint*[MAX_MODULE_COUNT];
+        auto **instance = new (std::nothrow) Tracepoint *[MAX_MODULE_COUNT];
         if (instance == nullptr) {
             return nullptr;
         }
@@ -204,7 +228,7 @@ private:
 
         if (ret != 0) {
             for (uint16_t j = 0; j < i; ++j) {
-                delete instance[j];
+                delete[] instance[j];
             }
             delete[] instance;
             return nullptr;
@@ -212,12 +236,18 @@ private:
         return instance;
     }
 
-    static __always_inline uint32_t GetModuleId(uint32_t tpId) { return ((tpId >> 16) & 0xFFFF); }
+    static __always_inline uint32_t GetModuleId(uint32_t tpId)
+    {
+        return ((tpId >> 16) & 0xFFFF);
+    }
 
-    static __always_inline uint32_t GetTraceId(uint32_t tpId) { return (tpId & 0xFFFF); }
+    static __always_inline uint32_t GetTraceId(uint32_t tpId)
+    {
+        return (tpId & 0xFFFF);
+    }
 };
-}  // namespace tracer
-}  // namespace ubsm
-}  // namespace ock
+} // namespace tracer
+} // namespace ubsm
+} // namespace ock
 
-#endif  // UBSM_MEM_FABRIC_PTRACER_TRACEPOINT_H
+#endif // UBSM_MEM_FABRIC_PTRACER_TRACEPOINT_H

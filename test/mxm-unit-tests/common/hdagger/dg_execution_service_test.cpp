@@ -1,9 +1,9 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
+#include <dlfcn.h>
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
-#include <dlfcn.h>
 
 #include "common/hdagger/thread_pool/dg_execution_service.h"
 
@@ -58,7 +58,8 @@ TEST_F(DgExecutionServiceTestSuite, TestExecutionService)
 
 TEST_F(DgExecutionServiceTestSuite, TestLambdaExpression)
 {
-    struct timespec ts {};
+    struct timespec ts {
+    };
     sem_t waitSem{};
 
     auto ret = clock_gettime(CLOCK_REALTIME, &ts);
@@ -67,7 +68,9 @@ TEST_F(DgExecutionServiceTestSuite, TestLambdaExpression)
     ret = sem_init(&waitSem, 0, 0);
     ASSERT_EQ(0, ret) << "initialize sem failed: " << errno << ": " << strerror(errno);
 
-    auto task = [&waitSem]() { sem_post(&waitSem); };
+    auto task = [&waitSem]() {
+        sem_post(&waitSem);
+    };
     auto success = executorService->Execute(task);
     ASSERT_TRUE(success);
 
@@ -80,7 +83,7 @@ TEST_F(DgExecutionServiceTestSuite, TestLambdaExpression)
 
 TEST_F(DgExecutionServiceTestSuite, Execute_NullptrTask)
 {
-    Runnable* t = nullptr;
+    Runnable *t = nullptr;
     auto success = executorService->Execute(t);
     EXPECT_FALSE(success);
 }
@@ -136,7 +139,10 @@ TEST(DgExecutionServiceStandalone, Create_WithZeroQueueCapacity)
     ASSERT_TRUE(svc.Get() != nullptr);
 }
 
-TEST(DgExecutionServiceStandalone, DestructorWithoutStop) { auto svc = ExecutorService::Create(1, 10); }
+TEST(DgExecutionServiceStandalone, DestructorWithoutStop)
+{
+    auto svc = ExecutorService::Create(1, 10);
+}
 
 TEST(DgExecutionServiceStandalone, Stop_NewRunnableNull)
 {
@@ -154,4 +160,4 @@ TEST(DgExecutionServiceStandalone, RunInThread_WithEmptyNameAndCpuBind)
     svc->Stop();
 }
 
-}  // namespace UT
+} // namespace UT

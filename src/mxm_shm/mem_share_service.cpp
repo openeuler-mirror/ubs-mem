@@ -11,9 +11,9 @@
  */
 #include "mem_share_service.h"
 #include "ipc_server.h"
+#include "region_manager.h"
 #include "rpc_server.h"
 #include "shm_manager.h"
-#include "region_manager.h"
 
 namespace ock::share::service {
 using namespace ock::rpc::service;
@@ -31,11 +31,14 @@ MemShareService::MemShareService() noexcept
     serviceName = "MemShare";
     modules = {
         {"MemShareIPCServer", &MxmComStartIpcServer, &IpcServer::GetInstance().RackMemConBaseInitialize,
-            &MemMxmComStopIpcServer, nullptr},
+         &MemMxmComStopIpcServer, nullptr},
         {"MemShareRecovery", &SHMManager::Initial, &SHMManager::Recovery, nullptr, nullptr},
         {"MemRegionRecovery", &RegionManager::Initial, &RegionManager::Recovery, nullptr, nullptr},
     };
 }
 
-HRESULT MemShareService::OnServiceProcessArgs(int argc, char* argv[]) { return HOK; }
-}  // namespace ock::share::service
+HRESULT MemShareService::OnServiceProcessArgs(int argc, char *argv[])
+{
+    return HOK;
+}
+} // namespace ock::share::service

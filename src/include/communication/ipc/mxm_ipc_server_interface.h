@@ -14,8 +14,8 @@
 #define MXM_IPC_SERVER_INTERFACE_H
 
 #include <comm_def.h>
-#include "mxm_msg.h"
 #include "comm_def.h"
+#include "mxm_msg.h"
 
 namespace ock::com::ipc {
 using namespace ock::mxmd;
@@ -30,10 +30,10 @@ int MxmComStartIpcServer();
  */
 void MxmComStopIpcServer();
 
-void MXMSetLinkEventHandler(const MXMLinkEventHandler& handler);
+void MXMSetLinkEventHandler(const MXMLinkEventHandler &handler);
 
-uint32_t MxmRegIpcService(const MxmComEndpoint& endpoint, const MxmComIpcServiceHandler& handler);
+uint32_t MxmRegIpcService(const MxmComEndpoint &endpoint, const MxmComIpcServiceHandler &handler);
 
-}  // namespace ock::com
+} // namespace ock::com::ipc
 
-#endif  // MXM_IPC_SERVER_INTERFACE_H
+#endif // MXM_IPC_SERVER_INTERFACE_H

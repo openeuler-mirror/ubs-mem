@@ -17,25 +17,25 @@ namespace ock::mxmd {
 
 class RackMemFdMap {
 public:
-    static RackMemFdMap& GetInstance()
+    static RackMemFdMap &GetInstance()
     {
         static RackMemFdMap instance;
         return instance;
     }
-    RackMemFdMap(const RackMemFdMap& other) = default;
-    RackMemFdMap(RackMemFdMap&& other) = default;
-    RackMemFdMap& operator=(const RackMemFdMap& other) = default;
-    RackMemFdMap& operator=(RackMemFdMap&& other) noexcept = default;
+    RackMemFdMap(const RackMemFdMap &other) = default;
+    RackMemFdMap(RackMemFdMap &&other) = default;
+    RackMemFdMap &operator=(const RackMemFdMap &other) = default;
+    RackMemFdMap &operator=(RackMemFdMap &&other) noexcept = default;
 
-    uint32_t FileMapByTotalSize(uint64_t size, void*& virtualAddr, int prot);
+    uint32_t FileMapByTotalSize(uint64_t size, void *&virtualAddr, int prot);
 
     static uint32_t MapAnonymousMemory(void *start, uint64_t size, void *&virtualAddr);
 
-    uint32_t MapForEachFd(void* startAddr, size_t length, int fd, int prot, int flags, off_t offset = 0);
+    uint32_t MapForEachFd(void *startAddr, size_t length, int fd, int prot, int flags, off_t offset = 0);
 
-    void GetActualMapSize(uint64_t appMmapSize, uint64_t unitSize, uint64_t& actualMapSize, uint64_t& mmapCount);
+    void GetActualMapSize(uint64_t appMmapSize, uint64_t unitSize, uint64_t &actualMapSize, uint64_t &mmapCount);
 
-    static int MemoryMap2MAligned(size_t size, void *&result);
+    static int MemoryMapAligned(size_t size, void *&result, size_t align);
 
     DAGGER_DEFINE_REF_COUNT_FUNCTIONS;
 
@@ -44,5 +44,5 @@ private:
 
     RackMemFdMap() = default;
 };
-} // namespace ock::memory
+} // namespace ock::mxmd
 #endif // MEMORYFABRIC_RACK_MEM_FD_MAP_H

@@ -11,18 +11,18 @@
  */
 
 #include "mxm_rpc_server_interface.h"
-#include "util/defines.h"
+#include "mxm_message_handler.h"
 #include "mxm_rpc_server.h"
 #include "rpc_config.h"
-#include "mxm_message_handler.h"
+#include "util/defines.h"
 
 namespace ock::com::rpc {
-MxmRpcServer* g_mxmRpcServer{nullptr};
+MxmRpcServer *g_mxmRpcServer{nullptr};
 std::atomic<int> g_rpcServerCount{0};
 
 const std::string RACK_AGENT_RPC_SERVER_ENGINE_NAME = "MxmAgentRpcServerEngine";
 
-HRESULT RegRpcService(MxmComBaseMessageHandlerPtr& handlerPtr)
+HRESULT RegRpcService(MxmComBaseMessageHandlerPtr &handlerPtr)
 {
     if (g_mxmRpcServer != nullptr) {
         return g_mxmRpcServer->RegMessageHandler(handlerPtr);
@@ -78,7 +78,7 @@ void MxmComStopRpcServer()
     }
 }
 
-uint32_t MxmRegRpcService(const MxmComEndpoint& endpoint, const MxmComServiceHandler& handler)
+uint32_t MxmRegRpcService(const MxmComEndpoint &endpoint, const MxmComServiceHandler &handler)
 {
     uint16_t moduleCode = endpoint.moduleId;
     auto opCode = static_cast<uint16_t>(endpoint.serviceId);
@@ -99,7 +99,7 @@ uint32_t MxmRegRpcService(const MxmComEndpoint& endpoint, const MxmComServiceHan
     return ret;
 }
 
-int MxmComRpcServerSend(uint16_t opCode, MsgBase* request, MsgBase* response, const std::string& nodeId)
+int MxmComRpcServerSend(uint16_t opCode, MsgBase *request, MsgBase *response, const std::string &nodeId)
 {
     SendParam param(nodeId, static_cast<uint16_t>(MxmModuleCode::MEM), opCode, MxmChannelType::NORMAL);
     if (g_mxmRpcServer == nullptr) {
@@ -114,7 +114,7 @@ int MxmComRpcServerSend(uint16_t opCode, MsgBase* request, MsgBase* response, co
     return ret;
 }
 
-int MxmComRpcServerConnect(const RpcNode& nodeId)
+int MxmComRpcServerConnect(const RpcNode &nodeId)
 {
     if (g_mxmRpcServer == nullptr) {
         DBG_LOGERROR("g_mxmRpcServer is nullptr");
@@ -123,4 +123,4 @@ int MxmComRpcServerConnect(const RpcNode& nodeId)
     auto ret = g_mxmRpcServer->Connect(nodeId);
     return ret;
 }
-}  // namespace ock::com::rpc
+} // namespace ock::com::rpc

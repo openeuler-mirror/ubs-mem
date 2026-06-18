@@ -8,6 +8,6 @@
 
 // dt-fuzz 要求3小时或者3000万次
 constexpr int CAPI_FUZZ_COUNT = 30000000;
-constexpr int DT_RUNNING_TIME = 3 * 60 * 60;  // 3小时，单位秒
+constexpr int DT_RUNNING_TIME = 3 * 60 * 60; // 3小时，单位秒
 
-#endif  // DT_FUZZ_H
+#endif // DT_FUZZ_H

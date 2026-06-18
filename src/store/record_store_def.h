@@ -16,19 +16,19 @@
 #include "ubs_common_types.h"
 namespace ock {
 namespace ubsm {
-constexpr uint32_t RECORD_NAME_SIZE = 64;             ///< 各种记录名称的长度，包含'/0'共64
-constexpr uint32_t REGION_NODE_BITMAP_COUNT = 1024U;  ///< 用于表示region中节点的bitmap位数，可表示0~1023的nodeId
+constexpr uint32_t RECORD_NAME_SIZE = 64;            ///< 各种记录名称的长度，包含'/0'共64
+constexpr uint32_t REGION_NODE_BITMAP_COUNT = 1024U; ///< 用于表示region中节点的bitmap位数，可表示0~1023的nodeId
 constexpr uint32_t U64_BITS_COUNT = 64U;
 constexpr uint32_t REGION_NODE_BITMAP_U64SIZE = REGION_NODE_BITMAP_COUNT / U64_BITS_COUNT;
 
-constexpr uint32_t RECORD_MEM_ID_POOL_LINE_SIZE = 64U;  ///< memId pool的一行长度64，有效数据长度为63
-constexpr uint32_t RECORD_MEM_ID_POOL_LINE_COUNT = 32U * 1024U;  ///< memId pool的行数
+constexpr uint32_t RECORD_MEM_ID_POOL_LINE_SIZE = 64U; ///< memId pool的一行长度64，有效数据长度为63
+constexpr uint32_t RECORD_MEM_ID_POOL_LINE_COUNT = 32U * 1024U; ///< memId pool的行数
 
-constexpr uint32_t CPU_NUM_PER_HOST = 2U;  ///< 每个host两个Cpu
-constexpr uint32_t AVAILABLE_MAR = 2U;  ///< MatrixServer使用2个MAR
-constexpr uint32_t DECODER_ENTRY_SIZE = 1024U;          ///< 单个MAR的两张decoder表，合计1024条entry
-constexpr uint32_t BLOCK_PER_ENTRY = 4U;                ///< 每个Entry可分为4个block
-constexpr uint32_t UMMU_PROTECTION_TABLE_SIZE = 1024U;  ///< 每个PROTECTION有1024个表项，对应1024次导出
+constexpr uint32_t CPU_NUM_PER_HOST = 2U;              ///< 每个host两个Cpu
+constexpr uint32_t AVAILABLE_MAR = 2U;                 ///< MatrixServer使用2个MAR
+constexpr uint32_t DECODER_ENTRY_SIZE = 1024U;         ///< 单个MAR的两张decoder表，合计1024条entry
+constexpr uint32_t BLOCK_PER_ENTRY = 4U;               ///< 每个Entry可分为4个block
+constexpr uint32_t UMMU_PROTECTION_TABLE_SIZE = 1024U; ///< 每个PROTECTION有1024个表项，对应1024次导出
 
 // 支持最大的导入个数 Cpu * Mar * Decoder * Item
 constexpr uint32_t MAX_IMPORT_COUNT = CPU_NUM_PER_HOST * AVAILABLE_MAR * DECODER_ENTRY_SIZE * BLOCK_PER_ENTRY;
@@ -102,7 +102,8 @@ struct MemShareRefRecord {
 struct MemIdRecordPool {
     uint64_t memIds[RECORD_MEM_ID_POOL_LINE_COUNT][RECORD_MEM_ID_POOL_LINE_SIZE];
 };
-}
-}
 
-#endif  // SIMPLE_SAMPLES_RECORD_STORE_DEF_H
+} // namespace ubsm
+} // namespace ock
+
+#endif // SIMPLE_SAMPLES_RECORD_STORE_DEF_H

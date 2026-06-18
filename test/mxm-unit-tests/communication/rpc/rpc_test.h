@@ -5,8 +5,8 @@
 #define MXM_RPC_TEST_H
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
-#include "rpc_config.h"
 #include "mxm_rpc_server_interface.h"
+#include "rpc_config.h"
 
 namespace UT {
 #ifndef MOCKER_CPP
@@ -30,5 +30,5 @@ public:
         ock::com::rpc::MxmComStopRpcServer();
     };
 };
-}  // namespace UT
-#endif  // MXM_RPC_TEST_H
+} // namespace UT
+#endif // MXM_RPC_TEST_H

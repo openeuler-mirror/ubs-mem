@@ -13,68 +13,68 @@
 #include "mem_share_service.h"
 #include "shm_service_api.h"
 
-void* ShmCreate()
+void *ShmCreate()
 {
-    auto* leaseService = new ock::share::service::MemShareService();
+    auto *leaseService = new (std::nothrow) ock::share::service::MemShareService();
     return leaseService;
 }
 
-int ShmServiceProcessArgs(void* service, int argc, char* argv[])
+int ShmServiceProcessArgs(void *service, int argc, char *argv[])
 {
-    auto real = static_cast<ock::common::Service*>(service);
+    auto real = static_cast<ock::common::Service *>(service);
     if (real == nullptr) {
         return -1;
     }
     return real->ServiceProcessArgs(argc, argv);
 }
 
-int ShmServiceInitialize(void* service)
+int ShmServiceInitialize(void *service)
 {
-    auto real = static_cast<ock::common::Service*>(service);
+    auto real = static_cast<ock::common::Service *>(service);
     if (real == nullptr) {
         return -1;
     }
     return real->ServiceInitialize();
 }
 
-int ShmServiceStart(void* service)
+int ShmServiceStart(void *service)
 {
-    auto real = static_cast<ock::common::Service*>(service);
+    auto real = static_cast<ock::common::Service *>(service);
     if (real == nullptr) {
         return -1;
     }
     return real->ServiceStart();
 }
 
-int ShmServiceHealthy(void* service)
+int ShmServiceHealthy(void *service)
 {
-    auto real = static_cast<ock::common::Service*>(service);
+    auto real = static_cast<ock::common::Service *>(service);
     if (real == nullptr) {
         return -1;
     }
     return real->ServiceHealthy();
 }
 
-int ShmServiceShutdown(void* service)
+int ShmServiceShutdown(void *service)
 {
-    auto real = static_cast<ock::common::Service*>(service);
+    auto real = static_cast<ock::common::Service *>(service);
     if (real == nullptr) {
         return -1;
     }
     return real->ServiceShutdown();
 }
 
-int ShmServiceUninitialize(void* service)
+int ShmServiceUninitialize(void *service)
 {
-    auto real = static_cast<ock::common::Service*>(service);
+    auto real = static_cast<ock::common::Service *>(service);
     if (real == nullptr) {
         return -1;
     }
     return real->ServiceUninitialize();
 }
 
-void ShmDestroy(void* service)
+void ShmDestroy(void *service)
 {
-    auto real = static_cast<ock::common::Service*>(service);
+    auto real = static_cast<ock::common::Service *>(service);
     delete real;
 }

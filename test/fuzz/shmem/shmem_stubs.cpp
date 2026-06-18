@@ -8,33 +8,33 @@ namespace FUZZ {
 static size_t SIZE = 1024 * 1024 * 1024;
 static MxmComUdsInfo g_udsInfo = {12345, 0, 0};
 
-int32_t LookupRegionListFuzzStub(SHMRegions& regions)
+int32_t LookupRegionListFuzzStub(SHMRegions &regions)
 {
-    regions.num =1;
+    regions.num = 1;
 
-        regions.region[0].num = 2;
-        regions.region[0].type = ALL2ALL_SHARE;
+    regions.region[0].num = 2;
+    regions.region[0].type = ALL2ALL_SHARE;
 
-        char safeHostName[MAX_HOST_NAME_DESC_LENGTH] = {};
-        char safeNodeId[MAX_HOST_NAME_DESC_LENGTH] = {};
+    char safeHostName[MAX_HOST_NAME_DESC_LENGTH] = {};
+    char safeNodeId[MAX_HOST_NAME_DESC_LENGTH] = {};
 
-        std::string hostName = "1";
-        std::string nodeId   = "1";
+    std::string hostName = "1";
+    std::string nodeId = "1";
 
-        strncpy_s(safeHostName, MAX_HOST_NAME_DESC_LENGTH, hostName.c_str(),
-                  strnlen(hostName.c_str(), MAX_HOST_NAME_DESC_LENGTH));
-        strncpy_s(safeNodeId, MAX_HOST_NAME_DESC_LENGTH, nodeId.c_str(),
-                  strnlen(nodeId.c_str(), MAX_HOST_NAME_DESC_LENGTH));
-        strncpy_s(regions.region[0].hostName[0], MAX_HOST_NAME_DESC_LENGTH, safeHostName,
-                  strnlen(safeHostName, MAX_HOST_NAME_DESC_LENGTH));
-        strncpy_s(regions.region[0].hostName[1], MAX_HOST_NAME_DESC_LENGTH, safeHostName,
-                  strnlen(safeHostName, MAX_HOST_NAME_DESC_LENGTH));
-        strncpy_s(regions.region[0].nodeId[0], MAX_HOST_NAME_DESC_LENGTH,
-                  safeNodeId, strnlen(safeNodeId, MAX_HOST_NAME_DESC_LENGTH));
-        strncpy_s(regions.region[0].nodeId[1], MAX_HOST_NAME_DESC_LENGTH,
-                  safeNodeId, strnlen(safeNodeId, MAX_HOST_NAME_DESC_LENGTH));
+    strncpy_s(safeHostName, MAX_HOST_NAME_DESC_LENGTH, hostName.c_str(),
+              strnlen(hostName.c_str(), MAX_HOST_NAME_DESC_LENGTH));
+    strncpy_s(safeNodeId, MAX_HOST_NAME_DESC_LENGTH, nodeId.c_str(),
+              strnlen(nodeId.c_str(), MAX_HOST_NAME_DESC_LENGTH));
+    strncpy_s(regions.region[0].hostName[0], MAX_HOST_NAME_DESC_LENGTH, safeHostName,
+              strnlen(safeHostName, MAX_HOST_NAME_DESC_LENGTH));
+    strncpy_s(regions.region[0].hostName[1], MAX_HOST_NAME_DESC_LENGTH, safeHostName,
+              strnlen(safeHostName, MAX_HOST_NAME_DESC_LENGTH));
+    strncpy_s(regions.region[0].nodeId[0], MAX_HOST_NAME_DESC_LENGTH, safeNodeId,
+              strnlen(safeNodeId, MAX_HOST_NAME_DESC_LENGTH));
+    strncpy_s(regions.region[0].nodeId[1], MAX_HOST_NAME_DESC_LENGTH, safeNodeId,
+              strnlen(safeNodeId, MAX_HOST_NAME_DESC_LENGTH));
 
-        return 0;
+    return 0;
 }
 
 int ClientIpcLeaseMallocMemStub(MsgBase *request, MsgBase *response)
@@ -166,36 +166,32 @@ int ClientIpcDestroyRegionStub(MsgBase *request, MsgBase *response)
 int ClientIpcShmListLookupStub(MsgBase *request, MsgBase *response)
 {
     printf("MxmComIpcClientSendStub: receive IPC_RACKMEMSHM_LOOKUP_LIST\n");
-    ock::share::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_RACKMEMSHM_LOOKUP_LIST, request, response,
-        ock::share::service::MxmServerMsgHandle::ShmListLookup);
+    ock::share::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_RACKMEMSHM_LOOKUP_LIST, request, response,
+                                                            ock::share::service::MxmServerMsgHandle::ShmListLookup);
     return 0;
 }
 
 int ClientIpcShmLookupStub(MsgBase *request, MsgBase *response)
 {
     printf("MxmComIpcClientSendStub: receive IPC_RACKMEMSHM_LOOKUP\n");
-    ock::share::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_RACKMEMSHM_LOOKUP, request, response,
-        ock::share::service::MxmServerMsgHandle::ShmLookup);
+    ock::share::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_RACKMEMSHM_LOOKUP, request, response,
+                                                            ock::share::service::MxmServerMsgHandle::ShmLookup);
     return 0;
 }
 
 int ClientIpcShmAttachStub(MsgBase *request, MsgBase *response)
 {
     printf("MxmComIpcClientSendStub: receive IPC_RACKMEMSHM_ATTACH\n");
-    ock::share::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_RACKMEMSHM_ATTACH, request, response,
-        ock::share::service::MxmServerMsgHandle::ShmAttach);
+    ock::share::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_RACKMEMSHM_ATTACH, request, response,
+                                                            ock::share::service::MxmServerMsgHandle::ShmAttach);
     return 0;
 }
 
 int ClientIpcShmDetachStub(MsgBase *request, MsgBase *response)
 {
     printf("MxmComIpcClientSendStub: receive IPC_RACKMEMSHM_DETACH\n");
-    ock::share::service::IpcServer::GetInstance().MsgHandle(
-        g_udsInfo, IPC_RACKMEMSHM_DETACH, request, response,
-        ock::share::service::MxmServerMsgHandle::ShmDetach);
+    ock::share::service::IpcServer::GetInstance().MsgHandle(g_udsInfo, IPC_RACKMEMSHM_DETACH, request, response,
+                                                            ock::share::service::MxmServerMsgHandle::ShmDetach);
     return 0;
 }
 
@@ -308,9 +304,9 @@ int ShmCreateStub(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo
     return 0;
 }
 
-int FilterAllHostsInAttrStub(SHMRegions* list, const ubsmem_region_attributes_t* reg_attr, int& index)
+int FilterAllHostsInAttrStub(SHMRegions *list, const ubsmem_region_attributes_t *reg_attr, int &index)
 {
     index = 0;
     return UBSM_OK;
 }
-}  // namespace FUZZ
+} // namespace FUZZ

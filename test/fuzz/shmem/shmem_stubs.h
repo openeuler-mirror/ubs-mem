@@ -4,19 +4,18 @@
 #ifndef UBSMEM_STUB_H
 #define UBSMEM_STUB_H
 
+#include "ipc_proxy.h"
 #include "mx_shm.h"
 #include "mxm_msg.h"
-#include "ipc_proxy.h"
 
 #include "mxm_lease/ipc_handler.h"
 #include "mxm_lease/ipc_server.h"
 
+#include "mxm_message/message_op.h"
 #include "mxm_shm/ipc_handler.h"
 #include "mxm_shm/ipc_server.h"
-#include "mxm_message/message_op.h"
 #include "region_manager.h"
 #include "ubse_mem_adapter.h"
-
 
 #define filter_all_hosts_in_attr(list, attr, index) UBSM_OK
 
@@ -25,9 +24,9 @@ using namespace ock::mxm;
 using namespace ock::share::service;
 namespace FUZZ {
 
-int32_t LookupRegionListFuzzStub(SHMRegions& regions);
+int32_t LookupRegionListFuzzStub(SHMRegions &regions);
 
-int FilterAllHostsInAttrStub(SHMRegions *list, const ubsmem_region_attributes_t* reg_attr, int &index);
+int FilterAllHostsInAttrStub(SHMRegions *list, const ubsmem_region_attributes_t *reg_attr, int &index);
 
 void MxmComStopIpcClientStub();
 
@@ -60,6 +59,6 @@ int ShmImportStub2(const ImportShmParam &param, ImportShmResult &result);
 int LeaseMallocStub(const LeaseMallocParam &param, ock::mxm::LeaseMallocResult &result);
 
 int ShmCreateStub(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo);
-}  // namespace FUZZ
+} // namespace FUZZ
 
-#endif  // UBSMEM_STUB_H
+#endif // UBSMEM_STUB_H

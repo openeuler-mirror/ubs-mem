@@ -3,16 +3,16 @@
  */
 #include "ubs_mem.h"
 
+#include <securec.h>
+#include <sys/mman.h>
+#include <unistd.h>
 #include <atomic>
 #include <iostream>
 #include <memory>
 #include <ostream>
-#include <securec.h>
 #include <string>
 #include <thread>
-#include <unistd.h>
 #include <vector>
-#include <sys/mman.h>
 
 constexpr auto SHARE_MEMORY_NAME = "ubsm_race_test";
 constexpr auto SYS_MEMORY_NAME = "sys_race_test";
@@ -148,7 +148,7 @@ int CreateShareMemory()
     return 0;
 }
 
-int  DestroyShareMemory()
+int DestroyShareMemory()
 {
     auto ret = ubsmem_shmem_deallocate(SHARE_MEMORY_NAME);
     if (ret != 0) {

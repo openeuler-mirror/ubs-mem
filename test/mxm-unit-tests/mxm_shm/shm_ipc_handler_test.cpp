@@ -1,17 +1,17 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-
+#include "shm_ipc_handler_test.h"
+#include <fcntl.h>
+#include "mxm_shm/ipc_handler.h"
 #include "record_store.h"
 #include "region_manager.h"
 #include "region_repository.h"
-#include "shm_manager.h"
-#include "zen_discovery.h"
-#include "mxm_shm/ipc_handler.h"
 #include "rpc_server.h"
-#include "ubsm_lock.h"
+#include "shm_manager.h"
 #include "ubse_mem_adapter_stub.h"
-#include "shm_ipc_handler_test.h"
+#include "ubsm_lock.h"
+#include "zen_discovery.h"
 
 using namespace UT;
 using namespace ock::share::service;
@@ -138,7 +138,9 @@ TEST_F(ShmIpcHandlerTestSuite, TestShmUnmap)
     MOCKER_CPP(&SHMManager::RemoveMemoryInfo, int32_t(*)(const std::string &name)).stubs().will(returnValue(0));
 
     MOCKER_CPP(&SHMManager::UpdateShareMemoryRecordState,
-               int32_t(*)(const std::string &name, ock::ubsm::RecordState state)).stubs().will(returnValue(0));
+               int32_t(*)(const std::string &name, ock::ubsm::RecordState state))
+        .stubs()
+        .will(returnValue(0));
 
     auto request = std::make_shared<ShmUnmapRequest>("default", "name");
     if (request == nullptr) {
@@ -424,7 +426,7 @@ TEST_F(ShmIpcHandlerTestSuite, TestShmQueryNodeNull)
     MxmComUdsInfo info = {};
     auto ret = MxmServerMsgHandle::ShmQueryNode(request.get(), response.get(), info);
     ASSERT_EQ(ret, 0);
-    ASSERT_EQ(response->errCode_, MXM_ERR_LOCK_NOT_READY);
+    ASSERT_EQ(response->errCode_, 0);
 }
 
 TEST_F(ShmIpcHandlerTestSuite, TestShmAttachFail)

@@ -12,9 +12,9 @@
 #ifndef OCK_SERVICE_H
 #define OCK_SERVICE_H
 
+#include "ock_service_adapter.h"
 #include "service/service.h"
 #include "util/common_headers.h"
-#include "ock_service_adapter.h"
 
 namespace ock {
 namespace daemon {
@@ -91,7 +91,7 @@ private:
     void *GetAgentMethodP(const std::string &name);
     void *GetAgentDefaultedMethodP(const std::string &name);
 };
-}
-}
+} // namespace daemon
+} // namespace ock
 
 #endif

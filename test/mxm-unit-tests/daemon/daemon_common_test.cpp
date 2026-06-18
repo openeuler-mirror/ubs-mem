@@ -7,33 +7,34 @@
 #include "daemon_test_common.h"
 
 using namespace ock::common;
-using namespace ock::utilities::log;
 using namespace UT::Daemon;
 
 namespace UT {
 TEST(daemon_common, configuration)
 {
     Configuration::DestroyInstance();
-    DaemonTestCommon::CreateConf(
-        "ubsm.server.log.path = " + DaemonTestCommon::CWD() + "/log\n"
-        "ubsm.server.log.level = DEBUG\n"
-        "ubsm.server.log.rotation.file.size = 200\n"
-        "ubsm.server.log.rotation.file.count = 100\n"
-        "ubsm.server.audit.enable = on\n"
-        "ubsm.server.audit.log.path = " + DaemonTestCommon::CWD() + "/log/../log/\n"
-        "ubsm.server.audit.log.rotation.file.count = 100\n"
-        "ubsm.server.audit.log.rotation.file.size = 400\n"
-        "ubsm.lock.enable = on\n"
-        "ubsm.lock.tls.enable = off\n"
-        "ubsm.lock.ub_token.enable = on\n"
-        "ubsm.lock.expire.time = 300\n"
-        "ubsm.server.lease.cache.enable = on\n"
-        "ubsm.hcom.max.connect.num = 128\n"
-        "ubsm.discovery.election.timeout = 1000\n"
-        "ubsm.discovery.min.nodes = 0\n"
-        "ubsm.server.tls.enable = off\n"
-        "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
-        "ubsm.performance.statistics.enable = off\n");
+    DaemonTestCommon::CreateConf("ubsm.server.log.path = " + DaemonTestCommon::CWD() +
+                                 "/log\n"
+                                 "ubsm.server.log.level = DEBUG\n"
+                                 "ubsm.server.log.rotation.file.size = 200\n"
+                                 "ubsm.server.log.rotation.file.count = 100\n"
+                                 "ubsm.server.audit.enable = on\n"
+                                 "ubsm.server.audit.log.path = " +
+                                 DaemonTestCommon::CWD() +
+                                 "/log/../log/\n"
+                                 "ubsm.server.audit.log.rotation.file.count = 100\n"
+                                 "ubsm.server.audit.log.rotation.file.size = 400\n"
+                                 "ubsm.lock.enable = on\n"
+                                 "ubsm.lock.tls.enable = off\n"
+                                 "ubsm.lock.ub_token.enable = on\n"
+                                 "ubsm.lock.expire.time = 300\n"
+                                 "ubsm.server.lease.cache.enable = on\n"
+                                 "ubsm.hcom.max.connect.num = 128\n"
+                                 "ubsm.discovery.election.timeout = 1000\n"
+                                 "ubsm.discovery.min.nodes = 0\n"
+                                 "ubsm.server.tls.enable = off\n"
+                                 "ubsm.server.tls.ciphersuits = aes_gcm_128\n"
+                                 "ubsm.performance.statistics.enable = off\n");
     char confPath[2048];
     auto ret = sprintf_s(confPath, sizeof(confPath), "%s/config/ubsmd.conf\0", DaemonTestCommon::CWD().c_str());
     EXPECT_GE(ret, 0);
@@ -160,4 +161,4 @@ TEST(daemon_common, KVParserTest)
     EXPECT_EQ(HFAIL, ret);
     parser.Dump();
 }
-}  // namespace UT
+} // namespace UT

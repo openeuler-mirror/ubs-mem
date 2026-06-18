@@ -9,30 +9,31 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include "ock_daemon.h"
+#include <fcntl.h>
 #include <sys/mman.h>
+#include <syslog.h>
 #include <unistd.h>
+#include <algorithm>
 #include <csignal>
 #include <cstring>
-#include <string>
-#include <unistd.h>
 #include <iostream>
-#include <algorithm>
+#include <string>
 #include <thread>
-#include "record_store.h"
 #include "dlock_config.h"
 #include "dlock_context.h"
-#include "ubsm_lock.h"
-#include "ubs_mem_monitor.h"
-#include "ubsm_ptracer.h"
-#include "ubs_common_config.h"
-#include "ubsm_lock_event.h"
-#include "zen_discovery.h"
-#include "ubse_mem_adapter.h"
+#include "logger/ubsmem_logger_manager.h"
 #include "mxm_rpc_server_interface.h"
+#include "record_store.h"
 #include "rpc_server.h"
-#include "ubsm_thread_pool.h"
+#include "ubs_common_config.h"
+#include "ubs_mem_monitor.h"
+#include "ubse_mem_adapter.h"
 #include "ubsm_lock.h"
-#include "ock_daemon.h"
+#include "ubsm_lock_event.h"
+#include "ubsm_ptracer.h"
+#include "ubsm_thread_pool.h"
+#include "zen_discovery.h"
 
 static constexpr int KEEP_ALIVE_DIVIDE = 2;
 
@@ -48,8 +49,7 @@ OCKDaemonPtr OckDaemon::mDaemon = nullptr;
 const auto DAEMON_CONF_FILE = std::string("ubsmd.conf");
 const auto BIN_PATH_HEADER = std::string("-binpath=");
 constexpr int MB_MULTIPLER = 1024 * 1024;
-OckDaemon::OckDaemon()
-    : mHtracerEnable(false)
+OckDaemon::OckDaemon() : mHtracerEnable(false)
 {
     mDaemon = this;
     mDaemon->mStatus = ServerStatus::UNINITIALIZED;
@@ -58,10 +58,12 @@ OckDaemon::OckDaemon()
 OckDaemon::~OckDaemon()
 {
     StoppedKeepAlive();
-    ock::utilities::log::ULog::Flush();
+    ubsmem::log::UbsmemLoggerManager::Destroy();
+    mDaemon->SetRefCount(0);
+    mDaemon = nullptr;
 }
 
-HRESULT OckDaemon::CheckParam(const std::string& binPath)
+HRESULT OckDaemon::CheckParam(const std::string &binPath)
 {
     if (CheckBinPath(binPath.c_str()) != 0) {
         return HFAIL;
@@ -69,7 +71,7 @@ HRESULT OckDaemon::CheckParam(const std::string& binPath)
     return HOK;
 }
 
-HRESULT OckDaemon::CheckBinPath(const char* binPath)
+HRESULT OckDaemon::CheckBinPath(const char *binPath)
 {
     if (binPath == nullptr) {
         std::cerr << "Failed to get binpath." << std::endl;
@@ -97,7 +99,7 @@ HRESULT OckDaemon::CheckBinPath(const char* binPath)
     return HOK;
 }
 
-HRESULT OckDaemon::GetConfPath(std::string& confPath)
+HRESULT OckDaemon::GetConfPath(std::string &confPath)
 {
     confPath = mHomePath;
     confPath += "/config/" + DAEMON_CONF_FILE;
@@ -179,8 +181,8 @@ HRESULT OckDaemon::InitHtrace()
         DBG_LOGERROR("Fail to load configuration.");
         return HFAIL;
     }
-    std::string htraceEnable = mConf->GetString(
-        ock::common::ConfConstant::MXMD_SEVER_PERFORMANCE_STATISTICS_ENABLE.first);
+    std::string htraceEnable =
+        mConf->GetString(ock::common::ConfConstant::MXMD_SEVER_PERFORMANCE_STATISTICS_ENABLE.first);
     if (htraceEnable == "on") {
         mHtracerEnable = true;
         int hr = ubsm::tracer::UbsmPtracer::Init();
@@ -227,7 +229,7 @@ HRESULT OckDaemon::InitHandler()
     return HOK;
 }
 
-HRESULT OckDaemon::ValidateConfiguration(const std::string& confPath)
+HRESULT OckDaemon::ValidateConfiguration(const std::string &confPath)
 {
     if (mConf == nullptr) {
         std::cerr << "Fail to load configuration" << std::endl;
@@ -236,7 +238,7 @@ HRESULT OckDaemon::ValidateConfiguration(const std::string& confPath)
     std::vector<std::string> validationError = mConf->ValidateDaemonConf();
     if (!(validationError.empty())) {
         std::cerr << "Wrong configuration in file <" << confPath << ">, because of following mistakes:" << std::endl;
-        for (auto& item : validationError) {
+        for (auto &item : validationError) {
             std::cout << item << std::endl;
         }
         return HFAIL;
@@ -328,7 +330,7 @@ HRESULT OckDaemon::CheckServicesCount()
     return HOK;
 }
 
-HRESULT OckDaemon::Start(const std::chrono::time_point<std::chrono::steady_clock>& start)
+HRESULT OckDaemon::Start(const std::chrono::time_point<std::chrono::steady_clock> &start)
 {
     PrintStartTime(start, "START");
     common::systemd::NotifyReady();
@@ -360,7 +362,7 @@ int32_t OckDaemon::InitializeRpcServer()
 
 void OckDaemon::ConfigureDLock()
 {
-    auto& cfg = dlock_utils::DLockContext::Instance().GetConfig();
+    auto &cfg = dlock_utils::DLockContext::Instance().GetConfig();
     cfg.dlockDevName = mConf->GetString(ock::common::ConfConstant::MXMD_LOCK_DEV_NAME.first);
     cfg.dlockDevEid = mConf->GetString(ock::common::ConfConstant::MXMD_LOCK_DEV_EID.first);
     cfg.lockExpireTime = mConf->GetInt(ock::common::ConfConstant::MXMD_LOCK_EXPIRE_TIME.first);
@@ -451,7 +453,7 @@ int32_t OckDaemon::InitLockTlsConfig()
 
     auto errors = mConf->ValidateFilePath(paths);
     if (!errors.empty()) {
-        for (auto& err : errors) {
+        for (auto &err : errors) {
             DBG_LOGERROR("Check dlock tls path failed: " << err);
         }
         return HFAIL;
@@ -492,7 +494,7 @@ int32_t OckDaemon::InitRpcTlsConfig()
     paths.push_back(std::make_pair(keypassPath, true));
     auto errors = mConf->ValidateFilePath(paths);
     if (!errors.empty()) {
-        for (auto& err : errors) {
+        for (auto &err : errors) {
             DBG_LOGERROR("Check tls path failed: " << err);
         }
         return HFAIL;
@@ -526,6 +528,11 @@ HRESULT OckDaemon::CheckUbseStatus()
         }
     } while (ret != HOK);
 
+    uint32_t nodeId = {UINT32_MAX};
+    ret = mxm::UbseMemAdapter::EnsureGetLocalNodeId(nodeId);
+    if (ret != HOK) {
+        DBG_LOGWARN("Failed to get local node id.");
+    }
     DBG_LOGINFO("UBS Engine is ready.");
     return HOK;
 }
@@ -616,7 +623,7 @@ HRESULT OckDaemon::Wait()
         DBG_LOGERROR("Daemon haven't started up, cannot start services.");
         return HFAIL;
     }
-    mDaemon->mStatus = ServerStatus::WAITING;  // 设置等待状态
+    mDaemon->mStatus = ServerStatus::WAITING; // 设置等待状态
 
     std::unique_lock<std::mutex> lock(mDaemon->mMutex);
     mDaemon->mCV.wait(lock, [this] {
@@ -650,7 +657,7 @@ void OckDaemon::TryStop()
         mDaemon->mStatus = ServerStatus::INITIALIZED;
     }
     mDaemon->mCV.notify_all();
-    ZenDiscovery* zenDiscovery = ZenDiscovery::GetInstance();
+    ZenDiscovery *zenDiscovery = ZenDiscovery::GetInstance();
     if (zenDiscovery != nullptr) {
         zenDiscovery->Stop();
     }
@@ -719,17 +726,18 @@ void OckDaemon::StoppedKeepAlive()
     }
 }
 
-
 HRESULT OckDaemon::RegisterSignalHandler()
 {
-    struct sigaction saUsr{};
+    struct sigaction saUsr {
+    };
     saUsr.sa_handler = &OckDaemon::HandleSignal;
     if (sigaction(SIGTERM, &saUsr, nullptr) < 0) {
         DBG_LOGERROR("Register signal SIGTERM failed. errno(" << errno << "). ");
         return HFAIL;
     }
 
-    struct sigaction saUsr1{};
+    struct sigaction saUsr1 {
+    };
     saUsr1.sa_handler = &OckDaemon::HandleSigpipe;
     if (sigaction(SIGPIPE, &saUsr1, nullptr) < 0) {
         DBG_LOGERROR("Register signal SIGTERM failed. errno(" << errno << "). ");
@@ -753,7 +761,7 @@ void OckDaemon::HandleSigpipe(int signum)
     DBG_LOGWARN("get Signal SIGPIPE");
 }
 
-bool OckDaemon::GenerateShareMemory(const std::string& shmName) noexcept
+bool OckDaemon::GenerateShareMemory(const std::string &shmName) noexcept
 {
     int fd = shm_open(shmName.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
     if (fd < 0) {
@@ -764,12 +772,12 @@ bool OckDaemon::GenerateShareMemory(const std::string& shmName) noexcept
     return true;
 }
 
-void OckDaemon::PrintStartTime(const std::chrono::time_point<std::chrono::steady_clock>& start, const std::string& log)
+void OckDaemon::PrintStartTime(const std::chrono::time_point<std::chrono::steady_clock> &start, const std::string &log)
 {
     auto end = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
     double seconds = duration.count();
     syslog(LOG_INFO, "The process %s cost is %f s", log.c_str(), seconds);
 }
-}  // namespace daemon
-}  // namespace ock
+} // namespace daemon
+} // namespace ock

@@ -4,11 +4,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include "ubs_engine.h"
+#include "ubs_engine_log.h"
 #include "ubs_engine_mem.h"
 #include "ubs_engine_topo.h"
 #include "ubs_error.h"
-#include "ubs_engine_log.h"
-#include "ubs_engine.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -24,7 +24,7 @@ typedef struct {
     ubs_mem_shm_desc_t desc;
 } shm_desc_entry_t;
 
-static shm_desc_entry_t global_shm_descs[MXE_DESCS_NUM];  // 全局内存描述信息
+static shm_desc_entry_t global_shm_descs[MXE_DESCS_NUM]; // 全局内存描述信息
 static uint32_t global_shm_desc_count = 0;
 
 // 检查name是否存在
@@ -118,6 +118,13 @@ int32_t ubs_engine_client_initialize(const char *ubse_uds_path)
 
 void ubs_engine_client_finalize() {}
 
+static constexpr const char *NOT_SUPPORTED_TRIGGER = "_NOT_SUPPORTED";
+
+static bool IsNotSupportedName(const char *name)
+{
+    return name != nullptr && strstr(name, NOT_SUPPORTED_TRIGGER) != nullptr;
+}
+
 // 预设节点列表
 static ubs_topo_node_t mock_nodes[2];
 // 初始化函数
@@ -191,7 +198,7 @@ int32_t ubs_mem_numastat_get(uint32_t slot_id, ubs_mem_numastat_t **numa_mems, u
     if (!numa_mems || !numa_mem_cnt)
         return UBS_ERR_NULL_POINTER;
     if (slot_id != 1 && slot_id != 2) {
-        return UBS_ENGINE_ERR_CONNECTION_FAILED;  // 模拟节点不存在
+        return UBS_ENGINE_ERR_CONNECTION_FAILED; // 模拟节点不存在
     }
 
     *numa_mem_cnt = 1;
@@ -204,7 +211,7 @@ int32_t ubs_mem_numastat_get(uint32_t slot_id, ubs_mem_numastat_t **numa_mems, u
     (*numa_mems)[0].numa_id = 0;
     (*numa_mems)[0].numa_type = NUMA_LOCAL;
     (*numa_mems)[0].mem_lend_ratio = 50UL;
-    (*numa_mems)[0].mem_total = 1024UL * 1024UL * 1024UL;  // 1GB
+    (*numa_mems)[0].mem_total = 1024UL * 1024UL * 1024UL; // 1GB
     (*numa_mems)[0].mem_free = 512UL * 1024UL * 1024UL;
     (*numa_mems)[0].huge_pages_2M = 1024UL;
     (*numa_mems)[0].free_huge_pages_2M = 512UL;
@@ -327,6 +334,10 @@ int32_t ubs_mem_fd_create_with_candidate(const char *name, uint64_t size, const 
         return UBS_ERR_NULL_POINTER;
     }
 
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
+    }
+
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
         return UBS_ENGINE_ERR_OUT_OF_RANGE;
     }
@@ -345,7 +356,7 @@ int32_t ubs_mem_fd_create_with_candidate(const char *name, uint64_t size, const 
     fd_desc->name[UBS_MEM_MAX_NAME_LENGTH] = '\0';
 
     fd_desc->memid_cnt = 1UL;
-    fd_desc->memids[0] = 1003UL;  // 假设唯一memid
+    fd_desc->memids[0] = 1003UL; // 假设唯一memid
     fd_desc->mem_size = size;
     fd_desc->unit_size = 1024UL * 1024UL;
 
@@ -360,7 +371,7 @@ int32_t ubs_mem_fd_create_with_candidate(const char *name, uint64_t size, const 
     }
 
     if (!export_node) {
-        return UBS_ERR_OUT_OF_RANGE;  // 模拟无法找到候选节点
+        return UBS_ERR_OUT_OF_RANGE; // 模拟无法找到候选节点
     }
 
     // 设置 export_node 的信息
@@ -370,7 +381,7 @@ int32_t ubs_mem_fd_create_with_candidate(const char *name, uint64_t size, const 
     strncpy(fd_desc->export_node.host_name, export_node->host_name, sizeof(fd_desc->export_node.host_name));
 
     // 设置 import_node
-    uint32_t import_slot_id = slot_ids[0];  // 假设 import_node 也是在候选节点里
+    uint32_t import_slot_id = slot_ids[0]; // 假设 import_node 也是在候选节点里
     const ubs_topo_node_t *import_node = NULL;
     for (size_t i = 0; i < sizeof(mock_nodes) / sizeof(mock_nodes[0]); i++) {
         if (mock_nodes[i].slot_id == import_slot_id) {
@@ -380,7 +391,7 @@ int32_t ubs_mem_fd_create_with_candidate(const char *name, uint64_t size, const 
     }
 
     if (!import_node) {
-        return UBS_ERR_OUT_OF_RANGE;  // 模拟无法找到候选节点
+        return UBS_ERR_OUT_OF_RANGE; // 模拟无法找到候选节点
     } else {
         fd_desc->import_node.slot_id = import_node->slot_id;
         fd_desc->import_node.socket_id[0] = import_node->socket_id[0];
@@ -396,6 +407,10 @@ int32_t ubs_mem_fd_create_with_lender(const char *name, const ubs_mem_fd_owner_t
 {
     if (!name || !lender || !fd_desc) {
         return UBS_ERR_NULL_POINTER;
+    }
+
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
     }
 
     if (lender->lender_size == 0) {
@@ -415,7 +430,7 @@ int32_t ubs_mem_fd_create_with_lender(const char *name, const ubs_mem_fd_owner_t
     fd_desc->name[UBS_MEM_MAX_NAME_LENGTH] = '\0';
 
     fd_desc->memid_cnt = 1UL;
-    fd_desc->memids[0] = 1003UL;  // 假设唯一memid
+    fd_desc->memids[0] = 1003UL; // 假设唯一memid
     fd_desc->mem_size = lender->lender_size;
     fd_desc->unit_size = 1024UL * 1024UL;
 
@@ -436,7 +451,7 @@ int32_t ubs_mem_fd_create_with_lender(const char *name, const ubs_mem_fd_owner_t
     strncpy(fd_desc->export_node.host_name, export_node->host_name, sizeof(fd_desc->export_node.host_name));
 
     // 设置 import_node
-    uint32_t import_slot_id = lender->slot_id + 1;  // 假设 import_node 是export的下个节点
+    uint32_t import_slot_id = lender->slot_id + 1; // 假设 import_node 是export的下个节点
     const ubs_topo_node_t *import_node = NULL;
     for (size_t i = 0; i < sizeof(mock_nodes) / sizeof(mock_nodes[0]); i++) {
         if (mock_nodes[i].slot_id == import_slot_id) {
@@ -446,7 +461,7 @@ int32_t ubs_mem_fd_create_with_lender(const char *name, const ubs_mem_fd_owner_t
     }
 
     if (!import_node) {
-        return UBS_ERR_OUT_OF_RANGE;  // 模拟无法找到候选节点
+        return UBS_ERR_OUT_OF_RANGE; // 模拟无法找到候选节点
     } else {
         fd_desc->import_node.slot_id = import_node->slot_id;
         fd_desc->import_node.socket_id[0] = import_node->socket_id[0];
@@ -478,6 +493,10 @@ int32_t ubs_mem_fd_delete(const char *name)
 {
     if (!name) {
         return UBS_ERR_NULL_POINTER;
+    }
+
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
     }
 
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
@@ -601,6 +620,10 @@ int32_t ubs_mem_numa_create_with_candidate(const char *name, uint64_t size, cons
         return UBS_ERR_NULL_POINTER;
     }
 
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
+    }
+
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
         return UBS_ENGINE_ERR_OUT_OF_RANGE;
     }
@@ -618,7 +641,7 @@ int32_t ubs_mem_numa_create_with_candidate(const char *name, uint64_t size, cons
     numa_desc->numaid = next_numaid++;
 
     // 模拟export_node和import_node
-    numa_desc->export_node.slot_id = slot_ids[0];  // 选择第一个候选节点
+    numa_desc->export_node.slot_id = slot_ids[0]; // 选择第一个候选节点
     numa_desc->export_node.socket_id[0] = 0;
     numa_desc->export_node.socket_id[1UL] = 1UL;
     strcpy(numa_desc->export_node.host_name, "export-node");
@@ -635,12 +658,15 @@ int32_t ubs_mem_numa_create_with_candidate(const char *name, uint64_t size, cons
     return UBS_SUCCESS;
 }
 
-
 int32_t ubs_mem_numa_create_with_lender(const char *name, const ubs_mem_lender_t *lender, uint32_t lender_cnt,
                                         ubs_mem_numa_desc_t *numa_desc)
 {
     if (!name || !lender || !numa_desc) {
         return UBS_ERR_NULL_POINTER;
+    }
+
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
     }
 
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
@@ -705,6 +731,9 @@ int32_t ubs_mem_numa_delete(const char *name)
     if (!name) {
         return UBS_ERR_NULL_POINTER;
     }
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
+    }
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
         return UBS_ENGINE_ERR_OUT_OF_RANGE;
     }
@@ -721,6 +750,10 @@ int32_t ubs_mem_shm_create(const char *name, uint64_t size, uint8_t usr_info[32]
     printf("in ubse_mem_shm_create1\n");
     if (!name || !region || !usr_info) {
         return UBS_ERR_NULL_POINTER;
+    }
+
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
     }
 
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
@@ -772,6 +805,10 @@ int32_t ubs_mem_shm_create_with_lender(const char *name, uint8_t usr_info[UBS_ME
 {
     if (!name || !usr_info || !lender) {
         return UBS_ERR_NULL_POINTER;
+    }
+
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
     }
 
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
@@ -840,6 +877,10 @@ int32_t ubs_mem_shm_create_with_affinity(const char *name, uint64_t size, uint32
     printf("in ubs_mem_shm_create_with_affinity\n");
     if (!name || !region || !usr_info) {
         return UBS_ERR_NULL_POINTER;
+    }
+
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
     }
 
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
@@ -913,6 +954,9 @@ int32_t ubs_mem_shm_attach(const char *name, const ubs_mem_fd_owner_t *owner, mo
     if (!name || !shm_desc) {
         return UBS_ERR_NULL_POINTER;
     }
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
+    }
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
         return UBS_ENGINE_ERR_OUT_OF_RANGE;
     }
@@ -967,11 +1011,11 @@ int32_t ubs_mem_shm_get(const char *name, ubs_mem_shm_desc_t **shm_desc)
     printf("in ubse_mem_shm_get\n");
     // 2. 获取 import_desc_cnt 和匹配的索引 i
     uint32_t import_desc_cnt = 0;
-    uint32_t found_index = 0;  // 保存匹配的索引
+    uint32_t found_index = 0; // 保存匹配的索引
     for (uint32_t i = 0; i < global_shm_desc_count; i++) {
         if (strcmp(global_shm_descs[i].name, name) == 0) {
             import_desc_cnt = global_shm_descs[i].desc.import_desc_cnt;
-            found_index = i;  // 保存匹配的索引
+            found_index = i; // 保存匹配的索引
             break;
         }
     }
@@ -1005,6 +1049,9 @@ int32_t ubs_mem_shm_detach(const char *name)
     if (!name) {
         return UBS_ERR_NULL_POINTER;
     }
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
+    }
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
         return UBS_ENGINE_ERR_OUT_OF_RANGE;
     }
@@ -1019,6 +1066,10 @@ int32_t ubs_mem_shm_delete(const char *name)
 {
     if (!name) {
         return UBS_ERR_NULL_POINTER;
+    }
+
+    if (IsNotSupportedName(name)) {
+        return UBS_ERR_NOT_SUPPORTED;
     }
 
     if (strlen(name) > UBS_MEM_MAX_NAME_LENGTH) {
@@ -1055,16 +1106,14 @@ int32_t ubs_mem_numa_list(ubs_mem_numa_desc_t **numa_descs, uint32_t *numa_desc_
     return UBS_SUCCESS;
 }
 
-void ubs_engine_log_callback_register(ubs_engine_log_handler handler)
-{
-}
+void ubs_engine_log_callback_register(ubs_engine_log_handler handler) {}
 
 int32_t ubs_mem_shm_fault_register(ubs_mem_shm_fault_handler handler)
 {
     return UBS_SUCCESS;
 }
 
-}  // namespace UT
+} // namespace UT
 #ifdef __cplusplus
 }
 #endif

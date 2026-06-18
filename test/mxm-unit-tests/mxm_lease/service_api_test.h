@@ -23,5 +23,5 @@ public:
         GlobalMockObject::reset();
     };
 };
-}  // namespace UT
+} // namespace UT
 #endif // SERVICE_API_TEST_H

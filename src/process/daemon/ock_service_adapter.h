@@ -14,9 +14,9 @@
 
 #include <string>
 #include <vector>
-#include "util/common_headers.h"
+#include "log.h"
 #include "service/service.h"
-#include "ulog/log.h"
+#include "util/common_headers.h"
 
 namespace ock {
 namespace daemon {
@@ -37,19 +37,19 @@ public:
     {
         return mArgc;
     }
- 
-    char** Argv() const
+
+    char **Argv() const
     {
         return mArgv;
     }
+
 private:
     int mArgc = 0;
     char **mArgv = nullptr;
 };
 class OckServiceAdapter {
 public:
-    OckServiceAdapter(const std::string &name, const std::string &libPath)
-        : mName(name), mLibPath(libPath) {}
+    OckServiceAdapter(const std::string &name, const std::string &libPath) : mName(name), mLibPath(libPath) {}
     ~OckServiceAdapter() = default;
 
     std::string Name() const
@@ -68,6 +68,6 @@ protected:
     std::string mName;
     std::string mLibPath;
 };
-}
-}
+} // namespace daemon
+} // namespace ock
 #endif // OCK_SERVICE_ADAPTER_H

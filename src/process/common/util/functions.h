@@ -12,25 +12,25 @@
 #ifndef OCK_COMMON_COMMON_UTIL_FUNCTIONS_H
 #define OCK_COMMON_COMMON_UTIL_FUNCTIONS_H
 
+#include <regex.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <algorithm>
 #include <climits>
 #include <cmath>
 #include <cstring>
 #include <ctime>
 #include <fstream>
-#include <regex.h>
-#include <set>
-#include <string>
-#include <random>
-#include <sys/types.h>
-#include <vector>
 #include <list>
-#include <unistd.h>
+#include <random>
+#include <set>
 #include <sstream>
+#include <string>
 #include <unordered_map>
-#include <algorithm>
+#include <vector>
 
-#include "defines.h"
 #include <securec.h>
+#include "defines.h"
 
 namespace ock {
 namespace common {
@@ -38,7 +38,6 @@ constexpr float EPSINON = 0.000001;
 
 void OckTrimString(std::string &str);
 std::string OckGetHostname();
-
 
 // filesystem function set
 bool OckFileDirExists(const std::string &path);
@@ -79,9 +78,7 @@ HRESULT CreateArgs(int &newArgc, char **&newArgv, const std::vector<std::string>
 
 void DeleteStrArray(int count, char **&array);
 
-const std::unordered_map<std::string, bool> Str2Bool{
-    {"0", false}, {"1", true},
-    {"false", false}, {"true", true}};
+const std::unordered_map<std::string, bool> Str2Bool{{"0", false}, {"1", true}, {"false", false}, {"true", true}};
 
 inline bool IsBool(const std::string &str, bool &value)
 {

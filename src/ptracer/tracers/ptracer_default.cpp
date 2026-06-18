@@ -107,7 +107,8 @@ void DefaultTracer::OverrideWrite(std::stringstream &ss)
 void DefaultTracer::WriteTracepoints(std::stringstream &ss)
 {
     size_t filesize = 0;
-    struct stat statbuf{};
+    struct stat statbuf {
+    };
     if (stat(dumpFilePath_.c_str(), &statbuf) != 0) {
         if (errno != ENOENT) {
             return;
@@ -235,6 +236,6 @@ void DefaultTracer::RunInThread()
         DumpTracepoints();
     }
 }
-}  // namespace tracer
-}  // namespace ubsm
-}  // namespace ock
+} // namespace tracer
+} // namespace ubsm
+} // namespace ock

@@ -15,11 +15,12 @@
 #include <map>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 
+#include "log.h"
 #include "record_store_def.h"
 #include "ubs_common_types.h"
-#include "ulog/log.h"
 
 namespace ock::share::service {
 
@@ -33,7 +34,7 @@ struct AttachedShareMemory {
 
 class SHMManager {
 public:
-    static SHMManager& GetInstance()
+    static SHMManager &GetInstance()
     {
         static SHMManager instance;
         return instance;
@@ -44,11 +45,11 @@ public:
     /*
      * 增加应用引用计数
      */
-    int32_t AddMemoryUserInfo(const std::string& name, pid_t userProcessId);
+    int32_t AddMemoryUserInfo(const std::string &name, pid_t userProcessId);
     /*
      * 减少应用应用计数
      */
-    int32_t RemoveMemoryUserInfo(const std::string& name, pid_t userProcessId);
+    int32_t RemoveMemoryUserInfo(const std::string &name, pid_t userProcessId);
 
     int32_t PrepareAddShareMemoryInfo(const std::string &name, size_t size, pid_t processId);
 
@@ -78,20 +79,21 @@ public:
     static int32_t Recovery();
 
     std::unordered_set<pid_t> GetAllUsers();
+
 private:
-    int RemovePreAddRecord(const ubsm::ShareMemImportInfo& record, bool &needToDelete);
-    int RollbackPreDeleteRecord(const ubsm::ShareMemImportInfo& record, ubsm::RecordState &state);
+    int RemovePreAddRecord(const ubsm::ShareMemImportInfo &record, bool &needToDelete);
+    int RollbackPreDeleteRecord(const ubsm::ShareMemImportInfo &record, ubsm::RecordState &state);
     SHMManager() = default;
 
     int32_t RecoverFromRecord();
     int32_t RecoverFromRefRecord();
-    SHMManager(const SHMManager& other) = delete;
-    SHMManager(SHMManager&& other) = delete;
-    SHMManager& operator=(const SHMManager& other) = delete;
-    SHMManager& operator=(SHMManager&& other) noexcept = delete;
+    SHMManager(const SHMManager &other) = delete;
+    SHMManager(SHMManager &&other) = delete;
+    SHMManager &operator=(const SHMManager &other) = delete;
+    SHMManager &operator=(SHMManager &&other) noexcept = delete;
 
     std::mutex mapMutex_{};
     std::unordered_map<std::string, AttachedShareMemory> attachedShareMemory_{};
 };
-}  // namespace ock::share::service
-#endif  // OCK_MEM_SHARE_MANAGER_H
+} // namespace ock::share::service
+#endif // OCK_MEM_SHARE_MANAGER_H

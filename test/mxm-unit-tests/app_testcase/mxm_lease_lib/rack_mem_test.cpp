@@ -3,12 +3,12 @@
  */
 
 #include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
 #include <numaif.h>
+#include <mockcpp/mockcpp.hpp>
 
 #include "RackMem.h"
-#include "rack_mem_fd_map.h"
 #include "ipc_command.h"
+#include "rack_mem_fd_map.h"
 
 #define MOCKER_CPP(api, TT) (MOCKCPP_NS::mockAPI((#api), (reinterpret_cast<TT>(api))))
 namespace UT {
@@ -16,8 +16,7 @@ using namespace ock::mxmd;
 constexpr uint64_t MOCK_FILE_LEN = 4096;
 
 class RackMemTestSuite : public testing::Test {
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
     void TearDown() override
     {
@@ -46,7 +45,7 @@ TEST_F(RackMemTestSuite, TestMemoryIDUsedByNumaMmapFailed)
     size_t unitSize = 8;
     std::string cachedName = "mockName";
 
-    MOCKER(SystemAdapter::MemoryMap).stubs().will(returnValue((void*) -1));
+    MOCKER(SystemAdapter::MemoryMap).stubs().will(returnValue((void *)-1));
 
     auto ret = RackMem::GetInstance().MemoryIDUsedByNuma(desc, memIds, numaId, unitSize, cachedName);
     ASSERT_EQ(ret, nullptr);
@@ -60,8 +59,8 @@ TEST_F(RackMemTestSuite, TestMemoryIDUsedByNumaMbindFailed)
     size_t unitSize = 8;
     std::string cachedName = "mockName";
 
-    MOCKER(SystemAdapter::MemoryMap).stubs() .will(returnValue((void*) 0x12345678));
-    MOCKER(SystemAdapter::MemoryBind).stubs() .will(returnValue(-1));
+    MOCKER(SystemAdapter::MemoryMap).stubs().will(returnValue((void *)0x12345678));
+    MOCKER(SystemAdapter::MemoryBind).stubs().will(returnValue(-1));
     MOCKER(SystemAdapter::MemoryUnMap).stubs().with(any(), any()).will(returnValue(0));
 
     auto ret = RackMem::GetInstance().MemoryIDUsedByNuma(desc, memIds, numaId, unitSize, cachedName);
@@ -76,9 +75,9 @@ TEST_F(RackMemTestSuite, TestMemoryIDUsedByNumaStorageMetaFailed)
     size_t unitSize = 8;
     std::string cachedName = "mockName";
 
-    MOCKER(SystemAdapter::MemoryMap).stubs() .will(returnValue((void*) 0x12345678));
-    MOCKER(SystemAdapter::MemoryBind).stubs() .will(returnValue(0));
-    MOCKER_CPP(&BorrowAppMetaMgr::AddMeta, uint32_t(*)(const void* addr, const AppBorrowMetaDesc& desc))
+    MOCKER(SystemAdapter::MemoryMap).stubs().will(returnValue((void *)0x12345678));
+    MOCKER(SystemAdapter::MemoryBind).stubs().will(returnValue(0));
+    MOCKER_CPP(&BorrowAppMetaMgr::AddMeta, uint32_t(*)(const void *addr, const AppBorrowMetaDesc &desc))
         .stubs()
         .will(returnValue(1));
 
@@ -94,14 +93,14 @@ TEST_F(RackMemTestSuite, TestMemoryIDUsedByNumaAllSuccess)
     size_t unitSize = 8;
     std::string cachedName = "mockName";
 
-    MOCKER(SystemAdapter::MemoryMap).stubs() .will(returnValue((void*) 0x12345678));
-    MOCKER(SystemAdapter::MemoryBind).stubs() .will(returnValue(0));
-    MOCKER_CPP(&BorrowAppMetaMgr::AddMeta, uint32_t(*)(const void* addr, const AppBorrowMetaDesc& desc))
+    MOCKER(SystemAdapter::MemoryMap).stubs().will(returnValue((void *)0x12345678));
+    MOCKER(SystemAdapter::MemoryBind).stubs().will(returnValue(0));
+    MOCKER_CPP(&BorrowAppMetaMgr::AddMeta, uint32_t(*)(const void *addr, const AppBorrowMetaDesc &desc))
         .stubs()
         .will(returnValue(0));
 
     auto ret = RackMem::GetInstance().MemoryIDUsedByNuma(desc, memIds, numaId, unitSize, cachedName);
-    ASSERT_EQ(ret, (void*) 0x12345678);
+    ASSERT_EQ(ret, (void *)0x12345678);
 }
 
 TEST_F(RackMemTestSuite, TestMemoryIDUsedByFdFileMapByTotalSizeFailed)
@@ -111,7 +110,7 @@ TEST_F(RackMemTestSuite, TestMemoryIDUsedByFdFileMapByTotalSizeFailed)
     size_t unitSize = 8;
     std::string name = "test";
 
-    MOCKER_CPP(&RackMemFdMap::FileMapByTotalSize, uint32_t(*)(uint64_t, void * &, int))
+    MOCKER_CPP(&RackMemFdMap::FileMapByTotalSize, uint32_t(*)(uint64_t, void *&, int))
         .stubs()
         .with(any(), any(), any())
         .will(returnValue(1));
@@ -128,7 +127,7 @@ TEST_F(RackMemTestSuite, TestMemoryIDUsedByFdObmmOpenFailed)
     std::string name = "test";
 
     // Mock FileMapByTotalSize to succeed
-    MOCKER_CPP(&RackMemFdMap::FileMapByTotalSize, uint32_t(*)(uint64_t, void * &, int))
+    MOCKER_CPP(&RackMemFdMap::FileMapByTotalSize, uint32_t(*)(uint64_t, void *&, int))
         .stubs()
         .with(any(), any(), any())
         .will(returnValue(0));
@@ -148,7 +147,7 @@ TEST_F(RackMemTestSuite, TestMemoryIDUsedByFdMapForEachFdFailed)
     size_t unitSize = 8;
     std::string name = "test";
 
-    MOCKER_CPP(&RackMemFdMap::FileMapByTotalSize, uint32_t(*)(uint64_t, void * &, int))
+    MOCKER_CPP(&RackMemFdMap::FileMapByTotalSize, uint32_t(*)(uint64_t, void *&, int))
         .stubs()
         .with(any(), any(), any())
         .will(returnValue(0));
@@ -172,7 +171,7 @@ TEST_F(RackMemTestSuite, TestMemoryIDUsedByFdAddMetaFailed)
     size_t unitSize = 8;
     std::string name = "test";
 
-    MOCKER_CPP(&RackMemFdMap::FileMapByTotalSize, uint32_t(*)(uint64_t, void * &, int))
+    MOCKER_CPP(&RackMemFdMap::FileMapByTotalSize, uint32_t(*)(uint64_t, void *&, int))
         .stubs()
         .with(any(), any(), any())
         .will(returnValue(0));
@@ -182,7 +181,7 @@ TEST_F(RackMemTestSuite, TestMemoryIDUsedByFdAddMetaFailed)
         .stubs()
         .will(returnValue(0));
 
-    MOCKER_CPP(&BorrowAppMetaMgr::AddMeta, uint32_t(*)(const void*, const AppBorrowMetaDesc&))
+    MOCKER_CPP(&BorrowAppMetaMgr::AddMeta, uint32_t(*)(const void *, const AppBorrowMetaDesc &))
         .stubs()
         .will(returnValue(1));
 
@@ -198,14 +197,14 @@ TEST_F(RackMemTestSuite, TestMemoryIDUsedByFdSuccess)
     std::vector<uint64_t> memIds = {1, 2, 3};
     size_t unitSize = 8;
     std::string name = "test";
-    void* expectedAddr = reinterpret_cast<void*>(0x12345678);
+    void *expectedAddr = reinterpret_cast<void *>(0x12345678);
 
-    MOCKER(SystemAdapter::MemoryMap).stubs() .will(returnValue((void*) 0x12345678));
+    MOCKER(SystemAdapter::MemoryMap).stubs().will(returnValue((void *)0x12345678));
     MOCKER(ObmmOpenInternal).stubs().with(any(), any()).will(returnValue(0x123));
     MOCKER_CPP(&RackMemFdMap::MapForEachFd, uint32_t(*)(void *, size_t, int, int, int, off_t))
         .stubs()
         .will(returnValue(0));
-    MOCKER_CPP(&BorrowAppMetaMgr::AddMeta, uint32_t(*)(const void*, const AppBorrowMetaDesc&))
+    MOCKER_CPP(&BorrowAppMetaMgr::AddMeta, uint32_t(*)(const void *, const AppBorrowMetaDesc &))
         .stubs()
         .will(returnValue(0));
 
@@ -220,8 +219,8 @@ TEST_F(RackMemTestSuite, TestUbsMemMallocAppMallocMemoryFailed)
     PerfLevel level = PerfLevel::L0;
     uint64_t flags = 0;
 
-    MOCKER(static_cast<uint32_t (*)(std::shared_ptr<AppMallocMemoryRequest>& request,
-                                   std::shared_ptr<AppMallocMemoryResponse>& response)>(IpcCommand::AppMallocMemory))
+    MOCKER(static_cast<uint32_t (*)(std::shared_ptr<AppMallocMemoryRequest> & request,
+                                    std::shared_ptr<AppMallocMemoryResponse> & response)>(IpcCommand::AppMallocMemory))
         .stubs()
         .will(returnValue(1));
 
@@ -237,11 +236,11 @@ TEST_F(RackMemTestSuite, TestUbsMemMallocNonNumaMemIdsEmpty)
     PerfLevel level = PerfLevel::L0;
     uint64_t flags = 0;
 
-    MOCKER(static_cast<uint32_t (*)(std::shared_ptr<AppMallocMemoryRequest>& request,
-                                   std::shared_ptr<AppMallocMemoryResponse>& response)>(IpcCommand::AppMallocMemory))
+    MOCKER(static_cast<uint32_t (*)(std::shared_ptr<AppMallocMemoryRequest> & request,
+                                    std::shared_ptr<AppMallocMemoryResponse> & response)>(IpcCommand::AppMallocMemory))
         .stubs()
-        .will(invoke(+[](std::shared_ptr<AppMallocMemoryRequest>& req,
-                         std::shared_ptr<AppMallocMemoryResponse>& resp) -> uint32_t {
+        .will(invoke(+[](std::shared_ptr<AppMallocMemoryRequest> &req,
+                         std::shared_ptr<AppMallocMemoryResponse> &resp) -> uint32_t {
             resp->memIds_ = {};
             resp->unitSize_ = 8; // 8 为模拟的 uintSize
             resp->name_ = "test_name";
@@ -260,11 +259,11 @@ TEST_F(RackMemTestSuite, TestUbsMemMallocNumaPathFailed)
     PerfLevel level = PerfLevel::L0;
     uint64_t flags = UBSM_FLAG_MALLOC_WITH_NUMA;
 
-    MOCKER(static_cast<uint32_t (*)(std::shared_ptr<AppMallocMemoryRequest>& request,
-                                   std::shared_ptr<AppMallocMemoryResponse>& response)>(IpcCommand::AppMallocMemory))
+    MOCKER(static_cast<uint32_t (*)(std::shared_ptr<AppMallocMemoryRequest> & request,
+                                    std::shared_ptr<AppMallocMemoryResponse> & response)>(IpcCommand::AppMallocMemory))
         .stubs()
-        .will(invoke(+[](const std::shared_ptr<AppMallocMemoryRequest>& req,
-                         std::shared_ptr<AppMallocMemoryResponse>& resp) -> uint32_t {
+        .will(invoke(+[](const std::shared_ptr<AppMallocMemoryRequest> &req,
+                         std::shared_ptr<AppMallocMemoryResponse> &resp) -> uint32_t {
             resp->memIds_ = {1, 2, 3};
             resp->unitSize_ = 8; // 8 为模拟的 uintSize
             resp->numaId_ = 0;
@@ -272,10 +271,10 @@ TEST_F(RackMemTestSuite, TestUbsMemMallocNumaPathFailed)
             return 0;
         }));
 
-    MOCKER_CPP(&RackMem::MemoryIDUsedByNuma, void* (*)(AppBorrowMetaDesc & desc, const std::vector<uint64_t>& memIds,
-        int64_t numaId, size_t unitSize, const std::string& name))
+    MOCKER_CPP(&RackMem::MemoryIDUsedByNuma, void *(*)(AppBorrowMetaDesc & desc, const std::vector<uint64_t> &memIds,
+                                                       int64_t numaId, size_t unitSize, const std::string &name))
         .stubs()
-        .will(returnValue((void*) (nullptr)));
+        .will(returnValue((void *)(nullptr)));
 
     void *result = nullptr;
     auto ret = RackMem::GetInstance().UbsMemMalloc(region, size, level, flags, &result);
@@ -289,21 +288,21 @@ TEST_F(RackMemTestSuite, TestUbsMemMallocNonNumaPathFailed)
     PerfLevel level = PerfLevel::L0;
     uint64_t flags = 0;
 
-    MOCKER(static_cast<uint32_t (*)(std::shared_ptr<AppMallocMemoryRequest>& request,
-                                   std::shared_ptr<AppMallocMemoryResponse>& response)>(IpcCommand::AppMallocMemory))
+    MOCKER(static_cast<uint32_t (*)(std::shared_ptr<AppMallocMemoryRequest> & request,
+                                    std::shared_ptr<AppMallocMemoryResponse> & response)>(IpcCommand::AppMallocMemory))
         .stubs()
-        .will(invoke(+[](std::shared_ptr<AppMallocMemoryRequest>& req,
-                         std::shared_ptr<AppMallocMemoryResponse>& resp) -> uint32_t {
+        .will(invoke(+[](std::shared_ptr<AppMallocMemoryRequest> &req,
+                         std::shared_ptr<AppMallocMemoryResponse> &resp) -> uint32_t {
             resp->memIds_ = {1, 2, 3};
             resp->unitSize_ = 8; // 8 为模拟的 uintSize
             resp->name_ = "test_name";
             return 0;
         }));
 
-    MOCKER_CPP(&RackMem::MemoryIDUsedByFd, void* (*)(AppBorrowMetaDesc & desc, const std::vector<uint64_t>& memIds,
-        size_t unitSize, const std::string& name, uint64_t))
+    MOCKER_CPP(&RackMem::MemoryIDUsedByFd, void *(*)(AppBorrowMetaDesc & desc, const std::vector<uint64_t> &memIds,
+                                                     size_t unitSize, const std::string &name, uint64_t))
         .stubs()
-        .will(returnValue((void*) (nullptr)));
+        .will(returnValue((void *)(nullptr)));
 
     void *result = nullptr;
     auto ret = RackMem::GetInstance().UbsMemMalloc(region, size, level, flags, &result);
@@ -316,13 +315,13 @@ TEST_F(RackMemTestSuite, TestUbsMemMallocNumaPathSuccess)
     size_t size = MOCK_FILE_LEN;
     PerfLevel level = PerfLevel::L0;
     uint64_t flags = UBSM_FLAG_MALLOC_WITH_NUMA;
-    void* mockAddr = reinterpret_cast<void*>(0x12345678);
+    void *mockAddr = reinterpret_cast<void *>(0x12345678);
 
-    MOCKER(static_cast<uint32_t (*)(std::shared_ptr<AppMallocMemoryRequest>& request,
-                                   std::shared_ptr<AppMallocMemoryResponse>& response)>(IpcCommand::AppMallocMemory))
+    MOCKER(static_cast<uint32_t (*)(std::shared_ptr<AppMallocMemoryRequest> & request,
+                                    std::shared_ptr<AppMallocMemoryResponse> & response)>(IpcCommand::AppMallocMemory))
         .stubs()
-        .will(invoke(+[](std::shared_ptr<AppMallocMemoryRequest>& req,
-                         std::shared_ptr<AppMallocMemoryResponse>& resp) -> uint32_t {
+        .will(invoke(+[](std::shared_ptr<AppMallocMemoryRequest> &req,
+                         std::shared_ptr<AppMallocMemoryResponse> &resp) -> uint32_t {
             resp->memIds_ = {1, 2, 3};
             resp->unitSize_ = 8; // 8 为模拟的 uintSize
             resp->numaId_ = 0;
@@ -330,8 +329,8 @@ TEST_F(RackMemTestSuite, TestUbsMemMallocNumaPathSuccess)
             return 0;
         }));
 
-    MOCKER_CPP(&RackMem::MemoryIDUsedByNuma, void* (*)(AppBorrowMetaDesc & desc, const std::vector<uint64_t>& memIds,
-        int64_t numaId, size_t unitSize, const std::string& name))
+    MOCKER_CPP(&RackMem::MemoryIDUsedByNuma, void *(*)(AppBorrowMetaDesc & desc, const std::vector<uint64_t> &memIds,
+                                                       int64_t numaId, size_t unitSize, const std::string &name))
         .stubs()
         .will(returnValue(mockAddr));
 
@@ -346,21 +345,22 @@ TEST_F(RackMemTestSuite, TestUbsMemMallocNonNumaPathSuccess)
     size_t size = MOCK_FILE_LEN;
     PerfLevel level = PerfLevel::L0;
     uint64_t flags = 0;
-    void* mockAddr = reinterpret_cast<void*>(0x12345678);
+    void *mockAddr = reinterpret_cast<void *>(0x12345678);
 
-    MOCKER(static_cast<uint32_t (*)(std::shared_ptr<AppMallocMemoryRequest>& request,
-                                   std::shared_ptr<AppMallocMemoryResponse>& response)>(IpcCommand::AppMallocMemory))
+    MOCKER(static_cast<uint32_t (*)(std::shared_ptr<AppMallocMemoryRequest> & request,
+                                    std::shared_ptr<AppMallocMemoryResponse> & response)>(IpcCommand::AppMallocMemory))
         .stubs()
-        .will(invoke(+[](std::shared_ptr<AppMallocMemoryRequest>& req,
-                         std::shared_ptr<AppMallocMemoryResponse>& resp) -> uint32_t {
+        .will(invoke(+[](std::shared_ptr<AppMallocMemoryRequest> &req,
+                         std::shared_ptr<AppMallocMemoryResponse> &resp) -> uint32_t {
             resp->memIds_ = {1, 2, 3};
             resp->unitSize_ = 8; // 8 为模拟的 uintSize
             resp->name_ = "test_name";
             return 0;
         }));
 
-    MOCKER_CPP(&RackMem::MemoryIDUsedByFd, void* (*)(AppBorrowMetaDesc & desc, const std::vector<uint64_t>& memIds,
-        int64_t numaId, size_t unitSize, const std::string& name, uint64_t))
+    MOCKER_CPP(&RackMem::MemoryIDUsedByFd,
+               void *(*)(AppBorrowMetaDesc & desc, const std::vector<uint64_t> &memIds, int64_t numaId, size_t unitSize,
+                         const std::string &name, uint64_t))
         .stubs()
         .will(returnValue(mockAddr));
     void *result = nullptr;
@@ -370,16 +370,16 @@ TEST_F(RackMemTestSuite, TestUbsMemMallocNonNumaPathSuccess)
 
 TEST_F(RackMemTestSuite, TestUbsMemFreeNullPtr)
 {
-    void* ptr = nullptr;
+    void *ptr = nullptr;
     uint32_t result = RackMem::GetInstance().UbsMemFree(ptr);
     ASSERT_EQ(result, MXM_ERR_PARAM_INVALID);
 }
 
 TEST_F(RackMemTestSuite, TestUbsMemFreeGetMetaFailed)
 {
-    void* ptr = reinterpret_cast<void*>(0x12345678);
+    void *ptr = reinterpret_cast<void *>(0x12345678);
 
-    MOCKER_CPP(&BorrowAppMetaMgr::GetMeta, uint32_t(*)(const void* addr, AppBorrowMetaDesc&desc))
+    MOCKER_CPP(&BorrowAppMetaMgr::GetMeta, uint32_t(*)(const void *addr, AppBorrowMetaDesc &desc))
         .stubs()
         .will(returnValue(1));
 
@@ -389,14 +389,14 @@ TEST_F(RackMemTestSuite, TestUbsMemFreeGetMetaFailed)
 
 TEST_F(RackMemTestSuite, TestUbsMemFreeNonNumaNotUnmapped)
 {
-    void* ptr = reinterpret_cast<void*>(0x12345678);
+    void *ptr = reinterpret_cast<void *>(0x12345678);
 
     AppBorrowMetaDesc desc(0);
     desc.UpdateBorrowMetaDesc(std::vector<uint64_t>{}, MOCK_FILE_LEN, false, "testName");
 
     BorrowAppMetaMgr::GetInstance().AddMeta(ptr, desc);
 
-    MOCKER_CPP(&BorrowAppMetaMgr::GetMetaHasUnmapped, bool(*)(const void* addr)).stubs().will(returnValue(false));
+    MOCKER_CPP(&BorrowAppMetaMgr::GetMetaHasUnmapped, bool (*)(const void *addr)).stubs().will(returnValue(false));
 
     MOCKER(SystemAdapter::MemoryUnMap).stubs().will(returnValue(0));
 
@@ -410,14 +410,14 @@ TEST_F(RackMemTestSuite, TestUbsMemFreeNonNumaNotUnmapped)
 
 TEST_F(RackMemTestSuite, TestUbsMemFreeNonNumaMunmapFailed)
 {
-    void* ptr = reinterpret_cast<void*>(0x12345678);
+    void *ptr = reinterpret_cast<void *>(0x12345678);
 
     AppBorrowMetaDesc desc(0);
     desc.UpdateBorrowMetaDesc(std::vector<uint64_t>{}, MOCK_FILE_LEN, false, "testName");
 
     BorrowAppMetaMgr::GetInstance().AddMeta(ptr, desc);
 
-    MOCKER_CPP(&BorrowAppMetaMgr::GetMetaHasUnmapped, bool(*)(const void* addr)).stubs().will(returnValue(false));
+    MOCKER_CPP(&BorrowAppMetaMgr::GetMetaHasUnmapped, bool (*)(const void *addr)).stubs().will(returnValue(false));
 
     MOCKER(SystemAdapter::MemoryUnMap).stubs().will(returnValue(-1));
 
@@ -429,7 +429,7 @@ TEST_F(RackMemTestSuite, TestUbsMemFreeNonNumaMunmapFailed)
 
 TEST_F(RackMemTestSuite, TestUbsMemFreeNumaSuccess)
 {
-    void* ptr = reinterpret_cast<void*>(0x12345678);
+    void *ptr = reinterpret_cast<void *>(0x12345678);
     AppBorrowMetaDesc desc(0);
     desc.UpdateBorrowMetaDesc(std::vector<uint64_t>{}, MOCK_FILE_LEN, true, "testName");
 
@@ -437,7 +437,7 @@ TEST_F(RackMemTestSuite, TestUbsMemFreeNumaSuccess)
 
     MOCKER(IpcCommand::AppFreeMemory).stubs().will(returnValue(0));
 
-    MOCKER_CPP(&BorrowAppMetaMgr::RemoveMeta, uint32_t(*)(const void* addr)).stubs().will(returnValue(0));
+    MOCKER_CPP(&BorrowAppMetaMgr::RemoveMeta, uint32_t(*)(const void *addr)).stubs().will(returnValue(0));
 
     uint32_t result = RackMem::GetInstance().UbsMemFree(ptr);
     ASSERT_EQ(result, 0);
@@ -445,7 +445,7 @@ TEST_F(RackMemTestSuite, TestUbsMemFreeNumaSuccess)
 
 TEST_F(RackMemTestSuite, TestUbsMemFreeAppFreeFailed)
 {
-    void* ptr = reinterpret_cast<void*>(0x12345678);
+    void *ptr = reinterpret_cast<void *>(0x12345678);
     AppBorrowMetaDesc desc(0);
     desc.UpdateBorrowMetaDesc(std::vector<uint64_t>{}, 0, true, "testName");
 
@@ -459,7 +459,7 @@ TEST_F(RackMemTestSuite, TestUbsMemFreeAppFreeFailed)
 
 TEST_F(RackMemTestSuite, TestUbsMemFreeRemoveMetaFailed)
 {
-    void* ptr = reinterpret_cast<void*>(0x12345678);
+    void *ptr = reinterpret_cast<void *>(0x12345678);
     AppBorrowMetaDesc desc(0);
     desc.UpdateBorrowMetaDesc(std::vector<uint64_t>{}, 0, true, "testName");
 
@@ -467,7 +467,7 @@ TEST_F(RackMemTestSuite, TestUbsMemFreeRemoveMetaFailed)
 
     MOCKER(IpcCommand::AppFreeMemory).stubs().will(returnValue(0));
 
-    MOCKER_CPP(&BorrowAppMetaMgr::RemoveMeta, uint32_t(*)(const void* addr)).expects(once()).will(returnValue(1));
+    MOCKER_CPP(&BorrowAppMetaMgr::RemoveMeta, uint32_t(*)(const void *addr)).expects(once()).will(returnValue(1));
 
     uint32_t result = RackMem::GetInstance().UbsMemFree(ptr);
     ASSERT_EQ(result, 0);
@@ -475,13 +475,13 @@ TEST_F(RackMemTestSuite, TestUbsMemFreeRemoveMetaFailed)
 
 TEST_F(RackMemTestSuite, TestUbsMemFreeNonNumaLockAddressUnmap)
 {
-    void* ptr = reinterpret_cast<void*>(0x12345678);
+    void *ptr = reinterpret_cast<void *>(0x12345678);
     AppBorrowMetaDesc desc(0);
     desc.UpdateBorrowMetaDesc(std::vector<uint64_t>{}, 0, true, "testName");
 
     BorrowAppMetaMgr::GetInstance().AddMeta(ptr, desc);
 
-    MOCKER_CPP(&BorrowAppMetaMgr::GetMetaIsLockAddress, bool(*)(const void* addr)).stubs().will(returnValue(true));
+    MOCKER_CPP(&BorrowAppMetaMgr::GetMetaIsLockAddress, bool (*)(const void *addr)).stubs().will(returnValue(true));
 
     MOCKER(SystemAdapter::MemoryUnMap).expects(never()).with(eq(ptr), eq(MOCK_FILE_LEN));
 
@@ -496,8 +496,10 @@ TEST_F(RackMemTestSuite, TestRackMemLookupClusterStatisticSuccess)
 {
     ubsmem_cluster_info_t mockInfo{};
 
-    MOCKER(IpcCommand::IpcRackMemLookupClusterStatistic).expects(once()).with(any()).will(
-        returnValue(static_cast<int>(UBSM_OK)));
+    MOCKER(IpcCommand::IpcRackMemLookupClusterStatistic)
+        .expects(once())
+        .with(any())
+        .will(returnValue(static_cast<int>(UBSM_OK)));
 
     uint32_t result = RackMem::GetInstance().RackMemLookupClusterStatistic(&mockInfo);
     ASSERT_EQ(result, UBSM_OK);
@@ -518,8 +520,10 @@ TEST_F(RackMemTestSuite, TestQueryLeaseRecordSuccess)
 {
     std::vector<std::string> mockRecords = {"record1", "record2"};
 
-    MOCKER(IpcCommand::AppQueryLeaseRecord).expects(once()).with(outBound(mockRecords, 0)).will(
-        returnValue(static_cast<int>(UBSM_OK)));
+    MOCKER(IpcCommand::AppQueryLeaseRecord)
+        .expects(once())
+        .with(outBound(mockRecords, 0))
+        .will(returnValue(static_cast<int>(UBSM_OK)));
 
     auto result = RackMem::GetInstance().QueryLeaseRecord();
     ASSERT_EQ(result.first, static_cast<int>(UBSM_OK));
@@ -554,4 +558,4 @@ TEST_F(RackMemTestSuite, TestForceFreeCachedMemoryFailure)
     uint32_t result = RackMem::GetInstance().ForceFreeCachedMemory();
     ASSERT_EQ(result, expectedErr);
 }
-}  // namespace UT
+} // namespace UT

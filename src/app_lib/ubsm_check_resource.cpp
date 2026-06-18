@@ -32,4 +32,4 @@ int UbsmCheckResource::UbsmCheckResourceHandler()
     return ((leaseRes != 0) || (shmRes != 0)) ? MXM_ERR_CHECK_RESOURCE : 0;
 }
 
-}
+} // namespace ock::ubsm

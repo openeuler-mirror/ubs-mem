@@ -13,11 +13,11 @@
 #ifndef MEMORYFABRIC_RACK_MEM_LIB_COMMON_H
 #define MEMORYFABRIC_RACK_MEM_LIB_COMMON_H
 
-#include <cstddef>
 #include <fcntl.h>
+#include <cstddef>
+#include "RmLibObmmExecutor.h"
 #include "log.h"
 #include "rack_mem_libobmm.h"
-#include "RmLibObmmExecutor.h"
 
 namespace ock::mxmd {
 
@@ -56,12 +56,12 @@ inline int ObmmOpenInternal(const mem_id id, int flags, int oflag)
     ObmmGetDevPath(id, path, sizeof(path));
     const auto fd = open(path, openFlag | oflag);
     if (fd < 0) {
-        const char* errorMsg = strerror(errno);
+        const char *errorMsg = strerror(errno);
         DBG_LOGERROR("Obmm_open error! memid:" << id << " fd:" << fd << " error: " << errorMsg);
     } else {
         DBG_LOGINFO("Obmm_open ok memid:" << id << " fd:" << fd);
     }
     return fd;
 }
-}  // namespace ock::mxmd
-#endif  // MEMORYFABRIC_RACK_MEM_LIB_COMMON_H
+} // namespace ock::mxmd
+#endif // MEMORYFABRIC_RACK_MEM_LIB_COMMON_H

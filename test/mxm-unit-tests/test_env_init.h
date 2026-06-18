@@ -4,9 +4,9 @@
 #ifndef MXM_TEST_ENV_INIT_H
 #define MXM_TEST_ENV_INIT_H
 
+#include <sys/mman.h>
 #include <iostream>
 #include <string>
-#include <sys/mman.h>
 #include "rack_mem_lib.h"
 #include "record_store.h"
 #include "ubsm_ptracer.h"
@@ -41,6 +41,6 @@ inline void PoolExit()
     UbsmPtracer::UnInit();
     sleep(2u);
 }
-}  // namespace UT
+} // namespace UT
 
 #endif

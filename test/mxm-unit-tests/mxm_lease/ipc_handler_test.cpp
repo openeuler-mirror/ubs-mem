@@ -1,9 +1,9 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
+#include "ipc_handler.h"
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
-#include "ipc_handler.h"
 #include "mls_manager.h"
 #include "ubse_mem_adapter_stub.h"
 
@@ -16,9 +16,7 @@ using namespace ock::mxm;
 
 class MLSIpcHandlerTest : public testing::Test {
 public:
-    void SetUp() override
-    {
-    }
+    void SetUp() override {}
 
     void TearDown() override
     {
@@ -32,9 +30,8 @@ TEST_F(MLSIpcHandlerTest, TestAppMallocMemoryReuseBufferedMemReturnZero)
     auto request = std::make_shared<AppMallocMemoryRequest>();
     auto response = std::make_shared<AppMallocMemoryResponse>();
     MxmComUdsInfo udsInfo{};
-    MOCKER_CPP(&MLSManager::ReuseBufferedMem,
-               int32_t(*)(uint64_t size, uint16_t isNuma, const std::string &regionName,
-                   const AppContext &context, MLSMemInfo &info))
+    MOCKER_CPP(&MLSManager::ReuseBufferedMem, int32_t(*)(uint64_t size, uint16_t isNuma, const std::string &regionName,
+                                                         const AppContext &context, MLSMemInfo &info))
         .stubs()
         .will(returnValue(0));
 
@@ -48,9 +45,8 @@ TEST_F(MLSIpcHandlerTest, TestAppMallocMemoryReuseBufferedMemReturnNonZero)
     auto request = std::make_shared<AppMallocMemoryRequest>();
     auto response = std::make_shared<AppMallocMemoryResponse>();
     MxmComUdsInfo udsInfo{};
-    MOCKER_CPP(&MLSManager::ReuseBufferedMem,
-               int32_t(*)(uint64_t size, uint16_t isNuma, const std::string &regionName,
-                   const AppContext &context, MLSMemInfo &info))
+    MOCKER_CPP(&MLSManager::ReuseBufferedMem, int32_t(*)(uint64_t size, uint16_t isNuma, const std::string &regionName,
+                                                         const AppContext &context, MLSMemInfo &info))
         .stubs()
         .will(returnValue(-1));
 
@@ -75,15 +71,16 @@ TEST_F(MLSIpcHandlerTest, Test_AppFreeMemory_SuccessWhenFdMalloc)
     MLSManager::GetInstance().PreAddUsedMem(name, 1 << 30, {}, false, 0);
 
     MLSManager::GetInstance().FinishAddUsedMem(name, -1, 1 << 27, 0, memIds);
-    std::shared_ptr<AppFreeMemoryRequest> request =
-        std::make_shared<AppFreeMemoryRequest>(memIds, "default", name);
+    std::shared_ptr<AppFreeMemoryRequest> request = std::make_shared<AppFreeMemoryRequest>(memIds, "default", name);
 
     std::shared_ptr<CommonResponse> response = std::make_shared<CommonResponse>();
 
-    MOCKER_CPP(&UbseMemAdapter::FdPermissionChange, int(*)(const std::string& name, const AppContext& appContext,
-                   mode_t mode)).stubs().will(returnValue(0));
+    MOCKER_CPP(&UbseMemAdapter::FdPermissionChange,
+               int (*)(const std::string &name, const AppContext &appContext, mode_t mode))
+        .stubs()
+        .will(returnValue(0));
 
-    MOCKER_CPP(&UbseMemAdapter::LeaseFree, int(*)(const std::string& name, bool isNuma)).stubs().will(returnValue(0));
+    MOCKER_CPP(&UbseMemAdapter::LeaseFree, int (*)(const std::string &name, bool isNuma)).stubs().will(returnValue(0));
 
     auto ret = MxmServerMsgHandle::AppFreeMemory(request.get(), response.get(), {});
 
@@ -98,15 +95,16 @@ TEST_F(MLSIpcHandlerTest, Test_AppFreeMemory_SuccessWhenNumaMalloc)
     MLSManager::GetInstance().PreAddUsedMem(name, 1 << 30, {}, false, 0);
 
     MLSManager::GetInstance().FinishAddUsedMem(name, -1, 1 << 27, 0, memIds);
-    std::shared_ptr<AppFreeMemoryRequest> request =
-        std::make_shared<AppFreeMemoryRequest>(memIds, "default", name);
+    std::shared_ptr<AppFreeMemoryRequest> request = std::make_shared<AppFreeMemoryRequest>(memIds, "default", name);
 
     std::shared_ptr<CommonResponse> response = std::make_shared<CommonResponse>();
 
-    MOCKER_CPP(&UbseMemAdapter::FdPermissionChange, int(*)(const std::string& name, const AppContext& appContext,
-                   mode_t mode)).stubs().will(returnValue(0));
+    MOCKER_CPP(&UbseMemAdapter::FdPermissionChange,
+               int (*)(const std::string &name, const AppContext &appContext, mode_t mode))
+        .stubs()
+        .will(returnValue(0));
 
-    MOCKER_CPP(&UbseMemAdapter::LeaseFree, int(*)(const std::string& name, bool isNuma)).stubs().will(returnValue(0));
+    MOCKER_CPP(&UbseMemAdapter::LeaseFree, int (*)(const std::string &name, bool isNuma)).stubs().will(returnValue(0));
 
     auto ret = MxmServerMsgHandle::AppFreeMemory(request.get(), response.get(), {});
 
@@ -117,8 +115,9 @@ TEST_F(MLSIpcHandlerTest, TestAppQueryClusterInfo_Success)
 {
     std::shared_ptr<CommonRequest> request = std::make_shared<CommonRequest>();
     std::shared_ptr<AppQueryClusterInfoResponse> response = std::make_shared<AppQueryClusterInfoResponse>();
-    MOCKER_CPP(&UbseMemAdapter::LookUpClusterStatistic, int(*)(ubsmemClusterInfo &clusterInfo))
-        .stubs().will(returnValue(0));
+    MOCKER_CPP(&UbseMemAdapter::LookUpClusterStatistic, int (*)(ubsmemClusterInfo & clusterInfo))
+        .stubs()
+        .will(returnValue(0));
 
     auto ret = MxmServerMsgHandle::AppQueryClusterInfo(request.get(), response.get(), {});
 
@@ -129,8 +128,9 @@ TEST_F(MLSIpcHandlerTest, TestAppQueryClusterInfo_FailWhenUbseFail)
 {
     std::shared_ptr<CommonRequest> request = std::make_shared<CommonRequest>();
     std::shared_ptr<AppQueryClusterInfoResponse> response = std::make_shared<AppQueryClusterInfoResponse>();
-    MOCKER_CPP(&UbseMemAdapter::LookUpClusterStatistic, int(*)(ubsmemClusterInfo &clusterInfo))
-        .stubs().will(returnValue(-1));
+    MOCKER_CPP(&UbseMemAdapter::LookUpClusterStatistic, int (*)(ubsmemClusterInfo & clusterInfo))
+        .stubs()
+        .will(returnValue(-1));
 
     auto ret = MxmServerMsgHandle::AppQueryClusterInfo(request.get(), response.get(), {});
 
@@ -159,7 +159,7 @@ TEST_F(MLSIpcHandlerTest, TestAppForceFreeCachedMemory_Success)
     std::shared_ptr<CommonRequest> request = std::make_shared<CommonRequest>();
     std::shared_ptr<CommonResponse> response = std::make_shared<CommonResponse>();
 
-    MOCKER_CPP(&UbseMemAdapter::LeaseFree, int(*)(const std::string& name, bool isNuma)).stubs().will(returnValue(0));
+    MOCKER_CPP(&UbseMemAdapter::LeaseFree, int (*)(const std::string &name, bool isNuma)).stubs().will(returnValue(0));
 
     auto ret = MxmServerMsgHandle::AppForceFreeCachedMemory(request.get(), response.get(), {});
 

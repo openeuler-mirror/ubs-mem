@@ -16,16 +16,16 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 #include "mx_shm.h"
 #include "rack_mem_functions.h"
+#include "region_repository.h"
 #include "ubs_common_types.h"
-#include "ubs_engine_mem.h"
-#include "ubs_engine_topo.h"
 #include "ubs_engine.h"
 #include "ubs_engine_log.h"
-#include "region_repository.h"
+#include "ubs_engine_mem.h"
+#include "ubs_engine_topo.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,6 +48,7 @@ typedef struct ubse_user_info_t {
     ubse_uds_info udsInfo; /* 使用方进程信息 */
     mode_t mode;
     uint64_t flag;
+    uint64_t seqNo;
 } ubse_user_info_t;
 
 enum MemNodeDistance {
@@ -126,49 +127,48 @@ struct AttachShmResult {
 };
 
 /********** 控制面接口 ***********/
-using UbseClientInitializeFunc = int32_t (*)(const char* ubse_uds_path);
+using UbseClientInitializeFunc = int32_t (*)(const char *ubse_uds_path);
 using UbseClientFinalizeFunc = void (*)();
-using UbseNodeListFunc = int32_t (*)(ubs_topo_node_t** node_list, uint32_t* node_cnt);
-using UbseNodeLocalGetFunc = int32_t (*)(ubs_topo_node_t* node);
-using UbseTopLinkListFunc = int32_t (*)(ubs_topo_link_t** cpu_links, uint32_t* cpu_link_cnt);
-using UbseNumaStatGetFunc = int32_t (*)(uint32_t slot_id, ubs_mem_numastat_t** numa_mems, uint32_t* numa_mem_cnt);
-using UbseMemFdCreateFunc = int32_t (*)(const char* name, uint64_t size, const ubs_mem_fd_owner_t* owner, mode_t mode,
-                                        ubs_mem_distance_t distance, ubs_mem_fd_desc_t* fd_desc);
+using UbseNodeListFunc = int32_t (*)(ubs_topo_node_t **node_list, uint32_t *node_cnt);
+using UbseNodeLocalGetFunc = int32_t (*)(ubs_topo_node_t *node);
+using UbseTopLinkListFunc = int32_t (*)(ubs_topo_link_t **cpu_links, uint32_t *cpu_link_cnt);
+using UbseNumaStatGetFunc = int32_t (*)(uint32_t slot_id, ubs_mem_numastat_t **numa_mems, uint32_t *numa_mem_cnt);
+using UbseMemFdCreateFunc = int32_t (*)(const char *name, uint64_t size, const ubs_mem_fd_owner_t *owner, mode_t mode,
+                                        ubs_mem_distance_t distance, ubs_mem_fd_desc_t *fd_desc);
 using UbseMemFdCreateWithLenderFunc = int32_t (*)(const char *name, const ubs_mem_fd_owner_t *owner, mode_t mode,
                                                   const ubs_mem_lender_t *lender, uint32_t lender_cnt,
                                                   ubs_mem_fd_desc_t *fd_desc);
-using UbseMemFdCreateWithCandidateFunc = int32_t (*)(const char* name, uint64_t size, const ubs_mem_fd_owner_t* owner,
-                                                     mode_t mode, const uint32_t* slot_ids, uint32_t slot_cnt,
-                                                     ubs_mem_fd_desc_t* fd_desc);
-using UbseMemFdPermissionFunc = int32_t (*)(const char* name, const ubs_mem_fd_owner_t* owner, mode_t mode);
-using UbseMemFdGetFunc = int32_t (*)(const char* name, ubs_mem_fd_desc_t* fd_desc);
-using UbseMemFdListFunc = int32_t (*)(ubs_mem_fd_desc_t** fd_descs, uint32_t* fd_desc_cnt);
-using UbseMemFdDeleteFunc = int32_t (*)(const char* name);
+using UbseMemFdCreateWithCandidateFunc = int32_t (*)(const char *name, uint64_t size, const ubs_mem_fd_owner_t *owner,
+                                                     mode_t mode, const uint32_t *slot_ids, uint32_t slot_cnt,
+                                                     ubs_mem_fd_desc_t *fd_desc);
+using UbseMemFdPermissionFunc = int32_t (*)(const char *name, const ubs_mem_fd_owner_t *owner, mode_t mode);
+using UbseMemFdGetFunc = int32_t (*)(const char *name, ubs_mem_fd_desc_t *fd_desc);
+using UbseMemFdListFunc = int32_t (*)(ubs_mem_fd_desc_t **fd_descs, uint32_t *fd_desc_cnt);
+using UbseMemFdDeleteFunc = int32_t (*)(const char *name);
 
-using UbseMemNumaCreateFunc = int32_t (*)(const char* name, uint64_t size, ubs_mem_distance_t distance,
-                                          ubs_mem_numa_desc_t* numa_desc);
+using UbseMemNumaCreateFunc = int32_t (*)(const char *name, uint64_t size, ubs_mem_distance_t distance,
+                                          ubs_mem_numa_desc_t *numa_desc);
 using UbseMemNumaCreateWithLenderFunc = int32_t (*)(const char *name, const ubs_mem_lender_t *lender,
                                                     uint32_t lender_cnt, ubs_mem_numa_desc_t *numa_desc);
-using UbseMemNumaCreateWithCandidateFunc = int32_t (*)(const char* name, uint64_t size, const uint32_t* slot_ids,
-                                                       uint32_t slot_cnt, ubs_mem_numa_desc_t* numa_desc);
-using UbseMemNumaGetFunc = int32_t (*)(const char* name, ubs_mem_numa_desc_t* numa_desc);
-using UbseMemNumaListFunc = int32_t (*)(ubs_mem_numa_desc_t** numa_descs, uint32_t* numa_desc_cnt);
-using UbseMemNumaDeleteFunc = int32_t (*)(const char* name);
+using UbseMemNumaCreateWithCandidateFunc = int32_t (*)(const char *name, uint64_t size, const uint32_t *slot_ids,
+                                                       uint32_t slot_cnt, ubs_mem_numa_desc_t *numa_desc);
+using UbseMemNumaGetFunc = int32_t (*)(const char *name, ubs_mem_numa_desc_t *numa_desc);
+using UbseMemNumaListFunc = int32_t (*)(ubs_mem_numa_desc_t **numa_descs, uint32_t *numa_desc_cnt);
+using UbseMemNumaDeleteFunc = int32_t (*)(const char *name);
 using UbseMemShmCreateFunc = int32_t (*)(const char *name, uint64_t size, uint8_t usr_info[UBS_MEM_MAX_USR_INFO_LEN],
-                                         uint64_t flag, const ubs_mem_nodes_t *region,
-                                         const ubs_mem_nodes_t *provier);
+                                         uint64_t flag, const ubs_mem_nodes_t *region, const ubs_mem_nodes_t *provier);
 using UbseMemShmCreateWithLenderFunc = int32_t (*)(const char *name, uint8_t usr_info[UBS_MEM_MAX_USR_INFO_LEN],
                                                    uint64_t flag, const ubs_mem_nodes_t *region,
                                                    const ubs_mem_lender_t *lender);
 using UbseMemShmCreateWithAffinityFunc = int32_t (*)(const char *name, uint64_t size, uint32_t affinity_socket_id,
                                                      uint8_t usr_info[32], uint64_t flag, const ubs_mem_nodes_t *region,
                                                      const ubs_mem_nodes_t *provider);
-using UbseMemShmAttachFunc = int32_t (*)(const char* name, const ubs_mem_fd_owner_t* owner, mode_t mode,
-                                         ubs_mem_shm_desc_t** shm_desc);
+using UbseMemShmAttachFunc = int32_t (*)(const char *name, const ubs_mem_fd_owner_t *owner, mode_t mode,
+                                         ubs_mem_shm_desc_t **shm_desc);
 using UbseMemShmGetFunc = int32_t (*)(const char *name, ubs_mem_shm_desc_t **shm_desc);
-using UbseMemShmListFunc = int32_t (*)(ubs_mem_shm_desc_t** shm_descs, uint32_t* shm_desc_cnt);
-using UbseMemShmDetachFunc = int32_t (*)(const char* name);
-using UbseMemShmDeleteFunc = int32_t (*)(const char* name);
+using UbseMemShmListFunc = int32_t (*)(ubs_mem_shm_desc_t **shm_descs, uint32_t *shm_desc_cnt);
+using UbseMemShmDetachFunc = int32_t (*)(const char *name);
+using UbseMemShmDeleteFunc = int32_t (*)(const char *name);
 using UbseLogCallBackRegisterFunc = void (*)(ubs_engine_log_handler log_handler);
 
 class UbseMemAdapter {
@@ -178,26 +178,26 @@ public:
 
     static int32_t LookupRegionList(SHMRegions &regions);
     static int LeaseMalloc(const LeaseMallocParam &param, ock::ubsm::LeaseMallocResult &result);
-    static int LeaseMallocWithLoc(const LeaseMallocWithLocParam& param, ock::ubsm::LeaseMallocResult& result);
-    static int LeaseFree(const std::string& name, bool isNuma);
-    static int ShmCreate(const CreateShmParam& param);
-    static int ShmCreateWithProvider(const CreateShmWithProviderParam& param);
-    static int ShmDelete(const std::string& name, const ubsm::AppContext& appContext);
-    static int FdPermissionChange(const std::string& name, const ubsm::AppContext& appContext, mode_t mode);
-    static int32_t DlopenLibUbse(const std::string& controllerPath);
+    static int LeaseMallocWithLoc(const LeaseMallocWithLocParam &param, ock::ubsm::LeaseMallocResult &result);
+    static int LeaseFree(const std::string &name, bool isNuma);
+    static int ShmCreate(const CreateShmParam &param);
+    static int ShmCreateWithProvider(const CreateShmWithProviderParam &param);
+    static int ShmDelete(const std::string &name, const ubsm::AppContext &appContext);
+    static int FdPermissionChange(const std::string &name, const ubsm::AppContext &appContext, mode_t mode);
+    static int32_t DlopenLibUbse(const std::string &controllerPath);
     static int LookUpClusterStatistic(ock::ubsm::ubsmemClusterInfo &clusterInfo);
-    static int GetTimeOutTaskStatus(const std::string &name, bool isLease,
-        bool isNumaLease, ubs_mem_stage &status, bool &isAttach);
-    static int ShmAttach(const std::string &name, const ubse_user_info_t &ubsUserInfo,
-                         AttachShmResult &result);
+    static int GetTimeOutTaskStatus(const std::string &name, bool isLease, bool isNumaLease, ubs_mem_stage &status,
+                                    bool isAttach);
+    static int GetTimeOutShmTaskStatus(const std::string &name, ubs_mem_stage &status, bool isAttach, uint64_t &seqNo);
+    static int ShmAttach(const std::string &name, const ubse_user_info_t &ubsUserInfo, AttachShmResult &result);
     static int ShmDetach(const std::string &name);
     static int ShmListLookup(const std::string &prefix, std::vector<ubsmem_shmem_desc_t> &nameList);
     static int ShmLookup(const std::string &name, ubsmem_shmem_info_t &shmInfo);
-    static int ShmGetUserData(const std::string& name, ubse_user_info_t &ubsUserInfo);
-    static int GetRegionInfo(const std::string& regionName, std::vector<uint32_t>& slotIds);
-    static int32_t MemFdCreateWithCandidate(const char* name, uint64_t size, const ubs_mem_fd_owner_t* owner,
-                                        mode_t mode, const uint32_t* slot_ids, uint32_t slot_cnt,
-                                        ubs_mem_fd_desc_t* fd_desc);
+    static int ShmGetUserData(const std::string &name, ubse_user_info_t &ubsUserInfo);
+    static int GetRegionInfo(const std::string &regionName, std::vector<uint32_t> &slotIds);
+    static int32_t MemFdCreateWithCandidate(const char *name, uint64_t size, const ubs_mem_fd_owner_t *owner,
+                                            mode_t mode, const uint32_t *slot_ids, uint32_t slot_cnt,
+                                            ubs_mem_fd_desc_t *fd_desc);
     static int32_t MemFdCreateWithLender(const char *name, const ubs_mem_fd_owner_t *owner, mode_t mode,
                                          const ubs_mem_lender_t *lender, uint32_t lender_cnt,
                                          ubs_mem_fd_desc_t *fd_desc);
@@ -205,26 +205,29 @@ public:
     static int GetLeaseMemoryStage(const std::string &name, bool isNuma, ubs_mem_stage &state);
     static int GetShareMemoryStage(const std::string &name, ubs_mem_stage &state);
     static int GetLocalNodeId(uint32_t &nid);
+    static int EnsureGetLocalNodeId(uint32_t &nid);
+    static uint64_t GenerateCreateSeqNo(uint32_t slotId);
 
 private:
     UbseMemAdapter() = default;
     static void ResetLibUbseDl();
-    static int32_t PopulateHostNameMap(SHMRegions& regions);
-    static int32_t InitializeRegionList(SHMRegions& regions);
-    static void FreeShmDesc(ubs_mem_shm_desc_t* shmDes);
-    static uint32_t GetSocketIdWithNumaNode(int numaNode, uint32_t* socketId);
+    static int32_t PopulateHostNameMap(SHMRegions &regions);
+    static int32_t InitializeRegionList(SHMRegions &regions);
+    static void FreeShmDesc(ubs_mem_shm_desc_t *shmDes);
+    static uint32_t GetSocketIdWithNumaNode(int numaNode, uint32_t *socketId);
     static int ShmCreateWithAffinity(const CreateShmParam &param, const ubs_mem_nodes_t &region,
-                                     const uint64_t ubseFlags, const uint8_t *usrInfo);
-    static void UseLog(uint32_t level, const char* str);
-    static int32_t CheckAndCopyRegionStatus(SHMRegions& staticRegions, SHMRegions& activeRegion);
-    static int GetSlotIdFromHostName(const std::string& hostName, uint32_t* slotId);
-    static int PrepareShmCreateWithProviderParams(const CreateShmWithProviderParam& param, uint8_t* usrInfo,
-                                                  uint64_t* ubseFlags, uint32_t* slotId);
+                                     const uint64_t ubseFlags, const uint8_t *usrInfo, uint64_t createSeqNo);
+    static void UseLog(uint32_t level, const char *str);
+    static int32_t CheckAndCopyRegionStatus(SHMRegions &staticRegions, SHMRegions &activeRegion);
+    static int GetSlotIdFromHostName(const std::string &hostName, uint32_t *slotId);
+    static int PrepareShmCreateWithProviderParams(const CreateShmWithProviderParam &param, uint8_t *usrInfo,
+                                                  uint64_t *ubseFlags, uint32_t *slotId, uint64_t &seqNo);
 
 private:
     static std::mutex gMutex;
     static bool initialized_;
     static std::unordered_map<std::string, uint32_t> hostnameMapping_;
+    static std::atomic<uint32_t> nodeId_;
 
     static UbseClientInitializeFunc pUbseClientInitialize;
     static UbseClientFinalizeFunc pUbseClientFinalize;
@@ -253,11 +256,11 @@ private:
     static UbseMemShmDeleteFunc pUbseMemShmDelete;
     static UbseLogCallBackRegisterFunc pUbseLogCallBackRegister;
 };
-}  // namespace mxm
-}  // namespace ock
+} // namespace mxm
+} // namespace ock
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // UBSE_MEM_ADAPTER_H
+#endif // UBSE_MEM_ADAPTER_H

@@ -72,8 +72,8 @@ int StoreFd(const std::string &name, int fd) noexcept;
  * @return 成功时返回0，失败时返回非0
  */
 int LoadFd(const std::string &name, int &fd) noexcept;
-}  // namespace systemd
-}  // namespace common
-}  // namespace ock
+} // namespace systemd
+} // namespace common
+} // namespace ock
 
-#endif  // UTIL_SYSTEMD_WRAPPER_H
+#endif // UTIL_SYSTEMD_WRAPPER_H

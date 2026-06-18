@@ -11,9 +11,8 @@
  */
 #ifndef MXM_MESSAGE_HANDLE_H
 #define MXM_MESSAGE_HANDLE_H
-#include "mxm_com_base.h"
 #include "comm_def.h"
-
+#include "mxm_com_base.h"
 
 namespace ock::com {
 class MxmNetMessageHandler : public MxmComBaseMessageHandler {
@@ -31,7 +30,7 @@ public:
     {
         isIpc = true;
     }
-    HRESULT Handle(const MsgBase* req, MsgBase* rsp, MxmComBaseMessageHandlerCtxPtr handlerCtx) override
+    HRESULT Handle(const MsgBase *req, MsgBase *rsp, MxmComBaseMessageHandlerCtxPtr handlerCtx) override
     {
         HRESULT ret = HOK;
         if (isIpc) {
@@ -46,7 +45,7 @@ public:
         } else {
             handler(req, rsp);
         }
-        
+
         if (handlerCtx != nullptr && !handlerCtx->GetEngineName().empty()) {
             NetMsgPacker packer;
             rsp->Serialize(packer);
@@ -56,7 +55,7 @@ public:
                 return HFAIL;
             }
             uint32_t rspLen = respStr.size();
-            auto rspData = new (std::nothrow)char[rspLen];
+            auto rspData = new (std::nothrow) char[rspLen];
             if (!rspData) {
                 DBG_LOGERROR("rspData is nullptr.");
                 return HFAIL;
@@ -68,7 +67,7 @@ public:
                 return HFAIL;
             }
             MxmComDataDesc dataDesc;
-            dataDesc.data = reinterpret_cast<uint8_t*>(rspData);
+            dataDesc.data = reinterpret_cast<uint8_t *>(rspData);
             dataDesc.len = static_cast<uint32_t>(rspLen);
             MxmComMessageCtx ctx;
             ctx.SetEngineName(handlerCtx->GetEngineName());
@@ -80,10 +79,19 @@ public:
         SafeDelete(handlerCtx);
         return ret;
     }
-    uint16_t GetModuleCode() override { return moduleCode; }
-    uint16_t GetOpCode() override { return opCode; }
+    uint16_t GetModuleCode() override
+    {
+        return moduleCode;
+    }
+    uint16_t GetOpCode() override
+    {
+        return opCode;
+    }
 
-    bool NeedReply() override { return false; }
+    bool NeedReply() override
+    {
+        return false;
+    }
 
 private:
     uint16_t opCode;
@@ -92,5 +100,5 @@ private:
     MxmComIpcServiceHandler ipcHandler;
     bool isIpc = false;
 };
-}
-#endif  // MXM_MESSAGE_HANDLE_H
+} // namespace ock::com
+#endif // MXM_MESSAGE_HANDLE_H

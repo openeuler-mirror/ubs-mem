@@ -9,25 +9,20 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include "ubs_cryptor_handler.h"
+#include <dlfcn.h>
+#include <securec.h>
 #include <sys/ipc.h>
 #include <fstream>
 #include <sstream>
-#include <dlfcn.h>
 #include <string>
-#include <securec.h>
+#include "log.h"
 #include "rack_mem_functions.h"
-#include "dg_out_logger.h"
 #include "system_adapter.h"
-#include "ubs_cryptor_handler.h"
 
-ock::ubsm::UbsCryptorHandler::UbsCryptorHandler() noexcept
-    : initialized{false}
-{
-}
+ock::ubsm::UbsCryptorHandler::UbsCryptorHandler() noexcept : initialized{false} {}
 
-ock::ubsm::UbsCryptorHandler::~UbsCryptorHandler() noexcept
-{
-}
+ock::ubsm::UbsCryptorHandler::~UbsCryptorHandler() noexcept {}
 
 int ock::ubsm::UbsCryptorHandler::Initialize() noexcept
 {
@@ -48,14 +43,14 @@ int ock::ubsm::UbsCryptorHandler::Initialize() noexcept
     return 0;
 }
 
-static bool CanonicalPath(std::string& path)
+static bool CanonicalPath(std::string &path)
 {
     if (path.empty()) {
         DBG_LOGERROR("Path is empty.");
         return false;
     }
 
-    char* realPath = realpath(path.c_str(), nullptr);
+    char *realPath = realpath(path.c_str(), nullptr);
     if (realPath == nullptr) {
         DBG_LOGERROR("Failed to real path.");
         return false;
@@ -67,7 +62,7 @@ static bool CanonicalPath(std::string& path)
     return true;
 }
 
-static int ReadFile(const std::string& path, std::string& content) noexcept
+static int ReadFile(const std::string &path, std::string &content) noexcept
 {
     std::string tmpDir = path;
     if (!CanonicalPath(tmpDir)) {
@@ -143,7 +138,7 @@ int ock::ubsm::UbsCryptorHandler::Decrypt(int domainId, const std::string &fileP
     return 0;
 }
 
-void ock::ubsm::UbsCryptorHandler::EraseDecryptData(char* data, int len) noexcept
+void ock::ubsm::UbsCryptorHandler::EraseDecryptData(char *data, int len) noexcept
 {
     if (data == nullptr) {
         return;
@@ -159,16 +154,12 @@ void ock::ubsm::UbsCryptorHandler::EraseDecryptData(char* data, int len) noexcep
 
 int ock::ubsm::UbsCryptorHandler::SetCryptorLogger(CryptorLogHandler logger) noexcept
 {
-    auto* instance = ock::dagger::OutLogger::Instance();
-    if (instance == nullptr) {
-        DBG_LOGERROR("Get logger instance fail.");
-        return -1;
-    }
-    instance->SetExternalLogFunction(logger);
+    ubsmem::log::UbsmemLoggerManager::Instance()->SetExternLogCallback(
+        reinterpret_cast<void (*)(int, const char *)>(logger));
     return 0;
 }
 
-bool is_symlink(const std::string& path)
+bool is_symlink(const std::string &path)
 {
     struct stat sb;
     if (lstat(path.c_str(), &sb) == 0) {
@@ -177,7 +168,7 @@ bool is_symlink(const std::string& path)
     return false;
 }
 
-bool is_regular_file(const std::string& path)
+bool is_regular_file(const std::string &path)
 {
     struct stat sb;
     if (stat(path.c_str(), &sb) == 0) {
@@ -187,7 +178,7 @@ bool is_regular_file(const std::string& path)
 }
 
 // 只允许真实 .so 文件（非软链接）
-bool validate_real_so(const std::string& so_path)
+bool validate_real_so(const std::string &so_path)
 {
     // 检查是否是软链接
     if (is_symlink(so_path)) {
@@ -203,7 +194,7 @@ bool validate_real_so(const std::string& so_path)
     return true;
 }
 
-char* DefaultDecrypt(const char* encrypted_data, size_t encrypted_len, size_t* p_out_len)
+char *DefaultDecrypt(const char *encrypted_data, size_t encrypted_len, size_t *p_out_len)
 {
     if (encrypted_data == nullptr || p_out_len == nullptr) {
         return nullptr;
@@ -212,10 +203,11 @@ char* DefaultDecrypt(const char* encrypted_data, size_t encrypted_len, size_t* p
     if (encrypted_len == 0) {
         return nullptr;
     }
-    char* result = new char[encrypted_len];
+    char *result = new char[encrypted_len];
     auto ret = memcpy_s(result, encrypted_len, encrypted_data, encrypted_len);
     if (ret != 0) {
         DBG_LOGERROR("memcpy_s failed, ret:" << ret);
+        delete[] result;
         return nullptr;
     }
     *p_out_len = encrypted_len;

@@ -2,11 +2,11 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
 
+#include "shm_irpc_server_test.h"
 #include "mxm_shm/ipc_server.h"
 #include "mxm_shm/rpc_server.h"
 #include "service.h"
 #include "shm_service_api.h"
-#include "shm_irpc_server_test.h"
 
 #include <ock_service.h>
 

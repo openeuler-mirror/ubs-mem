@@ -44,7 +44,8 @@ private:
 };
 
 // smart pointer class
-template<class T> class Ref {
+template <class T>
+class Ref {
 public:
     Ref() : mObj(nullptr) {}
 
@@ -71,7 +72,7 @@ public:
         return mObj;
     }
 
-    inline Ref<T> &operator = (const Ref<T> &other)
+    inline Ref<T> &operator=(const Ref<T> &other)
     {
         if (this != &other) {
             this->Set(other.mObj);
@@ -79,38 +80,38 @@ public:
         return *this;
     }
 
-    inline Ref<T> &operator = (T *newObj)
+    inline Ref<T> &operator=(T *newObj)
     {
         this->Set(newObj);
         return *this;
     }
 
-    inline bool operator == (const Ref<T> &other) const
+    inline bool operator==(const Ref<T> &other) const
     {
         return mObj == other.mObj;
     }
 
-    inline bool operator == (T *other) const
+    inline bool operator==(T *other) const
     {
         return mObj == other;
     }
 
-    inline bool operator < (const Ref<T> &other) const
+    inline bool operator<(const Ref<T> &other) const
     {
         return mObj < other.mObj;
     }
 
-    inline bool operator < (T *other) const
+    inline bool operator<(T *other) const
     {
         return mObj < other;
     }
 
-    inline bool operator != (const Ref<T> &other) const
+    inline bool operator!=(const Ref<T> &other) const
     {
         return mObj != other.mObj;
     }
 
-    inline bool operator != (T *other) const
+    inline bool operator!=(T *other) const
     {
         return mObj != other;
     }
@@ -150,7 +151,7 @@ public:
         other.Set(nullptr);
     }
 
-    Ref<T> &operator = (Ref<T> &&other)
+    Ref<T> &operator=(Ref<T> &&other)
     {
         if (this != &other) {
             this->Set(other.mObj);

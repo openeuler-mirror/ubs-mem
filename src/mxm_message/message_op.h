@@ -78,4 +78,4 @@ enum RmMemOpCodeRpc : uint16_t {
     RPC_BROADCAST_NODE_INFO,
 };
 
-#endif  // MESSAGE_OP_H
+#endif // MESSAGE_OP_H

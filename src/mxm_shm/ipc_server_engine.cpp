@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "ipc_server_engine.h"
-#include "ulog/log.h"
+#include "log.h"
 
 using namespace ock::common;
 using namespace ock::com;
@@ -18,11 +18,11 @@ using namespace ock::com::ipc;
 using namespace ock::mxmd;
 namespace ock::share::service {
 
-uint32_t IpcServerEngine::RegisterOpcode(MxmComEndpoint opcode, const HcomServiceHandle& handle)
+uint32_t IpcServerEngine::RegisterOpcode(MxmComEndpoint opcode, const HcomServiceHandle &handle)
 {
     opcode.moduleId = 1;
     auto ret = MxmRegIpcService(
-        opcode, [opcode, handle](const MxmComUdsInfo& udsInfo, const MsgBase* req, MsgBase* resp) -> void {
+        opcode, [opcode, handle](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *resp) -> void {
             handle.func(udsInfo, req, resp);
             return;
         });
@@ -31,4 +31,4 @@ uint32_t IpcServerEngine::RegisterOpcode(MxmComEndpoint opcode, const HcomServic
     }
     return HOK;
 }
-}  // namespace ock::share::service
+} // namespace ock::share::service

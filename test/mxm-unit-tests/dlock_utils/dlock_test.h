@@ -26,10 +26,9 @@ public:
 
     void TearDown() override
     {
-        ock::zendiscovery::ZenDiscovery::GetInstance()->Stop();
         GlobalMockObject::reset();
     };
 };
 
-}  // namespace UT
-#endif  // UBSM_TEST_DLOCK_TEST_H
+} // namespace UT
+#endif // UBSM_TEST_DLOCK_TEST_H

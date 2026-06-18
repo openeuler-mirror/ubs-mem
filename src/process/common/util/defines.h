@@ -74,7 +74,7 @@ const int8_t SHIFT_3 = 3;
 const int8_t SHIFT_2 = 2;
 const int8_t SHIFT_1 = 1;
 const int8_t SHIFT_0 = 0;
-const int8_t SORT_INDEX_TUPLE_SIZE = 3;  // sort aggregator's index is a 3-tuple
+const int8_t SORT_INDEX_TUPLE_SIZE = 3; // sort aggregator's index is a 3-tuple
 const int8_t RPC_MAX_RETRY_TIME = 5;
 const int8_t OPERATION_RETRY_INTERVAL = 5;
 const int16_t HEART_BEAT_TIMEOUT = 600;
@@ -93,8 +93,8 @@ const uint32_t ONE = 1;
 const int CLEAN_EXIT_CODE = 0;
 const int ERROR_EXIT_CODE = -1;
 
-const int MAX_CONF_FILE_SIZE = 10485760;  // 10MB
+const int MAX_CONF_FILE_SIZE = 10485760; // 10MB
 
-}  // namespace ock::common
+} // namespace ock::common
 
 #endif

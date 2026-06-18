@@ -25,11 +25,8 @@ UBS Memory(Unified Bus Service Core Memory)在超节点上基于UB硬件能力�
 - `numactl-devel`: NUMA (Non-Uniform Memory Access) 支持库
 - `systemd-devel`: systemd 服务管理支持库
 - `openssl-devel`: OpenSSL 开发库
-- `spdlog-devel`: C++ 快速日志库开发依赖
-- `spdlog`: C++ 快速日志库运行时依赖
 - `libboundscheck`: 安全函数库
-- `ubs-comm-devel`: UBS 通信库开发库
-- `ubs-comm-lib`: UBS 通信库(ubs-comm-devel依赖)
+- `ubs-comm-lib`: UBS 通信库
 
 ### 获取源码
 ```shell
@@ -48,7 +45,7 @@ sh build.sh -t release -p
 构建产物位于 build/release/output\* 目录下，RPM 包输出至 build/release/output。
 
 ### 项目结构
-```
+```text
 .
 ├── build     // 存放项目中使用的脚本文件
 ├── doc       // 存放项目文档，例如《代码架构设计》
@@ -63,15 +60,14 @@ cd test
 
 # 运行UT测试用例并生成覆盖率报告
 sh run_dt.sh
-# 执行成功后，控制台将打印对于的覆盖率总结信息
-# 详细的覆盖率报告位于build/gcovr_report/，可打开该目录下的index.html查看。
 ```
+执行成功后，控制台将打印对应的覆盖率总结信息。详细的覆盖率报告位于“build/gcovr_report/”目录，可打开该目录下的index.html文件查看。
 
 ### 使用说明
-1. 前提：安装并成功启动ubs-engine。
-2. 使用rpm  安装我们的rpm包。
-3. systemctl start ubsmd 启动。
-4. 更多详细信息请参见[用户指南](doc/zh/ubs_memory用户指南.md)。
+- **安装部署**
+    安装部署相关内容请参见 [安装部署](docs/zh/installation_deployment.md)。
+- **API接口**
+    API相关内容请参见 [接口说明](docs/zh/api_description.md)。
 
 ### License
 ubs-mem 采用 Mulan V2 License.

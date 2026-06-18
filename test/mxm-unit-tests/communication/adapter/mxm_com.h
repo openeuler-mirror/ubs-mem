@@ -26,6 +26,6 @@ public:
         GlobalMockObject::reset();
     };
 };
-}  // namespace UT
+} // namespace UT
 
-#endif  // MXM_COM_H
+#endif // MXM_COM_H

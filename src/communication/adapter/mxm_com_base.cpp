@@ -11,11 +11,11 @@
  */
 #include "mxm_com_base.h"
 
-#include <algorithm>  // for max
+#include <lock/dg_lock.h> // for ReadWriteLock, WriteLocker, ReadLocker
 #include <log.h>
-#include <lock/dg_lock.h>  // for ReadWriteLock, WriteLocker, ReadLocker
-#include <securec.h>  // for memcpy_s, EOK
-#include <utility>  // for pair, move
+#include <securec.h> // for memcpy_s, EOK
+#include <algorithm> // for max
+#include <utility>   // for pair, move
 
 namespace ock::com {
 using namespace ock::common;
@@ -29,23 +29,47 @@ HandlerExecutor MxmComBase::gHandlerExecutor = DefaultHandlerExecutor;
 HandlerExecutor MxmComBase::gIpcHandlerExecutor = DefaultHandlerExecutor;
 LinkEventHandler MxmComBase::gLinkEventHandler = DefaultLinkEventHandler;
 
-const std::string& SendParam::GetRemoteId() const { return remoteId; }
+const std::string &SendParam::GetRemoteId() const
+{
+    return remoteId;
+}
 
-void SendParam::SetRemoteId(const std::string& remoteIdSet) { SendParam::remoteId = remoteIdSet; }
+void SendParam::SetRemoteId(const std::string &remoteIdSet)
+{
+    SendParam::remoteId = remoteIdSet;
+}
 
-uint16_t SendParam::GetModuleCode() const { return moduleCode; }
+uint16_t SendParam::GetModuleCode() const
+{
+    return moduleCode;
+}
 
-void SendParam::SetModuleCode(uint16_t moduleCodeSet) { SendParam::moduleCode = moduleCodeSet; }
+void SendParam::SetModuleCode(uint16_t moduleCodeSet)
+{
+    SendParam::moduleCode = moduleCodeSet;
+}
 
-uint16_t SendParam::GetOpCode() const { return opCode; }
+uint16_t SendParam::GetOpCode() const
+{
+    return opCode;
+}
 
-void SendParam::SetOpCode(uint16_t opCodeSet) { SendParam::opCode = opCodeSet; }
+void SendParam::SetOpCode(uint16_t opCodeSet)
+{
+    SendParam::opCode = opCodeSet;
+}
 
-MxmChannelType SendParam::GetChannelType() const { return channelType; }
+MxmChannelType SendParam::GetChannelType() const
+{
+    return channelType;
+}
 
-void SendParam::SetChannelType(MxmChannelType chType) { channelType = chType; }
+void SendParam::SetChannelType(MxmChannelType chType)
+{
+    channelType = chType;
+}
 
-void MxmComBaseMessageHandlerManager::AddHandler(MxmComBaseMessageHandlerPtr handler, const std::string& engineName)
+void MxmComBaseMessageHandlerManager::AddHandler(MxmComBaseMessageHandlerPtr handler, const std::string &engineName)
 {
     std::lock_guard<std::mutex> lock(gLock);
     if (handler == nullptr) {
@@ -57,7 +81,7 @@ void MxmComBaseMessageHandlerManager::AddHandler(MxmComBaseMessageHandlerPtr han
     gHandlerMap.emplace(key, handler);
 }
 
-void MxmComBaseMessageHandlerManager::RemoveHandler(uint16_t moduleCode, uint16_t opCode, const std::string& engineName)
+void MxmComBaseMessageHandlerManager::RemoveHandler(uint16_t moduleCode, uint16_t opCode, const std::string &engineName)
 {
     std::lock_guard<std::mutex> lock(gLock);
     std::string key = engineName + KEY_SEP + std::to_string(moduleCode) + KEY_SEP + std::to_string(opCode);
@@ -69,7 +93,7 @@ void MxmComBaseMessageHandlerManager::RemoveHandler(uint16_t moduleCode, uint16_
 }
 
 MxmComBaseMessageHandlerPtr MxmComBaseMessageHandlerManager::GetHandler(uint16_t moduleCode, uint16_t opCode,
-                                                                        const std::string& engineName)
+                                                                        const std::string &engineName)
 {
     std::lock_guard<std::mutex> lock(gLock);
     std::string key = engineName + KEY_SEP + std::to_string(moduleCode) + KEY_SEP + std::to_string(opCode);
@@ -81,17 +105,17 @@ MxmComBaseMessageHandlerPtr MxmComBaseMessageHandlerManager::GetHandler(uint16_t
     return iter->second;
 }
 
-std::vector<MxmLinkInfo> MxmComBase::GetLinkInfoFromMap(const std::string& engineName, uint32_t pid)
+std::vector<MxmLinkInfo> MxmComBase::GetLinkInfoFromMap(const std::string &engineName, uint32_t pid)
 {
     std::vector<MxmLinkInfo> info;
     auto iter = g_linkStateMap.find(engineName);
     if (iter == g_linkStateMap.end()) {
         return info;
     }
-    for (const auto& kv : iter->second) {
+    for (const auto &kv : iter->second) {
         auto timeStamp = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
-                                               std::chrono::high_resolution_clock::now().time_since_epoch())
-                                               .count());
+                                                   std::chrono::high_resolution_clock::now().time_since_epoch())
+                                                   .count());
         if (kv.second > 0) {
             info.emplace_back(kv.first, MxmLinkState::LINK_UP, timeStamp, pid);
         } else {
@@ -101,9 +125,12 @@ std::vector<MxmLinkInfo> MxmComBase::GetLinkInfoFromMap(const std::string& engin
     return info;
 }
 
-void MxmComBase::TlsOn() { return; }
+void MxmComBase::TlsOn()
+{
+    return;
+}
 
-void Log(int level, const char* str)
+void Log(int level, const char *str)
 {
     switch (level + 1) {
         case static_cast<int>(DBG_LOG_DEBUG):
@@ -123,7 +150,7 @@ void Log(int level, const char* str)
     }
 }
 
-void MxmComBase::LinkNotify(const MxmComEngineInfo& info, const std::string& curNodeId, uint64_t pid,
+void MxmComBase::LinkNotify(const MxmComEngineInfo &info, const std::string &curNodeId, uint64_t pid,
                             MxmLinkState state)
 {
     WriteLocker<ReadWriteLock> lock(&g_lock);
@@ -163,19 +190,19 @@ void MxmComBase::LinkNotify(const MxmComEngineInfo& info, const std::string& cur
         return;
     }
     auto linkInfo = GetLinkInfoFromMap(engineName, pid);
-    for (const auto& notify : notifyIter->second) {
+    for (const auto &notify : notifyIter->second) {
         notify(linkInfo);
     }
 }
 
-void ReplyCallback(void* ctx, void* recv, uint32_t len, int32_t result)
+void ReplyCallback(void *ctx, void *recv, uint32_t len, int32_t result)
 {
     if (result != 0) {
         DBG_LOGERROR("reply message failed, ret: " << result);
     }
 }
 
-void Reply(MxmComMessageCtx& message, MsgBase* respPtr)
+void Reply(MxmComMessageCtx &message, MsgBase *respPtr)
 {
     if (respPtr == nullptr) {
         DBG_LOGERROR("response is null");
@@ -189,7 +216,7 @@ void Reply(MxmComMessageCtx& message, MsgBase* respPtr)
         return;
     }
     uint32_t rspLen = respStr.size();
-    auto rspData = new (std::nothrow)char[rspLen];
+    auto rspData = new (std::nothrow) char[rspLen];
     if (!rspData) {
         DBG_LOGERROR("rspData is nullptr.");
         return;
@@ -200,25 +227,31 @@ void Reply(MxmComMessageCtx& message, MsgBase* respPtr)
         delete[] rspData;
         return;
     }
-    MxmComDataDesc data(reinterpret_cast<uint8_t*>(rspData), rspLen);
+    MxmComDataDesc data(reinterpret_cast<uint8_t *>(rspData), rspLen);
     MxmCommunication::MxmComMsgReply(message, data, MxmComCallback{ReplyCallback, &message});
     delete[] rspData;
 }
 
-HRESULT MxmComBase::ReplyMsg(MxmComMessageCtx& message, const MxmComDataDesc& response)
+HRESULT MxmComBase::ReplyMsg(MxmComMessageCtx &message, const MxmComDataDesc &response)
 {
     MxmCommunication::MxmComMsgReply(message, response, MxmComCallback{ReplyCallback, &message});
     return HOK;
 }
 
-void MxmComBase::SetHandlerExecutor(const HandlerExecutor& handlerExecutor) { gHandlerExecutor = handlerExecutor; }
+void MxmComBase::SetHandlerExecutor(const HandlerExecutor &handlerExecutor)
+{
+    gHandlerExecutor = handlerExecutor;
+}
 
-void MxmComBase::SetIpcHandlerExecutor(const HandlerExecutor& handlerExecutor)
+void MxmComBase::SetIpcHandlerExecutor(const HandlerExecutor &handlerExecutor)
 {
     gIpcHandlerExecutor = handlerExecutor;
 }
 
-void MxmComBase::SetLinkEventHandler(const LinkEventHandler& handler) { gLinkEventHandler = handler; }
+void MxmComBase::SetLinkEventHandler(const LinkEventHandler &handler)
+{
+    gLinkEventHandler = handler;
+}
 
 std::vector<MxmLinkInfo> MxmComBase::GetAllLinkInfo()
 {
@@ -226,7 +259,7 @@ std::vector<MxmLinkInfo> MxmComBase::GetAllLinkInfo()
     return GetLinkInfoFromMap(name);
 }
 
-void MxmComBase::AddLinkNotifyFunc(const LinkNotifyFunction& func)
+void MxmComBase::AddLinkNotifyFunc(const LinkNotifyFunction &func)
 {
     WriteLocker<ReadWriteLock> lock(&g_lock);
     auto iter = g_notifyFuncMap.find(name);
@@ -237,9 +270,15 @@ void MxmComBase::AddLinkNotifyFunc(const LinkNotifyFunction& func)
     iter->second.emplace_back(func);
 }
 
-uint64_t MxmComBaseMessageHandlerCtx::GetChannelId() const { return channelId; }
+uint64_t MxmComBaseMessageHandlerCtx::GetChannelId() const
+{
+    return channelId;
+}
 
-uintptr_t MxmComBaseMessageHandlerCtx::GetResponseCtx() { return rspCtx; }
+uintptr_t MxmComBaseMessageHandlerCtx::GetResponseCtx()
+{
+    return rspCtx;
+}
 
 MxmComBaseMessageHandlerCtx::MxmComBaseMessageHandlerCtx(std::string engineName, uint64_t channelId, uintptr_t rspCtx)
     : engineName(std::move(engineName)),
@@ -248,33 +287,63 @@ MxmComBaseMessageHandlerCtx::MxmComBaseMessageHandlerCtx(std::string engineName,
 {
 }
 
-const std::string& MxmComBaseMessageHandlerCtx::GetEngineName() const { return engineName; }
+const std::string &MxmComBaseMessageHandlerCtx::GetEngineName() const
+{
+    return engineName;
+}
 
-const MxmUdsIdInfo& MxmComBaseMessageHandlerCtx::GetUdsIdInfo() const { return udsIdInfo; }
+const MxmUdsIdInfo &MxmComBaseMessageHandlerCtx::GetUdsIdInfo() const
+{
+    return udsIdInfo;
+}
 
-void MxmComBaseMessageHandlerCtx::SetUdsIdInfo(const MxmUdsIdInfo& uds)
+void MxmComBaseMessageHandlerCtx::SetUdsIdInfo(const MxmUdsIdInfo &uds)
 {
     MxmComBaseMessageHandlerCtx::udsIdInfo = uds;
 }
 
-uint32_t MxmComBaseMessageHandlerCtx::GetCrc() const { return crc; }
+uint32_t MxmComBaseMessageHandlerCtx::GetCrc() const
+{
+    return crc;
+}
 
-void MxmComBaseMessageHandlerCtx::SetCrc(uint32_t dataCrc) { crc = dataCrc; }
+void MxmComBaseMessageHandlerCtx::SetCrc(uint32_t dataCrc)
+{
+    crc = dataCrc;
+}
 
 MxmLinkInfo::MxmLinkInfo(std::string nodeId, MxmLinkState state) : nodeId(std::move(nodeId)), state(state) {}
 
-const std::string& MxmLinkInfo::GetNodeId() const { return nodeId; }
-const uint32_t& MxmLinkInfo::GetPID() const { return pid; }
+const std::string &MxmLinkInfo::GetNodeId() const
+{
+    return nodeId;
+}
+const uint32_t &MxmLinkInfo::GetPID() const
+{
+    return pid;
+}
 
-MxmLinkState MxmLinkInfo::GetState() const { return state; }
+MxmLinkState MxmLinkInfo::GetState() const
+{
+    return state;
+}
 
-void MxmLinkInfo::SetTimeStamp(uint64_t nowTime) { timeStamp = nowTime; }
+void MxmLinkInfo::SetTimeStamp(uint64_t nowTime)
+{
+    timeStamp = nowTime;
+}
 
-uint64_t MxmLinkInfo::GetTimeStamp() const { return timeStamp; }
+uint64_t MxmLinkInfo::GetTimeStamp() const
+{
+    return timeStamp;
+}
 
-void DefaultHandlerExecutor(const std::function<void()>& task) { task(); }
+void DefaultHandlerExecutor(const std::function<void()> &task)
+{
+    task();
+}
 
-void DefaultLinkEventHandler(const std::vector<MxmLinkInfo>& linkInfoList) {}
+void DefaultLinkEventHandler(const std::vector<MxmLinkInfo> &linkInfoList) {}
 
 MxmLinkInfo::MxmLinkInfo(std::string nodeId, MxmLinkState state, uint64_t timeStamp, uint32_t pid)
     : nodeId(std::move(nodeId)),
@@ -284,4 +353,4 @@ MxmLinkInfo::MxmLinkInfo(std::string nodeId, MxmLinkState state, uint64_t timeSt
 {
 }
 
-}  // namespace ock::com
+} // namespace ock::com
