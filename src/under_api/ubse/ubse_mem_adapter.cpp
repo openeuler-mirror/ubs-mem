@@ -1647,6 +1647,10 @@ int UbseMemAdapter::ShmListLookup(const std::string &prefix, std::vector<ubsmem_
         if (ret == UBS_ENGINE_ERR_NOT_EXIST) {
             return MXM_ERR_SHM_NOT_FOUND;
         }
+        if (ret == UBS_ERR_NOT_SUPPORTED) {
+            DBG_LOGERROR("pUbseMemShmList not support.");
+            return MXM_ERR_UBSE_NOT_SUPPORTED;
+        }
         return MXM_ERR_UBSE_INNER;
     }
     DBG_LOGINFO("pUbseMemShmList success, shm prefix=" << prefix << ", descCnt=" << desc_cnt);
@@ -1696,6 +1700,10 @@ int UbseMemAdapter::ShmLookup(const std::string &name, ubsmem_shmem_info_t &shmI
         DBG_LOGERROR("pUbseMemShmGet failed, ret: " << ret << " name: " << name.c_str());
         if (ret == UBS_ENGINE_ERR_NOT_EXIST) {
             return MXM_ERR_SHM_NOT_FOUND;
+        }
+        if (ret == UBS_ERR_NOT_SUPPORTED) {
+            DBG_LOGERROR("pUbseMemShmGet not support.");
+            return MXM_ERR_UBSE_NOT_SUPPORTED;
         }
         return MXM_ERR_UBSE_INNER;
     }
