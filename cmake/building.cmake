@@ -7,6 +7,13 @@ EXECUTE_PROCESS(COMMAND g++ -dumpversion
         OUTPUT_VARIABLE cPlusPlusVerString
         OUTPUT_STRIP_TRAILING_WHITESPACE)
 string(REGEX MATCH "[(0-9)]*" cPlusPlusVerNum ${cPlusPlusVerString})
+if (cPlusPlusVerNum LESS 9)
+    set(HAVE_LOW_GCC_VERSION TRUE)
+    message(STATUS "GCC version ${cPlusPlusVerNum} < 9, need rt and stdc++fs")
+else()
+    set(HAVE_LOW_GCC_VERSION FALSE)
+    message(STATUS "GCC version ${cPlusPlusVerNum} >= 9")
+endif()
 
 EXECUTE_PROCESS(COMMAND cmake --version
         TIMEOUT 5
