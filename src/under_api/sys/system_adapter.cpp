@@ -12,6 +12,8 @@
 
 #include "system_adapter.h"
 #include <numaif.h>
+#include <fstream>
+#include "rack_mem_functions.h"
 namespace ock::ubsm {
 // mmap
 void *SystemAdapter::MemoryMap(void *addr, size_t len, int prot, int flags, int fd, off_t offset)
@@ -60,5 +62,33 @@ void *SystemAdapter::DlSym(void *handle, const char *name)
 int SystemAdapter::DlClose(void *handle)
 {
     return dlclose(handle);
+}
+
+bool SystemAdapter::ReadUbfeatureFromSysfs(uint64_t &value)
+{
+    static const char *ubFeaturePath = "/sys/bus/ub/ub_feature";
+    if (::access(ubFeaturePath, F_OK) != 0) {
+        DBG_LOGERROR("ubfeature file not found: " << ubFeaturePath);
+        return false;
+    }
+    if (::access(ubFeaturePath, R_OK) != 0) {
+        DBG_LOGERROR("ubfeature file not readable: " << ubFeaturePath);
+        return false;
+    }
+    std::ifstream file(ubFeaturePath);
+    if (!file.is_open()) {
+        DBG_LOGERROR("Failed to open ubfeature file after access check passed: " << ubFeaturePath);
+        return false;
+    }
+    std::string line;
+    if (!std::getline(file, line)) {
+        DBG_LOGERROR("Failed to read ubfeature file first line: " << ubFeaturePath);
+        return false;
+    }
+    if (!ock::mxmd::MemStrUtil::StrToULL(line, value, ock::mxmd::NO_16)) {
+        DBG_LOGERROR("Failed to parse ubfeature value, first line: \"" << line << "\"");
+        return false;
+    }
+    return true;
 }
 } // namespace ock::ubsm

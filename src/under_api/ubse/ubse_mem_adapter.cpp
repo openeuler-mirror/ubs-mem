@@ -33,6 +33,9 @@ using namespace ock::ubsm::tracer;
 bool UbseMemAdapter::initialized_{false};
 std::mutex UbseMemAdapter::gMutex;
 std::atomic<uint32_t> UbseMemAdapter::nodeId_{UINT32_MAX};
+uint64_t UbseMemAdapter::ubFeature_{0};
+bool UbseMemAdapter::ubFeatureLoaded_{false};
+bool UbseMemAdapter::ubFeatureValid_{false};
 
 /************** api ************/
 UbseClientInitializeFunc UbseMemAdapter::pUbseClientInitialize = nullptr;
@@ -88,6 +91,19 @@ int UbseMemAdapter::Initialize()
         pUbseLogCallBackRegister(UseLog);
     }
     initialized_ = true;
+
+    if (!ubFeatureLoaded_) {
+        uint64_t value = 0;
+        ubFeatureValid_ = ock::ubsm::SystemAdapter::ReadUbfeatureFromSysfs(value);
+        ubFeatureLoaded_ = true;
+        if (ubFeatureValid_) {
+            ubFeature_ = value;
+            DBG_LOGINFO("ubfeature loaded, value=0x" << std::hex << ubFeature_ << std::dec);
+        } else {
+            DBG_LOGWARN("Failed to read ubfeature from sysfs, validation disabled.");
+        }
+    }
+
     return MXM_OK;
 }
 
@@ -1103,6 +1119,29 @@ uint64_t UbseMemAdapter::GenerateCreateSeqNo(uint32_t slotId)
     return (static_cast<uint64_t>(slotId) << 32U) | RecordStore::GetInstance().GetCreateSeqNo();
 }
 
+int UbseMemAdapter::CheckFeatureCompatibility(uint64_t flags)
+{
+    if (!ubFeatureValid_) {
+        return MXM_OK;
+    }
+
+    if (flags & UBSM_FLAG_ONLY_IMPORT_NONCACHE) {
+        if (ubFeature_ & UBS_FEATURE_BIT_CC_CACHEABLE) {
+            DBG_LOGERROR("NC-CC mode (UBSM_FLAG_ONLY_IMPORT_NONCACHE) not supported "
+                         "when snoop is off (ubfeature Bit3=1)");
+            return MXM_ERR_UBSE_NOT_SUPPORTED;
+        }
+    } else if (!(flags & UBSM_FLAG_NONCACHE)) {
+        if (!(ubFeature_ & UBS_FEATURE_BIT_CC_CACHEABLE)) {
+            DBG_LOGERROR("CC mode (UBSM_FLAG_CACHE / UBSM_FLAG_WITH_LOCK) not supported "
+                         "when snoop is on (ubfeature Bit3=0)");
+            return MXM_ERR_UBSE_NOT_SUPPORTED;
+        }
+    }
+
+    return MXM_OK;
+}
+
 int PrepareUserInfoAndFlags(const ubse_user_info_t &ubsUserInfo, uint8_t *usrInfo, uint64_t *ubseFlags)
 {
     int ret = memcpy_s(usrInfo, UBS_MEM_MAX_USR_INFO_LEN, &ubsUserInfo, sizeof(ubsUserInfo));
@@ -1168,6 +1207,13 @@ int UbseMemAdapter::ShmCreate(const CreateShmParam &param)
     DBG_LOGINFO("Param name=" << param.name << "size=" << param.size << "User info: uid=" << ubsUserInfo.udsInfo.uid
                               << ", gid=" << ubsUserInfo.udsInfo.gid << ", pid=" << ubsUserInfo.udsInfo.pid << ", flag="
                               << ubsUserInfo.flag << ", mode=" << ubsUserInfo.mode << ", ubseFlags=" << ubseFlags);
+
+    ret = CheckFeatureCompatibility(param.flag);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("CheckFeatureCompatibility failed, name=" << param.name << ", flag=" << param.flag
+                                                               << ", ret=" << ret);
+        return ret;
+    }
 
     ret = ShmCreateWithAffinity(param, region, ubseFlags, usrInfo, seqNo);
     if (ret == MXM_OK) {
@@ -1294,6 +1340,13 @@ int UbseMemAdapter::ShmCreateWithProvider(const CreateShmWithProviderParam &para
     ret = PrepareShmCreateWithProviderParams(param, usrInfo, &ubseFlags, &slotId, seqNo);
     if (ret != MXM_OK) {
         DBG_LOGERROR("PrepareShmCreateWithProviderParams failed, name=" << param.name << ", ret=" << ret);
+        return ret;
+    }
+
+    ret = CheckFeatureCompatibility(param.flag);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("CheckFeatureCompatibility failed, name=" << param.name << ", flag=" << param.flag
+                                                               << ", ret=" << ret);
         return ret;
     }
 
@@ -1647,6 +1700,10 @@ int UbseMemAdapter::ShmListLookup(const std::string &prefix, std::vector<ubsmem_
         if (ret == UBS_ENGINE_ERR_NOT_EXIST) {
             return MXM_ERR_SHM_NOT_FOUND;
         }
+        if (ret == UBS_ERR_NOT_SUPPORTED) {
+            DBG_LOGERROR("pUbseMemShmList not support.");
+            return MXM_ERR_UBSE_NOT_SUPPORTED;
+        }
         return MXM_ERR_UBSE_INNER;
     }
     DBG_LOGINFO("pUbseMemShmList success, shm prefix=" << prefix << ", descCnt=" << desc_cnt);
@@ -1696,6 +1753,10 @@ int UbseMemAdapter::ShmLookup(const std::string &name, ubsmem_shmem_info_t &shmI
         DBG_LOGERROR("pUbseMemShmGet failed, ret: " << ret << " name: " << name.c_str());
         if (ret == UBS_ENGINE_ERR_NOT_EXIST) {
             return MXM_ERR_SHM_NOT_FOUND;
+        }
+        if (ret == UBS_ERR_NOT_SUPPORTED) {
+            DBG_LOGERROR("pUbseMemShmGet not support.");
+            return MXM_ERR_UBSE_NOT_SUPPORTED;
         }
         return MXM_ERR_UBSE_INNER;
     }

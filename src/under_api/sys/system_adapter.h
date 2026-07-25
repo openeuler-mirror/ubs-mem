@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <cstdint>
 namespace ock::ubsm {
 class SystemAdapter {
 public:
@@ -46,6 +47,9 @@ public:
 
     // dlclose
     static int DlClose(void *handle);
+
+    // read ub_feature from sysfs
+    static bool ReadUbfeatureFromSysfs(uint64_t &value);
 };
 } // namespace ock::ubsm
 
