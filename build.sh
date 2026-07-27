@@ -2,11 +2,12 @@
 
 usage() {
     echo "Usage: $0 [ -h | --help ] [ -t | --type <build_type> ] [--ut=UT] [--cov=COV] [ -d | --docker ] [ -n | --ninja ] \
-     [ -b | --builddir <build_path> ] [ -c | --component ] [ -f | --flags <cmake_flags> ] [ -p | --packaging] [ -pdeb ]"
+     [ -b | --builddir <build_path> ] [ -c | --component ] [ -f | --flags <cmake_flags> ] [ -p | --packaging] [ -pdeb ] [ --build_test ]"
     echo "build_type: [debug, release, relwithdebinfo, asan, tsan, clean]"
     echo "ut: unit test, default don't exic ut when not specified, <on|off> [default: \"off\"]"
     echo "cov: Instrument code coverage, default is no instrumentation when not specified, <on|off> [default: \"off\"]"
     echo "docker: enable docker build"
+    echo "build_test: build test, default is off"
     echo "packaging (-p): generate RPM package"
     echo "pdeb: generate DEB package (delegates to build_deb.sh)"
     echo "builddir: specify build directory instead of using the default aka. Build"
@@ -75,6 +76,9 @@ while true; do
             CMAKE_FLAGS+="-DDEBUG_UT=${USING_UT} "
             shift 2
             ;;
+        --build_test )
+            CMAKE_FLAGS+='-DBUILD_TEST=ON '
+            shift ;;
         --ubse )
             UBSE_SDK=ON
             shift ;;
