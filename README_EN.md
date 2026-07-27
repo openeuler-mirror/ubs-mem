@@ -27,7 +27,16 @@ OS: openEuler 24.03 LTS SP3 or later is recommended.
 - `systemd-devel`: systemd service management support library
 - `openssl-devel`: OpenSSL development library
 - `libboundscheck`: security function library
-- `ubs-comm-lib`: UBS communication library
+- `ubs-comm-devel`: UBS communication library development package, including HCOM headers and link libraries
+
+On openEuler 24.03 LTS SP3 or later, install the build dependencies with:
+
+```shell
+dnf install -y rpm-build make cmake gcc gcc-c++ ninja-build \
+    numactl-devel systemd-devel openssl-devel libboundscheck ubs-comm-devel
+```
+
+`ubs-comm-devel` installs the runtime package `ubs-comm-lib` as a dependency. HCOM is provided by UBS Comm. Its headers are installed in `/usr/include/hcom` and its libraries in `/usr/lib64` by default. If these packages are unavailable from the configured repositories, obtain the source and follow the build instructions in the [UBS Comm](https://gitcode.com/openeuler/ubs-comm) project.
 
 ## Get Code
 

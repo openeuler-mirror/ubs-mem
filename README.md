@@ -26,7 +26,16 @@ UBS Memory(Unified Bus Service Core Memory)在超节点上基于UB硬件能力�
 - `systemd-devel`: systemd 服务管理支持库
 - `openssl-devel`: OpenSSL 开发库
 - `libboundscheck`: 安全函数库
-- `ubs-comm-lib`: UBS 通信库
+- `ubs-comm-devel`: UBS 通信库开发包，提供 HCOM 头文件和链接库
+
+在 openEuler 24.03 LTS SP3 或更高版本中，可以执行以下命令安装构建依赖：
+
+```shell
+dnf install -y rpm-build make cmake gcc gcc-c++ ninja-build \
+    numactl-devel systemd-devel openssl-devel libboundscheck ubs-comm-devel
+```
+
+`ubs-comm-devel` 会依赖安装运行时包 `ubs-comm-lib`。其中 HCOM 由 UBS Comm 提供，头文件默认安装在 `/usr/include/hcom`，库文件默认安装在 `/usr/lib64`。如果当前软件源不提供上述软件包，请参考 [UBS Comm](https://gitcode.com/openeuler/ubs-comm) 项目获取源码并构建安装。
 
 ### 获取源码
 ```shell
