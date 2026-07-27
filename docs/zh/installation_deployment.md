@@ -12,6 +12,17 @@
 |-----|-----|
 | 服务器 | <ul><li>TaiShan 500 2280</li> <li>其他配备支持UB的CPU的服务器</li></ul> |
 
+**软件依赖**
+
+UBS Memory依赖[UBS Engine](https://gitcode.com/openeuler/ubs-engine)提供资源调度与管理能力。相关运行时软件包如下：
+
+| 软件包 | 说明 |
+|-----|-----|
+| `ubs-engine` | 提供UBS Engine守护进程和`ubse.service` |
+| `ubs-engine-client-libs` | 提供UBS Memory访问UBS Engine所需的`libubse-client.so.1` |
+
+在线安装`ubs-mem-shmem`时，包管理器会根据RPM依赖自动安装上述软件包。离线安装前，需要从对应openEuler版本的软件源获取上述软件包及其依赖；也可以参考[UBS Engine部署说明](https://gitcode.com/openeuler/ubs-engine/blob/master/docs/build_install/%E9%83%A8%E7%BD%B2%E8%AF%B4%E6%98%8E.md)从源码构建。
+
 ## 安装UBS Memory
 
 **操作步骤**
@@ -26,9 +37,11 @@
         ```
 
     - 离线安装
+
+        将`ubs-mem-shmem`、`ubs-engine`、`ubs-engine-client-libs`及其依赖的RPM包放入同一目录，然后执行：
     
         ```bash
-        dnf install -y ubs-mem-shmem-x.x.x-x.x.*.rpm
+        dnf install -y ./*.rpm
         ```
 
     >[!NOTE]说明
@@ -41,8 +54,12 @@
 3. 启动UBS Engine服务。
 
     ```bash
+    rpm -q ubs-engine ubs-engine-client-libs
     systemctl start ubse.service
+    systemctl status ubse.service
     ```
+
+    UBS Engine的配置和部署方法请参见[UBS Engine部署说明](https://gitcode.com/openeuler/ubs-engine/blob/master/docs/build_install/%E9%83%A8%E7%BD%B2%E8%AF%B4%E6%98%8E.md)。
 
 4. （可选）修改ubsmd.conf配置文件。
 
@@ -154,4 +171,4 @@
     >
     >- 卸载会自动停止ubsmd并释放占用的远端内存，因此在卸载ubsmd时，应确保UBSE正常运行且无业务正在进行。
     >- 为了避免权限问题，卸载后用户和用户组ubsmd将会保留。
-    >- 如需卸载UBS Engine，请参见[UBS Engine 部署说明](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/build_install/%E9%83%A8%E7%BD%B2%E8%AF%B4%E6%98%8E.md)文档。
+    >- 如需卸载UBS Engine，请参见[UBS Engine部署说明](https://gitcode.com/openeuler/ubs-engine/blob/master/docs/build_install/%E9%83%A8%E7%BD%B2%E8%AF%B4%E6%98%8E.md)文档。
