@@ -7,10 +7,9 @@
 Summary:        UBS-MEM Package
 Name:           ubs-mem
 Version:        1.0.0
-Release:        1
+Release:        1%{?dist}
 License:        MulanPSL-2.0
 Group:          System Environment/Daemons
-Vendor:         Huawei Technologies Co., Ltd.
 Prefix:         /usr/local/ubs_mem
 # generate tarball: git archive -o ubs-mem-1.0.0.tar.gz --format=tar.gz HEAD
 Source:        ubs-mem-%{version}.tar.gz
@@ -36,7 +35,7 @@ Obsoletes:      ubs-mem-kshmem < %{version}-%{release}
 This package contains the shared memory components for ubs-mem.
 
 %prep
-%setup -c -n %{name}-%{version}
+%autosetup -c -n %{name}-%{version}
 
 %build
 export CI_BUILD=ON
@@ -102,7 +101,7 @@ stop_service() {
 stop_service
 
 %postun shmem
-if [ $1 -ne 0 ]; then # 0 means remove, 1 means update
+if [ "$1" -ne 0 ]; then # 0 means remove, 1 means update
     exit 0
 fi
 delete_semaphore() {
@@ -112,13 +111,13 @@ delete_semaphore() {
         owner=$(echo "$line" | awk '{print $2}')
         if [ "$owner" = "ubsmd" ]; then
             echo "Deleting semaphore $semid..."
-            if ! ipcrm -s $semid; then
+            if ! ipcrm -s "$semid"; then
                 echo "Failed to delete semaphore $semid"
             else
                 echo "Deleted semaphore $semid"
             fi
         fi
-    done < <(ipcs -s | awk '/^[0-9]/ {print $2, $3, $4}')
+    done < <(LC_ALL=C ipcs -s | awk '/^[0-9]/ {print $2, $3, $4}')
     echo "delete ubsmd semaphores finished"
 }
 remove_files() {
