@@ -12,25 +12,30 @@
 
 ### 1.1 简介
 
-ubs-mem SDK 初始化 HCOM IPC client 后，会创建约 7 个后台线程。其中 ubs-mem
-代码明确配置了 6 个 HCOM worker，第 7 个为 HCOM 内部管理线程。这些线程负责
-SDK 与 `ubsmd` 之间的资源控制，不参与共享内存 map 后的普通数据读写，但
-busy-polling 模式会占用 CPU，影响 HPC 计算阶段的时延稳定性。
+ubs-mem SDK 初始化后，会通过 HCOM 建立与 `ubsmd` 的 IPC 控制连接。当前
+ubs-mem 代码明确配置了 6 个 HCOM worker；Issue #42 的运行环境共观察到 7 个
+相关线程，第 7 个线程由目标版本 ubs-comm 创建，名称和退出语义需要结合该版本
+进一步确认。这些线程负责共享内存创建、映射、查询和锁管理等控制操作，不参与
+共享内存 map 后的普通数据访问，但会对 HPC 计算程序产生额外的 CPU 调度和运行
+抖动。
 
-本设计新增以下接口：
+本设计基于 `feat/ipc-suspend-resume` 分支的实现，在 SDK 和 daemon 之间新增
+`IPC_SUSPEND_CLIENT`、`IPC_RESUME_CLIENT` 两个 IPC 控制消息，并提供以下
+公共接口：
 
 ```c
 int ubsmem_shmem_ipc_suspend(void);
 int ubsmem_shmem_ipc_resume(void);
 ```
 
-应用完成共享内存分配和映射后，可以调用 suspend 停止 HCOM、关闭控制连接并
-退出相关后台线程。已映射内存仍可直接读写。计算结束后调用 resume，重新初始化
-HCOM 并恢复控制接口。
+应用完成内存分配和 map 后调用 suspend。daemon 记录客户端 PID，并在后续
+HCOM 断链时跳过该客户端的资源清理；SDK 随后停止 HCOM client，使相关后台
+线程退出。计算完成后调用 resume，SDK 重新初始化 HCOM、建立连接，并通知
+daemon 删除 suspend 记录、恢复正常断链清理和控制功能。
 
 ### 1.2 动机
 
-当前 SDK 的控制通路如下：
+当前 SDK 控制通路如下：
 
 ```text
 应用控制 API
@@ -48,36 +53,118 @@ HCOM 并恢复控制接口。
     -> OBMM/UB 数据通路
 ```
 
-数据读写不逐次经过 HCOM，因此计算阶段可以停止控制通路而保留数据通路。
+map 成功后，普通内存读写不再经过 HCOM。因此停止 HCOM IPC client 不会主动
+解除已有 VMA、关闭映射 fd 或改变 OBMM 数据通路。
 
-直接销毁 HCOM 会触发 daemon 的 `LINK_DOWN` 处理。当前 daemon 将断链视为
-客户端退出，并调用 `ClientProcessExited(pid)` 清理共享内存和租赁记录。因此必须
-让 daemon 区分应用主动 suspend 和应用真正退出。
+但是，当前 daemon 将 HCOM `LINK_DOWN` 视为客户端进程退出，并通过
+`UBSMemMonitor::RegisterHandler()` 触发共享内存和租赁资源清理。suspend 前
+必须先通知 daemon，使 daemon 能够区分主动关闭 IPC 与异常退出。
 
 ### 1.3 目标
 
-- suspend 成功后退出 SDK HCOM 创建的 7 个后台线程。
-- suspend 期间已完成 map 的内存继续可读写。
-- suspend 期间资源控制 API 快速返回确定错误，不进入 IPC 超时。
-- resume 成功后恢复 HCOM、UDS 连接和控制接口。
-- suspend/resume 支持幂等调用。
-- suspend/resume 与普通控制 API、finalize 之间并发安全。
-- suspend 期间应用异常退出时，daemon 能及时清理资源。
-- 不持久化仅用于临时生命周期管理的 PID 状态。
-- 新 SDK 对不支持该功能的旧 daemon 快速返回
-  `UBSM_ERR_NOT_SUPPORTED`。
+- suspend 成功后停止 SDK HCOM IPC client，使 6 个已配置 worker 及 Issue #42
+  环境观察到的第 7 个相关线程退出。
+- suspend 期间保留已经建立的共享内存映射和数据访问能力。
+- suspend 期间依赖 IPC 的控制接口返回错误。
+- resume 成功后重新初始化 HCOM、与 `ubsmd` 建链并恢复控制接口。
+- daemon 在客户端主动 suspend 时不错误清理其共享内存和租赁资源。
+- suspend/resume 支持重复调用且不破坏 IPC client 引用计数。
+- suspend/resume 失败后 SDK 与 daemon 状态可回滚或可重试。
+- daemon 能清理异常退出客户端遗留的 suspend PID 记录。
+- 不改变已有共享内存数据面和 OBMM 映射格式。
 
 非目标：
 
-- 不暂停应用线程或共享内存数据通路。
-- 不自动管理用户基于映射地址创建的工作线程。
-- 不保证初始化后 fork 的子进程可继续使用 SDK。
-- 不改变现有共享内存、租赁内存和分布式锁协议。
-- 不把 suspend 作为进程迁移、checkpoint 或数据一致性屏障。
+- 不暂停应用自身的计算线程。
+- 不解除或重建已完成的共享内存映射。
+- 不将 suspend 作为数据一致性、checkpoint 或进程迁移接口。
+- 不提供初始化后 fork 的子进程恢复能力。
+- 不停止 daemon 侧后台线程。
 
-## 2. 用例分析
+## 2. 当前实现分析
 
-### 2.1 正常计算流程
+### 2.1 主线实现
+
+`main/master` 中，`ubsmem_initialize()` 通过 `RackMemLib::Initialize()` 初始化
+`IpcProxy`，调用链如下：
+
+```text
+ubsmem_initialize
+    -> RackMemLib::Initialize
+        -> IpcProxy::Initialize
+            -> MxmComStartIpcClient
+                -> MxmIpcClient::Start
+                -> MxmIpcClient::Connect
+```
+
+HCOM client 使用 `NET_BUSY_POLLING` 模式，并配置 6 个 worker。Issue #42
+环境观察到的第 7 个线程位于外部 ubs-comm 实现，不能仅通过本仓库代码确认。
+
+`ubsmem_finalize()` 通过以下调用停止 IPC：
+
+```text
+ubsmem_finalize
+    -> RackMemLib::Destroy
+        -> IpcProxy::Destroy
+            -> MxmComStopIpcClient
+                -> MxmIpcClient::Stop
+```
+
+该流程同时销毁其他 SDK 模块，不适合直接作为计算阶段的 suspend 接口。
+
+### 2.2 feat/ipc-suspend-resume 实现
+
+功能分支新增以下内容：
+
+| 模块 | 实现 |
+| --- | --- |
+| 公共 API | `ubsmem_shmem_ipc_suspend()`、`ubsmem_shmem_ipc_resume()` |
+| IPC opcode | `IPC_SUSPEND_CLIENT`、`IPC_RESUME_CLIENT` |
+| IPC request | `IpcSuspendRequest`、`IpcResumeRequest` |
+| SDK sender | `ShmIpcCommand::IpcCallSuspend()`、`IpcCallResume()` |
+| daemon handler | `MxmServerMsgHandle::IpcSuspend()`、`IpcResume()` |
+| suspend 记录 | `RecordStore::AddSuspendClient()`、`DelSuspendClient()` |
+| 断链判断 | `RecordStore::IsClientSuspended()` |
+
+suspend 当前调用顺序：
+
+```text
+SDK: IPC_SUSPEND_CLIENT
+    -> daemon: 从 UDS peer 信息获取 PID
+    -> daemon: AddSuspendClient(pid)
+    -> daemon: 返回成功
+SDK: IpcProxy::Destroy()
+    -> HCOM 断链
+daemon: LINK_DOWN(pid)
+    -> IsClientSuspended(pid) == true
+    -> 跳过 ClientProcessExited(pid)
+```
+
+resume 当前调用顺序：
+
+```text
+SDK: IpcProxy::Initialize()
+    -> 重新创建 HCOM client
+    -> 与 ubsmd 建立 UDS 连接
+SDK: IPC_RESUME_CLIENT
+    -> daemon: DelSuspendClient(pid)
+    -> daemon: 返回成功
+```
+
+### 2.3 当前实现待完善项
+
+- SDK 没有显式 Running/Suspended 状态，重复 resume 会增加 IPC 引用计数。
+- suspend/resume 与普通控制接口并发时，可能发生 client 指针竞争。
+- `IpcProxy::Destroy()` 固定返回成功，不能确认 HCOM 是否真正停止。
+- resume 消息失败后，新建 HCOM client 没有回滚。
+- `IsClientSuspended()` 读取 suspend 数组时没有使用与增删操作相同的锁。
+- suspended 客户端异常退出后不会再发送 resume，需要周期清理遗留 PID。
+- suspend 数组需要校验 `count`，避免异常记录导致越界访问。
+- 功能分支没有新增单元测试、集成测试和 API 文档。
+
+## 3. 用例和约束
+
+### 3.1 正常使用流程
 
 ```text
 initialize
@@ -90,152 +177,133 @@ initialize
 -> finalize
 ```
 
-预期行为如下：
+各状态下的行为如下：
 
-| 阶段 | 数据读写 | 控制接口 | HCOM 线程 |
+| 状态 | 已映射数据访问 | IPC 控制接口 | HCOM 线程 |
 | --- | --- | --- | --- |
 | Running | 可用 | 可用 | 存在 |
-| Suspending/Resuming | 不受 SDK 限制 | 返回 `UBSM_ERR_BUSY` | 迁移中 |
-| Suspended | 可用 | 返回 `UBSM_ERR_BUSY` | 不存在 |
-| 恢复 Running | 可用 | 可用 | 恢复 |
+| Suspending | 可用 | 不允许发起新调用 | 退出中 |
+| Suspended | 可用 | 失败 | 不存在 |
+| Resuming | 可用 | 不允许发起新调用 | 恢复中 |
 
-### 2.2 异常退出
+### 3.2 使用约束
 
-应用在 Suspended 状态被 `SIGKILL` 或异常退出时，内核自动关闭 lifecycle fd。
-daemon 收到 `EPOLLHUP` 或 `EPOLLRDHUP` 后，根据 fd 对应的内核凭据获取 PID，
-并执行现有 `ClientProcessExited(pid)` 清理流程。
+- suspend 前必须完成需要使用的 allocate、create 和 map 操作。
+- suspend 期间仅允许访问已经获得的映射地址，并允许调用 resume。
+- suspend 期间不得调用 allocate、deallocate、map、unmap、lookup、list、
+  attach、detach、lock 和 unlock 等控制接口。
+- suspend 前不得持有需要通过 IPC 释放的分布式锁。
+- finalize 前应先调用 resume，恢复 daemon 的正常断链清理状态。
+- suspend/resume 不支持与 fork 并用。
 
-该方案不使用持久 PID 数组，可以避免 stale PID、PID 重用和固定容量耗尽。
+### 3.3 性能要求
 
-### 2.3 重复调用
+- suspend 成功后，6 个已配置 worker 全部退出；Issue #42 环境观察到的第 7 个
+  线程也应退出，并通过目标版本 ubs-comm 的集成测试确认。
+- suspend 稳态不新增 SDK 后台线程。
+- 已映射内存带宽和时延不因 suspend 发生显著回退。
+- resume 成功后，HCOM worker 数量恢复到 suspend 前的数量。
+- 连续执行 1000 次 suspend/resume 后，线程数、fd 数和 RSS 不持续增长。
 
-| 调用 | 当前状态 | 结果 |
-| --- | --- | --- |
-| suspend | Running | 执行 suspend |
-| suspend | Suspended | 幂等返回成功 |
-| resume | Suspended | 执行 resume |
-| resume | Running | 幂等返回成功 |
-| suspend/resume | 状态迁移中 | 返回 `UBSM_ERR_BUSY` |
-| suspend/resume | 未初始化 | 返回 `UBSM_ERR_MEMLIB` |
-| 普通控制 API | Suspended | 返回 `UBSM_ERR_BUSY` |
+## 4. 方案设计
 
-### 2.4 性能要求
+### 4.1 总体方案
 
-- suspend 成功后，进程线程数相对默认初始化状态减少 7。
-- Suspended 状态下不保留 SDK busy-polling 线程。
-- lifecycle client 仅保留一个 UDS fd，不创建客户端线程。
-- 已映射内存的带宽和访问时延不因 lifecycle fd 而发生可测回退。
-- 建议验收标准为 Suspended 状态 60 秒内，SDK 控制面消耗不超过单核 CPU
-  的 0.1%，最终阈值由社区性能测试确认。
-- suspend/resume 超时时间应独立于当前 60 秒 IPC timeout，建议默认为 5 秒。
+沿用 `feat/ipc-suspend-resume` 的 IPC 通知方案：
 
-### 2.5 使用约束
+1. SDK 通过已有 HCOM 连接发送 `IPC_SUSPEND_CLIENT`。
+2. daemon 使用 HCOM 提供的 UDS peer PID，不信任客户端自报 PID。
+3. daemon 将 PID 添加到 `RecordStore` 的 suspend client 数组。
+4. daemon 返回成功后，SDK 停止 HCOM IPC client。
+5. daemon 收到 `LINK_DOWN` 时查询 suspend client 数组并跳过资源清理。
+6. resume 时 SDK 先重新创建 HCOM client 并建链。
+7. SDK 发送 `IPC_RESUME_CLIENT`，daemon 删除 PID 记录。
+8. daemon 返回成功后，SDK 恢复 Running 状态。
 
-- 调用 suspend 前，所有共享内存必须完成 map。
-- suspend 期间不得调用 map、unmap、allocate、deallocate、lookup、lock、
-  unlock、attach、detach 等控制接口。
-- suspend 时不得持有需要通过 IPC 释放的分布式锁。
-- 应用对映射地址的访问必须符合原有 ownership 和锁语义。
-- 初始化后 fork 暂不支持，子进程不得调用 suspend/resume 或其他 SDK
-  控制接口。
+该方案不增加其他旁路连接。suspend/resume 控制消息复用现有 HCOM IPC 框架，
+daemon 状态保存在 `RecordStore` 中。
 
-## 3. 方案设计
-
-### 3.1 总体方案
-
-新增独立的 lifecycle UDS：
-
-```text
-/run/matrix/memory/ubsm_lifecycle
-```
-
-该连接只在 suspend 窗口存在，用于：
-
-- 证明客户端进程仍然存活。
-- 确认 daemon 已建立 suspend 保护。
-- 确认 daemon 已观察到原 HCOM 断链。
-- 显式区分正常 resume 与应用异常退出。
-
-lifecycle socket 不传输共享内存业务数据，客户端不创建接收线程，通过同步
-`poll`、`send` 和 `recv` 完成状态切换。
-
-#### 3.1.1 正常时序
+### 4.2 Suspend 时序
 
 ```mermaid
 sequenceDiagram
     participant App as HPC App
     participant SDK as ubs-mem SDK
-    participant LC as ubsmd Lifecycle
-    participant HCOM as ubsmd HCOM
+    participant HCOM as HCOM IPC
+    participant Daemon as ubsmd
+    participant Store as RecordStore
 
-    App->>SDK: ubsmem_initialize()
-    SDK->>HCOM: 建立 HCOM IPC
-    App->>SDK: allocate/map
     App->>SDK: ubsmem_shmem_ipc_suspend()
-    SDK->>SDK: state=Suspending，禁止新控制调用
-    SDK->>SDK: 等待在途控制调用结束
-    SDK->>LC: connect lifecycle UDS
-    LC->>LC: SO_PEERCRED 获取 PID 并登记 fd
-    LC-->>SDK: READY
-    SDK->>SDK: 同步停止 HCOM 并 join 后台线程
-    HCOM->>LC: LINK_DOWN(pid)
-    LC->>LC: 跳过资源清理，标记 Suspended
-    LC-->>SDK: SUSPENDED
-    SDK->>SDK: state=Suspended
-    SDK-->>App: 0
-
-    Note over App,LC: 计算阶段仅保留 lifecycle fd，无 SDK 控制线程
-
-    App->>SDK: ubsmem_shmem_ipc_resume()
-    SDK->>SDK: state=Resuming
-    SDK->>HCOM: 创建临时 IPC client 并重新建链
-    SDK->>LC: RESUME
-    LC->>LC: 标记 Running
-    LC-->>SDK: RESUMED
-    SDK->>SDK: 发布新 IPC client
-    SDK->>LC: close lifecycle fd
-    SDK->>SDK: state=Running
-    SDK-->>App: 0
+    SDK->>SDK: 校验 state == Running
+    SDK->>SDK: state = Suspending
+    SDK->>HCOM: IPC_SUSPEND_CLIENT
+    HCOM->>Daemon: request + peer PID
+    Daemon->>Store: AddSuspendClient(pid)
+    Store-->>Daemon: success
+    Daemon-->>SDK: CommonResponse(UBSM_OK)
+    SDK->>HCOM: IpcProxy::Destroy()
+    HCOM-->>Daemon: LINK_DOWN(pid)
+    Daemon->>Store: IsClientSuspended(pid)
+    Store-->>Daemon: true
+    Daemon->>Daemon: 跳过 ClientProcessExited(pid)
+    SDK->>SDK: state = Suspended
+    SDK-->>App: UBSM_OK
 ```
 
-#### 3.1.2 Suspended 状态异常退出
+顺序约束：daemon 必须先完成 PID 记录并返回响应，SDK 才能停止 HCOM。否则
+`LINK_DOWN` 可能先于 PID 记录到达，导致 daemon 错误清理客户端资源。
+
+### 4.3 Resume 时序
 
 ```mermaid
 sequenceDiagram
     participant App as HPC App
-    participant Kernel as Linux Kernel
-    participant LC as ubsmd Lifecycle
-    participant Monitor as UBSMemMonitor
+    participant SDK as ubs-mem SDK
+    participant HCOM as HCOM IPC
+    participant Daemon as ubsmd
+    participant Store as RecordStore
 
-    App->>Kernel: exit/SIGKILL
-    Kernel->>LC: lifecycle fd HUP
-    LC->>LC: 查询 fd 对应 PID 和状态
-    LC->>Monitor: ClientProcessExited(pid)
-    Monitor->>Monitor: 清理共享内存和租赁资源
+    App->>SDK: ubsmem_shmem_ipc_resume()
+    SDK->>SDK: 校验 state == Suspended
+    SDK->>SDK: state = Resuming
+    SDK->>HCOM: InitializeTemporaryClient()
+    HCOM->>Daemon: 建立 UDS 连接
+    SDK->>HCOM: IPC_RESUME_CLIENT
+    HCOM->>Daemon: request + peer PID
+    Daemon->>Store: DelSuspendClient(pid)
+    Store-->>Daemon: success
+    Daemon-->>SDK: CommonResponse(UBSM_OK)
+    SDK->>SDK: PublishTemporaryClient()
+    SDK->>SDK: state = Running
+    SDK-->>App: UBSM_OK
 ```
 
-### 3.2 客户端状态机
+resume 必须先恢复 HCOM，才能发送 `IPC_RESUME_CLIENT`。在 daemon 尚未执行
+删除操作时，新 HCOM 断链仍会被 suspend 记录保护。但如果 daemon 已删除记录而
+响应丢失，SDK 不能再假设自己仍处于 Suspended，必须执行幂等重试；状态无法确认
+时进入错误态，不能直接断开新 HCOM 后宣称回滚成功。
+
+### 4.4 SDK 状态机
 
 ```mermaid
 stateDiagram-v2
     [*] --> Uninitialized
     Uninitialized --> Running: initialize 成功
     Running --> Suspending: suspend
-    Suspending --> Suspended: lifecycle 保护和 HCOM 停止成功
-    Suspending --> Running: 可回滚失败
-    Suspending --> Failed: 状态无法确认
+    Suspending --> Suspended: daemon 登记且 HCOM 停止成功
+    Suspending --> Running: daemon 登记失败
+    Suspending --> Failed: daemon 状态无法确认
     Suspended --> Resuming: resume
-    Resuming --> Running: HCOM 建链和 daemon 确认成功
-    Resuming --> Suspended: HCOM 初始化失败并成功回滚
-    Resuming --> Failed: lifecycle 连接丢失或状态无法确认
+    Resuming --> Running: HCOM 建链且 daemon 删除记录成功
+    Resuming --> Suspended: 请求明确失败并销毁临时 HCOM
+    Resuming --> Failed: daemon 状态无法确认
     Running --> Uninitialized: finalize
-    Suspended --> Uninitialized: finalize
 ```
 
-状态定义如下：
+建议新增内部状态：
 
 ```cpp
-enum class IpcLifecycleState {
+enum class IpcSuspendState {
     UNINITIALIZED,
     RUNNING,
     SUSPENDING,
@@ -246,239 +314,235 @@ enum class IpcLifecycleState {
 };
 ```
 
-使用同一把 lifecycle mutex 保护：
+状态和 IPC client 生命周期由同一把 mutex 保护。接口幂等规则如下：
 
-- 生命周期状态。
-- 当前 IPC client。
-- lifecycle fd。
-- 在途控制请求计数。
-- suspend/resume/finalize 的互斥关系。
-
-普通控制 API 在入口获取 control lease。suspend 首先将状态改为
-`SUSPENDING`，禁止新请求，然后等待在途请求归零。
-
-不能仅在 `IpcProxy::SyncCall()` 中检查状态，因为 unmap、unlock 等接口可能在
-发 IPC 前已经修改本地映射或 ownership。状态检查必须位于公共控制 API 的
-副作用之前。
-
-### 3.3 Lifecycle 协议
-
-建议使用固定长度、显式版本的内部协议：
-
-```cpp
-struct LifecycleMessage {
-    uint32_t magic;
-    uint16_t version;
-    uint16_t command;
-    int32_t status;
-    uint32_t reserved;
-};
-```
-
-命令定义如下：
-
-| 命令 | 方向 | 说明 |
+| 接口 | 当前状态 | 处理 |
 | --- | --- | --- |
-| `READY` | daemon -> SDK | daemon 已通过 `SO_PEERCRED` 登记客户端 |
-| `SUSPENDED` | daemon -> SDK | daemon 已观察 HCOM LINK_DOWN 并进入保护状态 |
-| `RESUME` | SDK -> daemon | 新 HCOM 已建链，请求退出保护状态 |
-| `RESUMED` | daemon -> SDK | daemon 已恢复 Running |
-| `CANCEL` | SDK -> daemon | suspend 失败，撤销保护 |
-| `FINALIZE` | SDK -> daemon | Suspended 状态下结束 SDK 生命周期 |
+| suspend | Running | 执行 suspend |
+| suspend | Suspended | 直接返回 `UBSM_OK` |
+| resume | Suspended | 执行 resume |
+| resume | Running | 直接返回 `UBSM_OK` |
+| suspend/resume | Suspending/Resuming/Finalizing | 返回 `UBSM_ERR_BUSY` |
+| suspend/resume | Uninitialized | 返回 `UBSM_ERR_MEMLIB` |
+| 普通控制接口 | Failed | 返回错误，禁止继续修改资源 |
 
-协议要求：
+状态机用于避免重复 resume 调用 `MxmComStartIpcClient()` 并增加
+`g_ipcClientCount`，保证一次 suspend 能实际销毁 HCOM client。
 
-- opcode 使用显式固定值，不能依赖枚举插入顺序。
-- 所有字段固定宽度。
-- 检查 magic、version、长度和 command。
-- send/recv 必须处理短读写、`EINTR` 和超时。
-- 不支持协议版本时返回 `UBSM_ERR_NOT_SUPPORTED`。
-- lifecycle fd 设置 `CLOEXEC`。
-- daemon 使用 `SO_PEERCRED`，不接受客户端自报 PID。
+### 4.5 IPC 协议
 
-### 3.4 Suspend 流程
-
-1. 获取生命周期独占锁。
-2. `RUNNING` 以外按幂等或错误规则处理。
-3. 状态改为 `SUSPENDING`，禁止新控制请求。
-4. 等待已有控制请求完成。
-5. 连接 lifecycle UDS。
-6. 等待 daemon 返回 `READY`。
-7. 同步停止 HCOM client。
-8. 停止并 join reconnect 任务和 HCOM worker。
-9. 等待 daemon 返回 `SUSPENDED`。
-10. 状态改为 `SUSPENDED`。
-11. 返回成功。
-
-失败处理如下：
-
-| 失败点 | 回滚 |
-| --- | --- |
-| lifecycle connect/READY 失败 | 关闭 lifecycle fd，恢复 Running |
-| HCOM stop 失败但连接仍可用 | 发送 CANCEL，恢复 Running |
-| HCOM 已停止但 SUSPENDED 超时 | 尝试重建 HCOM 并发送 CANCEL |
-| daemon 状态无法确认 | 进入 Failed，禁止继续使用控制接口 |
-
-API 返回成功必须表示 daemon 已确认 suspend 保护、HCOM 连接已经断开，且 HCOM
-worker 和 reconnect 线程已经退出。
-
-### 3.5 Resume 流程
-
-1. 获取生命周期独占锁。
-2. 状态改为 `RESUMING`。
-3. 创建临时 IPC client。
-4. 启动 HCOM worker 并建立 UDS 连接。
-5. 注册 reconnect/resource-check 回调。
-6. 通过 lifecycle fd 发送 `RESUME`。
-7. daemon 原子切换到 Running 并返回 `RESUMED`。
-8. 将临时 IPC client 发布为正式 client。
-9. 关闭 lifecycle fd。
-10. 状态改为 `RUNNING`。
-11. 返回成功。
-
-失败处理如下：
-
-- HCOM 初始化或建链失败时销毁临时 client，保持 lifecycle fd，回到
-  `SUSPENDED`。
-- RESUME 超时且 lifecycle fd 有效时销毁临时 client，回到 `SUSPENDED`。
-- lifecycle fd 断开时进入 `FAILED`，因为 daemon 可能已经执行资源清理。
-- 不允许初始化成功后直接把半成品 client 留在全局变量中。
-
-### 3.6 Daemon 状态管理
-
-daemon 使用内存态 session，不写入 `RecordStore`：
+新增 opcode：
 
 ```cpp
-enum class LifecycleSessionState {
-    PREPARED,
-    SUSPENDED,
-    RESUMING,
-    RESUMED,
-};
-
-struct LifecycleSession {
-    int fd;
-    pid_t pid;
-    uid_t uid;
-    gid_t gid;
-    LifecycleSessionState state;
-};
+IPC_SUSPEND_CLIENT,
+IPC_RESUME_CLIENT,
 ```
 
-维护以下受同一 mutex 保护的索引：
+opcode 应继续追加在已有 IPC opcode 末尾，并建议固定显式数值，避免以后在枚举
+中间插入成员导致协议编号变化。
+
+请求使用现有 `MsgBase` 公共头，不携带 PID：
 
 ```text
-fd  -> LifecycleSession
-pid -> fd
+msgVer
+opCode
+destRankId
 ```
 
-处理规则如下：
+PID 从 daemon 收到的 `MxmComUdsInfo.pid` 获取，避免客户端为其他进程伪造
+suspend 状态。
 
-| 事件 | 处理 |
+响应复用 `CommonResponse`：
+
+```cpp
+struct CommonResponse {
+    uint32_t errCode_;
+};
+```
+
+daemon 必须区分以下错误：
+
+| 场景 | 建议返回 |
 | --- | --- |
-| accept | 获取 `SO_PEERCRED`，登记 PREPARED，返回 READY |
-| HCOM LINK_DOWN 且 PID 有 PREPARED session | 标记 SUSPENDED，跳过清理，返回 SUSPENDED |
-| lifecycle HUP 且状态为 PREPARED/SUSPENDED/RESUMING | 删除 session 并执行 `ClientProcessExited` |
-| 收到 RESUME 且新 HCOM 已连接 | 标记 RESUMED，返回 RESUMED |
-| lifecycle HUP 且状态为 RESUMED | 仅删除 session，不清理 |
-| daemon 退出 | 关闭 listener 和所有 session fd |
+| PID 已经 suspended | `UBSM_OK` |
+| PID 不在 suspend 数组中且执行 resume | `UBSM_OK`，保持删除幂等 |
+| suspend 数组已满 | `UBSM_ERR_BUSY` |
+| RecordStore 未初始化或损坏 | `UBSM_ERR_RECORD` |
+| opcode 不支持 | `UBSM_ERR_NOT_SUPPORTED` |
+| 非法请求 | `UBSM_ERR_PARAM_INVALID` |
 
-与 `feat/ipc-suspend-resume` 不同，本设计不在 `/ubsm_records` 中增加
-`SuspendClientArray`。
+### 4.6 Daemon SuspendClientArray
 
-### 3.7 HCOM 生命周期修正
+沿用功能分支的数据结构：
 
-当前 `MxmComStopIpcClient()` 返回 `void`，`IpcProxy::Destroy()` 固定返回成功，
-不能支持强验收语义。需要调整为可报告错误的同步接口。
+```cpp
+constexpr uint32_t MAX_SUSPEND_CLIENT = 256;
 
-同时需要修复 reconnect 生命周期：
+struct SuspendClientArray {
+    uint32_t count;
+    uint32_t pids[MAX_SUSPEND_CLIENT];
+};
+```
 
-- 禁止 detached `std::thread([this])`。
-- reconnect 线程由 engine 持有并可 join。
-- Stop 首先设置 stopping 状态。
-- stopping 后禁止创建新的 reconnect 任务。
-- 唤醒并 join reconnect 线程。
-- join 完成后销毁 channel、memory region 和 HCOM service。
-- HCOM `Destroy()` 错误向上传递。
-- client 指针与引用计数由同一把锁保护。
+该结构位于 `RecordStore` 共享记录区，由以下接口管理：
 
-### 3.8 技术选型比较
+```cpp
+int AddSuspendClient(pid_t pid) noexcept;
+int DelSuspendClient(pid_t pid) noexcept;
+bool IsClientSuspended(pid_t pid) const noexcept;
+```
 
-| 方案 | 优点 | 缺点 | 结论 |
-| --- | --- | --- | --- |
-| 持久 PID 数组 | 改动较小；IPC ACK 可避免登记竞态 | 崩溃后 stale PID；PID 重用；容量耗尽；无存活凭证 | 不采用 |
-| 原 lifecycle fd 原型 | 内核自动检测死亡；无持久脏状态 | 无 READY ACK；accept 竞态；无法区分 resume close 和进程死亡 | 改进后采用 |
-| 本设计 lifecycle 协议 | 有存活凭证、明确 ACK、可事务回滚 | daemon 增加 event-driven listener 和协议状态机 | 推荐 |
-| 使用 finalize/initialize | 可复用现有 API | finalize 语义过重，可能影响 OBMM、metadata 和其他模块 | 不采用 |
-| 将 HCOM worker 改为 sleep | 不需要断链 | 线程仍存在，无法保证 HPC 无调度抖动 | 不采用 |
+实现要求：
 
-### 3.9 影响范围
+- Add、Del、Is 使用同一把 `cachedRecordMutex_`。
+- 访问数组前校验 `count <= MAX_SUSPEND_CLIENT`。
+- Add 已存在 PID 时返回成功。
+- Del 不存在 PID 时返回成功，保证 resume 幂等。
+- 删除使用末尾元素覆盖目标元素，保持 O(1) 删除。
+- daemon 启动时校验数组并清理已经不存在的 PID。
+- 周期性死进程清理完成后同步删除对应 suspend PID。
+- `ClientProcessExited(pid)` 完成后删除对应 suspend PID，避免记录累积。
 
-| 模块 | 改动 |
+当前结构仅保存 PID，存在极端情况下 PID 重用的风险。是否扩展为 PID 加进程启动
+时间，需要在实现前确认 `RecordStore` 布局兼容策略，见“未解决问题”。
+
+### 4.7 LINK_DOWN 处理
+
+在 `UBSMemMonitor::RegisterHandler(pid)` 入口增加 suspend 状态判断：
+
+```cpp
+if (RecordStore::GetInstance().IsClientSuspended(pid)) {
+    return UBSM_OK;
+}
+return UBSMemMonitor::GetInstance().ManagerEventNotified(pid);
+```
+
+只跳过 HCOM `LINK_DOWN` 触发的即时清理。daemon 原有的周期性死进程检查仍应
+运行，用于处理客户端在 Suspended 状态异常退出的场景。
+
+周期性清理发现 PID 已死亡时，应同时执行：
+
+```text
+清理共享内存引用
+-> 清理租赁内存记录
+-> DelSuspendClient(pid)
+```
+
+### 4.8 Suspend 失败处理
+
+| 失败点 | SDK 状态 | 处理 |
+| --- | --- | --- |
+| suspend 请求明确未发送 | Running | 不停止 HCOM，直接返回错误 |
+| suspend 响应超时或丢失 | Suspending | 通过原 HCOM 幂等重试，不能直接判定 daemon 未登记 |
+| daemon AddSuspendClient 失败 | Running | 不停止 HCOM，直接返回错误 |
+| daemon 已登记但 HCOM Stop 失败 | Running 或错误态 | 尝试恢复 HCOM，并发送 RESUME 删除记录 |
+| HCOM Stop 成功 | Suspended | 返回成功 |
+
+`IpcProxy::Destroy()`、`MxmComStopIpcClient()` 和 HCOM Stop 需要返回实际结果。
+suspend 不得在 HCOM 销毁失败时只记录日志后返回成功。
+
+`AddSuspendClient(pid)` 必须幂等。SDK 只有收到明确成功响应后才停止 HCOM。
+如果重试后仍无法确认 daemon 状态，SDK 保持 HCOM 连接并进入 `FAILED`，禁止
+继续执行普通控制操作；不能简单恢复 Running，否则 daemon 可能遗留 suspend
+记录并在后续真实断链时跳过清理。
+
+### 4.9 Resume 失败处理
+
+| 失败点 | 处理 |
 | --- | --- |
-| `src/app_lib/include/ubs_mem.h` | 新增两个公共 C API |
-| SDK lifecycle 管理 | 新增状态机、control lease、lifecycle client |
-| `IpcProxy` | 支持临时 client、同步 stop 和错误上传 |
-| IPC client interface | 统一保护全局 client，不再依赖裸指针和独立 atomic |
-| HCOM engine | reconnect 可停止、可 join |
-| communication constants | 新增 lifecycle socket path 和协议常量 |
-| daemon monitor | lifecycle listener、session 表、LINK_DOWN 联动 |
-| daemon 初始化/销毁 | 启停 lifecycle listener |
-| API 文档 | 增加调用顺序、状态和错误码说明 |
-| 单元及集成测试 | 增加 lifecycle、并发、异常和性能测试 |
+| HCOM Initialize 失败 | 保持 suspend PID 记录，回到 Suspended |
+| HCOM 建链失败 | 销毁临时 client，回到 Suspended |
+| resume 请求明确未发送 | 销毁临时 client，回到 Suspended |
+| resume 响应超时或丢失 | 保持新 HCOM，幂等重试，不能直接断链 |
+| daemon 明确返回删除失败 | 销毁临时 client，保留 daemon PID 记录，允许重试 |
 
-不修改：
+`DelSuspendClient(pid)` 必须幂等，PID 不存在时也返回成功。只有 daemon 返回
+resume 成功后，SDK 才将状态切换为 Running。如果重试后仍无法区分“请求未执行”
+和“请求已执行但响应丢失”，SDK 保持新 HCOM 并进入 `FAILED`，避免在 daemon
+已经删除记录的情况下主动断链并触发资源清理。
 
-- `RecordStore` 持久化布局。
-- 共享内存数据结构。
-- OBMM 映射格式。
-- 现有共享内存 IPC 消息。
+功能分支当前的 `IpcProxy::Initialize()` 会直接发布全局 client 并增加引用计数。
+为实现上述回滚，需要重构出临时 client 初始化能力：HCOM 建链后先由 resume 流程
+独占持有，收到 daemon 成功响应后再发布为全局 client；明确失败时销毁临时
+client。该行为属于在现有功能分支实现上的必要完善。
 
-### 3.10 接口设计
+### 4.10 HCOM 线程退出保证
 
-#### 3.10.1 ubsmem_shmem_ipc_suspend
+当前通信层断链后可能创建 detached reconnect 线程。为了满足“计算阶段没有资源
+管理线程占核”的验收要求，需要同步完善 HCOM engine 生命周期：
+
+- Stop 开始时设置 stopping 标志，禁止创建新的 reconnect 任务。
+- reconnect 线程不能 detach，必须由 engine 持有并在 Stop 中 join。
+- 先终止 reconnect，再销毁 channel 和 HCOM service。
+- HCOM service Destroy 结果逐层返回给 suspend API。
+- suspend 返回成功时，所有 HCOM worker 和 reconnect 线程均已退出。
+
+### 4.11 并发设计
+
+`g_mxmIpcClient`、`g_ipcClientCount` 和 SDK suspend state 必须由同一同步机制
+保护，不能只依赖 atomic 引用计数。
+
+suspend 执行前需要：
+
+1. 阻止新的 IPC 控制请求进入。
+2. 等待已经开始的 IPC 请求完成。
+3. 发送 suspend 消息。
+4. 销毁 IPC client。
+
+普通控制 API 应在产生本地副作用前检查 SDK 是否为 Running。特别是 unmap 和
+unlock 可能先修改本地映射或 ownership，再发送 IPC，不能仅依靠 IPC send 失败
+阻止操作。
+
+## 5. 接口设计
+
+### 5.1 ubsmem_shmem_ipc_suspend
 
 ```c
 SHMEM_API int ubsmem_shmem_ipc_suspend(void);
 ```
 
-停止 SDK 控制面 HCOM client。已映射共享内存保持有效，普通 load/store 不受
-影响。
+接口描述：
 
-前置条件：
+通知 daemon 当前客户端将主动停止 IPC，然后销毁 SDK HCOM IPC client。接口
+成功后，已映射共享内存仍可访问，但依赖 IPC 的控制接口不可用。
 
-- SDK 已初始化。
-- 当前状态为 Running 或 Suspended。
-- 不持有需要 IPC 释放的锁。
-- 调用方不再发起新的控制操作。
+输入参数：无。
+
+返回值：
 
 | 返回值 | 说明 |
 | --- | --- |
-| `UBSM_OK` | 已进入 Suspended，或原本已 Suspended |
-| `UBSM_ERR_BUSY` | 有状态迁移或控制操作未能在超时前结束 |
-| `UBSM_ERR_NOT_SUPPORTED` | daemon 不支持 lifecycle 协议 |
-| `UBSM_ERR_NET` | lifecycle UDS 通信失败 |
+| `UBSM_OK` | daemon 已记录 PID，HCOM client 及已确认线程已停止 |
+| `UBSM_ERR_BUSY` | SDK 正在进行其他生命周期操作，或 daemon 记录已满 |
+| `UBSM_ERR_NET` | suspend IPC 发送或 HCOM 通信失败 |
+| `UBSM_ERR_RECORD` | daemon suspend 记录操作失败 |
 | `UBSM_ERR_MEMLIB` | SDK 未初始化或 HCOM 停止失败 |
-| `UBSM_ERR_BUFF` | lifecycle 协议格式错误或内部状态不可恢复 |
+| `UBSM_ERR_NOT_SUPPORTED` | daemon 不支持该 opcode |
 
-#### 3.10.2 ubsmem_shmem_ipc_resume
+### 5.2 ubsmem_shmem_ipc_resume
 
 ```c
 SHMEM_API int ubsmem_shmem_ipc_resume(void);
 ```
 
-重新创建 HCOM client、建立 daemon 连接并恢复控制接口。
+接口描述：
+
+重新初始化 SDK HCOM IPC client，与 daemon 建链，并通知 daemon 删除当前 PID
+的 suspend 记录。
+
+输入参数：无。
+
+返回值：
 
 | 返回值 | 说明 |
 | --- | --- |
-| `UBSM_OK` | 已恢复 Running，或原本已 Running |
-| `UBSM_ERR_BUSY` | 当前正在进行其他生命周期迁移 |
-| `UBSM_ERR_NOT_SUPPORTED` | daemon 不支持 lifecycle 协议 |
-| `UBSM_ERR_NET` | HCOM 或 lifecycle UDS 通信失败 |
-| `UBSM_ERR_MEMLIB` | HCOM 初始化失败 |
-| `UBSM_ERR_BUFF` | daemon 与 SDK 状态无法确认 |
+| `UBSM_OK` | HCOM 已恢复，daemon suspend 记录已删除 |
+| `UBSM_ERR_BUSY` | SDK 正在进行其他生命周期操作 |
+| `UBSM_ERR_NET` | HCOM 初始化、建链或 resume IPC 失败 |
+| `UBSM_ERR_RECORD` | daemon 删除 suspend 记录失败 |
+| `UBSM_ERR_NOT_SUPPORTED` | daemon 不支持该 opcode |
 
-#### 3.10.3 调用示例
+### 5.3 调用示例
 
 ```c
 ubsmem_options_t options;
@@ -497,12 +561,11 @@ if (ret != UBSM_OK) {
     return ret;
 }
 
-/* Only access previously mapped memory here. */
+/* Only access previously mapped memory in this phase. */
 run_hpc_computation();
 
 ret = ubsmem_shmem_ipc_resume();
 if (ret != UBSM_OK) {
-    ubsmem_finalize();
     return ret;
 }
 
@@ -510,179 +573,154 @@ if (ret != UBSM_OK) {
 return ubsmem_finalize();
 ```
 
-不需要在 `ubsmem_options_t` 中增加 enable 字段。显式调用 suspend API 本身已经
-代表用户启用该能力，可以避免改变 options ABI。
+## 6. 安全、兼容性与 DFX
 
-## 4. 安全隐私与 DFX 设计
+### 6.1 安全
 
-### 4.1 安全
+- daemon 只使用 HCOM UDS peer credential 中的 PID，不使用请求携带的 PID。
+- suspend/resume 只允许客户端修改自身状态。
+- suspend 数组操作必须检查边界并加锁。
+- daemon 启动和周期任务必须清理无效记录，避免本地客户端耗尽固定数组。
+- 日志记录 PID、操作类型和结果，不记录共享内存业务数据。
 
-- lifecycle socket 位于现有受控运行目录。
-- daemon 使用 `SO_PEERCRED` 获取 PID、UID 和 GID。
-- 不接受客户端传入其他 PID。
-- 每个 PID 同时最多一个 lifecycle session。
-- socket 设置 `CLOEXEC`，避免 exec 后错误继承。
-- daemon 对连接数设置上限，并限制到与 ubs-mem 相同的本地用户权限。
-- 非法协议、版本和重复命令立即关闭连接并记录审计日志。
-- 不将生命周期状态写入共享持久化区域。
+### 6.2 兼容性
 
-### 4.2 可靠性
-
-- suspend/resume 使用状态机和事务化回滚。
-- 所有 daemon session 索引由同一 mutex 保护。
-- lifecycle HUP 是进程死亡的内核凭证。
-- API 成功返回前等待 daemon 状态确认。
-- daemon 重启导致 lifecycle fd 断开时，SDK 进入 Failed，不允许静默继续使用
-  映射控制接口。
-- finalize 在 Suspended 状态通过 `FINALIZE` 或关闭 lifecycle fd 触发 daemon
-  清理，不能遗留 suspend session。
-
-### 4.3 兼容性
-
-- 新增公共符号，不修改既有函数签名。
+- 新增公共 C 符号，不修改已有接口签名。
 - 不修改 `ubsmem_options_t`。
-- 老 SDK 与新 daemon 按原流程工作。
-- 新 SDK 连接老 daemon 时 lifecycle socket 不存在，快速返回
-  `UBSM_ERR_NOT_SUPPORTED`。
-- 功能实现必须重放到当前 master，不能直接以两个实验分支的共同旧基线合入。
+- opcode 追加在已有 IPC opcode 末尾，不改变旧 opcode 编号。
+- 老 SDK 不发送新 opcode，可继续连接新 daemon。
+- 新 SDK 调用新接口连接旧 daemon 时返回 `UBSM_ERR_NOT_SUPPORTED` 或网络错误；
+  应优先在消息分发层快速返回不支持，避免等待默认 60 秒超时。
+- 功能代码需要基于当前 `main/master` 重放，不能直接合入基于旧提交的实验分支。
 
-### 4.4 可观测性
+### 6.3 可维护性
 
-建议在生命周期转换日志中记录：
+- suspend/resume 协议继续使用现有 `MsgBase`、`CommonResponse` 和 IPC handler
+  注册框架。
+- daemon suspend 状态集中由 `RecordStore` 管理。
+- SDK 生命周期状态集中管理，不在多个公共 API 中维护独立布尔变量。
+- 明确失败的错误路径必须恢复到 Running 或 Suspended；无法确认请求是否已在
+  daemon 执行时进入 Failed，并保留避免错误清理所需的连接。
+
+### 6.4 可观测性
+
+日志至少记录：
 
 ```text
-pid, lifecycle state, transition, elapsed_us, hcom_thread_count
+pid, operation, old_state, new_state, error_code, elapsed_us
 ```
 
-需要记录 lifecycle accepted/closed、suspend READY、HCOM stop、SUSPENDED、
-resume HCOM start、RESUMED、状态回滚、进入 Failed 以及 Suspended 客户端异常
-退出后的清理结果。
+需要记录：
 
-日志不得在 HPC Suspended 稳态周期性输出。
+- daemon 添加、删除和周期清理 suspend PID。
+- LINK_DOWN 因 suspend 状态跳过清理。
+- HCOM stop/start 成功或失败。
+- resume 失败后的 client 回滚。
+- suspend 数组损坏、已满和边界校验失败。
 
-## 5. 测试与验收
+Suspended 稳态不得周期输出 SDK 日志或创建日志线程。
 
-### 5.1 单元测试
+## 7. 测试与验收
 
-- 生命周期状态转换。
-- 重复 suspend、重复 resume。
-- 未初始化调用。
-- lifecycle connect、READY、SUSPENDED、RESUME 各阶段失败。
-- HCOM stop/start 失败和回滚。
-- control lease 与 suspend 并发。
+### 7.1 SDK 单元测试
+
+- initialize -> suspend -> resume -> finalize。
+- 未初始化调用 suspend/resume。
+- 重复 suspend。
+- 重复 resume。
+- resume without suspend。
+- suspend/resume 与普通 IPC 调用并发。
 - suspend/resume 与 finalize 并发。
-- reconnect 线程停止和 join。
-- lifecycle 协议短读写、非法版本、非法 command。
-- daemon session 表并发增删。
-- HUP 在不同状态下的清理行为。
+- suspend 消息成功、HCOM Stop 失败时的回滚。
+- HCOM 临时 client 初始化成功、resume 请求明确失败时的回滚。
+- resume 响应丢失时保持新 HCOM 并进入 Failed，不能按普通失败断链回滚。
+- IPC client 引用计数在重复调用后保持正确。
+
+### 7.2 消息和 daemon 单元测试
+
+- suspend/resume request 序列化和反序列化。
+- opcode 到 request、response 和 handler 的注册。
+- AddSuspendClient 重复添加。
+- DelSuspendClient 重复删除。
+- Add、Del、Is 并发执行。
+- `count == MAX_SUSPEND_CLIENT` 边界。
+- `count > MAX_SUSPEND_CLIENT` 损坏数据恢复。
+- daemon 启动时清理死亡 PID。
+- 周期性死进程清理同步删除 suspend PID。
 
 建议测试位置：
 
 ```text
 test/mxm-unit-tests/app_testcase/
-test/mxm-unit-tests/communication/ipc/
+test/mxm-unit-tests/mxm_message/
+test/mxm-unit-tests/store/
 test/mxm-unit-tests/monitor/
+test/mxm-unit-tests/communication/ipc/
 ```
 
-### 5.2 集成测试
+### 7.3 功能验收
 
-1. initialize 后确认默认增加 7 个 HCOM 线程。
-2. allocate/map 后写入已知数据。
-3. 调用 suspend。
-4. 确认 7 个 HCOM 线程全部退出。
-5. 持续读写映射并校验数据。
-6. 调用 lookup、unmap 等控制接口，确认快速返回 `UBSM_ERR_BUSY`。
-7. 调用 resume。
+1. 初始化 SDK，记录 `/proc/<pid>/task` 中的线程数量和名称。
+2. 分配并 map 共享内存，写入已知数据。
+3. 调用 suspend，确认返回 `UBSM_OK`。
+4. 确认 6 个已配置 worker 退出，并在目标 ubs-comm 环境确认 Issue #42
+   观察到的第 7 个线程退出。
+5. 持续读写映射地址并校验数据正确。
+6. 调用 lookup、map、unmap 等控制接口，确认按约定失败。
+7. 调用 resume，确认返回 `UBSM_OK`。
 8. 确认 HCOM 线程和 UDS 连接恢复。
-9. 确认控制接口恢复成功。
-10. 重复 suspend/resume 1000 次，线程数、fd 数和 RSS 不增长。
+9. 再次调用控制接口，确认功能恢复。
+10. 重复 suspend/resume 1000 次，确认无线程、fd 和内存泄漏。
 
-### 5.3 异常测试
+### 7.4 异常验收
 
-- Suspended 状态 `SIGKILL`，daemon 正确清理。
-- SUSPENDING 各阶段退出。
-- RESUMING 各阶段退出。
-- daemon 在 Suspended 状态重启。
-- lifecycle fd 被意外关闭。
-- HCOM 断链和 suspend 同时发生。
+- Suspended 状态下 `SIGKILL`，周期任务最终清理资源和 suspend PID。
+- suspend 请求明确未执行时 daemon 退出，SDK 保持 Running。
+- daemon 可能已登记但 suspend 响应丢失时，SDK 重试；无法确认时进入 Failed。
+- resume 建链后 daemon 返回失败，SDK 回滚到 Suspended。
+- daemon 重启后校验和清理旧 suspend 数组。
 - 多客户端并行 suspend/resume。
-- PID 快速重用。
-- finalize while suspended。
-- fork 后调用 API，稳定返回不支持或明确错误，不能死锁和崩溃。
+- suspend 数组达到 256 项时返回明确错误且不越界。
+- HCOM 断链重连与 suspend 同时发生时无线程残留和 UAF。
 
-### 5.4 性能验收
+### 7.5 性能验收
 
-- 使用 `/proc/<pid>/task` 和线程名确认线程变化。
-- 使用 `perf stat` 统计 Suspended 状态下 `task-clock`、context switch 和 CPU
+- 使用 `/proc/<pid>/task` 验证 suspend 前后线程变化。
+- 使用 `perf stat` 对比 suspend 前后的 `task-clock`、context switch 和 CPU
   migration。
 - 对比 suspend 前后的 HPC kernel P50、P99 和最大时延。
-- 对比 suspend 前后映射内存带宽，确认数据面无显著回退。
-- 记录 suspend/resume P50、P99 延迟。
+- 对比 suspend 前后的共享内存带宽和访问时延。
+- 记录 suspend/resume 操作自身的 P50 和 P99 延迟。
 
-## 6. 缺点和风险
+## 8. 风险
 
 | 风险 | 影响 | 应对 |
 | --- | --- | --- |
-| lifecycle daemon listener 增加实现复杂度 | daemon 多一个状态机和 event-driven 线程 | 协议保持最小化，集中到独立模块 |
-| HCOM Destroy 不保证同步退出 | suspend 成功后仍可能有线程 | 修改返回链并 join reconnect/HCOM worker |
-| 所有控制 API 都需要状态 gate | 改动面较大 | 统一 control lease，逐项审计副作用入口 |
-| daemon 重启导致 lifecycle fd 断开 | Suspended 应用资源状态不确定 | SDK 进入 Failed 并禁止继续控制操作 |
-| 应用误在 suspend 期间调用 unmap/lock | 可能产生本地副作用 | 在公共 API 入口提前拒绝 |
-| 外部 HCOM 第 7 个线程来源尚未在本仓确认 | 线程验收可能与版本相关 | 联查对应 ubs-comm 版本并增加线程基线测试 |
+| Suspended 客户端崩溃后无法发送 resume | PID 记录和资源可能遗留 | 复用 daemon 周期死进程检查并同步删除记录 |
+| PID 重用 | 新进程可能命中旧 suspend 记录 | 启动和周期清理；评估增加进程启动时间 |
+| resume 部分成功 | SDK 与 daemon 状态不一致 | 幂等重试；临时 client 在 ACK 前不发布；状态不确定时保持连接并进入 Failed |
+| 重复 resume 增加 IPC 引用计数 | 后续 suspend 无法真正停止线程 | 增加 SDK 状态机和幂等处理 |
+| HCOM reconnect 使用 detached 线程 | suspend 后仍有线程或发生 UAF | 改为可 join 的受控线程 |
+| suspend 与控制 API 并发 | client UAF 或本地状态部分修改 | 生命周期锁、在途请求计数和 API 入口状态检查 |
+| 新 SDK 连接旧 daemon | 新 opcode 可能超时 | 未知 opcode 快速返回 NOT_SUPPORTED |
 
-## 7. 现有实现分析
+## 9. 未解决问题
 
-### 7.1 feat/ipc-suspend-resume
+1. “7 个后台线程”需要结合目标版本 ubs-comm 确认第 7 个线程的名称和 HCOM
+   Destroy 同步退出语义。
+2. `SuspendClientArray` 是否需要从 PID 扩展为 PID 加进程启动时间，以彻底规避
+   PID 重用。
+3. daemon 周期死进程扫描的最大清理延迟是否满足资源回收要求。
+4. Suspended 状态调用 finalize 时，是要求用户先 resume，还是由 finalize 内部
+   自动 resume 后再销毁。
+5. suspend 前持有分布式读写锁时，是返回 `UBSM_ERR_BUSY`，还是允许只读计算
+   阶段继续持锁。
+6. 是否增加专用 `UBSM_ERR_INVALID_STATE`，还是复用 `UBSM_ERR_BUSY`。
+7. 新 SDK 调用新接口连接旧 daemon 时，如何在现有消息框架中快速识别不支持，
+   避免默认 IPC timeout。
 
-可借鉴内容：
-
-- daemon ACK 后才停止 HCOM 的顺序。
-- 新增公共 C API 的位置和基本命名。
-- 正常 resume 时重新初始化 HCOM 并建链。
-
-不采用内容：
-
-- `SuspendClientArray` 持久 PID 表。
-- 无状态机的全局 client/refcount 操作。
-- resume 部分成功后不回滚。
-
-### 7.2 feat/suspend-resume-lifecycle
-
-可借鉴内容：
-
-- lifecycle fd 作为存活凭证。
-- `SO_PEERCRED` 获取 PID。
-- suspend 稳态客户端不创建线程。
-
-必须修正内容：
-
-- listener 未实际启动。
-- connect 没有 daemon READY ACK。
-- 正常 resume close 与进程死亡 HUP 无法区分。
-- resume 在新 HCOM 建链前关闭 lifecycle fd。
-- 全局 lifecycle 状态无锁。
-- finalize 未关闭 lifecycle fd。
-
-## 8. 未解决问题
-
-RFC 通过前需要社区确认：
-
-1. “全部后台线程”是否仅指默认 HCOM 创建的 7 个线程，还是还包括可选
-   ptracer、UBSE 和异步 logger 线程。
-2. 对应 ubs-comm 版本中第 7 个线程的确切名称、创建位置及 Destroy 同步退出
-   保证。
-3. Suspended 状态下持有分布式读写锁是否直接禁止。
-4. daemon 重启期间是否要求已 suspend 应用继续存活并恢复。本设计默认进入
-   Failed。
-5. suspend/resume 的默认超时时间和性能验收阈值。
-6. `FAILED` 状态是否允许通过完整 finalize/initialize 恢复，还是要求进程退出。
-7. 是否新增专用 `UBSM_ERR_INVALID_STATE`，还是复用现有 `UBSM_ERR_BUSY`。
-8. finalize while suspended 的正式语义，是显式发送 `FINALIZE`，还是将
-   lifecycle HUP 统一作为退出处理。
-
-## 9. 参考资料
+## 10. 参考资料
 
 - [Issue #42：ubs-mem 支持关闭额外的 7 个线程](https://gitcode.com/openeuler/ubs-mem/issues/42)
 - `main/master`：`84dcff6704b9902b77e39d80edd71be928d8cd86`
 - `feat/ipc-suspend-resume`：`054304dcd0153e675051e7bda8cc43f2298265d0`
-- `feat/suspend-resume-lifecycle`：`877333c7dca05abc82c33e529ce7430323c875db`
