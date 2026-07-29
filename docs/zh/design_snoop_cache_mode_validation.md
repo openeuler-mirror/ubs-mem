@@ -1,4 +1,4 @@
-# 技术设计方案：基于 ubfeature 的 Cache 模式校验
+# 技术设计方案：基于 UB feature 的 Cache 模式校验
 
 > 相关 Issue: [#39](https://gitcode.com/openeuler/ubs-mem/issues/39)
 
@@ -15,7 +15,7 @@ UBS Mem 共享内存支持多种缓存模式，其中与 snoop 强相关的有�
 
 ### 1.2 目标
 
-在 `ubsmem_shmem_allocate` / `ubsmem_shmem_allocate_with_provider` 接口中，基于 ubus 驱动通过 `/sys/bus/ub/ub_feature` 暴露的 `ubfeature` 能力位（Bit3，由 BIOS snoop 配置决定），校验用户传入的 flags 是否与当前硬件 snoop 状态兼容，不兼容时返回 `UBSM_ERR_NOT_SUPPORTED`。
+在 `ubsmem_shmem_allocate` / `ubsmem_shmem_allocate_with_provider` 接口中，基于 ubus 驱动通过 `/sys/bus/ub/ub_feature` 暴露的 UB feature 能力位（Bit3，由 BIOS snoop 配置决定），校验用户传入的 flags 是否与当前硬件 snoop 状态兼容，不兼容时返回 `UBSM_ERR_NOT_SUPPORTED`。
 
 ### 1.3 非目标
 
@@ -29,7 +29,7 @@ UBS Mem 共享内存支持多种缓存模式，其中与 snoop 强相关的有�
 
 ### 2.1 功能场景
 
-| 场景 | snoop 状态 | ubfeature Bit3 | CC 模式 (UBSM_FLAG_CACHE / UBSM_FLAG_WITH_LOCK) | NC-CC (UBSM_FLAG_ONLY_IMPORT_NONCACHE) |
+| 场景 | snoop 状态 | UB feature Bit3 | CC 模式 (UBSM_FLAG_CACHE / UBSM_FLAG_WITH_LOCK) | NC-CC (UBSM_FLAG_ONLY_IMPORT_NONCACHE) |
 |------|-----------|-----------------|-------------------------------------------------|----------------------------------------|
 | A | 关闭（OFF） | 1 | 允许 | **拒绝**（返回 NOT_SUPPORTED） |
 | B | 开启（ON） | 0 | **拒绝**（返回 NOT_SUPPORTED） | 允许 |
@@ -121,7 +121,7 @@ sequenceDiagram
 
 ### 3.3 功能实现设计
 
-#### 3.3.1 读取 ubfeature
+#### 3.3.1 读取 UB feature
 
 在以下位置分别新增：
 
@@ -142,12 +142,14 @@ static bool ReadUbfeatureFromSysfs(uint64_t &value);
 - 在 `UbseMemAdapter::Initialize()` 中调用 `SystemAdapter::ReadUbfeatureFromSysfs()` 并缓存结果
 
 **容错处理**：
+
 - 文件不存在 → `ubFeatureValid_` = `false`，`ubFeatureLoaded_` = `true`，后续 `ShmCreate` 中跳过校验，兼容旧设备
 - 解析失败 → 同文件不存在
 
 #### 3.3.2 校验逻辑
 
 **调用位置**：
+
 - `UbseMemAdapter::ShmCreate()` — 在 `PrepareUserInfoAndFlags()` 之后，`ShmCreateWithAffinity()` 之前
 - `UbseMemAdapter::ShmCreateWithProvider()` — 在 `PrepareShmCreateWithProviderParams()` 之后，`pUbseMemShmCreateWithLender()` 之前
 
@@ -199,7 +201,7 @@ int UbseMemAdapter::CheckFeatureCompatibility(uint64_t flags)
 - **安全性**：校验为防御性编程，不引入新的安全风险
 - **隐私**：不涉及用户数据
 - **兼容性**：`/sys/bus/ub/ub_feature` 不存在（旧设备无此文件）→ 跳过校验，兼容旧设备
-- **可观测性**：校验失败时输出 `DBG_LOGERROR`，含 flags 值和 ubfeature 位信息
+- **可观测性**：校验失败时输出 `DBG_LOGERROR`，含 flags 值和 UB feature 位信息
 - **可测试性**：`CheckFeatureCompatibility()` 逻辑独立，通过设置缓存的 feature 状态进行单元测试
 - **可维护性**：集中在校验函数中，后续扩展更多 feature bit 只需修改掩码和逻辑
 
@@ -213,8 +215,8 @@ int UbseMemAdapter::CheckFeatureCompatibility(uint64_t flags)
 
 | 函数 | 位置 | 用途 |
 |------|------|------|
-| `SystemAdapter::ReadUbfeatureFromSysfs(value)` | `src/under_api/sys/system_adapter.cpp` | 从 sysfs 读取 ubfeature 值，通过返回值表示是否成功 |
-| `UbseMemAdapter::CheckFeatureCompatibility(flags)` | `src/under_api/ubse/ubse_mem_adapter.cpp` | 校验 flags 与缓存的 ubfeature 是否兼容 |
+| `SystemAdapter::ReadUbfeatureFromSysfs(value)` | `src/under_api/sys/system_adapter.cpp` | 从 sysfs 读取 UB feature 值，通过返回值表示是否成功 |
+| `UbseMemAdapter::CheckFeatureCompatibility(flags)` | `src/under_api/ubse/ubse_mem_adapter.cpp` | 校验 flags 与缓存的 UB feature 是否兼容 |
 
 ---
 
