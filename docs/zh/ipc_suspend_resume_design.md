@@ -19,9 +19,8 @@ ubs-mem 代码明确配置了 6 个 HCOM worker；Issue #42 的运行环境共�
 共享内存 map 后的普通数据访问，但会对 HPC 计算程序产生额外的 CPU 调度和运行
 抖动。
 
-本设计基于 `feat/ipc-suspend-resume` 分支的实现，在 SDK 和 daemon 之间新增
-`IPC_SUSPEND_CLIENT`、`IPC_RESUME_CLIENT` 两个 IPC 控制消息，并提供以下
-公共接口：
+本设计在 SDK 和 daemon 之间新增 `IPC_SUSPEND_CLIENT`、
+`IPC_RESUME_CLIENT` 两个 IPC 控制消息，并提供以下公共接口：
 
 ```c
 int ubsmem_shmem_ipc_suspend(void);
@@ -81,12 +80,12 @@ map 成功后，普通内存读写不再经过 HCOM。因此停止 HCOM IPC clie
 - 不提供初始化后 fork 的子进程恢复能力。
 - 不停止 daemon 侧后台线程。
 
-## 2. 当前实现分析
+## 2. 现状分析
 
-### 2.1 主线实现
+### 2.1 SDK 初始化与销毁
 
-`main/master` 中，`ubsmem_initialize()` 通过 `RackMemLib::Initialize()` 初始化
-`IpcProxy`，调用链如下：
+`ubsmem_initialize()` 通过 `RackMemLib::Initialize()` 初始化 `IpcProxy`，
+调用链如下：
 
 ```text
 ubsmem_initialize
@@ -112,46 +111,7 @@ ubsmem_finalize
 
 该流程同时销毁其他 SDK 模块，不适合直接作为计算阶段的 suspend 接口。
 
-### 2.2 feat/ipc-suspend-resume 实现
-
-功能分支新增以下内容：
-
-| 模块 | 实现 |
-| --- | --- |
-| 公共 API | `ubsmem_shmem_ipc_suspend()`、`ubsmem_shmem_ipc_resume()` |
-| IPC opcode | `IPC_SUSPEND_CLIENT`、`IPC_RESUME_CLIENT` |
-| IPC request | `IpcSuspendRequest`、`IpcResumeRequest` |
-| SDK sender | `ShmIpcCommand::IpcCallSuspend()`、`IpcCallResume()` |
-| daemon handler | `MxmServerMsgHandle::IpcSuspend()`、`IpcResume()` |
-| suspend 记录 | `RecordStore::AddSuspendClient()`、`DelSuspendClient()` |
-| 断链判断 | `RecordStore::IsClientSuspended()` |
-
-suspend 当前调用顺序：
-
-```text
-SDK: IPC_SUSPEND_CLIENT
-    -> daemon: 从 UDS peer 信息获取 PID
-    -> daemon: AddSuspendClient(pid)
-    -> daemon: 返回成功
-SDK: IpcProxy::Destroy()
-    -> HCOM 断链
-daemon: LINK_DOWN(pid)
-    -> IsClientSuspended(pid) == true
-    -> 跳过 ClientProcessExited(pid)
-```
-
-resume 当前调用顺序：
-
-```text
-SDK: IpcProxy::Initialize()
-    -> 重新创建 HCOM client
-    -> 与 ubsmd 建立 UDS 连接
-SDK: IPC_RESUME_CLIENT
-    -> daemon: DelSuspendClient(pid)
-    -> daemon: 返回成功
-```
-
-### 2.3 当前实现待完善项
+### 2.2 需要解决的问题
 
 - SDK 没有显式 Running/Suspended 状态，重复 resume 会增加 IPC 引用计数。
 - suspend/resume 与普通控制接口并发时，可能发生 client 指针竞争。
@@ -160,7 +120,6 @@ SDK: IPC_RESUME_CLIENT
 - `IsClientSuspended()` 读取 suspend 数组时没有使用与增删操作相同的锁。
 - suspended 客户端异常退出后不会再发送 resume，需要周期清理遗留 PID。
 - suspend 数组需要校验 `count`，避免异常记录导致越界访问。
-- 功能分支没有新增单元测试、集成测试和 API 文档。
 
 ## 3. 用例和约束
 
@@ -209,7 +168,7 @@ initialize
 
 ### 4.1 总体方案
 
-沿用 `feat/ipc-suspend-resume` 的 IPC 通知方案：
+采用 IPC 通知方案：
 
 1. SDK 通过已有 HCOM 连接发送 `IPC_SUSPEND_CLIENT`。
 2. daemon 使用 HCOM 提供的 UDS peer PID，不信任客户端自报 PID。
@@ -373,7 +332,7 @@ daemon 必须区分以下错误：
 
 ### 4.6 Daemon SuspendClientArray
 
-沿用功能分支的数据结构：
+daemon 使用以下数据结构记录 suspended client：
 
 ```cpp
 constexpr uint32_t MAX_SUSPEND_CLIENT = 256;
@@ -461,10 +420,9 @@ resume 成功后，SDK 才将状态切换为 Running。如果重试后仍无法�
 和“请求已执行但响应丢失”，SDK 保持新 HCOM 并进入 `FAILED`，避免在 daemon
 已经删除记录的情况下主动断链并触发资源清理。
 
-功能分支当前的 `IpcProxy::Initialize()` 会直接发布全局 client 并增加引用计数。
-为实现上述回滚，需要重构出临时 client 初始化能力：HCOM 建链后先由 resume 流程
-独占持有，收到 daemon 成功响应后再发布为全局 client；明确失败时销毁临时
-client。该行为属于在现有功能分支实现上的必要完善。
+现有 `IpcProxy::Initialize()` 会直接发布全局 client 并增加引用计数。为实现上述
+回滚，需要重构出临时 client 初始化能力：HCOM 建链后先由 resume 流程独占
+持有，收到 daemon 成功响应后再发布为全局 client；明确失败时销毁临时 client。
 
 ### 4.10 HCOM 线程退出保证
 
@@ -591,7 +549,6 @@ return ubsmem_finalize();
 - 老 SDK 不发送新 opcode，可继续连接新 daemon。
 - 新 SDK 调用新接口连接旧 daemon 时返回 `UBSM_ERR_NOT_SUPPORTED` 或网络错误；
   应优先在消息分发层快速返回不支持，避免等待默认 60 秒超时。
-- 功能代码需要基于当前 `main/master` 重放，不能直接合入基于旧提交的实验分支。
 
 ### 6.3 可维护性
 
@@ -722,5 +679,3 @@ test/mxm-unit-tests/communication/ipc/
 ## 10. 参考资料
 
 - [Issue #42：ubs-mem 支持关闭额外的 7 个线程](https://gitcode.com/openeuler/ubs-mem/issues/42)
-- `main/master`：`84dcff6704b9902b77e39d80edd71be928d8cd86`
-- `feat/ipc-suspend-resume`：`054304dcd0153e675051e7bda8cc43f2298265d0`
