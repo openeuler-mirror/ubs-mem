@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "ubs_mem_monitor.h"
+#include <signal.h>
 #include <iosfwd>
 #include <iostream>
 #include "defines.h"
@@ -61,6 +62,10 @@ UBSMemMonitor &UBSMemMonitor::GetInstance() noexcept
 
 uint32_t UBSMemMonitor::RegisterHandler(pid_t pid) noexcept
 {
+    if (ock::ubsm::RecordStore::GetInstance().IsClientSuspended(pid)) {
+        DBG_LOGINFO("pid(" << pid << ") is suspended, skip cleanup.");
+        return 0U;
+    }
     return UBSMemMonitor::GetInstance().ManagerEventNotified(pid);
 }
 
@@ -147,6 +152,12 @@ void UBSMemMonitor::BackgroundProcess() noexcept
         RemoveImmediatelyBorrows();
         RemoveDelayBorrows();
 
+        for (auto pid : ock::ubsm::RecordStore::GetInstance().ListSuspendClients()) {
+            if (kill(pid, 0) != 0 && errno == ESRCH) {
+                ClientProcessExited(pid);
+            }
+        }
+
         lock.lock();
     }
 }
@@ -189,6 +200,7 @@ void UBSMemMonitor::ClientProcessExited(pid_t pid) noexcept
     if (ret != UBSM_OK) {
         DBG_LOGERROR("SHMProcessDeadProcess error. ret: " << ret);
     }
+    ock::ubsm::RecordStore::GetInstance().DelSuspendClient(pid);
     DBG_LOGINFO("Clean leak memory allocated by (" << pid << ") end.");
 }
 

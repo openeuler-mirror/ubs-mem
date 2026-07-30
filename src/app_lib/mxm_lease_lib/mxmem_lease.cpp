@@ -13,6 +13,7 @@
 #include <mutex>
 #include "ubs_mem.h"
 #include "RackMem.h"
+#include "ipc_proxy.h"
 #include "log.h"
 #include "rack_mem_lib.h"
 #include "ubsm_ptracer.h"
@@ -125,7 +126,8 @@ SHMEM_API int ubsmem_lease_malloc(const char *region_name, size_t size, ubsmem_d
                                   void **local_ptr)
 {
     TP_TRACE_BEGIN(TP_UBSM_MALLOC);
-    const auto ret = ubsmem_lease_malloc_impl(region_name, size, mem_distance, flags, local_ptr);
+    const auto ret = IpcProxy::RunOperation(
+        [&] { return ubsmem_lease_malloc_impl(region_name, size, mem_distance, flags, local_ptr); });
     TP_TRACE_END(TP_UBSM_MALLOC, ret);
     return GetErrCode(ret);
 }
@@ -134,7 +136,8 @@ SHMEM_API int ubsmem_lease_malloc_with_location(const ubs_mem_location_t *src_lo
                                                 void **local_ptr)
 {
     TP_TRACE_BEGIN(TP_UBSM_MALLOC_LOC);
-    const auto ret = ubsmem_lease_malloc_with_location_impl(src_loc, size, flags, local_ptr);
+    const auto ret =
+        IpcProxy::RunOperation([&] { return ubsmem_lease_malloc_with_location_impl(src_loc, size, flags, local_ptr); });
     TP_TRACE_END(TP_UBSM_MALLOC_LOC, ret);
     return GetErrCode(ret);
 }
@@ -151,7 +154,7 @@ uint32_t ubsmem_lease_free_impl(void *local_ptr)
 SHMEM_API int ubsmem_lease_free(void *local_ptr)
 {
     TP_TRACE_BEGIN(TP_UBSM_FREE);
-    uint32_t hr = ubsmem_lease_free_impl(local_ptr);
+    uint32_t hr = IpcProxy::RunOperation([&] { return ubsmem_lease_free_impl(local_ptr); });
     TP_TRACE_END(TP_UBSM_FREE, hr);
     return GetErrCode(hr);
 }
@@ -168,5 +171,5 @@ int ubsmem_lookup_cluster_statistic_impl(ubsmem_cluster_info_t *info)
 
 SHMEM_API int ubsmem_lookup_cluster_statistic(ubsmem_cluster_info_t *info)
 {
-    return GetErrCode(ubsmem_lookup_cluster_statistic_impl(info));
+    return GetErrCode(IpcProxy::RunOperation([&] { return ubsmem_lookup_cluster_statistic_impl(info); }));
 }

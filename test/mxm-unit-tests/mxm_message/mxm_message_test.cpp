@@ -17,7 +17,7 @@ constexpr auto TEST_SHM_MODE = 0600;
 constexpr auto TEST_SHM_FLAG = 0;
 
 using TEST_MsgBaseFunc = std::function<MsgBase *()>;
-static std::unordered_map<int16_t, TEST_MsgBaseFunc> gTestRequestMap = {
+static std::unordered_map<int16_t, TEST_MsgBaseFunc> g_gTestRequestMap = {
     {MXM_MSG_SHM_ALLOCATE,
      []() {
          return new (std::nothrow) ShmemAllocateRequest();
@@ -114,10 +114,18 @@ static std::unordered_map<int16_t, TEST_MsgBaseFunc> gTestRequestMap = {
      []() {
          return new (std::nothrow) CheckShareMemoryMapRequest();
      }},
-    {IPC_RACKMEMSHM_QUERY_SLOT_ID, []() {
+    {IPC_RACKMEMSHM_QUERY_SLOT_ID,
+     []() {
          return new (std::nothrow) CommonRequest();
+     }},
+    {IPC_SUSPEND_CLIENT,
+     []() {
+         return new (std::nothrow) IpcSuspendRequest();
+     }},
+    {IPC_RESUME_CLIENT, []() {
+         return new (std::nothrow) IpcResumeRequest();
      }}};
-static std::unordered_map<int16_t, TEST_MsgBaseFunc> gTestResponseMap = {
+static std::unordered_map<int16_t, TEST_MsgBaseFunc> g_gTestResponseMap = {
     {MXM_MSG_SHM_ALLOCATE,
      []() {
          return new (std::nothrow) CommonResponse();
@@ -214,8 +222,16 @@ static std::unordered_map<int16_t, TEST_MsgBaseFunc> gTestResponseMap = {
      []() {
          return new (std::nothrow) CommonResponse();
      }},
-    {IPC_RACKMEMSHM_QUERY_SLOT_ID, []() {
+    {IPC_RACKMEMSHM_QUERY_SLOT_ID,
+     []() {
          return new (std::nothrow) LookupSlotIdResponse();
+     }},
+    {IPC_SUSPEND_CLIENT,
+     []() {
+         return new (std::nothrow) CommonResponse();
+     }},
+    {IPC_RESUME_CLIENT, []() {
+         return new (std::nothrow) CommonResponse();
      }}};
 
 class MxmMessageTest : public testing::Test {
@@ -230,6 +246,12 @@ public:
 
     void TearDown() override {}
 };
+
+TEST_F(MxmMessageTest, TestIpcSuspendResumeOpcodeStable)
+{
+    EXPECT_EQ(IPC_SUSPEND_CLIENT, 31);
+    EXPECT_EQ(IPC_RESUME_CLIENT, 32);
+}
 
 template <typename TMsg>
 bool TestSerializeDeserialize()
@@ -248,6 +270,12 @@ bool TestSerializeDeserialize()
         return false;
     }
     return true; // 检查是否一致
+}
+
+TEST_F(MxmMessageTest, TestSerializeIpcSuspendResumeRequestSuccess)
+{
+    EXPECT_TRUE(TestSerializeDeserialize<IpcSuspendRequest>());
+    EXPECT_TRUE(TestSerializeDeserialize<IpcResumeRequest>());
 }
 
 TEST_F(MxmMessageTest, TestSerialize_ShmemAllocateRequest_Success)
@@ -609,7 +637,7 @@ TEST_F(MxmMessageTest, TestSerialize_ShmListLookupResponse_Success)
 
 TEST_F(MxmMessageTest, TestCreateRequestByOpCode_Success)
 {
-    for (const auto &it : gTestRequestMap) {
+    for (const auto &it : g_gTestRequestMap) {
         auto ret = CreateRequestByOpCode(it.first);
         EXPECT_NE(ret, nullptr);
         SafeDelete(ret);
@@ -618,7 +646,7 @@ TEST_F(MxmMessageTest, TestCreateRequestByOpCode_Success)
 
 TEST_F(MxmMessageTest, CreateResponseByOpCode_Success)
 {
-    for (const auto &it : gTestResponseMap) {
+    for (const auto &it : g_gTestResponseMap) {
         auto ret = CreateResponseByOpCode(it.first);
         EXPECT_NE(ret, nullptr);
         SafeDelete(ret);

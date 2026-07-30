@@ -9,6 +9,7 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include <signal.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -120,6 +121,27 @@ int RecordStore::Initialize(int fd) noexcept
     shmRefRecordBegin_ = reinterpret_cast<MemShareRefRecord *>(shmImportRecordBegin_ + SHM_MAX_ATTACH_RECORD);
     memIdRecordPoolBegin_ = reinterpret_cast<MemIdRecordPool *>(shmRefRecordBegin_ + SHM_MAX_REFERENCE_RECORD);
     createSeqNo_ = reinterpret_cast<uint32_t *>(memIdRecordPoolBegin_ + 1);
+    suspendClientArray_ = reinterpret_cast<SuspendClientArray *>(createSeqNo_ + 1);
+    static_assert(sizeof(RegionRecord) * REGION_MAX_RECORD + sizeof(MemLeaseRecord) * MEM_LEASE_MAX_RECORD +
+                          sizeof(MemShareImportRecord) * SHM_MAX_ATTACH_RECORD +
+                          sizeof(MemShareRefRecord) * SHM_MAX_REFERENCE_RECORD + sizeof(MemIdRecordPool) +
+                          sizeof(uint32_t) + sizeof(SuspendClientArray) <=
+                      SHARE_MEM_SIZE,
+                  "RecordStore layout exceeds shared memory size");
+
+    if (suspendClientArray_->count > MAX_SUSPEND_CLIENT) {
+        DBG_LOGERROR("invalid suspend client count=" << suspendClientArray_->count << ", reset it.");
+        memset_s(suspendClientArray_, sizeof(*suspendClientArray_), 0, sizeof(*suspendClientArray_));
+    } else {
+        uint32_t writeIndex = 0;
+        for (uint32_t i = 0; i < suspendClientArray_->count; ++i) {
+            const auto pid = static_cast<pid_t>(suspendClientArray_->pids[i]);
+            if (pid > 0 && (kill(pid, 0) == 0 || errno == EPERM)) {
+                suspendClientArray_->pids[writeIndex++] = static_cast<uint32_t>(pid);
+            }
+        }
+        suspendClientArray_->count = writeIndex;
+    }
 
     if (!CheckAllocators()) {
         DBG_LOGERROR("CheckAllocators failed.");
@@ -161,6 +183,7 @@ void RecordStore::Destroy() noexcept
     shmRefRecordBegin_ = nullptr;
     memIdRecordPoolBegin_ = nullptr;
     createSeqNo_ = nullptr;
+    suspendClientArray_ = nullptr;
 }
 
 int RecordStore::AddRegionRecord(const CreateRegionInput &input) noexcept
@@ -998,6 +1021,87 @@ void RecordStore::ConvertMemLease(const WithMemIdsRecord<MemLeaseRecord> &record
     info.second.numaId = record.record->numaId;
     info.second.unitSize = record.record->unitSize;
     info.second.slotId = record.record->slotId;
+}
+
+int RecordStore::AddSuspendClient(pid_t pid) noexcept
+{
+    if (pid <= 0 || mappingAddress_ == nullptr || suspendClientArray_ == nullptr) {
+        DBG_LOGERROR("not initialized!");
+        return -1;
+    }
+    std::unique_lock<std::mutex> uniqueLock{cachedRecordMutex_};
+    if (suspendClientArray_->count > MAX_SUSPEND_CLIENT) {
+        DBG_LOGERROR("invalid suspend client count=" << suspendClientArray_->count);
+        return -1;
+    }
+    for (uint32_t i = 0; i < suspendClientArray_->count; ++i) {
+        if (suspendClientArray_->pids[i] == static_cast<uint32_t>(pid)) {
+            DBG_LOGWARN("pid(" << pid << ") already suspended.");
+            return 0;
+        }
+    }
+    if (suspendClientArray_->count == MAX_SUSPEND_CLIENT) {
+        DBG_LOGERROR("suspend client array is full.");
+        return -2;
+    }
+    suspendClientArray_->pids[suspendClientArray_->count++] = static_cast<uint32_t>(pid);
+    DBG_LOGINFO("add suspend client pid(" << pid << ").");
+    return 0;
+}
+
+int RecordStore::DelSuspendClient(pid_t pid) noexcept
+{
+    if (pid <= 0 || mappingAddress_ == nullptr || suspendClientArray_ == nullptr) {
+        DBG_LOGERROR("not initialized!");
+        return -1;
+    }
+    std::unique_lock<std::mutex> uniqueLock{cachedRecordMutex_};
+    if (suspendClientArray_->count > MAX_SUSPEND_CLIENT) {
+        DBG_LOGERROR("invalid suspend client count=" << suspendClientArray_->count);
+        return -1;
+    }
+    for (uint32_t i = 0; i < suspendClientArray_->count; ++i) {
+        if (suspendClientArray_->pids[i] == static_cast<uint32_t>(pid)) {
+            suspendClientArray_->pids[i] = suspendClientArray_->pids[--suspendClientArray_->count];
+            DBG_LOGINFO("remove suspend client pid(" << pid << ").");
+            return 0;
+        }
+    }
+    DBG_LOGWARN("pid(" << pid << ") not found in suspend array.");
+    return 0;
+}
+
+bool RecordStore::IsClientSuspended(pid_t pid) const noexcept
+{
+    if (pid <= 0 || mappingAddress_ == nullptr || suspendClientArray_ == nullptr) {
+        return false;
+    }
+    std::unique_lock<std::mutex> uniqueLock{cachedRecordMutex_};
+    if (suspendClientArray_->count > MAX_SUSPEND_CLIENT) {
+        DBG_LOGERROR("invalid suspend client count=" << suspendClientArray_->count);
+        return false;
+    }
+    for (uint32_t i = 0; i < suspendClientArray_->count; ++i) {
+        if (suspendClientArray_->pids[i] == static_cast<uint32_t>(pid)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::vector<pid_t> RecordStore::ListSuspendClients() const noexcept
+{
+    std::vector<pid_t> pids;
+    std::unique_lock<std::mutex> uniqueLock{cachedRecordMutex_};
+    if (mappingAddress_ == nullptr || suspendClientArray_ == nullptr ||
+        suspendClientArray_->count > MAX_SUSPEND_CLIENT) {
+        return pids;
+    }
+    pids.reserve(suspendClientArray_->count);
+    for (uint32_t i = 0; i < suspendClientArray_->count; ++i) {
+        pids.push_back(static_cast<pid_t>(suspendClientArray_->pids[i]));
+    }
+    return pids;
 }
 
 } // namespace ubsm

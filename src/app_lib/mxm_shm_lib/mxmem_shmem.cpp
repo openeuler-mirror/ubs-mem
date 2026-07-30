@@ -14,6 +14,7 @@
 #include "ubs_mem.h"
 #include "RackMemShm.h"
 #include "UbseMemExecutor.h"
+#include "ipc_proxy.h"
 #include "log.h"
 #include "mx_shm.h"
 #include "rack_mem_functions.h"
@@ -335,7 +336,8 @@ uint32_t ubsmem_shmem_allocate_impl(const char *region_name, const char *name, s
 SHMEM_API int ubsmem_shmem_allocate(const char *region_name, const char *name, size_t size, mode_t mode, uint64_t flags)
 {
     TP_TRACE_BEGIN(TP_UBSM_SHM_CREATE);
-    const auto ret = ubsmem_shmem_allocate_impl(region_name, name, size, mode, flags);
+    const auto ret =
+        IpcProxy::RunOperation([&] { return ubsmem_shmem_allocate_impl(region_name, name, size, mode, flags); });
     TP_TRACE_END(TP_UBSM_SHM_CREATE, ret);
     return GetErrCode(ret);
 }
@@ -392,7 +394,8 @@ SHMEM_API int ubsmem_shmem_allocate_with_provider(const ubs_mem_provider_t *src_
                                                   mode_t mode, uint64_t flags)
 {
     TP_TRACE_BEGIN(TP_UBSM_SHM_CREATE_WITH_PROVIDER);
-    const auto ret = ubsmem_shmem_allocate_with_provider_impl(src_loc, name, size, mode, flags);
+    const auto ret = IpcProxy::RunOperation(
+        [&] { return ubsmem_shmem_allocate_with_provider_impl(src_loc, name, size, mode, flags); });
     TP_TRACE_END(TP_UBSM_SHM_CREATE_WITH_PROVIDER, ret);
     return GetErrCode(ret);
 }
@@ -422,7 +425,7 @@ uint32_t ubsmem_shmem_deallocate_impl(const char *name)
 SHMEM_API int ubsmem_shmem_deallocate(const char *name)
 {
     TP_TRACE_BEGIN(TP_UBSM_SHM_DELETE_IPC_REQUEST);
-    const auto ret = ubsmem_shmem_deallocate_impl(name);
+    const auto ret = IpcProxy::RunOperation([&] { return ubsmem_shmem_deallocate_impl(name); });
     TP_TRACE_END(TP_UBSM_SHM_DELETE_IPC_REQUEST, ret);
     return GetErrCode(ret);
 }
@@ -486,7 +489,8 @@ SHMEM_API int ubsmem_shmem_map(void *addr, size_t length, int prot, int flags, c
                                void **local_ptr)
 {
     TP_TRACE_BEGIN(TP_UBSM_SHM_MAP);
-    const auto ret = ubsmem_shmem_map_impl(addr, length, prot, flags, name, offset, local_ptr);
+    const auto ret = IpcProxy::RunOperation(
+        [&] { return ubsmem_shmem_map_impl(addr, length, prot, flags, name, offset, local_ptr); });
     TP_TRACE_END(TP_UBSM_SHM_MAP, ret);
     return GetErrCode(ret);
 }
@@ -515,7 +519,7 @@ uint32_t ubsmem_shmem_unmap_impl(void *local_ptr, size_t length)
 SHMEM_API int ubsmem_shmem_unmap(void *local_ptr, size_t length)
 {
     TP_TRACE_BEGIN(TP_UBSM_SHM_UNMAP);
-    const auto ret = ubsmem_shmem_unmap_impl(local_ptr, length);
+    const auto ret = IpcProxy::RunOperation([&] { return ubsmem_shmem_unmap_impl(local_ptr, length); });
     TP_TRACE_END(TP_UBSM_SHM_UNMAP, ret);
     return GetErrCode(ret);
 }
@@ -567,7 +571,7 @@ uint32_t ubsmem_shmem_set_ownership_impl(const char *name, void *start, size_t l
 SHMEM_API int ubsmem_shmem_set_ownership(const char *name, void *start, size_t length, int prot)
 {
     TP_TRACE_BEGIN(TP_UBSM_SET_SHMEM_OWERSHIP);
-    const auto hr = ubsmem_shmem_set_ownership_impl(name, start, length, prot);
+    const auto hr = IpcProxy::RunOperation([&] { return ubsmem_shmem_set_ownership_impl(name, start, length, prot); });
     TP_TRACE_END(TP_UBSM_SET_SHMEM_OWERSHIP, hr);
     return GetErrCode(hr);
 }
@@ -615,7 +619,7 @@ uint32_t ubsm_lookup_regions_ompl(ubsmem_regions_t *regions)
 int ubsmem_lookup_regions(ubsmem_regions_t *regions)
 {
     TP_TRACE_BEGIN(TP_UBSM_LOOKUP_REGIONS);
-    uint32_t hr = ubsm_lookup_regions_ompl(regions);
+    uint32_t hr = IpcProxy::RunOperation([&] { return ubsm_lookup_regions_ompl(regions); });
     TP_TRACE_END(TP_UBSM_LOOKUP_REGIONS, hr);
     return GetErrCode(hr);
 }
@@ -681,7 +685,7 @@ uint32_t ubsmem_create_region_impl(const char *region_name, size_t size, const u
 int ubsmem_create_region(const char *region_name, size_t size, const ubsmem_region_attributes_t *reg_attr)
 {
     TP_TRACE_BEGIN(TP_UBSM_CREATE_REGIONS);
-    uint32_t hr = ubsmem_create_region_impl(region_name, size, reg_attr);
+    uint32_t hr = IpcProxy::RunOperation([&] { return ubsmem_create_region_impl(region_name, size, reg_attr); });
     TP_TRACE_END(TP_UBSM_CREATE_REGIONS, hr);
     return GetErrCode(hr);
 }
@@ -736,7 +740,7 @@ uint32_t ubsmem_lookup_region_impl(const char *region_name, ubsmem_region_desc_t
 int ubsmem_lookup_region(const char *region_name, ubsmem_region_desc_t *region_desc)
 {
     TP_TRACE_BEGIN(TP_UBSM_LOOKUP_REGION);
-    uint32_t hr = ubsmem_lookup_region_impl(region_name, region_desc);
+    uint32_t hr = IpcProxy::RunOperation([&] { return ubsmem_lookup_region_impl(region_name, region_desc); });
     TP_TRACE_END(TP_UBSM_LOOKUP_REGION, hr);
     return GetErrCode(hr);
 }
@@ -781,7 +785,7 @@ uint32_t ubsmem_destroy_region_impl(const char *region_name)
 int ubsmem_destroy_region(const char *region_name)
 {
     TP_TRACE_BEGIN(TP_UBSM_DESTORY_REGION);
-    auto ret = ubsmem_destroy_region_impl(region_name);
+    auto ret = IpcProxy::RunOperation([&] { return ubsmem_destroy_region_impl(region_name); });
     TP_TRACE_END(TP_UBSM_DESTORY_REGION, ret);
     return GetErrCode(ret);
 }
@@ -810,7 +814,7 @@ uint32_t ubsmem_shmem_write_lock_impl(const char *name)
 SHMEM_API int ubsmem_shmem_write_lock(const char *name)
 {
     TP_TRACE_BEGIN(TP_UBSM_WRITE_LOCK);
-    uint32_t ret = ubsmem_shmem_write_lock_impl(name);
+    uint32_t ret = IpcProxy::RunOperation([&] { return ubsmem_shmem_write_lock_impl(name); });
     TP_TRACE_END(TP_UBSM_WRITE_LOCK, ret);
     return GetErrCode(ret);
 }
@@ -839,7 +843,7 @@ uint32_t ubsmem_shmem_read_lock_impl(const char *name)
 SHMEM_API int ubsmem_shmem_read_lock(const char *name)
 {
     TP_TRACE_BEGIN(TP_UBSM_READ_LOCK);
-    uint32_t ret = ubsmem_shmem_read_lock_impl(name);
+    uint32_t ret = IpcProxy::RunOperation([&] { return ubsmem_shmem_read_lock_impl(name); });
     TP_TRACE_END(TP_UBSM_READ_LOCK, ret);
     return GetErrCode(ret);
 }
@@ -867,7 +871,7 @@ uint32_t ubsmem_shmem_unlock_impl(const char *name)
 SHMEM_API int ubsmem_shmem_unlock(const char *name)
 {
     TP_TRACE_BEGIN(TP_UBSM_UNLOCK);
-    uint32_t ret = ubsmem_shmem_unlock_impl(name);
+    uint32_t ret = IpcProxy::RunOperation([&] { return ubsmem_shmem_unlock_impl(name); });
     TP_TRACE_END(TP_UBSM_UNLOCK, ret);
     return GetErrCode(ret);
 }
@@ -896,7 +900,7 @@ uint32_t ubsmem_shmem_attach_impl(const char *name)
 SHMEM_API int ubsmem_shmem_attach(const char *name)
 {
     TP_TRACE_BEGIN(TP_UBSM_SHM_ATTACH);
-    uint32_t ret = ubsmem_shmem_attach_impl(name);
+    uint32_t ret = IpcProxy::RunOperation([&] { return ubsmem_shmem_attach_impl(name); });
     TP_TRACE_END(TP_UBSM_SHM_ATTACH, ret);
     return GetErrCode(ret);
 }
@@ -926,7 +930,7 @@ uint32_t ubsmem_shmem_detach_impl(const char *name)
 SHMEM_API int ubsmem_shmem_detach(const char *name)
 {
     TP_TRACE_BEGIN(TP_UBSM_SHM_DETACH);
-    uint32_t ret = ubsmem_shmem_detach_impl(name);
+    uint32_t ret = IpcProxy::RunOperation([&] { return ubsmem_shmem_detach_impl(name); });
     TP_TRACE_END(TP_UBSM_SHM_DETACH, ret);
     return GetErrCode(ret);
 }
@@ -979,7 +983,7 @@ uint32_t ubsmem_shmem_listlookup_impl(const char *prefix, ubsmem_shmem_desc_t *s
 
 SHMEM_API int ubsmem_shmem_list_lookup(const char *prefix, ubsmem_shmem_desc_t *shm_list, uint32_t *shm_cnt)
 {
-    return GetErrCode(ubsmem_shmem_listlookup_impl(prefix, shm_list, shm_cnt));
+    return GetErrCode(IpcProxy::RunOperation([&] { return ubsmem_shmem_listlookup_impl(prefix, shm_list, shm_cnt); }));
 }
 
 uint32_t ubsmem_shmem_lookup_impl(const char *name, ubsmem_shmem_info_t *shm_info)
@@ -1003,7 +1007,7 @@ uint32_t ubsmem_shmem_lookup_impl(const char *name, ubsmem_shmem_info_t *shm_inf
 
 SHMEM_API int ubsmem_shmem_lookup(const char *name, ubsmem_shmem_info_t *shm_info)
 {
-    return GetErrCode(ubsmem_shmem_lookup_impl(name, shm_info));
+    return GetErrCode(IpcProxy::RunOperation([&] { return ubsmem_shmem_lookup_impl(name, shm_info); }));
 }
 
 uint32_t ubsmem_local_nid_query_impl(uint32_t *nid)
@@ -1024,7 +1028,7 @@ SHMEM_API int ubsmem_local_nid_query(uint32_t *nid)
         DBG_LOGERROR("nid is nullptr.");
         return UBSM_ERR_PARAM_INVALID;
     }
-    return GetErrCode(ubsmem_local_nid_query_impl(nid));
+    return GetErrCode(IpcProxy::RunOperation([&] { return ubsmem_local_nid_query_impl(nid); }));
 }
 
 uint32_t ubsmem_shmem_faults_register_impl(shmem_faults_func registerFunc)
@@ -1049,4 +1053,26 @@ uint32_t ubsmem_shmem_faults_register_impl(shmem_faults_func registerFunc)
 SHMEM_API int ubsmem_shmem_faults_register(shmem_faults_func registerFunc)
 {
     return GetErrCode(ubsmem_shmem_faults_register_impl(registerFunc));
+}
+
+SHMEM_API int ubsmem_shmem_ipc_suspend(void)
+{
+    auto ret = IpcProxy::Suspend();
+    if (ret != UBSM_OK) {
+        DBG_LOGERROR("ubsmem_shmem_ipc_suspend failed, ret=" << ret);
+        return GetErrCode(ret);
+    }
+    DBG_LOGINFO("ubsmem_shmem_ipc_suspend done.");
+    return GetErrCode(UBSM_OK);
+}
+
+SHMEM_API int ubsmem_shmem_ipc_resume(void)
+{
+    auto ret = IpcProxy::Resume();
+    if (ret != UBSM_OK) {
+        DBG_LOGERROR("ubsmem_shmem_ipc_resume IpcCallResume failed, ret=" << ret);
+        return GetErrCode(ret);
+    }
+    DBG_LOGINFO("ubsmem_shmem_ipc_resume done.");
+    return GetErrCode(UBSM_OK);
 }

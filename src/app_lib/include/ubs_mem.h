@@ -215,6 +215,21 @@ SHMEM_API int ubsmem_shmem_faults_register(shmem_faults_func registerFunc);
  */
 SHMEM_API int ubsmem_local_nid_query(uint32_t *nid);
 
+/**
+ * @brief Suspend the IPC client connection to ubsmd.
+ * After suspend, the daemon will skip memory leak cleanup when this client disconnects.
+ * The IPC client will be stopped.
+ * @return - 0 on success and other on failure
+ */
+SHMEM_API int ubsmem_shmem_ipc_suspend(void);
+
+/**
+ * @brief Resume the IPC client connection to ubsmd.
+ * Restarts the IPC client and re-establishes connection to the daemon.
+ * @return - 0 on success and other on failure
+ */
+SHMEM_API int ubsmem_shmem_ipc_resume(void);
+
 #ifdef __cplusplus
 } // end of extern "C"
 #endif

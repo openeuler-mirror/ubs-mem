@@ -14,6 +14,7 @@
 #define MEMORYFABRIC_IPC_PROXY_H
 
 #include <functional>
+#include <mutex>
 #include <string>
 #include <utility>
 
@@ -26,13 +27,40 @@
 
 namespace ock::mxmd {
 using namespace ock::common;
+
+enum class IpcSuspendState {
+    UNINITIALIZED,
+    RUNNING,
+    SUSPENDING,
+    SUSPENDED,
+    RESUMING,
+    FINALIZING,
+    FAILED,
+};
+
 class IpcProxy {
 public:
     static uint32_t Initialize();
 
+    static uint32_t Suspend();
+
+    static uint32_t Resume();
+
     uint32_t SyncCall(int opcode, MsgBase *request, MsgBase *response);
 
     static uint32_t Destroy();
+
+    static bool IsRunning();
+
+    template <typename Operation>
+    static uint32_t RunOperation(Operation &&operation)
+    {
+        std::lock_guard<std::recursive_mutex> stateGuard(stateLock_);
+        if (state_ != IpcSuspendState::RUNNING && state_ != IpcSuspendState::UNINITIALIZED) {
+            return MXM_ERR_MEMLIB;
+        }
+        return operation();
+    }
 
     uint32_t Ipc(MsgBase *request, MsgBase *response, const int opCode)
     {
@@ -45,6 +73,16 @@ public:
             return MXM_ERR_PARAM_INVALID;
         };
 
+        std::lock_guard<std::recursive_mutex> stateGuard(stateLock_);
+        if (state_ != IpcSuspendState::RUNNING && state_ != IpcSuspendState::UNINITIALIZED) {
+            DBG_LOGERROR("IPC is unavailable in state=" << static_cast<int>(state_));
+            return MXM_ERR_MEMLIB;
+        }
+        return IpcUnlocked(request, response, opCode);
+    }
+
+    uint32_t IpcUnlocked(MsgBase *request, MsgBase *response, const int opCode)
+    {
         DBG_LOGINFO("IPC SyncCall begin, opCode=" << opCode);
         uint32_t hr;
         for (int i = 0; i < 3u; ++i) {
@@ -77,7 +115,8 @@ public:
 
     DAGGER_DEFINE_REF_COUNT_FUNCTIONS
 private:
-    std::mutex mLock{};
+    static std::recursive_mutex stateLock_;
+    static IpcSuspendState state_;
     DAGGER_DEFINE_REF_COUNT_VARIABLE;
     IpcProxy() = default;
 };

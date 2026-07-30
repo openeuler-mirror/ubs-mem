@@ -13,6 +13,7 @@
 #define MXM_COM_ENGINE_H
 
 #include <thread>
+#include <vector>
 #include "hcom_service.h"
 #include "lock/dg_lock.h"
 #include "mxm_com_def.h"
@@ -268,6 +269,8 @@ protected:
     void *address = nullptr;                       // 预分配内存地址
     UBSHcomNetMemoryAllocatorPtr memPtr = nullptr; // 内存指针
     UBSHcomRegMemoryRegion mr;
+    std::mutex reconnectMutex;
+    std::vector<std::thread> reconnectTasks;
 };
 
 class MxmComEngineManager {

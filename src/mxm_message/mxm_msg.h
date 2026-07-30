@@ -1980,6 +1980,42 @@ struct LookupSlotIdResponse : MsgBase {
     }
 };
 
+struct IpcSuspendRequest : MsgBase {
+    IpcSuspendRequest() : MsgBase(0, IPC_SUSPEND_CLIENT, 0) {}
+    int32_t Serialize(NetMsgPacker &packer) const override
+    {
+        packer.Serialize(msgVer);
+        packer.Serialize(opCode);
+        packer.Serialize(destRankId);
+        return UBSM_OK;
+    }
+    int32_t Deserialize(NetMsgUnpacker &unpacker) override
+    {
+        unpacker.Deserialize(msgVer);
+        unpacker.Deserialize(opCode);
+        unpacker.Deserialize(destRankId);
+        return UBSM_OK;
+    }
+};
+
+struct IpcResumeRequest : MsgBase {
+    IpcResumeRequest() : MsgBase(0, IPC_RESUME_CLIENT, 0) {}
+    int32_t Serialize(NetMsgPacker &packer) const override
+    {
+        packer.Serialize(msgVer);
+        packer.Serialize(opCode);
+        packer.Serialize(destRankId);
+        return UBSM_OK;
+    }
+    int32_t Deserialize(NetMsgUnpacker &unpacker) override
+    {
+        unpacker.Deserialize(msgVer);
+        unpacker.Deserialize(opCode);
+        unpacker.Deserialize(destRankId);
+        return UBSM_OK;
+    }
+};
+
 MsgBase *CreateRequestByOpCode(int16_t op);
 
 MsgBase *CreateResponseByOpCode(int16_t op);

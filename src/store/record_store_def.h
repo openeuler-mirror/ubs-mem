@@ -103,6 +103,13 @@ struct MemIdRecordPool {
     uint64_t memIds[RECORD_MEM_ID_POOL_LINE_COUNT][RECORD_MEM_ID_POOL_LINE_SIZE];
 };
 
+constexpr uint32_t MAX_SUSPEND_CLIENT = 256;
+
+struct SuspendClientArray {
+    uint32_t count;
+    uint32_t pids[MAX_SUSPEND_CLIENT];
+};
+
 } // namespace ubsm
 } // namespace ock
 

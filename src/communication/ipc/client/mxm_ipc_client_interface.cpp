@@ -12,6 +12,7 @@
 
 #include "mxm_ipc_client_interface.h"
 
+#include <mutex>
 #include <utility>
 #include "mxm_com_error.h"
 #include "mxm_ipc_client.h"
@@ -24,9 +25,11 @@ using namespace ock::mxmd;
 using namespace ock::com::ipc;
 MxmIpcClient *g_mxmIpcClient{nullptr};
 std::atomic<int> g_ipcClientCount{0};
+static std::mutex g_ipcClientMutex;
 
 int MxmComStartIpcClient()
 {
+    std::lock_guard<std::mutex> lock(g_ipcClientMutex);
     if (g_ipcClientCount.load() > 0 && g_mxmIpcClient != nullptr) {
         g_ipcClientCount.fetch_add(1);
         return HOK;
@@ -63,11 +66,12 @@ int MxmComStartIpcClient()
     return HOK;
 }
 
-void MxmComStopIpcClient()
+int MxmComStopIpcClient()
 {
+    std::lock_guard<std::mutex> lock(g_ipcClientMutex);
     if (g_ipcClientCount.load() > 1) {
         g_ipcClientCount.fetch_sub(1);
-        return;
+        return HOK;
     }
     if (g_mxmIpcClient != nullptr && g_ipcClientCount.load() == 1) {
         g_mxmIpcClient->Stop();
@@ -75,10 +79,12 @@ void MxmComStopIpcClient()
         g_mxmIpcClient = nullptr;
         g_ipcClientCount.fetch_sub(1);
     }
+    return HOK;
 }
 
 int MxmComIpcClientSend(uint16_t opCode, MsgBase *request, MsgBase *response)
 {
+    std::lock_guard<std::mutex> lock(g_ipcClientMutex);
     SendParam param(FAKE_CUR_NODE_ID, static_cast<uint16_t>(MxmModuleCode::MEM), opCode, MxmChannelType::SINGLE_SIDE);
     if (g_mxmIpcClient == nullptr) {
         DBG_LOGERROR("g_mxmIpcClient is nullptr");
@@ -90,6 +96,7 @@ int MxmComIpcClientSend(uint16_t opCode, MsgBase *request, MsgBase *response)
 
 int MxmSetPostReconnectHandler(int (*handler)())
 {
+    std::lock_guard<std::mutex> lock(g_ipcClientMutex);
     if (g_mxmIpcClient == nullptr) {
         DBG_LOGERROR("g_mxmIpcClient is nullptr");
         return HFAIL;

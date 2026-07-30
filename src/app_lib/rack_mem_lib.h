@@ -51,7 +51,7 @@ class RackMemLib {
 public:
     uint32_t Initialize();
 
-    void Destroy();
+    uint32_t Destroy();
 
     [[nodiscard]] int StartRackMem() const
     {

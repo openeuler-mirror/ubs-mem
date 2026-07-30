@@ -526,17 +526,29 @@ int MxmComEngine::RegisterHandlerWork(const EngineHandlerWorker &handlerWorker)
 
 void MxmComEngine::Stop()
 {
+    deleted.store(true);
     rwLock.LockWrite();
     linkManager.SetStop();
     auto engineName = engineInfo.GetName();
     linkManager.RemoveAllChannel(hcomNetService);
     rwLock.UnLock();
+
+    std::vector<std::thread> tasks;
+    {
+        std::lock_guard<std::mutex> lock(reconnectMutex);
+        tasks.swap(reconnectTasks);
+    }
+    for (auto &task : tasks) {
+        if (task.joinable()) {
+            task.join();
+        }
+    }
+
     if (hcomNetService != nullptr) {
         hcomNetService->DestroyMemoryRegion(mr);
         auto ret = hcomNetService->Destroy(engineName);
         DBG_LOGINFO("Destroy hcom instance=" << engineName << " finish, ret=" << ret);
         hcomNetService = nullptr;
-        deleted.store(true);
     }
     if (address != nullptr) {
         free(address);
@@ -747,8 +759,10 @@ void MxmComEngine::BrokenChannel(const UBSHcomChannelPtr &ch)
         !isReconnectHook(channelInfo.GetConnectInfo().GetRemoteNodeId(), payLoadPair.second)) {
         return;
     }
-    std::thread task([channelInfo, this]() { DoReconnect(channelInfo); });
-    task.detach();
+    std::lock_guard<std::mutex> lock(reconnectMutex);
+    if (!deleted.load()) {
+        reconnectTasks.emplace_back([channelInfo, this]() { DoReconnect(channelInfo); });
+    }
 }
 
 int MxmComEngine::ConvertContextToMessageCtx(const UBSHcomServiceContext &context, MxmComMessageCtx &msgCtx)
@@ -864,7 +878,7 @@ void MxmComEngine::DoReconnect(const MxmComChannelInfo &channelInfo)
                                                << channelInfo.GetConnectInfo().GetRemoteNodeId());
         std::this_thread::sleep_for(std::chrono::seconds(waitSeconds));
     }
-    if (this->postReconnectHandler) {
+    if (!deleted.load() && this->postReconnectHandler) {
         DBG_LOGINFO("Reconnect successfully. Start to check invoke postReconnectHandler.");
         ret = postReconnectHandler();
         if (ret != 0) {

@@ -179,6 +179,11 @@ public:
      */
     std::unordered_map<pid_t, std::unordered_map<std::string, uint32_t>> ListShmRefRecordPidF() const noexcept;
 
+    int AddSuspendClient(pid_t pid) noexcept;
+    int DelSuspendClient(pid_t pid) noexcept;
+    bool IsClientSuspended(pid_t pid) const noexcept;
+    std::vector<pid_t> ListSuspendClients() const noexcept;
+
 private:
     RecordStore() noexcept;
     ~RecordStore() noexcept;
@@ -207,6 +212,7 @@ private:
     MemShareRefRecord *shmRefRecordBegin_{nullptr};
     MemIdRecordPool *memIdRecordPoolBegin_{nullptr};
     uint32_t *createSeqNo_{nullptr};
+    SuspendClientArray *suspendClientArray_{nullptr};
 
     mutable std::mutex cachedRecordMutex_;
     std::unordered_map<std::string, RegionRecord *> cachedRegionRecords_;
