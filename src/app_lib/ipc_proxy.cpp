@@ -128,26 +128,25 @@ uint32_t IpcProxy::Suspend()
 
 uint32_t IpcProxy::Resume()
 {
-    IpcSuspendState entryState;
-    auto ret = BeginResume(entryState);
-    if (ret != UBSM_OK || entryState == IpcSuspendState::RUNNING) {
+    IpcSuspendState stateBeforeResume;
+    auto ret = EnterResumingState(stateBeforeResume);
+    if (ret != UBSM_OK || stateBeforeResume == IpcSuspendState::RUNNING) {
         return ret;
     }
 
-    ret = PrepareResumeClient(entryState);
+    ret = EnsureResumeClientReady(stateBeforeResume);
     if (ret != UBSM_OK) {
         return ret;
     }
 
-    ret = ShmIpcCommand::IpcCallResumeInner();
-    return CompleteResume(entryState, ret);
+    return HandleResumeResult(stateBeforeResume, ShmIpcCommand::IpcCallResumeInner());
 }
 
-uint32_t IpcProxy::BeginResume(IpcSuspendState &entryState)
+uint32_t IpcProxy::EnterResumingState(IpcSuspendState &stateBeforeResume)
 {
     WriteLocker<ReadWriteLock> stateGuard(&stateLock_);
-    entryState = state_;
-    switch (entryState) {
+    stateBeforeResume = state_;
+    switch (stateBeforeResume) {
         case IpcSuspendState::RUNNING:
             return UBSM_OK;
         case IpcSuspendState::UNINITIALIZED:
@@ -160,25 +159,25 @@ uint32_t IpcProxy::BeginResume(IpcSuspendState &entryState)
             state_ = IpcSuspendState::RESUMING;
             return UBSM_OK;
         default:
-            DBG_LOGERROR("Failed to resume IPC in state=" << static_cast<int>(entryState));
+            DBG_LOGERROR("Failed to resume IPC in state=" << static_cast<int>(stateBeforeResume));
             return MXM_ERR_NAME_BUSY;
     }
 }
 
-uint32_t IpcProxy::PrepareResumeClient(IpcSuspendState entryState)
+uint32_t IpcProxy::EnsureResumeClientReady(IpcSuspendState stateBeforeResume)
 {
-    if (entryState == IpcSuspendState::FAILED_STOPPING) {
+    const bool clientAvailable = stateBeforeResume == IpcSuspendState::FAILED_SUSPENDING ||
+                                 stateBeforeResume == IpcSuspendState::FAILED_RESUMING;
+    if (clientAvailable) {
+        return UBSM_OK;
+    }
+
+    if (stateBeforeResume == IpcSuspendState::FAILED_STOPPING) {
         auto ret = MxmComStopIpcClient();
         if (ret != UBSM_OK) {
             SetState(IpcSuspendState::FAILED_STOPPING);
             return MXM_ERR_MEMLIB;
         }
-    }
-
-    const bool needsNewClient = entryState == IpcSuspendState::SUSPENDED ||
-                                entryState == IpcSuspendState::FAILED_STOPPING;
-    if (!needsNewClient) {
-        return UBSM_OK;
     }
 
     auto ret = MxmComStartIpcClient();
@@ -197,7 +196,7 @@ uint32_t IpcProxy::PrepareResumeClient(IpcSuspendState entryState)
     return UBSM_OK;
 }
 
-uint32_t IpcProxy::CompleteResume(IpcSuspendState entryState, uint32_t ret)
+uint32_t IpcProxy::HandleResumeResult(IpcSuspendState stateBeforeResume, uint32_t ret)
 {
     if (ret == UBSM_OK) {
         SetState(IpcSuspendState::RUNNING);
@@ -205,7 +204,7 @@ uint32_t IpcProxy::CompleteResume(IpcSuspendState entryState, uint32_t ret)
     }
 
     const bool requestRejected = !IsTransportError(ret);
-    const bool suspendStateUncertain = entryState == IpcSuspendState::FAILED_SUSPENDING;
+    const bool suspendStateUncertain = stateBeforeResume == IpcSuspendState::FAILED_SUSPENDING;
     if (requestRejected && !suspendStateUncertain) {
         const auto stopRet = MxmComStopIpcClient();
         if (stopRet != UBSM_OK) {

@@ -112,9 +112,9 @@ public:
     DAGGER_DEFINE_REF_COUNT_FUNCTIONS
 private:
     static uint32_t GetOperationStateError();
-    static uint32_t BeginResume(IpcSuspendState &entryState);
-    static uint32_t PrepareResumeClient(IpcSuspendState entryState);
-    static uint32_t CompleteResume(IpcSuspendState entryState, uint32_t ret);
+    static uint32_t EnterResumingState(IpcSuspendState &stateBeforeResume);
+    static uint32_t EnsureResumeClientReady(IpcSuspendState stateBeforeResume);
+    static uint32_t HandleResumeResult(IpcSuspendState stateBeforeResume, uint32_t ret);
     static void SetState(IpcSuspendState state);
     static ock::dagger::ReadWriteLock stateLock_;
     static IpcSuspendState state_;
