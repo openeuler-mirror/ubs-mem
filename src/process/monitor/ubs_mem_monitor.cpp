@@ -10,7 +10,6 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "ubs_mem_monitor.h"
-#include <signal.h>
 #include <iosfwd>
 #include <iostream>
 #include "defines.h"
@@ -151,12 +150,6 @@ void UBSMemMonitor::BackgroundProcess() noexcept
 
         RemoveImmediatelyBorrows();
         RemoveDelayBorrows();
-
-        for (auto pid : ock::ubsm::RecordStore::GetInstance().ListSuspendClients()) {
-            if (kill(pid, 0) != 0 && errno == ESRCH) {
-                ClientProcessExited(pid);
-            }
-        }
 
         lock.lock();
     }
