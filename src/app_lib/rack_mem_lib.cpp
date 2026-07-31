@@ -52,6 +52,18 @@ uint32_t RackMemLib::Initialize()
         DBG_LOGINFO("The rack_mem has been initialized");
         return UBSM_OK;
     }
+    for (int index = static_cast<int>(pModules.size()) - 1; index >= 0; index--) {
+        RackMemModule &desc = pModules.at(index);
+        if (!desc.isInitialized || desc.shutdown == nullptr) {
+            continue;
+        }
+        auto ret = desc.shutdown();
+        if (BresultFail(ret)) {
+            DBG_LOGERROR("Failed to finish pending shutdown for module " << desc.name << ", ret=" << ret);
+            return MXM_ERR_MEMLIB;
+        }
+        desc.isInitialized = false;
+    }
     InitModules();
     for (auto &desc : pModules) {
         if (desc.init == nullptr) {
@@ -79,15 +91,15 @@ uint32_t RackMemLib::Destroy()
     if (!inited && !anyInitialized) {
         return UBSM_OK;
     }
+    uint32_t result = UBSM_OK;
     if (inited) {
         auto ret = IpcProxy::Resume();
         if (ret != UBSM_OK) {
-            DBG_LOGERROR("Failed to resume IPC before finalizing, ret=" << ret);
-            return ret;
+            DBG_LOGERROR("Failed to resume IPC before finalizing, continue cleanup, ret=" << ret);
+            result = ret;
         }
     }
 
-    uint32_t result = UBSM_OK;
     for (int index = static_cast<int>(pModules.size()) - 1; index >= 0; index--) {
         RackMemModule &desc = pModules.at(index);
         if (!desc.isInitialized || desc.shutdown == nullptr) {
@@ -101,10 +113,8 @@ uint32_t RackMemLib::Destroy()
         }
         desc.isInitialized = false;
     }
-    if (result == UBSM_OK) {
-        inited = false;
-        ubsmem::log::UbsmemLoggerManager::Destroy();
-    }
+    inited = false;
+    ubsmem::log::UbsmemLoggerManager::Destroy();
     return result;
 }
 
@@ -190,7 +200,8 @@ int ubsmem_initialize(const ubsmem_options_t *ubsm_shmem_opts)
 
 int ubsmem_finalize(void)
 {
-    return ock::mxmd::GetErrCode(ock::mxmd::RackMemLib::GetInstance().Destroy());
+    ock::mxmd::RackMemLib::GetInstance().Destroy();
+    return UBSM_OK;
 }
 
 int ubsmem_set_logger_level(int level)

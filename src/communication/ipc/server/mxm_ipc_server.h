@@ -35,7 +35,7 @@ public:
    * @brief 停止Server
    * @return HRESULT, 成功返回0, 失败返回非0
    */
-    void Stop() override;
+    HRESULT Stop() override;
 
 private:
     std::string udsPath; // 监听路径

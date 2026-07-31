@@ -172,7 +172,7 @@ public:
     /* *
    * @brief 停止引擎
    */
-    void Stop();
+    HRESULT Stop();
 
     int SetMxmComPostReconnectHandler(MxmComPostReconnectHandler handler)
     {
@@ -271,6 +271,8 @@ protected:
     UBSHcomRegMemoryRegion mr;
     std::mutex reconnectMutex;
     std::vector<std::thread> reconnectTasks;
+    std::mutex stopMutex;
+    bool stopPrepared{false};
 };
 
 class MxmComEngineManager {
@@ -289,7 +291,7 @@ public:
    * @brief 根据引擎名销毁引擎实例
    *
    */
-    static void DeleteEngine(const std::string &name);
+    static HRESULT DeleteEngine(const std::string &name);
 
     /* *
    * @brief 销毁所有引擎
@@ -326,7 +328,7 @@ public:
    * @param[in] name: 引擎名
    * @return HRESULT, 成功返回0, 失败返回非0
    */
-    static void DeleteMxmComEngine(const std::string &name);
+    static HRESULT DeleteMxmComEngine(const std::string &name);
 
     /* *
    * @brief 与Server端建立Rpc通道

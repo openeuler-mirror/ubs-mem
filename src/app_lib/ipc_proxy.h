@@ -13,6 +13,7 @@
 #ifndef MEMORYFABRIC_IPC_PROXY_H
 #define MEMORYFABRIC_IPC_PROXY_H
 
+#include <condition_variable>
 #include <functional>
 #include <mutex>
 #include <string>
@@ -35,7 +36,9 @@ enum class IpcSuspendState {
     SUSPENDED,
     RESUMING,
     FINALIZING,
-    FAILED,
+    FAILED_SUSPENDING,
+    FAILED_STOPPING,
+    FAILED_RESUMING,
 };
 
 class IpcProxy {
@@ -50,16 +53,19 @@ public:
 
     static uint32_t Destroy();
 
-    static bool IsRunning();
-
     template <typename Operation>
     static uint32_t RunOperation(Operation &&operation)
     {
-        std::lock_guard<std::recursive_mutex> stateGuard(stateLock_);
-        const auto ret = GetOperationStateError();
+        const auto ret = BeginOperation();
         if (ret != UBSM_OK) {
             return ret;
         }
+        struct OperationCompletion {
+            ~OperationCompletion()
+            {
+                IpcProxy::EndOperation();
+            }
+        } completion;
         return operation();
     }
 
@@ -74,12 +80,7 @@ public:
             return MXM_ERR_PARAM_INVALID;
         };
 
-        std::lock_guard<std::recursive_mutex> stateGuard(stateLock_);
-        const auto ret = GetOperationStateError();
-        if (ret != UBSM_OK) {
-            return ret;
-        }
-        return IpcCallInner(*request, *response, opCode);
+        return RunOperation([&] { return IpcCallInner(*request, *response, opCode); });
     }
 
     uint32_t IpcCallInner(MsgBase &request, MsgBase &response, const int opCode)
@@ -116,9 +117,12 @@ public:
 
     DAGGER_DEFINE_REF_COUNT_FUNCTIONS
 private:
-    static uint32_t GetOperationStateError();
-    static std::recursive_mutex stateLock_;
+    static uint32_t BeginOperation();
+    static void EndOperation();
+    static std::mutex stateLock_;
+    static std::condition_variable stateCv_;
     static IpcSuspendState state_;
+    static uint32_t activeOperations_;
     DAGGER_DEFINE_REF_COUNT_VARIABLE;
     IpcProxy() = default;
 };

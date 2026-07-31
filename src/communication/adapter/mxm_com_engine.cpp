@@ -524,36 +524,46 @@ int MxmComEngine::RegisterHandlerWork(const EngineHandlerWorker &handlerWorker)
     return HOK;
 }
 
-void MxmComEngine::Stop()
+HRESULT MxmComEngine::Stop()
 {
-    deleted.store(true);
-    rwLock.LockWrite();
-    linkManager.SetStop();
+    std::lock_guard<std::mutex> stopGuard(stopMutex);
     auto engineName = engineInfo.GetName();
-    linkManager.RemoveAllChannel(hcomNetService);
-    rwLock.UnLock();
+    if (!stopPrepared) {
+        deleted.store(true);
+        rwLock.LockWrite();
+        linkManager.SetStop();
+        linkManager.RemoveAllChannel(hcomNetService);
+        rwLock.UnLock();
 
-    std::vector<std::thread> tasks;
-    {
-        std::lock_guard<std::mutex> lock(reconnectMutex);
-        tasks.swap(reconnectTasks);
-    }
-    for (auto &task : tasks) {
-        if (task.joinable()) {
-            task.join();
+        std::vector<std::thread> tasks;
+        {
+            std::lock_guard<std::mutex> lock(reconnectMutex);
+            tasks.swap(reconnectTasks);
         }
+        for (auto &task : tasks) {
+            if (task.joinable()) {
+                task.join();
+            }
+        }
+        if (hcomNetService != nullptr) {
+            hcomNetService->DestroyMemoryRegion(mr);
+        }
+        stopPrepared = true;
     }
 
     if (hcomNetService != nullptr) {
-        hcomNetService->DestroyMemoryRegion(mr);
         auto ret = hcomNetService->Destroy(engineName);
         DBG_LOGINFO("Destroy hcom instance=" << engineName << " finish, ret=" << ret);
+        if (ret != HOK) {
+            return ret;
+        }
         hcomNetService = nullptr;
     }
     if (address != nullptr) {
         free(address);
         address = nullptr;
     }
+    return HOK;
 }
 
 void MxmComEngine::RegisterEngineHandlers()
@@ -935,7 +945,7 @@ HRESULT MxmComEngineManager::CreateEngine(const MxmComEngineInfo &engineInfo, co
     return HOK;
 }
 
-void MxmComEngineManager::DeleteEngine(const std::string &name)
+HRESULT MxmComEngineManager::DeleteEngine(const std::string &name)
 {
     MxmComEngine *enginePtr;
     {
@@ -943,16 +953,23 @@ void MxmComEngineManager::DeleteEngine(const std::string &name)
         auto iter = G_ENGINE_MAP.find(name);
         if (iter == G_ENGINE_MAP.end()) {
             DBG_LOGWARN("Engine " << name << "has not been created or already been destroyed");
-            return;
+            return HOK;
         }
         enginePtr = iter->second;
         G_ENGINE_MAP.erase(name);
     }
     if (enginePtr != nullptr) {
-        enginePtr->Stop();
+        auto ret = enginePtr->Stop();
+        if (ret != HOK) {
+            std::lock_guard<std::mutex> locker(G_MUTEX);
+            G_ENGINE_MAP.emplace(name, enginePtr);
+            return ret;
+        }
         delete enginePtr;
         enginePtr = nullptr;
+        return HOK;
     }
+    return HOK;
 }
 
 void MxmComEngineManager::DeleteAllEngine()
@@ -1057,7 +1074,7 @@ HRESULT MxmCommunication::CreateMxmComEngine(const MxmComEngineInfo &engine, con
     return MxmComEngineManager::CreateEngine(engine, notify, handlerWorker);
 }
 
-void MxmCommunication::DeleteMxmComEngine(const std::string &name)
+HRESULT MxmCommunication::DeleteMxmComEngine(const std::string &name)
 {
     return MxmComEngineManager::DeleteEngine(name);
 }

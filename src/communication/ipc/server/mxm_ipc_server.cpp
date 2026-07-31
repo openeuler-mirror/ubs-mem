@@ -60,8 +60,8 @@ HRESULT MxmIpcServer::Start()
     return MxmCommunication::CreateMxmComEngine(engineInfo, LinkNotify, IpcServerWork);
 }
 
-void MxmIpcServer::Stop()
+HRESULT MxmIpcServer::Stop()
 {
-    MxmCommunication::DeleteMxmComEngine(name);
+    return MxmCommunication::DeleteMxmComEngine(name);
 }
 } // namespace ock::com::ipc

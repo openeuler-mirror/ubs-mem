@@ -75,3 +75,22 @@ TEST(RackMemLibCApiTest, SetOwnershipIsAllowedWhileIpcSuspended)
     IpcProxy::state_ = previousState;
     EXPECT_EQ(ret, UBSM_ERR_PARAM_INVALID);
 }
+
+TEST(RackMemLibCApiTest, ControlOperationDoesNotHoldLifecycleLock)
+{
+    const auto previousState = IpcProxy::state_;
+    IpcProxy::state_ = IpcSuspendState::RUNNING;
+
+    const auto ret = RackMemLib::GetInstance().RunIpcOperation([]() {
+        const bool lockAvailable = IpcProxy::stateLock_.try_lock();
+        if (lockAvailable) {
+            IpcProxy::stateLock_.unlock();
+        }
+        EXPECT_TRUE(lockAvailable);
+        return static_cast<uint32_t>(UBSM_OK);
+    });
+
+    IpcProxy::state_ = previousState;
+    EXPECT_EQ(ret, UBSM_OK);
+    EXPECT_EQ(IpcProxy::activeOperations_, 0);
+}

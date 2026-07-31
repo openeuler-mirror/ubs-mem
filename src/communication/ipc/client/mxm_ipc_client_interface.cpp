@@ -12,6 +12,7 @@
 
 #include "mxm_ipc_client_interface.h"
 
+#include <condition_variable>
 #include <mutex>
 #include <utility>
 #include "mxm_com_error.h"
@@ -26,10 +27,18 @@ using namespace ock::com::ipc;
 MxmIpcClient *g_mxmIpcClient{nullptr};
 std::atomic<int> g_ipcClientCount{0};
 static std::mutex g_ipcClientMutex;
+static std::condition_variable g_ipcClientCv;
+static uint32_t g_activeIpcSends{0};
+static bool g_ipcClientStopping{false};
+static bool g_ipcClientStopInProgress{false};
 
 int MxmComStartIpcClient()
 {
     std::lock_guard<std::mutex> lock(g_ipcClientMutex);
+    if (g_ipcClientStopping) {
+        DBG_LOGERROR("IPC client is stopping.");
+        return HFAIL;
+    }
     if (g_ipcClientCount.load() > 0 && g_mxmIpcClient != nullptr) {
         g_ipcClientCount.fetch_add(1);
         return HOK;
@@ -68,36 +77,69 @@ int MxmComStartIpcClient()
 
 int MxmComStopIpcClient()
 {
-    std::lock_guard<std::mutex> lock(g_ipcClientMutex);
+    std::unique_lock<std::mutex> lock(g_ipcClientMutex);
+    g_ipcClientCv.wait(lock, [] { return !g_ipcClientStopInProgress; });
     if (g_ipcClientCount.load() > 1) {
         g_ipcClientCount.fetch_sub(1);
         return HOK;
     }
-    if (g_mxmIpcClient != nullptr && g_ipcClientCount.load() == 1) {
-        g_mxmIpcClient->Stop();
-        delete g_mxmIpcClient;
-        g_mxmIpcClient = nullptr;
-        g_ipcClientCount.fetch_sub(1);
+    if (g_mxmIpcClient == nullptr || g_ipcClientCount.load() != 1) {
+        return HOK;
     }
-    return HOK;
+
+    g_ipcClientStopping = true;
+    g_ipcClientStopInProgress = true;
+    g_ipcClientCv.wait(lock, [] { return g_activeIpcSends == 0; });
+    auto client = g_mxmIpcClient;
+    lock.unlock();
+
+    auto ret = client->Stop();
+
+    lock.lock();
+    g_ipcClientStopInProgress = false;
+    if (ret != HOK) {
+        lock.unlock();
+        g_ipcClientCv.notify_all();
+        DBG_LOGERROR("Failed to stop IPC client, ret=" << ret);
+        return ret;
+    }
+    g_mxmIpcClient = nullptr;
+    g_ipcClientCount.store(0);
+    g_ipcClientStopping = false;
+    lock.unlock();
+    delete client;
+    g_ipcClientCv.notify_all();
+    return ret;
 }
 
 int MxmComIpcClientSend(uint16_t opCode, MsgBase *request, MsgBase *response)
 {
-    std::lock_guard<std::mutex> lock(g_ipcClientMutex);
     SendParam param(FAKE_CUR_NODE_ID, static_cast<uint16_t>(MxmModuleCode::MEM), opCode, MxmChannelType::SINGLE_SIDE);
-    if (g_mxmIpcClient == nullptr) {
+    std::unique_lock<std::mutex> lock(g_ipcClientMutex);
+    if (g_mxmIpcClient == nullptr || g_ipcClientStopping) {
         DBG_LOGERROR("g_mxmIpcClient is nullptr");
         return HFAIL;
     }
-    auto ret = g_mxmIpcClient->Send(param, request, response);
+    auto client = g_mxmIpcClient;
+    ++g_activeIpcSends;
+    lock.unlock();
+
+    auto ret = client->Send(param, request, response);
+
+    lock.lock();
+    --g_activeIpcSends;
+    const bool notifyStop = g_activeIpcSends == 0;
+    lock.unlock();
+    if (notifyStop) {
+        g_ipcClientCv.notify_all();
+    }
     return ret;
 }
 
 int MxmSetPostReconnectHandler(int (*handler)())
 {
     std::lock_guard<std::mutex> lock(g_ipcClientMutex);
-    if (g_mxmIpcClient == nullptr) {
+    if (g_mxmIpcClient == nullptr || g_ipcClientStopping) {
         DBG_LOGERROR("g_mxmIpcClient is nullptr");
         return HFAIL;
     }
