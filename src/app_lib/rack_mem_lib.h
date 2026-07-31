@@ -57,8 +57,6 @@ public:
 
     uint32_t ResumeIpc();
 
-    uint32_t RunIpcOperation(const std::function<uint32_t()> &operation);
-
     [[nodiscard]] int StartRackMem() const
     {
         if (inited) {

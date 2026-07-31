@@ -44,7 +44,7 @@ TEST(RackMemLibCApiTest, SuspendedControlOperationReturnsDedicatedError)
     IpcProxy::state_ = IpcSuspendState::SUSPENDED;
     bool called = false;
 
-    const auto ret = RackMemLib::GetInstance().RunIpcOperation([&called]() {
+    const auto ret = IpcProxy::RunOperation([&called]() {
         called = true;
         return static_cast<uint32_t>(UBSM_OK);
     });
@@ -60,7 +60,7 @@ TEST(RackMemLibCApiTest, TransitioningControlOperationReturnsBusy)
     const auto previousState = IpcProxy::state_;
     IpcProxy::state_ = IpcSuspendState::SUSPENDING;
 
-    const auto ret = RackMemLib::GetInstance().RunIpcOperation([]() { return static_cast<uint32_t>(UBSM_OK); });
+    const auto ret = IpcProxy::RunOperation([]() { return static_cast<uint32_t>(UBSM_OK); });
 
     IpcProxy::state_ = previousState;
     EXPECT_EQ(ret, MXM_ERR_NAME_BUSY);
@@ -87,16 +87,15 @@ TEST(RackMemLibCApiTest, ControlOperationsCanRunConcurrently)
     auto releaseFuture = releaseFirst.get_future().share();
 
     auto first = std::async(std::launch::async, [&]() {
-        return RackMemLib::GetInstance().RunIpcOperation([&]() {
+        return IpcProxy::RunOperation([&]() {
             firstStarted.set_value();
             releaseFuture.wait();
             return static_cast<uint32_t>(UBSM_OK);
         });
     });
     firstStarted.get_future().wait();
-    auto second = std::async(std::launch::async, []() {
-        return RackMemLib::GetInstance().RunIpcOperation([]() { return static_cast<uint32_t>(UBSM_OK); });
-    });
+    auto second = std::async(std::launch::async,
+                             []() { return IpcProxy::RunOperation([]() { return static_cast<uint32_t>(UBSM_OK); }); });
 
     const auto secondStatus = second.wait_for(std::chrono::seconds(1));
     releaseFirst.set_value();
@@ -104,7 +103,7 @@ TEST(RackMemLibCApiTest, ControlOperationsCanRunConcurrently)
     EXPECT_EQ(second.get(), UBSM_OK);
     EXPECT_EQ(secondStatus, std::future_status::ready);
 
-    const auto ret = RackMemLib::GetInstance().RunIpcOperation([]() { return static_cast<uint32_t>(UBSM_OK); });
+    const auto ret = IpcProxy::RunOperation([]() { return static_cast<uint32_t>(UBSM_OK); });
 
     IpcProxy::state_ = previousState;
     EXPECT_EQ(ret, UBSM_OK);
