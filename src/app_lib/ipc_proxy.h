@@ -35,9 +35,9 @@ enum class IpcSuspendState {
     SUSPENDED,
     RESUMING,
     FINALIZING,
-    FAILED_SUSPENDING,
-    FAILED_STOPPING,
-    FAILED_RESUMING,
+    FAILED_SUSPENDING, // Suspend请求结果不确定，IPC client仍保留
+    FAILED_STOPPING,   // 本地IPC client停止失败，client/engine保留等待重试
+    FAILED_RESUMING,   // Resume请求发生传输错误，已启动的IPC client仍保留
 };
 
 class IpcProxy {
