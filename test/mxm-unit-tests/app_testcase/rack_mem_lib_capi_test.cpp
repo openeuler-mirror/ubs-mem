@@ -1,4 +1,6 @@
 #include <gtest/gtest.h>
+#include <chrono>
+#include <future>
 #include "ubs_mem.h"
 #include "rack_mem_functions.h"
 #include "rack_mem_lib.h"
@@ -76,21 +78,34 @@ TEST(RackMemLibCApiTest, SetOwnershipIsAllowedWhileIpcSuspended)
     EXPECT_EQ(ret, UBSM_ERR_PARAM_INVALID);
 }
 
-TEST(RackMemLibCApiTest, ControlOperationDoesNotHoldLifecycleLock)
+TEST(RackMemLibCApiTest, ControlOperationsCanRunConcurrently)
 {
     const auto previousState = IpcProxy::state_;
     IpcProxy::state_ = IpcSuspendState::RUNNING;
+    std::promise<void> firstStarted;
+    std::promise<void> releaseFirst;
+    auto releaseFuture = releaseFirst.get_future().share();
 
-    const auto ret = RackMemLib::GetInstance().RunIpcOperation([]() {
-        const bool lockAvailable = IpcProxy::stateLock_.try_lock();
-        if (lockAvailable) {
-            IpcProxy::stateLock_.unlock();
-        }
-        EXPECT_TRUE(lockAvailable);
-        return static_cast<uint32_t>(UBSM_OK);
+    auto first = std::async(std::launch::async, [&]() {
+        return RackMemLib::GetInstance().RunIpcOperation([&]() {
+            firstStarted.set_value();
+            releaseFuture.wait();
+            return static_cast<uint32_t>(UBSM_OK);
+        });
     });
+    firstStarted.get_future().wait();
+    auto second = std::async(std::launch::async, []() {
+        return RackMemLib::GetInstance().RunIpcOperation([]() { return static_cast<uint32_t>(UBSM_OK); });
+    });
+
+    const auto secondStatus = second.wait_for(std::chrono::seconds(1));
+    releaseFirst.set_value();
+    EXPECT_EQ(first.get(), UBSM_OK);
+    EXPECT_EQ(second.get(), UBSM_OK);
+    EXPECT_EQ(secondStatus, std::future_status::ready);
+
+    const auto ret = RackMemLib::GetInstance().RunIpcOperation([]() { return static_cast<uint32_t>(UBSM_OK); });
 
     IpcProxy::state_ = previousState;
     EXPECT_EQ(ret, UBSM_OK);
-    EXPECT_EQ(IpcProxy::activeOperations_, 0);
 }

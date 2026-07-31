@@ -13,12 +13,11 @@
 #ifndef MEMORYFABRIC_IPC_PROXY_H
 #define MEMORYFABRIC_IPC_PROXY_H
 
-#include <condition_variable>
 #include <functional>
-#include <mutex>
 #include <string>
 #include <utility>
 
+#include "lock/dg_lock.h"
 #include "log.h"
 #include "mxm_ipc_client_interface.h"
 #include "mxm_msg.h"
@@ -56,16 +55,11 @@ public:
     template <typename Operation>
     static uint32_t RunOperation(Operation &&operation)
     {
-        const auto ret = BeginOperation();
+        ock::dagger::ReadLocker<ock::dagger::ReadWriteLock> stateGuard(&stateLock_);
+        const auto ret = GetOperationStateError();
         if (ret != UBSM_OK) {
             return ret;
         }
-        struct OperationCompletion {
-            ~OperationCompletion()
-            {
-                IpcProxy::EndOperation();
-            }
-        } completion;
         return operation();
     }
 
@@ -117,12 +111,9 @@ public:
 
     DAGGER_DEFINE_REF_COUNT_FUNCTIONS
 private:
-    static uint32_t BeginOperation();
-    static void EndOperation();
-    static std::mutex stateLock_;
-    static std::condition_variable stateCv_;
+    static uint32_t GetOperationStateError();
+    static ock::dagger::ReadWriteLock stateLock_;
     static IpcSuspendState state_;
-    static uint32_t activeOperations_;
     DAGGER_DEFINE_REF_COUNT_VARIABLE;
     IpcProxy() = default;
 };
