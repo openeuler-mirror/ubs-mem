@@ -62,6 +62,7 @@ typedef enum {
     UBSM_ERR_MEMLIB = 6015,           // mem lib failed
     UBSM_ERR_NO_NEEDED = 6016,        // default region no need to create
     UBSM_ERR_BUSY = 6017,
+    UBSM_ERR_IPC_SUSPENDED = 6018,
     // resource error
     UBSM_ERR_NOT_FOUND = 6020,
     UBSM_ERR_ALREADY_EXIST = 6021,

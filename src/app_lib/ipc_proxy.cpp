@@ -28,6 +28,29 @@ static bool IsTransportError(uint32_t ret)
            ret == MXM_ERR_IPC_CRC_CHECK_ERROR || ret == MXM_ERR_IPC_SERIALIZE_DESERIALIZE_ERROR;
 }
 
+uint32_t IpcProxy::GetOperationStateError()
+{
+    switch (state_) {
+        case IpcSuspendState::RUNNING:
+        case IpcSuspendState::UNINITIALIZED:
+            return UBSM_OK;
+        case IpcSuspendState::SUSPENDED:
+            DBG_LOGERROR("IPC control operation rejected because the client is suspended.");
+            return MXM_ERR_IPC_SUSPENDED;
+        case IpcSuspendState::SUSPENDING:
+        case IpcSuspendState::RESUMING:
+        case IpcSuspendState::FINALIZING:
+            DBG_LOGERROR(
+                "IPC control operation rejected during lifecycle transition, state=" << static_cast<int>(state_));
+            return MXM_ERR_NAME_BUSY;
+        case IpcSuspendState::FAILED:
+            DBG_LOGERROR("IPC control operation rejected because the client lifecycle is in failed state.");
+            return MXM_ERR_MEMLIB;
+    }
+    DBG_LOGERROR("IPC control operation rejected because the client state is invalid.");
+    return MXM_ERR_MEMLIB;
+}
+
 uint32_t IpcProxy::Initialize()
 {
     std::lock_guard<std::recursive_mutex> stateGuard(stateLock_);
@@ -35,6 +58,7 @@ uint32_t IpcProxy::Initialize()
         return UBSM_OK;
     }
     if (state_ != IpcSuspendState::UNINITIALIZED) {
+        DBG_LOGERROR("Failed to initialize IPC in state=" << static_cast<int>(state_));
         return MXM_ERR_NAME_BUSY;
     }
     const auto start = Monotonic::TimeUs();
@@ -61,15 +85,17 @@ uint32_t IpcProxy::Suspend()
         return UBSM_OK;
     }
     if (state_ == IpcSuspendState::UNINITIALIZED) {
+        DBG_LOGERROR("Failed to suspend an uninitialized IPC client.");
         return MXM_ERR_MEMLIB;
     }
     if (state_ != IpcSuspendState::RUNNING) {
+        DBG_LOGERROR("Failed to suspend IPC in state=" << static_cast<int>(state_));
         return MXM_ERR_NAME_BUSY;
     }
 
     state_ = IpcSuspendState::SUSPENDING;
     stateGuard.unlock();
-    auto ret = ShmIpcCommand::IpcCallSuspendUnlocked();
+    auto ret = ShmIpcCommand::IpcCallSuspendInner();
     if (ret != UBSM_OK) {
         stateGuard.lock();
         state_ = IsTransportError(ret) ? IpcSuspendState::FAILED : IpcSuspendState::RUNNING;
@@ -79,6 +105,7 @@ uint32_t IpcProxy::Suspend()
     stateGuard.lock();
     if (ret != UBSM_OK) {
         state_ = IpcSuspendState::FAILED;
+        DBG_LOGERROR("Failed to stop IPC client after suspend acknowledgement, ret=" << ret);
         return MXM_ERR_MEMLIB;
     }
     state_ = IpcSuspendState::SUSPENDED;
@@ -92,9 +119,11 @@ uint32_t IpcProxy::Resume()
         return UBSM_OK;
     }
     if (state_ == IpcSuspendState::UNINITIALIZED) {
+        DBG_LOGERROR("Failed to resume an uninitialized IPC client.");
         return MXM_ERR_MEMLIB;
     }
     if (state_ != IpcSuspendState::SUSPENDED) {
+        DBG_LOGERROR("Failed to resume IPC in state=" << static_cast<int>(state_));
         return MXM_ERR_NAME_BUSY;
     }
 
@@ -104,16 +133,18 @@ uint32_t IpcProxy::Resume()
     if (ret != UBSM_OK) {
         stateGuard.lock();
         state_ = IpcSuspendState::SUSPENDED;
+        DBG_LOGERROR("Failed to start IPC client while resuming, ret=" << ret);
         return MXM_ERR_IPC_INIT_CALL;
     }
     ret = MxmSetPostReconnectHandler(ock::ubsm::UbsmCheckResource::UbsmCheckResourceHandler);
     if (ret != UBSM_OK) {
+        DBG_LOGERROR("Failed to set reconnect handler while resuming, ret=" << ret);
         MxmComStopIpcClient();
         stateGuard.lock();
         state_ = IpcSuspendState::SUSPENDED;
         return MXM_ERR_IPC_INIT_CALL;
     }
-    ret = ShmIpcCommand::IpcCallResumeUnlocked();
+    ret = ShmIpcCommand::IpcCallResumeInner();
     if (ret != UBSM_OK) {
         if (!IsTransportError(ret)) {
             MxmComStopIpcClient();
@@ -134,6 +165,7 @@ uint32_t IpcProxy::Destroy()
         return UBSM_OK;
     }
     if (state_ != IpcSuspendState::RUNNING) {
+        DBG_LOGERROR("Failed to destroy IPC in state=" << static_cast<int>(state_));
         return MXM_ERR_NAME_BUSY;
     }
     state_ = IpcSuspendState::FINALIZING;
@@ -141,6 +173,9 @@ uint32_t IpcProxy::Destroy()
     auto ret = MxmComStopIpcClient();
     stateGuard.lock();
     state_ = ret == UBSM_OK ? IpcSuspendState::UNINITIALIZED : IpcSuspendState::FAILED;
+    if (ret != UBSM_OK) {
+        DBG_LOGERROR("Failed to stop IPC client while destroying, ret=" << ret);
+    }
     return ret == UBSM_OK ? static_cast<uint32_t>(UBSM_OK) : static_cast<uint32_t>(MXM_ERR_MEMLIB);
 }
 

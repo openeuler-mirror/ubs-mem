@@ -108,6 +108,25 @@ uint32_t RackMemLib::Destroy()
     return result;
 }
 
+uint32_t RackMemLib::SuspendIpc()
+{
+    return IpcProxy::Suspend();
+}
+
+uint32_t RackMemLib::ResumeIpc()
+{
+    return IpcProxy::Resume();
+}
+
+uint32_t RackMemLib::RunIpcOperation(const std::function<uint32_t()> &operation)
+{
+    if (operation == nullptr) {
+        DBG_LOGERROR("Failed to run an empty IPC operation.");
+        return MXM_ERR_PARAM_INVALID;
+    }
+    return IpcProxy::RunOperation(operation);
+}
+
 uint32_t RackMemLib::InitHtrace() const
 {
     auto envValue = std::getenv(UBSM_SDK_TRACE_ENABLE);

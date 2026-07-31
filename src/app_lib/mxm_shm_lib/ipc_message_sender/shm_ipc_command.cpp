@@ -753,12 +753,7 @@ uint32_t ShmIpcCommand::AppGetLocalSlotId(uint32_t &slotId)
     return UBSM_OK;
 }
 
-uint32_t ShmIpcCommand::IpcCallSuspend()
-{
-    return IpcCallSuspendUnlocked();
-}
-
-uint32_t ShmIpcCommand::IpcCallSuspendUnlocked()
+uint32_t ShmIpcCommand::IpcCallSuspendInner()
 {
     std::shared_ptr<IpcSuspendRequest> request;
     std::shared_ptr<CommonResponse> response;
@@ -766,9 +761,9 @@ uint32_t ShmIpcCommand::IpcCallSuspendUnlocked()
         request = std::make_shared<IpcSuspendRequest>();
         response = std::make_shared<CommonResponse>();
     } catch (...) {
+        DBG_LOGERROR("Failed to allocate suspend IPC message.");
         return MXM_ERR_MALLOC_FAIL;
     }
-    DBG_LOGINFO("IpcCallSuspend");
     auto ret = IpcProxy::GetInstance().SyncCall(IPC_SUSPEND_CLIENT, request.get(), response.get());
     if (ret != UBSM_OK) {
         DBG_LOGERROR("IpcCallSuspend failed, ret=" << ret);
@@ -783,12 +778,7 @@ uint32_t ShmIpcCommand::IpcCallSuspendUnlocked()
     return UBSM_OK;
 }
 
-uint32_t ShmIpcCommand::IpcCallResume()
-{
-    return IpcCallResumeUnlocked();
-}
-
-uint32_t ShmIpcCommand::IpcCallResumeUnlocked()
+uint32_t ShmIpcCommand::IpcCallResumeInner()
 {
     std::shared_ptr<IpcResumeRequest> request;
     std::shared_ptr<CommonResponse> response;
@@ -796,9 +786,9 @@ uint32_t ShmIpcCommand::IpcCallResumeUnlocked()
         request = std::make_shared<IpcResumeRequest>();
         response = std::make_shared<CommonResponse>();
     } catch (...) {
+        DBG_LOGERROR("Failed to allocate resume IPC message.");
         return MXM_ERR_MALLOC_FAIL;
     }
-    DBG_LOGINFO("IpcCallResume");
     auto ret = IpcProxy::GetInstance().SyncCall(IPC_RESUME_CLIENT, request.get(), response.get());
     if (ret != UBSM_OK) {
         DBG_LOGERROR("IpcCallResume failed, ret=" << ret);
