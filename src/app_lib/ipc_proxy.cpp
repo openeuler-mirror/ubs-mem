@@ -82,33 +82,38 @@ uint32_t IpcProxy::Initialize()
 
 uint32_t IpcProxy::Suspend()
 {
-    bool retryStopping = false;
-    bool retry = false;
+    IpcSuspendState entryState;
     {
         WriteLocker<ReadWriteLock> stateGuard(&stateLock_);
-        if (state_ == IpcSuspendState::SUSPENDED) {
-            return UBSM_OK;
+        entryState = state_;
+        switch (entryState) {
+            case IpcSuspendState::SUSPENDED:
+                return UBSM_OK;
+            case IpcSuspendState::UNINITIALIZED:
+                DBG_LOGERROR("Failed to suspend an uninitialized IPC client.");
+                return MXM_ERR_MEMLIB;
+            case IpcSuspendState::RUNNING:
+            case IpcSuspendState::FAILED_SUSPENDING:
+            case IpcSuspendState::FAILED_STOPPING:
+                state_ = IpcSuspendState::SUSPENDING;
+                break;
+            default:
+                DBG_LOGERROR("Failed to suspend IPC in state=" << static_cast<int>(entryState));
+                return MXM_ERR_NAME_BUSY;
         }
-        if (state_ == IpcSuspendState::UNINITIALIZED) {
-            DBG_LOGERROR("Failed to suspend an uninitialized IPC client.");
-            return MXM_ERR_MEMLIB;
-        }
-        retryStopping = state_ == IpcSuspendState::FAILED_STOPPING;
-        retry = state_ == IpcSuspendState::FAILED_SUSPENDING || retryStopping;
-        if (state_ != IpcSuspendState::RUNNING && !retry) {
-            DBG_LOGERROR("Failed to suspend IPC in state=" << static_cast<int>(state_));
-            return MXM_ERR_NAME_BUSY;
-        }
-        state_ = IpcSuspendState::SUSPENDING;
     }
 
-    auto ret = retryStopping ? static_cast<uint32_t>(UBSM_OK) : ShmIpcCommand::IpcCallSuspendInner();
-    if (ret != UBSM_OK) {
-        WriteLocker<ReadWriteLock> stateGuard(&stateLock_);
-        state_ = IsTransportError(ret) || retry ? IpcSuspendState::FAILED_SUSPENDING : IpcSuspendState::RUNNING;
-        return ret;
+    if (entryState != IpcSuspendState::FAILED_STOPPING) {
+        auto ret = ShmIpcCommand::IpcCallSuspendInner();
+        if (ret != UBSM_OK) {
+            WriteLocker<ReadWriteLock> stateGuard(&stateLock_);
+            const bool firstRequestRejected = entryState == IpcSuspendState::RUNNING && !IsTransportError(ret);
+            state_ = firstRequestRejected ? IpcSuspendState::RUNNING : IpcSuspendState::FAILED_SUSPENDING;
+            return ret;
+        }
     }
-    ret = MxmComStopIpcClient();
+
+    auto ret = MxmComStopIpcClient();
     {
         WriteLocker<ReadWriteLock> stateGuard(&stateLock_);
         if (ret != UBSM_OK) {
