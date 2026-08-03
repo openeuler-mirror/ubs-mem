@@ -39,6 +39,7 @@ typedef struct {
     uint32_t numa_ids[UBS_TOPO_SOCKET_NUM][UBS_TOPO_NUMA_NUM];
     ubs_topo_ip_address_t ips[UBS_TOPO_IPADDR_NUM];
     char host_name[HOST_NAME_MAX]; // 主机名
+    uint16_t super_pod_id;         // 超节点ID
 } ubs_topo_node_t;
 
 /**
@@ -53,7 +54,7 @@ typedef struct {
  * UBS_ENGINE_ERR_TIMEOUT:UBSE服务端处理超时;
  * UBS_ENGINE_ERR_INTERNAL:UBSE服务端内部错误
  */
-int32_t ubs_topo_node_list(ubs_topo_node_t **node_list, uint32_t *node_cnt);
+int32_t ubs_topo_node_list(ubs_topo_node_t** node_list, uint32_t* node_cnt);
 
 /**
  * @brief 查询本节点信息
@@ -66,7 +67,7 @@ int32_t ubs_topo_node_list(ubs_topo_node_t **node_list, uint32_t *node_cnt);
  * UBS_ENGINE_ERR_TIMEOUT:UBSE服务端处理超时;
  * UBS_ENGINE_ERR_INTERNAL:UBSE服务端内部错误
  */
-int32_t ubs_topo_node_local_get(ubs_topo_node_t *node);
+int32_t ubs_topo_node_local_get(ubs_topo_node_t* node);
 
 typedef struct {
     uint32_t slot_id;        // 节点id
@@ -89,7 +90,7 @@ typedef struct {
  * UBS_ENGINE_ERR_TIMEOUT:UBSE服务端处理超时;
  * UBS_ENGINE_ERR_INTERNAL:UBSE服务端内部错误
  */
-int32_t ubs_topo_link_list(ubs_topo_link_t **cpu_links, uint32_t *cpu_link_cnt);
+int32_t ubs_topo_link_list(ubs_topo_link_t** cpu_links, uint32_t* cpu_link_cnt);
 #ifdef __cplusplus
 }
 #endif
