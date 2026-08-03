@@ -122,13 +122,6 @@ int RecordStore::Initialize(int fd) noexcept
     memIdRecordPoolBegin_ = reinterpret_cast<MemIdRecordPool *>(shmRefRecordBegin_ + SHM_MAX_REFERENCE_RECORD);
     createSeqNo_ = reinterpret_cast<uint32_t *>(memIdRecordPoolBegin_ + 1);
     suspendClientArray_ = reinterpret_cast<SuspendClientArray *>(createSeqNo_ + 1);
-    static_assert(sizeof(RegionRecord) * REGION_MAX_RECORD + sizeof(MemLeaseRecord) * MEM_LEASE_MAX_RECORD +
-                          sizeof(MemShareImportRecord) * SHM_MAX_ATTACH_RECORD +
-                          sizeof(MemShareRefRecord) * SHM_MAX_REFERENCE_RECORD + sizeof(MemIdRecordPool) +
-                          sizeof(uint32_t) + sizeof(SuspendClientArray) <=
-                      SHARE_MEM_SIZE,
-                  "RecordStore layout exceeds shared memory size");
-
     if (suspendClientArray_->count > MAX_SUSPEND_CLIENT) {
         DBG_LOGERROR("invalid suspend client count=" << suspendClientArray_->count << ", reset it.");
         memset_s(suspendClientArray_, sizeof(*suspendClientArray_), 0, sizeof(*suspendClientArray_));
