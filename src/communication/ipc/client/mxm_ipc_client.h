@@ -41,7 +41,7 @@ public:
    * @brief 停止Client
    * @return HRESULT, 成功返回0, 失败返回非0
    */
-    void Stop() override;
+    HRESULT Stop() override;
 
     int SetPostReconnectHandler(MxmComPostReconnectHandler handler);
 

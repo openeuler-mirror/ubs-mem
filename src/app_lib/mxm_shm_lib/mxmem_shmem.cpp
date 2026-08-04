@@ -1050,3 +1050,25 @@ SHMEM_API int ubsmem_shmem_faults_register(shmem_faults_func registerFunc)
 {
     return GetErrCode(ubsmem_shmem_faults_register_impl(registerFunc));
 }
+
+SHMEM_API int ubsmem_shmem_ipc_suspend(void)
+{
+    auto ret = RackMemLib::GetInstance().SuspendIpc();
+    if (ret != UBSM_OK) {
+        DBG_LOGERROR("ubsmem_shmem_ipc_suspend failed, ret=" << ret);
+        return GetErrCode(ret);
+    }
+    DBG_LOGINFO("ubsmem_shmem_ipc_suspend done.");
+    return GetErrCode(UBSM_OK);
+}
+
+SHMEM_API int ubsmem_shmem_ipc_resume(void)
+{
+    auto ret = RackMemLib::GetInstance().ResumeIpc();
+    if (ret != UBSM_OK) {
+        DBG_LOGERROR("ubsmem_shmem_ipc_resume IpcCallResume failed, ret=" << ret);
+        return GetErrCode(ret);
+    }
+    DBG_LOGINFO("ubsmem_shmem_ipc_resume done.");
+    return GetErrCode(UBSM_OK);
+}

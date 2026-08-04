@@ -51,7 +51,11 @@ class RackMemLib {
 public:
     uint32_t Initialize();
 
-    void Destroy();
+    uint32_t Destroy();
+
+    uint32_t SuspendIpc();
+
+    uint32_t ResumeIpc();
 
     [[nodiscard]] int StartRackMem() const
     {

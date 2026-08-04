@@ -61,6 +61,10 @@ UBSMemMonitor &UBSMemMonitor::GetInstance() noexcept
 
 uint32_t UBSMemMonitor::RegisterHandler(pid_t pid) noexcept
 {
+    if (ock::ubsm::RecordStore::GetInstance().IsClientSuspended(pid)) {
+        DBG_LOGINFO("pid(" << pid << ") is suspended, skip cleanup.");
+        return 0U;
+    }
     return UBSMemMonitor::GetInstance().ManagerEventNotified(pid);
 }
 
@@ -189,6 +193,7 @@ void UBSMemMonitor::ClientProcessExited(pid_t pid) noexcept
     if (ret != UBSM_OK) {
         DBG_LOGERROR("SHMProcessDeadProcess error. ret: " << ret);
     }
+    ock::ubsm::RecordStore::GetInstance().DelSuspendClient(pid);
     DBG_LOGINFO("Clean leak memory allocated by (" << pid << ") end.");
 }
 

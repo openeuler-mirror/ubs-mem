@@ -210,7 +210,7 @@ public:
    * @brief 停止Server或Client
    * @return HRESULT, 成功返回0, 失败返回非0
    */
-    virtual void Stop() = 0;
+    virtual HRESULT Stop() = 0;
 
     /* *
    * @brief 向对端建连

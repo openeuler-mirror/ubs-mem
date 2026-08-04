@@ -152,10 +152,10 @@ void ClientIpcStubSetUdsInfo(uint32_t pid, uint32_t uid, uint32_t gid)
     g_udsInfo.gid = gid;
 }
 
-void MxmComStopIpcClientStub()
+int MxmComStopIpcClientStub()
 {
     printf("MxmComStopIpcClientStub\n");
-    return;
+    return 0;
 }
 
 int ClientIpcLookupClusterStatisticStub(MsgBase *request, MsgBase *response)

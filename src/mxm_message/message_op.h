@@ -59,6 +59,9 @@ enum RmMemOpCodeIpc : uint16_t {
     IPC_RACKMEMSHM_QUERY_NODE,
     // 查询当前节点id
     IPC_RACKMEMSHM_QUERY_SLOT_ID,
+
+    IPC_SUSPEND_CLIENT = 31,
+    IPC_RESUME_CLIENT = 32,
 };
 
 enum RmMemOpCodeRpc : uint16_t {

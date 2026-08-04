@@ -54,7 +54,7 @@ int MxmComStartIpcClient(void);
 /**
      * @brief 停止Ipc客户端
      */
-void MxmComStopIpcClient(void);
+int MxmComStopIpcClient(void);
 
 /**
      * @brief 同步发送消息
