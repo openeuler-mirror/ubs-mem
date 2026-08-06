@@ -143,7 +143,7 @@ delete_semaphore
 %attr(550,ubsmd,ubsmd) /usr/local/ubs_mem/lib/libubsmd.so
 
 %dir %attr(750,ubsmd,ubsmd) /usr/local/ubs_mem/config
-%attr(640,ubsmd,ubsmd) /usr/local/ubs_mem/config/ubsmd.conf
+%config(noreplace) %attr(640,ubsmd,ubsmd) /usr/local/ubs_mem/config/ubsmd.conf
 
 %dir %attr(550,ubsmd,ubsmd) /usr/local/ubs_mem/include
 %attr(640,ubsmd,ubsmd) /usr/local/ubs_mem/include/ubs_mem.h

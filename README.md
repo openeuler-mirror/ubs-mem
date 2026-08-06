@@ -53,6 +53,9 @@ cd ubs-mem
 代码仓中提供了统一的编译构建脚本 `build.sh`。使用 `-t` 指定 debug、release 等直接编译类型：
 
 ```shell
+# RPM
+sh build.sh -p
+# 普通编译
 sh build.sh -t release
 ```
 
@@ -64,7 +67,7 @@ sh build.sh -t release --jobs 8
 BUILD_JOBS=8 sh build.sh -t release
 ```
 
-直接编译产物位于 `build/release/output`。生成 RPM 包时执行：
+直接编译产物位于 `build/<build-type>/output/`。生成 RPM 包时执行：
 
 ```shell
 sh build.sh -p

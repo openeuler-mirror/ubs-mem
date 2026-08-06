@@ -15,11 +15,20 @@
 
 ### 设置进程运行环境
 
-- 应用进程依赖UBS Memory SDK动态库，需要设置环境变量用于查找动态库路径。
+- SDK库和头文件的安装路径取决于软件包格式：
+
+    | 产物 | RPM | DEB |
+    |-----|-----|-----|
+    | SDK库 | `/usr/local/ubs_mem/lib/libubsm_sdk.so` | `/usr/lib/<multiarch>/libubsm_sdk.so` |
+    | 头文件 | `/usr/local/ubs_mem/include/` | `/usr/include/ubs_mem/` |
+
+- RPM安装的SDK库不在系统默认搜索路径中，应用进程需要设置：
 
     ```bash
-    export LD_LIBRARY_PATH="/usr/local/ubs_mem/lib/:$LD_LIBRARY_PATH"
+    export LD_LIBRARY_PATH="/usr/local/ubs_mem/lib:$LD_LIBRARY_PATH"
     ```
+
+  DEB将SDK库安装到系统multiarch库目录，通常无需额外设置`LD_LIBRARY_PATH`。
 
 - 当前版本锁的有效期默认为30s，故障恢复流程受UBS Comm建链重试的次数影响，为保证ubsmd故障恢复功能稳定，需设置如下环境变量。
 

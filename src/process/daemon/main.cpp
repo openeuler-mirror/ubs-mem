@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
         std::cerr << "Failed to new ock daemon, maybe out of memory" << std::endl;
         return ERROR_EXIT_CODE;
     }
-    if (daemon->CheckParam(argv[BIN_PATH_POSITION]) != 0) {
+    if (daemon->CheckParam(argv[RUNTIME_PATH_POSITION], argv[CONFIG_PATH_POSITION]) != 0) {
         daemon.Set(nullptr);
         return ERROR_EXIT_CODE;
     }

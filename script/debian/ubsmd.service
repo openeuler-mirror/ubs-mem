@@ -10,8 +10,8 @@ Group=ubsmd
 RuntimeDirectory=matrix
 RuntimeDirectoryMode=0750
 RuntimeDirectoryPreserve=yes
-Environment=LD_LIBRARY_PATH=/usr/local/ubs_mem/lib
-ExecStart=/usr/local/ubs_mem/bin/ubsmd --runtime=/usr/local/ubs_mem/lib --config=/usr/local/ubs_mem/config/ubsmd.conf
+Environment=LD_LIBRARY_PATH=/usr/lib/ubs_mem
+ExecStart=/usr/bin/ubsmd --runtime=/usr/lib/ubs_mem --config=/etc/ubs_mem/ubsmd.conf
 TimeoutStartSec=360s
 Restart=always
 RestartSec=10s

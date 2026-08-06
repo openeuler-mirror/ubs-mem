@@ -56,9 +56,12 @@ cd ubs-mem
 ## Build the Project
 
 The repository provides the unified `build.sh` script. Use `-t` to select a direct build type such as debug or
-release:
+release. For example:
 
 ```shell
+# RPM
+sh build.sh -p
+# Normal build
 sh build.sh -t release
 ```
 
@@ -70,7 +73,7 @@ sh build.sh -t release --jobs 8
 BUILD_JOBS=8 sh build.sh -t release
 ```
 
-Direct build artifacts are written to `build/release/output`. Generate RPM packages with:
+Direct build artifacts are written to `build/<build-type>/output/`. Generate RPM packages with:
 
 ```shell
 sh build.sh -p

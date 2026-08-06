@@ -12,6 +12,7 @@
 #include "ock_daemon.h"
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <syslog.h>
 #include <unistd.h>
 #include <algorithm>
@@ -27,6 +28,7 @@
 #include "record_store.h"
 #include "rpc_server.h"
 #include "ubs_common_config.h"
+#include "ubs_cryptor_handler.h"
 #include "ubs_mem_monitor.h"
 #include "ubse_mem_adapter.h"
 #include "ubsm_lock.h"
@@ -46,8 +48,10 @@ using namespace ock::rpc::service;
 using namespace ock::dlock_utils;
 OCKDaemonPtr OckDaemon::mDaemon = nullptr;
 
-const auto DAEMON_CONF_FILE = std::string("ubsmd.conf");
-const auto BIN_PATH_HEADER = std::string("-binpath=");
+const auto RUNTIME_PATH_HEADER = std::string("--runtime=");
+const auto CONFIG_PATH_HEADER = std::string("--config=");
+const auto PID_FILE_PATH = std::string("/run/matrix/ockd.pid");
+const auto DECRYPT_LIB_NAME = std::string("libdecrypt.so");
 constexpr int MB_MULTIPLER = 1024 * 1024;
 OckDaemon::OckDaemon() : mHtracerEnable(false)
 {
@@ -63,46 +67,74 @@ OckDaemon::~OckDaemon()
     mDaemon = nullptr;
 }
 
-HRESULT OckDaemon::CheckParam(const std::string &binPath)
+HRESULT OckDaemon::CheckParam(const std::string &runtimePath, const std::string &configPath)
 {
-    if (CheckBinPath(binPath.c_str()) != 0) {
+    if (CheckRuntimePath(runtimePath.c_str()) != 0) {
         return HFAIL;
     }
+    if (CheckConfigPath(configPath.c_str()) != 0) {
+        return HFAIL;
+    }
+    ock::ubsm::UbsCryptorHandler::GetInstance().SetDecryptLibPath(mRuntimePath + "/" + DECRYPT_LIB_NAME);
     return HOK;
 }
 
-HRESULT OckDaemon::CheckBinPath(const char *binPath)
+HRESULT OckDaemon::CheckRuntimePath(const char *runtimePath)
 {
-    if (binPath == nullptr) {
-        std::cerr << "Failed to get binpath." << std::endl;
+    if (runtimePath == nullptr || strncmp(runtimePath, RUNTIME_PATH_HEADER.c_str(), RUNTIME_PATH_HEADER.size()) != 0) {
+        std::cerr << "Parameter runtime input format error." << std::endl;
         return HFAIL;
     }
-    if (strncmp(binPath, BIN_PATH_HEADER.c_str(), BIN_PATH_HEADER.size()) != 0) {
-        std::cerr << "Parameter binpath input format error." << std::endl;
+    runtimePath += RUNTIME_PATH_HEADER.size();
+    if (strnlen(runtimePath, PATH_MAX) == PATH_MAX) {
+        std::cerr << "Runtime path size exceeds maximum limit." << std::endl;
         return HFAIL;
     }
-    binPath += BIN_PATH_HEADER.size();
-    if (strnlen(binPath, PATH_MAX) == PATH_MAX) {
-        std::cerr << "Binpath size exceeds maximum limit." << std::endl;
+    char realRuntimePath[PATH_MAX] = {0x00};
+    struct stat runtimeStat {
+    };
+    if (realpath(runtimePath, realRuntimePath) == nullptr || stat(realRuntimePath, &runtimeStat) != 0 ||
+        !S_ISDIR(runtimeStat.st_mode)) {
+        std::cerr << "The runtime path cannot be accessed." << std::endl;
         return HFAIL;
     }
-    char realBinPath[PATH_MAX + 1] = {0x00};
-    if (realpath(binPath, realBinPath) == nullptr) {
-        std::cerr << "The binpath input is not accessible." << std::endl;
+    mRuntimePath = std::string(realRuntimePath);
+    return HOK;
+}
+
+HRESULT OckDaemon::CheckConfigPath(const char *configPath)
+{
+    if (configPath == nullptr) {
+        std::cerr << "Failed to get config path." << std::endl;
         return HFAIL;
     }
-    if (!OckFileDirExists(realBinPath)) {
-        std::cerr << "The binpath input cannot be accessed." << std::endl;
+    if (strncmp(configPath, CONFIG_PATH_HEADER.c_str(), CONFIG_PATH_HEADER.size()) != 0) {
+        std::cerr << "Parameter config input format error." << std::endl;
         return HFAIL;
     }
-    mHomePath = std::string(realBinPath);
+    configPath += CONFIG_PATH_HEADER.size();
+    if (strnlen(configPath, PATH_MAX) == PATH_MAX) {
+        std::cerr << "Config path size exceeds maximum limit." << std::endl;
+        return HFAIL;
+    }
+    char realConfigPath[PATH_MAX] = {0x00};
+    if (realpath(configPath, realConfigPath) == nullptr) {
+        std::cerr << "The config path is not accessible." << std::endl;
+        return HFAIL;
+    }
+    struct stat configStat {
+    };
+    if (stat(realConfigPath, &configStat) != 0 || !S_ISREG(configStat.st_mode)) {
+        std::cerr << "The config path cannot be accessed." << std::endl;
+        return HFAIL;
+    }
+    mConfigPath = std::string(realConfigPath);
     return HOK;
 }
 
 HRESULT OckDaemon::GetConfPath(std::string &confPath)
 {
-    confPath = mHomePath;
-    confPath += "/config/" + DAEMON_CONF_FILE;
+    confPath = mConfigPath;
     if (!OckFileDirExists(confPath)) {
         std::cerr << "Configuration file <" << confPath << "> doesn't exist" << std::endl;
         return HFAIL;
@@ -124,11 +156,11 @@ HRESULT OckDaemon::LoadDaemonConf()
         return HFAIL;
     }
     if (ValidateConfiguration(confPath) != 0) {
-        std::cerr << "Configuration invalid, please check <" << DAEMON_CONF_FILE << ">" << std::endl;
+        std::cerr << "Configuration invalid, please check <" << confPath << ">" << std::endl;
         return HFAIL;
     }
-    std::string binPathArg = BIN_PATH_HEADER + mHomePath;
-    mConf->Set(ock::common::ConfConstant::MXMD_DAEMON_BINPATH.first, binPathArg);
+    mConf->Set(ock::common::ConfConstant::MXMD_DAEMON_RUNTIME.first, RUNTIME_PATH_HEADER + mRuntimePath);
+    mConf->Set(ock::common::ConfConstant::MXMD_DAEMON_CONFIG.first, CONFIG_PATH_HEADER + mConfigPath);
     return HOK;
 }
 
@@ -213,7 +245,7 @@ HRESULT OckDaemon::InitDaemonService()
     std::string serviceConf = std::string(ock::common::ConfConstant::MXMD_FEATURES_ENABLE.second);
     std::vector<std::string> splitStrings;
     SplitStr(serviceConf, "|", splitStrings);
-    return serviceManager->ServicePut(splitStrings, mHomePath);
+    return serviceManager->ServicePut(splitStrings, mRuntimePath);
 }
 
 HRESULT OckDaemon::InitHandler()
@@ -289,7 +321,7 @@ HRESULT OckDaemon::ServicesInitialize()
 
 HRESULT OckDaemon::Initialize()
 {
-    if (mHomePath.empty()) {
+    if (mRuntimePath.empty() || mConfigPath.empty()) {
         std::cerr << "Cannot initialize OckDaemon without checking parameters." << std::endl;
         return HFAIL;
     }
@@ -588,9 +620,7 @@ HRESULT OckDaemon::StartServices()
         return hr;
     }
 
-    std::string pidFilePath = mHomePath;
-    pidFilePath += "/work/pids/ockd.pid";
-    std::ofstream fout(pidFilePath.c_str());
+    std::ofstream fout(PID_FILE_PATH);
     fout << getpid() << std::endl;
     fout << std::flush;
     fout.close();
