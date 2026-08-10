@@ -188,8 +188,7 @@ inline bool FileUtil::CanonicalPath(std::string &path)
 
 inline bool FileUtil::CheckFileIsREG(std::string &file)
 {
-    struct stat st {
-    };
+    struct stat st {};
     if (lstat(file.c_str(), &st) < 0) {
         return false;
     }

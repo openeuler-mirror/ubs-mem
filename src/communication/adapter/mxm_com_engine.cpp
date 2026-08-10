@@ -415,8 +415,7 @@ HRESULT MxmComEngine::PrepareMem()
 
 static bool IsDirectory(const std::string &dir)
 {
-    struct stat info {
-    };
+    struct stat info {};
     if (stat(dir.c_str(), &info) != 0) {
         return false; // 无法访问路径
     }

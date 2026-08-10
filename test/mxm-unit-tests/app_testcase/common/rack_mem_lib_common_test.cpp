@@ -80,7 +80,7 @@ TEST_F(RackMemLibCommonTestSuite, ipc_command_cpp)
     std::vector<std::string> recordInf;
     ubsmem_cluster_info_t clusterInfo{};
 
-    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase * request, MsgBase * response))
+    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase *request, MsgBase *response))
         .stubs()
         .will(invoke(MxmComIpcClientSendStub));
 
@@ -131,7 +131,7 @@ TEST_F(RackMemLibCommonTestSuite, RackMemShmCppStub)
     ubsmem_shmem_info_t shm_info;
     std::vector<ubsmem_shmem_desc_t> shm_list;
 
-    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase * request, MsgBase * response))
+    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase *request, MsgBase *response))
         .stubs()
         .will(invoke(MxmShmIpcClientSendStub));
 
@@ -205,7 +205,7 @@ TEST_F(RackMemLibCommonTestSuite, shm_ipc_command_cpp)
     ShmIpcCommand::IpcCallShmLookup(name, shm_info);
     ShmIpcCommand::IpcQueryNode(name, isNodeReady, false);
 
-    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase * request, MsgBase * response))
+    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase *request, MsgBase *response))
         .stubs()
         .will(invoke(MxmComIpcClientSendStub));
     ASSERT_EQ(ShmIpcCommand::IpcQueryDlockStatus(isNodeReady), 0);

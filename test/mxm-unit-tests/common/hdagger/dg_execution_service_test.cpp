@@ -58,8 +58,7 @@ TEST_F(DgExecutionServiceTestSuite, TestExecutionService)
 
 TEST_F(DgExecutionServiceTestSuite, TestLambdaExpression)
 {
-    struct timespec ts {
-    };
+    struct timespec ts {};
     sem_t waitSem{};
 
     auto ret = clock_gettime(CLOCK_REALTIME, &ts);
