@@ -178,7 +178,7 @@ public:
           ip(std::move(ip)),
           port(port),
           remoteNodeId(std::move(remoteNodeId)),
-          curNodeId(std::move(curNodeId)){};
+          curNodeId(std::move(curNodeId)) {};
 
     const std::string &GetIp() const;
 
@@ -223,7 +223,7 @@ public:
           channelType(channelType),
           engineName(std::move(engineName)),
           channel(std::move(channel)),
-          connectInfo(std::move(connectInfo)){};
+          connectInfo(std::move(connectInfo)) {};
 
     ~MxmComChannelInfo()
     {

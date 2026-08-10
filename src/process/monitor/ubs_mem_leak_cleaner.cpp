@@ -32,8 +32,7 @@ bool ProcessAlive(const uint32_t pid)
     std::ostringstream oss;
     oss << "/proc/" << pid; // 该目录默认权限为 555
     std::string dir = oss.str();
-    struct stat info {
-    };
+    struct stat info {};
     if (stat(dir.c_str(), &info) != 0) {
         return false;
     }

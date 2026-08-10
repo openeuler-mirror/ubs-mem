@@ -1152,14 +1152,12 @@ int MxmServerMsgHandle::ShmQueryNode(const MsgBase *req, MsgBase *rsp, const Mxm
     // 节点未选出
     if (nodeId.empty()) {
         response->nodeIsReady_ = false;
-        DBG_LOGWARN("nodeId is empty, node is not ready"
-                    << ", uid=" << udsInfo.uid << ", pid=" << udsInfo.pid);
+        DBG_LOGWARN("nodeId is empty, node is not ready" << ", uid=" << udsInfo.uid << ", pid=" << udsInfo.pid);
         return 0;
     }
     response->nodeIsReady_ = true;
     response->nodeId_ = nodeId;
-    DBG_LOGINFO("ShmQueryNode successfully"
-                << ", uid=" << udsInfo.uid << ", pid=" << udsInfo.pid);
+    DBG_LOGINFO("ShmQueryNode successfully" << ", uid=" << udsInfo.uid << ", pid=" << udsInfo.pid);
     return 0;
 }
 

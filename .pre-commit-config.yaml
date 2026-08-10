@@ -1,37 +1,69 @@
+minimum_pre_commit_version: 4.0.0
+exclude: |
+  (?x)^(
+    3rdparty/|
+    test/3rdparty/|
+    build/|
+    test/build/
+  )
+
+default_stages: [pre-commit]
+ci:
+  autofix_prs: false
+  autoupdate_schedule: monthly
+
 repos:
+  - repo: https://gitcode.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        stages: [manual]
+      - id: end-of-file-fixer
+        stages: [manual]
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-json
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  - repo: https://gitcode.com/pre-commit-clang/mirrors-clang-format
+    rev: v18.1.8
+    hooks:
+      - id: clang-format
+        files: \.(c|h|cpp|hpp|cc|hh|cxx|hxx)$
+        args: [--style=file, --dry-run, --Werror]
+
   - repo: local
     hooks:
       - id: run-build
-        name: Run Release Build
-        entry: bash build.sh
+        name: Run release build
+        entry: bash build.sh -t release
         language: system
         pass_filenames: false
-        files: ^(?!test/).*(\.(h|c|cpp|sh|cmake)|CMakeLists\.txt)$
-        exclude: ^3rdparty/
+        always_run: true
+        stages: [manual]
+
       - id: run-build-test
-        name: Run Tests Build
+        name: Build unit tests
         entry: bash -c 'cd test && sh run_dt.sh --skip-run-tests'
         language: system
         pass_filenames: false
-        files: ^test/.*\.(h|c|cpp|sh|cmake)$|^test/CMakeLists\.txt$
-      - id: clang-format
-        name: Run clang-format check
-        entry: clang-format
-        language: system
-        files: \.(h|c|cpp)$
-        exclude: ^3rdparty/
-        args: [-style=file, -i]
+        always_run: true
+        stages: [manual]
+
       - id: clang-tidy
-        name: Run clang-tidy check
+        name: Run clang-tidy for source files
         entry: clang-tidy
         language: system
-        files: ^(?!test/).*\.(h|c|cpp)$
-        exclude: ^3rdparty/
-        args: [-p=build/debug, --fix]
+        files: ^src/.*\.(h|c|cpp)$
+        args: [-p=build/debug]
+        stages: [manual]
+
       - id: clang-tidy-test
-        name: Run clang-tidy check for test files
+        name: Run clang-tidy for test files
         entry: clang-tidy
         language: system
         files: ^test/.*\.(h|c|cpp)$
-        exclude: ^3rdparty/
-        args: [-p=test/build, --fix]
+        args: [-p=test/build]
+        stages: [manual]

@@ -115,7 +115,7 @@ TEST_F(MLSIpcHandlerTest, TestAppQueryClusterInfo_Success)
 {
     std::shared_ptr<CommonRequest> request = std::make_shared<CommonRequest>();
     std::shared_ptr<AppQueryClusterInfoResponse> response = std::make_shared<AppQueryClusterInfoResponse>();
-    MOCKER_CPP(&UbseMemAdapter::LookUpClusterStatistic, int (*)(ubsmemClusterInfo & clusterInfo))
+    MOCKER_CPP(&UbseMemAdapter::LookUpClusterStatistic, int (*)(ubsmemClusterInfo &clusterInfo))
         .stubs()
         .will(returnValue(0));
 
@@ -128,7 +128,7 @@ TEST_F(MLSIpcHandlerTest, TestAppQueryClusterInfo_FailWhenUbseFail)
 {
     std::shared_ptr<CommonRequest> request = std::make_shared<CommonRequest>();
     std::shared_ptr<AppQueryClusterInfoResponse> response = std::make_shared<AppQueryClusterInfoResponse>();
-    MOCKER_CPP(&UbseMemAdapter::LookUpClusterStatistic, int (*)(ubsmemClusterInfo & clusterInfo))
+    MOCKER_CPP(&UbseMemAdapter::LookUpClusterStatistic, int (*)(ubsmemClusterInfo &clusterInfo))
         .stubs()
         .will(returnValue(-1));
 

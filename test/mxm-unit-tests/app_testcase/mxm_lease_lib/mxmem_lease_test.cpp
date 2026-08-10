@@ -50,11 +50,11 @@ TEST_F(MxmemLeaseTestSuite, TestUbsmemLeaseMallocWithLocation)
     ASSERT_EQ(ret, UBSM_ERR_PARAM_INVALID);
 
     void *mockAddr = reinterpret_cast<void *>(0x12345678);
-    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase * request, MsgBase * response))
+    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase *request, MsgBase *response))
         .stubs()
         .will(invoke(MxmComIpcClientSendStub));
     MOCKER_CPP(&RackMem::MemoryIDUsedByFd,
-               void *(*)(AppBorrowMetaDesc & desc, const std::vector<uint64_t> &memIds, int64_t numaId, size_t unitSize,
+               void *(*)(AppBorrowMetaDesc &desc, const std::vector<uint64_t> &memIds, int64_t numaId, size_t unitSize,
                          const std::string &name, uint64_t))
         .stubs()
         .will(returnValue(mockAddr));

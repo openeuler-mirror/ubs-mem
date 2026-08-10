@@ -314,4 +314,4 @@ uint32_t RackMem::ForceFreeCachedMemory()
 }
 
 } // namespace ock::mxmd
-  // ock
+// ock

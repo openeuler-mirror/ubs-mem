@@ -728,16 +728,14 @@ void OckDaemon::StoppedKeepAlive()
 
 HRESULT OckDaemon::RegisterSignalHandler()
 {
-    struct sigaction saUsr {
-    };
+    struct sigaction saUsr {};
     saUsr.sa_handler = &OckDaemon::HandleSignal;
     if (sigaction(SIGTERM, &saUsr, nullptr) < 0) {
         DBG_LOGERROR("Register signal SIGTERM failed. errno(" << errno << "). ");
         return HFAIL;
     }
 
-    struct sigaction saUsr1 {
-    };
+    struct sigaction saUsr1 {};
     saUsr1.sa_handler = &OckDaemon::HandleSigpipe;
     if (sigaction(SIGPIPE, &saUsr1, nullptr) < 0) {
         DBG_LOGERROR("Register signal SIGTERM failed. errno(" << errno << "). ");
