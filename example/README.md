@@ -16,7 +16,7 @@
 - 已安装并启动UBS Engine和`ubsmd`。
 - 服务器具有可用的UB硬件，BIOS未配置snoop参数；`UBSM_FLAG_CACHE`为CC模式，不支持开启snoop的环境。
 - 当前用户属于`ubsmd`和`ubse`用户组，并具有UBSE的`mem.shm`接口权限。
-- 已安装UBS Memory SDK头文件和动态库，默认位于`/usr/local/ubs_mem`。
+- 已安装UBS Memory SDK头文件和动态库。RPM默认安装到`/usr/include`和`/usr/lib64`，DEB使用系统multiarch目录。
 
 具体部署和权限配置参见[安装部署文档](../docs/zh/installation_deployment.md)和
 [API文档](../docs/zh/api_description.md)。
@@ -41,7 +41,6 @@ cmake --build example/build
 ## 运行
 
 ```shell
-export LD_LIBRARY_PATH=/usr/local/ubs_mem/lib:${LD_LIBRARY_PATH}
 export HCOM_CONNECTION_RETRY_TIMES=2
 ./example/build/cache_shmem_example
 ```

@@ -164,16 +164,11 @@ extern "C" char* DecryptPassword(const char* encrypted_data, size_t encrypted_le
 
 #### 动态库要求
 
-动态库文件名应为 libdecrypt\.so。RPM加载路径为`/usr/local/ubs_mem/lib/libdecrypt.so`，DEB加载路径为`/usr/lib/ubs_mem/libdecrypt.so`。
+动态库文件名应为 libdecrypt\.so。RPM和DEB均从`/usr/lib/ubs_mem/libdecrypt.so`加载该动态库。
 
 需要修改其属主和属组为ubsmd，并设置权限为550，使ubsmd服务及ubsmd用户组中的SDK调用方可以加载动态库。
 
 ```bash
-# RPM
-chown ubsmd:ubsmd /usr/local/ubs_mem/lib/libdecrypt.so
-chmod 550 /usr/local/ubs_mem/lib/libdecrypt.so
-
-# DEB
 chown ubsmd:ubsmd /usr/lib/ubs_mem/libdecrypt.so
 chmod 550 /usr/lib/ubs_mem/libdecrypt.so
 ```

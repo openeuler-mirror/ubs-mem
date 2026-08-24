@@ -46,8 +46,8 @@ UBS Memory依赖[UBS Engine](https://gitcode.com/openeuler/ubs-engine)提供资�
 
     >[!NOTE]说明
     >- 内存服务以ubsmd用户的身份运行，在使用RPM包安装时，若系统中不存在ubsmd用户，安装脚本将自动创建该用户。
-    >- 安装成功后，so会默认安装到“/usr/local/ubs\_mem/lib”目录，使用时需要export该路径。
-    >- 安装成功后，.h头文件会默认安装到“/usr/local/ubs\_mem/include”目录。
+    >- 安装成功后，SDK动态库安装到“/usr/lib64”，服务动态库安装到“/usr/lib/ubs\_mem”。
+    >- 安装成功后，.h头文件会默认安装到“/usr/include”目录。
     >- 配置环境变量 **UBSM\_SDK\_TRACE\_ENABLE = 1**，开启性能打点统计，会在默认的日志路径（/var/log/ubsm）生成对应的打点数据。
     >- 配置环境变量 **MXM\_CHANNEL\_TIMEOUT= xx**，控制IPC通信的channel超时时间（单位s），当大块内存操作耗时较久时，可以配置较长时间，默认为60s。
 
@@ -63,10 +63,10 @@ UBS Memory依赖[UBS Engine](https://gitcode.com/openeuler/ubs-engine)提供资�
 
 4. （可选）修改ubsmd.conf配置文件。
 
-    a. 打开“/usr/local/ubs\_mem/config/ubsmd.conf”配置文件。
+    a. 打开“/etc/ubs\_mem/ubsmd.conf”配置文件。
 
     ```bash
-    vim /usr/local/ubs_mem/config/ubsmd.conf
+    vim /etc/ubs_mem/ubsmd.conf
     ```
 
     b. 按“i”进入编辑模式，根据实际情况对相关参数进行配置，参数详情请参见附录的[表1 ubsmd.conf配置文件参数说明](configuration_description.md#配置参数说明)。
@@ -155,7 +155,7 @@ UBS Memory依赖[UBS Engine](https://gitcode.com/openeuler/ubs-engine)提供资�
        FD Store: 1 (limit: 3)
          Memory: xxG ()
          CGroup: /system.slice/ubsmd.service
-                 └─xxx /usr/local/ubs_mem/bin/ubsmd -binpath=/usr/local/ubs_mem
+                 └─xxx /usr/bin/ubsmd --runtime=/usr/lib/ubs_mem --config=/etc/ubs_mem/ubsmd.conf
     ```
 
 ## 卸载UBS Memory

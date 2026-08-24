@@ -13,18 +13,12 @@
 #include <dlfcn.h>
 #include <securec.h>
 #include <sys/ipc.h>
-#include <array>
 #include <fstream>
 #include <sstream>
 #include <string>
 #include "log.h"
 #include "rack_mem_functions.h"
 #include "system_adapter.h"
-
-const std::array<std::string, 2> DEFAULT_DECRYPT_LIB_PATHS = {
-    "/usr/local/ubs_mem/lib/libdecrypt.so",
-    "/usr/lib/ubs_mem/libdecrypt.so",
-};
 
 ock::ubsm::UbsCryptorHandler::UbsCryptorHandler() noexcept : initialized{false} {}
 
@@ -232,14 +226,6 @@ int ock::ubsm::UbsCryptorHandler::LoadDecryptFunction() noexcept
 {
     DBG_LOGINFO("LoadDecryptFunction start.");
     const char *path = decryptLibPath.c_str();
-    if (decryptLibPath.empty()) {
-        for (const auto &candidate : DEFAULT_DECRYPT_LIB_PATHS) {
-            if (access(candidate.c_str(), F_OK) == 0) {
-                path = candidate.c_str();
-                break;
-            }
-        }
-    }
     // 如果没有提供so,也需要支持，不进行解密操作，原样返回
     if (strlen(path) == 0 || access(path, F_OK) != 0) {
         DBG_LOGERROR("File not found: " << path << ", use default.");

@@ -19,16 +19,10 @@
 
     | 产物 | RPM | DEB |
     |-----|-----|-----|
-    | SDK库 | `/usr/local/ubs_mem/lib/libubsm_sdk.so` | `/usr/lib/<multiarch>/libubsm_sdk.so` |
-    | 头文件 | `/usr/local/ubs_mem/include/` | `/usr/include/ubs_mem/` |
+    | SDK库 | `/usr/lib64/libubsm_sdk.so` | `/usr/lib/<multiarch>/libubsm_sdk.so` |
+    | 头文件 | `/usr/include/` | `/usr/include/ubs_mem/` |
 
-- RPM安装的SDK库不在系统默认搜索路径中，应用进程需要设置：
-
-    ```bash
-    export LD_LIBRARY_PATH="/usr/local/ubs_mem/lib:$LD_LIBRARY_PATH"
-    ```
-
-  DEB将SDK库安装到系统multiarch库目录，通常无需额外设置`LD_LIBRARY_PATH`。
+- RPM和DEB均将SDK库安装到系统库目录，通常无需额外设置`LD_LIBRARY_PATH`。
 
 - 当前版本锁的有效期默认为30s，故障恢复流程受UBS Comm建链重试的次数影响，为保证ubsmd故障恢复功能稳定，需设置如下环境变量。
 
