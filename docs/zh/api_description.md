@@ -262,7 +262,19 @@ int ubsmem_lookup_region(const char *region_name, ubsmem_region_desc_t *region_d
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
 |region_name|const char *|入参|共享域名称，节点内唯一标识。最大有效长度为47字符（不包括“\0”）。|
-|region_desc|ubsmem_region_desc_t *|出参|共享域信息，如域内节点数、对应节点hostname以及亲和性。相关结构体类型和常量定义请参见ubsmem_lookup_regions章节的[参数说明](#parameter01)。|
+|region_desc|ubsmem_region_desc_t *|出参|共享域信息，如域内节点数、对应节点hostname以及亲和性。|
+
+相关结构体类型和常量定义如下：
+
+```C++
+#define MAX_REGION_NAME_DESC_LENGTH 48
+
+typedef struct {
+    char region_name[MAX_REGION_NAME_DESC_LENGTH];
+    size_t size;
+    ubsmem_region_attributes_t region_attr;
+} ubsmem_region_desc_t;
+```
 
 **返回值**
 
@@ -556,7 +568,39 @@ int ubsmem_shmem_faults_register(shmem_faults_func registerFunc);
 
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
-|registerFunc|shmem_faults_func|入参|共享内存故障事件响应处理函数。类型定义如下：<br>`typedef int32_t (*shmem_faults_func)(const char *shm_name);`|
+|registerFunc|shmem_faults_func|入参|共享内存故障事件响应处理函数，类型定义及故障类型枚举定义如下：|
+
+相关类型定义：
+
+```C++
+typedef int32_t (*shmem_faults_func)(const char *shm_name, ubsmem_fault_type_t fault_type);
+```
+
+ubsmem_fault_type_t枚举定义：
+
+```C++
+typedef enum {
+    UBMEM_ATOMIC_DATA_ERR = 0,
+    UBMEM_READ_DATA_ERR,
+    UBMEM_FLOW_POISON,
+    UBMEM_FLOW_READ_AUTH_POISON,
+    UBMEM_FLOW_READ_AUTH_RESPERR,
+    UBMEM_TIMEOUT_POISON,
+    UBMEM_TIMEOUT_RESPERR,
+    UBMEM_READ_DATA_POISON,
+    UBMEM_READ_DATA_RESPERR,
+    UBMEM_MAR_NOPORT_VLD_INT_ERR,
+    UBMEM_MAR_FLUX_INT_ERR,
+    UBMEM_MAR_WITHOUT_CXT_ERR,
+    UBMEM_RSP_BKPRE_OVER_TIMEOUT_ERR,
+    UBMEM_MAR_NEAR_AUTH_FAIL_ERR,
+    UBMEM_MAR_FAR_AUTH_FAIL_ERR,
+    UBMEM_MAR_TIMEOUT_ERR,
+    UBMEM_MAR_ILLEGAL_ACCESS_ERR,
+    UBMEM_REMOTE_READ_DATA_ERR_OR_WRITE_RESPONSE_ERR,
+    UBMEM_HEALTHY = 1000,
+} ubsmem_fault_type_t;
+```
 
 **返回值**
 
@@ -577,14 +621,14 @@ int ubsmem_shmem_faults_register(shmem_faults_func registerFunc);
 **接口格式**
 
 ```C++
-int ubsmem_local_nid_query(uint32_t* node_id);
+int ubsmem_local_nid_query(uint32_t* nid);
 ```
 
 **参数说明**
 
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
-|node_id|uint32_t*|出参|该节点在超节点域中的节点ID。|
+|nid|uint32_t*|出参|该节点在超节点域中的节点ID。|
 
 **返回值**
 
@@ -643,7 +687,7 @@ int ubsmem_shmem_lookup(const char *name, ubsmem_shmem_info_t *shm_info);
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
 |name|const char*|入参|查询的共享名。最大有效长度为47字符（不包括“\0”），仅允许使用大小写字母、数字、“-”和“_”。|
-|shm_info|ubsmem_shmem_info_t *|出参|对应共享的信息。相关结构体和常量定义如下：<pre class="screen">#define MAX_SHM_NAME_LENGTH 48<br><br>typedef struct {<br>char name[MAX_SHM_NAME_LENGTH + 1];<br>size_t size;<br>} ubsmem_shmem_desc_t>;</pre>|
+|shm_info|ubsmem_shmem_info_t *|出参|对应共享的信息。相关结构体和常量定义如下：<pre class="screen">#define MAX_SHM_NAME_LENGTH 48<br>#define MAX_MEMID_NUM 2048<br><br>typedef struct {<br>    char name[MAX_SHM_NAME_LENGTH + 1];<br>    size_t size;<br>    uint32_t mem_num;<br>    uint64_t mem_unit_size;<br>    uint64_t mem_id_list[MAX_MEMID_NUM];<br>} ubsmem_shmem_info_t;</pre>|
 
 **返回值**
 
