@@ -91,8 +91,7 @@ HRESULT OckDaemon::CheckRuntimePath(const char *runtimePath)
         return HFAIL;
     }
     char realRuntimePath[PATH_MAX] = {0x00};
-    struct stat runtimeStat {
-    };
+    struct stat runtimeStat {};
     if (realpath(runtimePath, realRuntimePath) == nullptr || stat(realRuntimePath, &runtimeStat) != 0 ||
         !S_ISDIR(runtimeStat.st_mode)) {
         std::cerr << "The runtime path cannot be accessed." << std::endl;
@@ -122,8 +121,7 @@ HRESULT OckDaemon::CheckConfigPath(const char *configPath)
         std::cerr << "The config path is not accessible." << std::endl;
         return HFAIL;
     }
-    struct stat configStat {
-    };
+    struct stat configStat {};
     if (stat(realConfigPath, &configStat) != 0 || !S_ISREG(configStat.st_mode)) {
         std::cerr << "The config path cannot be accessed." << std::endl;
         return HFAIL;

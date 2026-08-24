@@ -48,7 +48,7 @@ TEST(daemon_init, ulog_init)
     av[0] = &empty;
     av[1] = binPath;
 
-    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD(), av[1]);
+    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD() + "/config", av[1]);
     EXPECT_EQ(hr, HOK);
     hr = daemon->Initialize();
     EXPECT_EQ(hr, HRESULT_NO_FEATURE_ENABLED);
@@ -271,7 +271,7 @@ TEST(daemon_init, ulog_audit_conf_3)
     av[0] = &empty;
     av[1] = binPath;
 
-    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD(), av[1]);
+    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD() + "/config", av[1]);
     EXPECT_EQ(hr, HOK);
     hr = daemon->Initialize();
     EXPECT_EQ(hr, HRESULT_NO_FEATURE_ENABLED);
@@ -318,7 +318,7 @@ TEST(daemon_init, init_service_without_lib)
     av[0] = &empty;
     av[1] = binPath;
 
-    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD(), av[1]);
+    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD() + "/config", av[1]);
     EXPECT_EQ(hr, HOK);
     hr = daemon->Initialize();
     EXPECT_EQ(hr, HRESULT_NO_FEATURE_ENABLED);
