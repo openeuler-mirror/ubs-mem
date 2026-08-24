@@ -1,9 +1,4 @@
-# Restore old style debuginfo creation for rpm >= 4.14.
-%undefine _debugsource_packages
-%undefine _debuginfo_subpackages
-
 # -*- rpm-spec -*-
-%define __strip /bin/true
 Summary:        UBS-MEM Package
 Name:           ubs-mem
 Version:        1.0.0
@@ -27,6 +22,7 @@ Group:          System Environment/Daemons
 Requires:       glibc libgcc libstdc++ libboundscheck ubs-comm-lib openssl-libs
 Requires:       ubs-engine
 Requires:       ubs-engine-client-libs
+Requires(pre):  shadow-utils
 Provides:       ubs-mem-kshmem = %{version}-%{release}
 Obsoletes:      ubs-mem-kshmem < %{version}-%{release}
 
@@ -67,17 +63,8 @@ create_user_and_group() {
 
     usermod -a -G ubse ubsmd
 }
-stop_old_service() {
-    if [ -e /usr/lib/systemd/system/ubsmd.service ]; then
-        systemctl stop ubsmd.service || true
-        systemctl disable ubsmd.service || true
-        rm -f /usr/lib/systemd/system/ubsmd.service
-    fi
-    rm -f /tmp/matrix_mem_daemon.lock
-}
 
 create_user_and_group
-stop_old_service
 
 %post shmem
 create_log_directory() {
@@ -86,23 +73,24 @@ create_log_directory() {
 }
 enable_service() {
     systemctl daemon-reload > /dev/null 2>&1 || :
-    systemctl enable ubsmd.service > /dev/null 2>&1 || :
+    if [ "$1" -eq 1 ]; then
+        systemctl enable ubsmd.service > /dev/null 2>&1 || :
+    fi
 }
 
 create_log_directory
-enable_service
+enable_service "$1"
 /sbin/ldconfig > /dev/null 2>&1 || :
 
 %preun shmem
-stop_service() {
+if [ "$1" -eq 0 ]; then
     systemctl stop ubsmd.service > /dev/null 2>&1 || :
     systemctl disable ubsmd.service > /dev/null 2>&1 || :
-}
-
-stop_service
+fi
 
 %postun shmem
 /sbin/ldconfig > /dev/null 2>&1 || :
+systemctl daemon-reload > /dev/null 2>&1 || :
 if [ "$1" -ne 0 ]; then # 0 means remove, 1 means update
     exit 0
 fi
@@ -122,14 +110,13 @@ delete_semaphore() {
     done < <(LC_ALL=C ipcs -s | awk '/^[0-9]/ {print $2, $3, $4}')
     echo "delete ubsmd semaphores finished"
 }
-remove_files() {
-    systemctl daemon-reload > /dev/null 2>&1 || :
-    rm -f /usr/lib/systemd/system/ubsmd.service
+remove_runtime_files() {
+    rm -f /tmp/matrix_mem_daemon.lock
     rm -f /dev/shm/ubsm_records
     rm -rf /run/matrix/
 }
 
-remove_files
+remove_runtime_files
 delete_semaphore
 
 %files shmem
