@@ -28,15 +28,15 @@ override_dh_auto_install:
 	install -Dm550 build/relwithdebinfo/output/bin/ubsmd \
 		debian/tmp/usr/bin/ubsmd
 	DEB_MULTIARCH=$$(dpkg-architecture -qDEB_HOST_MULTIARCH); \
-	install -Dm644 build/relwithdebinfo/output/lib/libubsm_sdk.so \
+	install -Dm440 build/relwithdebinfo/output/lib/libubsm_sdk.so \
 		debian/tmp/usr/lib/$$DEB_MULTIARCH/libubsm_sdk.so
 	install -Dm440 build/relwithdebinfo/output/lib/libubsmd.so \
 		debian/tmp/usr/lib/ubs_mem/libubsmd.so
 	install -Dm640 build/relwithdebinfo/output/config/ubsmd.conf \
 		debian/tmp/etc/ubs_mem/ubsmd.conf
-	install -Dm644 build/relwithdebinfo/output/include/ubs_mem.h \
+	install -Dm640 build/relwithdebinfo/output/include/ubs_mem.h \
 		debian/tmp/usr/include/ubs_mem/ubs_mem.h
-	install -Dm644 build/relwithdebinfo/output/include/ubs_mem_def.h \
+	install -Dm640 build/relwithdebinfo/output/include/ubs_mem_def.h \
 		debian/tmp/usr/include/ubs_mem/ubs_mem_def.h
 	install -Dm644 debian/ubsmd.service \
 		debian/tmp/usr/lib/systemd/system/ubsmd.service
@@ -49,4 +49,3 @@ override_dh_usrlocal:
 
 override_dh_fixperms:
 	@echo ">>> Skip dh_fixperms (perms set by install)"
-
