@@ -19,214 +19,316 @@ extern "C" {
 #endif
 
 /**
- * @brief Initialize the UBSMSHMEM attributes
+ * @brief Initialize an options structure for ubsmem_initialize().
  *
- * @param ubsm_shmem_opts - [out] shmem attributes
- * @return - 0 on success and other on failure
+ * The current API has no configurable options, but callers should use this function so that newly added options can
+ * be initialized by future versions of the library.
+ *
+ * @param ubsm_shmem_opts [out] Options structure to initialize. Must not be NULL.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_init_attributes(ubsmem_options_t *ubsm_shmem_opts);
 
 /**
- * Initialize the UBSMSHMEM library.
- * Required to be the first called when a process uses the UBSMSHMEM library.
- * @param ubsm_shmem_opts - options structure containing initialization choices
- * @return - 0 on success and other on failure
+ * @brief Initialize the ubs-mem library for the current process.
+ *
+ * Call this function before using shared-memory or leased-memory APIs.
+ *
+ * @param ubsm_shmem_opts [in] Options initialized by ubsmem_init_attributes(). Must not be NULL.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_initialize(const ubsmem_options_t *ubsm_shmem_opts);
 
 /**
- * Finalize the UBSMSHMEM library.
- * Once finalized, the process can continue work,but it is disconnected from the UBSMSHMEM library functions.
- * @return - 0 on success and other on failure
+ * @brief Finalize the ubs-mem library for the current process.
+ *
+ * Releases process-local library resources and disconnects the IPC client. Do not call other ubs-mem APIs after
+ * finalization unless the library is initialized again.
+ *
+ * @return UBSM_OK.
  */
 SHMEM_API int ubsmem_finalize(void);
 
 /**
- * @brief Set log level
- * @return - 0 on success and other on failure
- * @param level - level to be set, debug(0), info(1), warning(2), error(3), critical(4)
+ * @brief Set the library log level.
+ *
+ * @param level [in] Log level: debug (0), info (1), warning (2), error (3), or critical (4).
+ * @return UBSM_OK on success; otherwise, UBSM_ERR_PARAM_INVALID.
  */
 SHMEM_API int ubsmem_set_logger_level(int level);
 
 /**
- * @brief Set external log function, user can set customized logger function,
- * in the customized logger function, user can use unified logger utility,
- * then the log message can be written into the same log file as caller's,
- * if it is not set, log message will be printed to stdout.
- * @param func - [in] external logger function
- * @return 0 on success and other on failure
+ * @brief Register an external log callback.
+ *
+ * The callback can route ubs-mem messages to the application's logging system. Without an external callback, log
+ * messages are written to stdout.
+ *
+ * @param func [in] Non-NULL callback that receives the log level and a null-terminated message.
+ * @return UBSM_OK on success; otherwise, UBSM_ERR_PARAM_INVALID.
  */
 SHMEM_API int ubsmem_set_extern_logger(void (*func)(int level, const char *msg));
 
 /**
- * Look up regions in UBSMSHMEM associated with the local node.
- * @param regions - [out] The descriptor to the regions.
- * @return - 0 on success and other on failure
+ * @brief Query the resource regions available to the local node.
+ *
+ * @param regions [out] Region topology. Must not be NULL.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_lookup_regions(ubsmem_regions_t *regions);
 
 /**
- * Create a large region of UBSMSHMEM.
- * Regions are primarily used as large containers within which additional memory may be allocated and managed by
- * the program.
- * @param region_name - name of the region
- * @param size - size (in bytes) requested for the region, 930 no use, default 0.
- * Note that implementations may round up the size to implementation-dependent sizes,
- * and may impose system-wide (or user-dependent) limits on individual and total size allocated to a given user.
- * @param reg_attr - details of UBSMSHMEM region attributes
- * @param region_desc - [out] Region_Descriptor for the created region
- * @return - 0 on success and other on failure
+ * @brief Create a resource region on the local node.
+ *
+ * A region selects the provider nodes from which shared or leased memory can be allocated. The reserved name
+ * "default" cannot be created by the application.
+ *
+ * @param region_name [in] Non-empty region name of at most MAX_REGION_NAME_DESC_LENGTH - 1 characters.
+ * @param size [in] Reserved for region quota; must be 0.
+ * @param reg_attr [in] Region nodes and affinity attributes. Must not be NULL.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_create_region(const char *region_name, size_t size, const ubsmem_region_attributes_t *reg_attr);
 
 /**
- * Look up a region in UBSMSHMEM by name in the name service.
- * @param region_name - name of the region.
- * @param region_desc - [out] The descriptor to the region.
- * @return - 0 on success and other on failure
+ * @brief Query a resource region by name on the local node.
+ *
+ * @param region_name [in] Non-empty region name of at most MAX_REGION_NAME_DESC_LENGTH - 1 characters.
+ * @param region_desc [out] Region information. Must not be NULL.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_lookup_region(const char *region_name, ubsmem_region_desc_t *region_desc);
 
 /**
- * Destroy a region, and all contents within the region. Note that this
- * method call will trigger a delayed free operation to permit other
- * instances currently using the region to finish.
- * @param region_name - name of the region.
- * @return - 0 on success and other on failure
+ * @brief Destroy a resource region on the local node.
+ *
+ * Existing shared-memory objects and leased memory created through the region remain usable. The reserved
+ * "default" region cannot be destroyed.
+ *
+ * @param region_name [in] Non-empty region name of at most MAX_REGION_NAME_DESC_LENGTH - 1 characters.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_destroy_region(const char *region_name);
 
 /**
- * Allocate some named space within a region. Allocates an area of UBSMSHMEM within a region
- * @param region_name - name of the region.
- * @param name - name of the share memory object
- * @param size - size of the space to allocate in bytes.
- * @param mode - mode associated with this space.
- * @param flags - Special marking for this object, MXMEM_FLAG_WITH_LOCK etc.
- * @return - 0 on success and other on failure
+ * @brief Create a named shared-memory object in a resource region.
+ *
+ * @note The flags argument accepts UBSM_FLAG_* creation flags, not the MAP_* flags accepted by
+ * ubsmem_shmem_map(). UBSM_FLAG_CACHE is 0 and therefore selects cache mode when no other access-mode flag is set.
+ * UBSM_FLAG_WR_DELAY_COMP is valid only with UBSM_FLAG_NONCACHE or UBSM_FLAG_ONLY_IMPORT_NONCACHE.
+ * UBSM_FLAG_MEM_ANONYMOUS and UBSM_FLAG_MMAP_HUGETLB_PMD are optional modifiers. Access-mode flags such as
+ * UBSM_FLAG_WITH_LOCK, UBSM_FLAG_NONCACHE, and UBSM_FLAG_ONLY_IMPORT_NONCACHE are mutually exclusive.
+ * To use the lock APIs, set flags to UBSM_FLAG_WITH_LOCK without additional modifiers.
+ *
+ * @param region_name [in] Resource region name, or "default" for the default region.
+ * @param name [in] Globally unique, non-empty object name of at most MAX_SHM_NAME_LENGTH - 1 characters.
+ * @param size [in] Requested size in bytes. It must be positive and aligned to 4 MB.
+ * @param mode [in] Unix read/write permission bits used to control access to the object.
+ * @param flags [in] A valid combination of UBSM_FLAG_* shared-memory creation flags from ubs_mem_def.h.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_shmem_allocate(const char *region_name, const char *name, size_t size, mode_t mode,
                                     uint64_t flags);
 
 /**
- * Allocate a named shared memory space from a specified node (provider).
- * @param src_loc - node where space allocated from.
- *     - host_name: The host_name of the target node.
- *     - socket_id: The socket ID of the target node (optional, defaults to UINT32_MAX if not provided).
- *     - numa_id: The NUMA ID of the target node (optional, defaults to UINT32_MAX if not provided).
- *     - port_id: The port ID of the target node (optional, defaults to UINT32_MAX if not provided).
- * @param name - name of the share memory object
- * @param size - size of the space to allocate in bytes.
- * @param mode - mode associated with this space.
- * @param flags - Special marking for this object, MXMEM_FLAG_WITH_LOCK etc.
- * @return - 0 on success and other on failure
+ * @brief Create a named shared-memory object from a specified provider.
+ *
+ * @note The flags argument has the same UBSM_FLAG_* rules as ubsmem_shmem_allocate() and must not contain MAP_*
+ * mapping flags. Set an unspecified socket_id, numa_id, or port_id field explicitly to UINT32_MAX.
+ *
+ * @param src_loc [in] Provider location. host_name is required and the other fields select optional topology IDs.
+ * @param name [in] Globally unique, non-empty object name of at most MAX_SHM_NAME_LENGTH - 1 characters.
+ * @param size [in] Requested size in bytes. It must be positive and aligned to 4 MB.
+ * @param mode [in] Unix read/write permission bits used to control access to the object.
+ * @param flags [in] A valid combination of UBSM_FLAG_* shared-memory creation flags from ubs_mem_def.h.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_shmem_allocate_with_provider(const ubs_mem_provider_t *src_loc, const char *name, size_t size,
                                                   mode_t mode, uint64_t flags);
+
 /**
- * Deallocate allocated space in memory
- * @param name - name of the share memory object
- * @return - 0 on success and other on failure
+ * @brief Delete a named shared-memory object.
+ *
+ * Deletion fails while the object is still in use.
+ *
+ * @param name [in] Non-empty shared-memory object name of at most MAX_SHM_NAME_LENGTH - 1 characters.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_shmem_deallocate(const char *name);
 
 /**
- * Map item in UBSMSHMEM to the local virtual address space, and return its pointer.
- * @param addr - The starting address for the new mapping is specified in addr, If addr is NULL, then
- * the kernel chooses the (page-aligned) address at which to create the mapping
- * @param length - The length argument specifies the length of the mapping (which must be greater than 0)
- * @param prot - same as mmap, describes the desired memory protection of the mapping (and must not conflict with
- * the open mode of the file).
- * @param flags - same as mmap
- * @param name - name of the share memory object which to be mapped, same as mmap's fd
- * @param offset - same as mmap, offset must be a multiple of the page size
- * @param local_ptr - [out] within the process virtual address space that can be used to directly access the
- * data item in UBSMSHMEM
- * @return - 0 on success and other on failure
+ * @brief Map an entire named shared-memory object into the current process.
+ *
+ * Only whole-object mappings are supported. A shared-memory object can be mapped only once in a process.
+ *
+ * @note The flags argument accepts mmap-style MAP_* flags, not the UBSM_FLAG_* creation flags accepted by
+ * ubsmem_shmem_allocate(). Use MAP_SHARED, optionally combined with MAP_FIXED or MAP_FIXED_NOREPLACE.
+ *
+ * @param addr [in] Requested mapping address, or NULL to let the system choose one. A non-NULL address must be
+ * aligned to PAGE_SIZE. For an object created with UBSM_FLAG_MMAP_HUGETLB_PMD, it must instead be aligned to the
+ * PMD huge-page size. Fixed mappings require a non-NULL address.
+ * @param length [in] Full shared-memory object size in bytes. For an object created with
+ * UBSM_FLAG_MMAP_HUGETLB_PMD, the size must be aligned to the PMD huge-page size. Partial mappings are not supported.
+ * @param prot [in] Protection: PROT_NONE, PROT_READ, PROT_WRITE, or PROT_READ | PROT_WRITE.
+ * @param flags [in] MAP_* mapping flags described above.
+ * @param name [in] Name of an existing shared-memory object.
+ * @param offset [in] Mapping offset. Partial mappings are not supported, so this must be 0.
+ * @param local_ptr [out] Mapping base address. Must not be NULL.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_shmem_map(void *addr, size_t length, int prot, int flags, const char *name, off_t offset,
                                void **local_ptr);
 
 /**
- * Unmap a data item in UBSMSHMEM from the local virtual address space.
- * @param local_ptr - pointer within the process virtual address space to be unmapped
- * @param length - the size to be unmapped
- * @return - 0 on success and other on failure
+ * @brief Unmap a shared-memory object from the current process.
+ *
+ * Partial unmapping is not supported. A locked object must be unlocked before it can be unmapped.
+ *
+ * @param local_ptr [in] Exact base address returned by ubsmem_shmem_map().
+ * @param length [in] Full mapped object size in bytes.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_shmem_unmap(void *local_ptr, size_t length);
 
 /**
- * Change permissions associated with a data item descriptor.
- * @param name - descriptor associated with some data item
- * @param perm - new permissions for the data item
- * @return - 0 on success and other on failure,other return described in UBSM_SHMEM_RETURN.
+ * @brief Change local access permissions and maintain cache consistency for a mapped shared-memory range.
+ *
+ * This operation is not supported for UBSM_FLAG_NONCACHE or UBSM_FLAG_ONLY_IMPORT_NONCACHE objects.
+ *
+ * @param name [in] Name of the mapped shared-memory object.
+ * @param start [in] Start address within the mapping, aligned to PAGE_SIZE.
+ * @param length [in] Positive range length aligned to PAGE_SIZE.
+ * @param prot [in] New protection: PROT_NONE, PROT_READ, or PROT_READ | PROT_WRITE.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_shmem_set_ownership(const char *name, void *start, size_t length, int prot);
 
 /**
- * shmem lock - Set the lock, status, and data consistency of the shmem item
- * @param name - descriptor associated with share memory object
- * @return - 0 on success and other on failure
+ * @brief Acquire a write lock on a mapped shared-memory object.
+ *
+ * The object must have been created with flags set exactly to UBSM_FLAG_WITH_LOCK and mapped by the current process.
+ * A successful call grants read/write access to the entire mapping.
+ *
+ * @param name [in] Name of the shared-memory object.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_shmem_write_lock(const char *name);
+
+/**
+ * @brief Acquire a read lock on a mapped shared-memory object.
+ *
+ * The object must have been created with flags set exactly to UBSM_FLAG_WITH_LOCK and mapped by the current process.
+ * A successful call grants read access to the entire mapping.
+ *
+ * @param name [in] Name of the shared-memory object.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
+ */
 SHMEM_API int ubsmem_shmem_read_lock(const char *name);
+
+/**
+ * @brief Release the current process's read or write lock on a shared-memory object.
+ *
+ * A successful call changes the entire mapping to PROT_NONE before releasing the lock.
+ *
+ * @param name [in] Name of the shared-memory object.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
+ */
 SHMEM_API int ubsmem_shmem_unlock(const char *name);
 
+/**
+ * @brief Query shared-memory objects whose names begin with a prefix.
+ *
+ * @param prefix [in] Non-empty name prefix of at most MAX_SHM_NAME_LENGTH characters.
+ * @param shm_list [out] Caller-provided array that receives object names and sizes.
+ * @param shm_cnt [in,out] On input, capacity of shm_list; on success, number of entries written. If the capacity is
+ * insufficient, it is updated to the required count and UBSM_ERR_PARAM_INVALID is returned.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
+ */
 SHMEM_API int ubsmem_shmem_list_lookup(const char *prefix, ubsmem_shmem_desc_t *shm_list, uint32_t *shm_cnt);
+
+/**
+ * @brief Query detailed information about a named shared-memory object.
+ *
+ * @param name [in] Non-empty shared-memory object name.
+ * @param shm_info [out] Object size and backing memory information. Must not be NULL.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
+ */
 SHMEM_API int ubsmem_shmem_lookup(const char *name, ubsmem_shmem_info_t *shm_info);
 
 /**
- * Alloc an area from the resource pool and use it only within the scope of the current process.
- * @param region_name - name of the region.
- * @param size - size of the space to allocate in bytes.
- * Note that implementations may round up the size to implementation-dependent sizes.
- * @param mem_distance - Describe the performance distance between memory resources and local nodes.
- * Note that described in perf_desc_distance
- * @param flags - [in] Special marking for this object
- * @param local_ptr - [out] pointer within the process virtual address space that can be used to directly access.
- * @return - 0 on success and other on failure
+ * @brief Lease memory from a resource region for use by the current process.
+ *
+ * @param region_name [in] Resource region name, or "default" for the default region.
+ * @param size [in] Positive requested size in bytes, aligned to 4 MB.
+ * @param mem_distance [in] Provider distance. Currently only DISTANCE_DIRECT_NODE is supported.
+ * @param flags [in] Either 0, UBSM_FLAG_MMAP_HUGETLB_PMD, or UBSM_FLAG_MALLOC_WITH_NUMA. These flags cannot be
+ * combined.
+ * @param local_ptr [out] Address of the leased memory. Must not be NULL.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_lease_malloc(const char *region_name, size_t size, ubsmem_distance_t mem_distance, uint64_t flags,
                                   void **local_ptr);
 
+/**
+ * @brief Lease memory from a specified provider location for use by the current process.
+ *
+ * @param src_loc [in] Provider slot, socket, NUMA node, and port. Must not be NULL.
+ * @param size [in] Positive requested size in bytes, aligned to 4 MB.
+ * @param flags [in] Either 0, UBSM_FLAG_MMAP_HUGETLB_PMD, or UBSM_FLAG_MALLOC_WITH_NUMA. These flags cannot be
+ * combined.
+ * @param local_ptr [out] Address of the leased memory. Must not be NULL.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
+ */
 SHMEM_API int ubsmem_lease_malloc_with_location(const ubs_mem_location_t *src_loc, size_t size, uint64_t flags,
                                                 void **local_ptr);
 
 /**
- * Release the pointer.
- * @param local_ptr - The pointer returned by the malloc function.
- * @return - 0 on success and other on failure
+ * @brief Release leased memory.
+ *
+ * @param local_ptr [in] Exact address returned by ubsmem_lease_malloc() or ubsmem_lease_malloc_with_location().
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_lease_free(void *local_ptr);
 
+/**
+ * @brief Query memory statistics for the nodes in the cluster.
+ *
+ * @param info [out] Per-host and per-NUMA memory statistics. Must not be NULL.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
+ */
 SHMEM_API int ubsmem_lookup_cluster_statistic(ubsmem_cluster_info_t *info);
 
 /**
- * Subscribes to shared memory UB Event.
- * @param registerFunc - Shared Memory UB Event Response Handling Function.
- * @return - 0 on success and other on failure
+ * @brief Subscribe to shared-memory UB fault events.
+ *
+ * @param registerFunc [in] Non-NULL callback invoked with the affected object name and fault type.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_shmem_faults_register(shmem_faults_func registerFunc);
 
 /**
- * Query the supernode ID of this node within the supernode domain.
- * @param nid - The supernode ID of this node within the supernode domain.
- * @return - 0 on success and other on failure
+ * @brief Query the local node ID within the supernode domain.
+ *
+ * @param nid [out] Local node ID. Must not be NULL.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_local_nid_query(uint32_t *nid);
 
 /**
  * @brief Suspend the IPC client connection to ubsmd.
- * After suspend, the daemon will skip memory leak cleanup when this client disconnects.
- * The IPC client will be stopped.
- * @return - 0 on success and other on failure
+ *
+ * The daemon skips process memory-leak cleanup when the suspended client disconnects. Existing mappings remain
+ * accessible, but APIs that require IPC cannot be used until ubsmem_shmem_ipc_resume() succeeds.
+ *
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_shmem_ipc_suspend(void);
 
 /**
  * @brief Resume the IPC client connection to ubsmd.
- * Restarts the IPC client and re-establishes connection to the daemon.
- * @return - 0 on success and other on failure
+ *
+ * Restarts the IPC client and re-establishes the daemon connection after ubsmem_shmem_ipc_suspend().
+ *
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_shmem_ipc_resume(void);
 
