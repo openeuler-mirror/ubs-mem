@@ -159,7 +159,7 @@ typedef struct {
     ubsmem_region_node_desc_t hosts[MAX_REGION_NODE_NUM];
 } ubsmem_region_attributes_t;
 
-/** Resource region topologies available to the local node. */
+/** Resource region topology consisting of the local node and all directly connected nodes. */
 typedef struct {
     /** Number of valid entries in region. */
     int num;

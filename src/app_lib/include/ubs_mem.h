@@ -69,9 +69,10 @@ SHMEM_API int ubsmem_set_logger_level(int level);
 SHMEM_API int ubsmem_set_extern_logger(void (*func)(int level, const char *msg));
 
 /**
- * @brief Query the resource regions available to the local node.
+ * @brief Query the resource region consisting of the local node and all directly connected nodes.
  *
- * @param regions [out] Region topology. Must not be NULL.
+ * @param regions [out] Region topology consisting of the local node and all directly connected nodes. Must not be
+ * NULL.
  * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_lookup_regions(ubsmem_regions_t *regions);
