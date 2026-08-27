@@ -31,7 +31,7 @@ public:
     using Service::ServiceStart;
     using Service::ServiceUninitialize;
 
-    HRESULT ServicePut(const std::vector<std::string> &services, const std::string &libHomePath);
+    HRESULT ServicePut(const std::vector<std::string> &services, const std::string &libPath);
 
     HRESULT ServiceProcessArgs();
 

@@ -124,12 +124,12 @@ public:
         : remoteId(std::move(remoteId)),
           moduleCode(moduleCode),
           opCode(opCode),
-          channelType(channelType){};
+          channelType(channelType) {};
 
     SendParam(std::string remoteId, uint16_t moduleCode, uint16_t opCode)
         : remoteId(std::move(remoteId)),
           moduleCode(moduleCode),
-          opCode(opCode){};
+          opCode(opCode) {};
 
     const std::string &GetRemoteId() const;
 
@@ -198,7 +198,7 @@ void DefaultLinkEventHandler(const std::vector<MxmLinkInfo> &linkInfoList);
 
 class MxmComBase : public Referable {
 public:
-    MxmComBase(std::string nodeId, std::string name) : nodeId(nodeId), name(name){};
+    MxmComBase(std::string nodeId, std::string name) : nodeId(nodeId), name(name) {};
 
     /* *
    * @brief 启动Server或Client
@@ -210,7 +210,7 @@ public:
    * @brief 停止Server或Client
    * @return HRESULT, 成功返回0, 失败返回非0
    */
-    virtual void Stop() = 0;
+    virtual HRESULT Stop() = 0;
 
     /* *
    * @brief 向对端建连

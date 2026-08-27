@@ -185,4 +185,4 @@ uint32_t BorrowAppMetaMgr::UpdateMeta(const void *addr, AppBorrowMetaDesc &desc)
 }
 
 } // namespace ock::mxmd
-  // ock
+// ock

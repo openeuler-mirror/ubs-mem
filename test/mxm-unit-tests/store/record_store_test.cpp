@@ -3,6 +3,8 @@
  */
 #include "record_store.h"
 #include <gtest/gtest.h>
+#include <unistd.h>
+#include <algorithm>
 #include <mockcpp/mockcpp.hpp>
 #include "rack_mem_constants.h"
 
@@ -58,6 +60,29 @@ public:
         poolAllocator_.Initialize(ptr.get());
     }
 };
+
+TEST_F(RecordStoreTest, TestSuspendClientOperationsAreIdempotent)
+{
+    const auto pid = getpid();
+    EXPECT_EQ(RecordStore::GetInstance().DelSuspendClient(pid), 0);
+    EXPECT_EQ(RecordStore::GetInstance().AddSuspendClient(pid), 0);
+    EXPECT_EQ(RecordStore::GetInstance().AddSuspendClient(pid), 0);
+    EXPECT_TRUE(RecordStore::GetInstance().IsClientSuspended(pid));
+
+    const auto pids = RecordStore::GetInstance().ListSuspendClients();
+    EXPECT_EQ(std::count(pids.begin(), pids.end(), pid), 1);
+
+    EXPECT_EQ(RecordStore::GetInstance().DelSuspendClient(pid), 0);
+    EXPECT_EQ(RecordStore::GetInstance().DelSuspendClient(pid), 0);
+    EXPECT_FALSE(RecordStore::GetInstance().IsClientSuspended(pid));
+}
+
+TEST_F(RecordStoreTest, TestSuspendClientRejectsInvalidPid)
+{
+    EXPECT_NE(RecordStore::GetInstance().AddSuspendClient(0), 0);
+    EXPECT_NE(RecordStore::GetInstance().DelSuspendClient(0), 0);
+    EXPECT_FALSE(RecordStore::GetInstance().IsClientSuspended(0));
+}
 
 // AddRegionRecord
 TEST_F(RecordStoreTest, TestAddRegionRecord_FailWhenNameLengthOverLimit)

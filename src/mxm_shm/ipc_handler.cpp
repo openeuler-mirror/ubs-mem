@@ -1152,14 +1152,12 @@ int MxmServerMsgHandle::ShmQueryNode(const MsgBase *req, MsgBase *rsp, const Mxm
     // 节点未选出
     if (nodeId.empty()) {
         response->nodeIsReady_ = false;
-        DBG_LOGWARN("nodeId is empty, node is not ready"
-                    << ", uid=" << udsInfo.uid << ", pid=" << udsInfo.pid);
+        DBG_LOGWARN("nodeId is empty, node is not ready" << ", uid=" << udsInfo.uid << ", pid=" << udsInfo.pid);
         return 0;
     }
     response->nodeIsReady_ = true;
     response->nodeId_ = nodeId;
-    DBG_LOGINFO("ShmQueryNode successfully"
-                << ", uid=" << udsInfo.uid << ", pid=" << udsInfo.pid);
+    DBG_LOGINFO("ShmQueryNode successfully" << ", uid=" << udsInfo.uid << ", pid=" << udsInfo.pid);
     return 0;
 }
 
@@ -1385,5 +1383,51 @@ std::mutex &MxmServerMsgHandle::GetMutexByName(const std::string &name) noexcept
     std::hash<std::string> hasher;
     auto index = (hasher(name) % MUTEX_HASH_SIZE);
     return mutexArray[index];
+}
+
+int MxmServerMsgHandle::IpcSuspend(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo)
+{
+    if (req == nullptr || rsp == nullptr) {
+        DBG_LOGERROR("IpcSuspend: req or rsp is nullptr.");
+        return MXM_ERR_PARAM_INVALID;
+    }
+    auto request = dynamic_cast<const IpcSuspendRequest *>(req);
+    auto response = dynamic_cast<CommonResponse *>(rsp);
+    if (request == nullptr || response == nullptr || udsInfo.pid <= 0) {
+        DBG_LOGERROR("IpcSuspend: invalid request or peer pid.");
+        return MXM_ERR_PARAM_INVALID;
+    }
+    auto ret = ock::ubsm::RecordStore::GetInstance().AddSuspendClient(udsInfo.pid);
+    if (ret != 0) {
+        DBG_LOGERROR("IpcSuspend: AddSuspendClient failed, pid=" << udsInfo.pid);
+        response->errCode_ = ret == -2 ? MXM_ERR_NAME_BUSY : MXM_ERR_RECORD_ADD;
+        return ret;
+    }
+    response->errCode_ = UBSM_OK;
+    DBG_LOGINFO("IpcSuspend success, pid=" << udsInfo.pid);
+    return UBSM_OK;
+}
+
+int MxmServerMsgHandle::IpcResume(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo)
+{
+    if (req == nullptr || rsp == nullptr) {
+        DBG_LOGERROR("IpcResume: req or rsp is nullptr.");
+        return MXM_ERR_PARAM_INVALID;
+    }
+    auto request = dynamic_cast<const IpcResumeRequest *>(req);
+    auto response = dynamic_cast<CommonResponse *>(rsp);
+    if (request == nullptr || response == nullptr || udsInfo.pid <= 0) {
+        DBG_LOGERROR("IpcResume: invalid request or peer pid.");
+        return MXM_ERR_PARAM_INVALID;
+    }
+    auto ret = ock::ubsm::RecordStore::GetInstance().DelSuspendClient(udsInfo.pid);
+    if (ret != 0) {
+        DBG_LOGERROR("IpcResume: DelSuspendClient failed, pid=" << udsInfo.pid);
+        response->errCode_ = MXM_ERR_RECORD_DELETE;
+        return ret;
+    }
+    response->errCode_ = UBSM_OK;
+    DBG_LOGINFO("IpcResume success, pid=" << udsInfo.pid);
+    return UBSM_OK;
 }
 } // namespace ock::share::service

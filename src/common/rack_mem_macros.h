@@ -29,7 +29,7 @@
 #include <vector>
 #ifndef ROUND_UP
 #define ROUND_UP(x, align) \
-    ((static_cast<uint64_t>(x) + static_cast<uint64_t>(align) - 1) & ~static_cast<uint64_t>((align)-1))
+    ((static_cast<uint64_t>(x) + static_cast<uint64_t>(align) - 1) & ~static_cast<uint64_t>((align) - 1))
 #endif
 
 #endif

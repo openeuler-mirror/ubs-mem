@@ -28,7 +28,7 @@ int32_t LookupRegionListFuzzStub(SHMRegions &regions);
 
 int FilterAllHostsInAttrStub(SHMRegions *list, const ubsmem_region_attributes_t *reg_attr, int &index);
 
-void MxmComStopIpcClientStub();
+int MxmComStopIpcClientStub();
 
 int MxmComIpcClientSendStub(uint16_t opCode, MsgBase *request, MsgBase *response);
 

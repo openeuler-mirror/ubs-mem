@@ -415,8 +415,7 @@ HRESULT MxmComEngine::PrepareMem()
 
 static bool IsDirectory(const std::string &dir)
 {
-    struct stat info {
-    };
+    struct stat info {};
     if (stat(dir.c_str(), &info) != 0) {
         return false; // 无法访问路径
     }
@@ -524,24 +523,46 @@ int MxmComEngine::RegisterHandlerWork(const EngineHandlerWorker &handlerWorker)
     return HOK;
 }
 
-void MxmComEngine::Stop()
+HRESULT MxmComEngine::Stop()
 {
-    rwLock.LockWrite();
-    linkManager.SetStop();
+    std::lock_guard<std::mutex> stopGuard(stopMutex);
     auto engineName = engineInfo.GetName();
-    linkManager.RemoveAllChannel(hcomNetService);
-    rwLock.UnLock();
+    if (!stopPrepared) {
+        deleted.store(true);
+        rwLock.LockWrite();
+        linkManager.SetStop();
+        linkManager.RemoveAllChannel(hcomNetService);
+        rwLock.UnLock();
+
+        std::vector<std::thread> tasks;
+        {
+            std::lock_guard<std::mutex> lock(reconnectMutex);
+            tasks.swap(reconnectTasks);
+        }
+        for (auto &task : tasks) {
+            if (task.joinable()) {
+                task.join();
+            }
+        }
+        if (hcomNetService != nullptr) {
+            hcomNetService->DestroyMemoryRegion(mr);
+        }
+        stopPrepared = true;
+    }
+
     if (hcomNetService != nullptr) {
-        hcomNetService->DestroyMemoryRegion(mr);
         auto ret = hcomNetService->Destroy(engineName);
         DBG_LOGINFO("Destroy hcom instance=" << engineName << " finish, ret=" << ret);
+        if (ret != HOK) {
+            return ret;
+        }
         hcomNetService = nullptr;
-        deleted.store(true);
     }
     if (address != nullptr) {
         free(address);
         address = nullptr;
     }
+    return HOK;
 }
 
 void MxmComEngine::RegisterEngineHandlers()
@@ -747,8 +768,10 @@ void MxmComEngine::BrokenChannel(const UBSHcomChannelPtr &ch)
         !isReconnectHook(channelInfo.GetConnectInfo().GetRemoteNodeId(), payLoadPair.second)) {
         return;
     }
-    std::thread task([channelInfo, this]() { DoReconnect(channelInfo); });
-    task.detach();
+    std::lock_guard<std::mutex> lock(reconnectMutex);
+    if (!deleted.load()) {
+        reconnectTasks.emplace_back([channelInfo, this]() { DoReconnect(channelInfo); });
+    }
 }
 
 int MxmComEngine::ConvertContextToMessageCtx(const UBSHcomServiceContext &context, MxmComMessageCtx &msgCtx)
@@ -864,7 +887,7 @@ void MxmComEngine::DoReconnect(const MxmComChannelInfo &channelInfo)
                                                << channelInfo.GetConnectInfo().GetRemoteNodeId());
         std::this_thread::sleep_for(std::chrono::seconds(waitSeconds));
     }
-    if (this->postReconnectHandler) {
+    if (!deleted.load() && this->postReconnectHandler) {
         DBG_LOGINFO("Reconnect successfully. Start to check invoke postReconnectHandler.");
         ret = postReconnectHandler();
         if (ret != 0) {
@@ -921,7 +944,7 @@ HRESULT MxmComEngineManager::CreateEngine(const MxmComEngineInfo &engineInfo, co
     return HOK;
 }
 
-void MxmComEngineManager::DeleteEngine(const std::string &name)
+HRESULT MxmComEngineManager::DeleteEngine(const std::string &name)
 {
     MxmComEngine *enginePtr;
     {
@@ -929,16 +952,23 @@ void MxmComEngineManager::DeleteEngine(const std::string &name)
         auto iter = G_ENGINE_MAP.find(name);
         if (iter == G_ENGINE_MAP.end()) {
             DBG_LOGWARN("Engine " << name << "has not been created or already been destroyed");
-            return;
+            return HOK;
         }
         enginePtr = iter->second;
         G_ENGINE_MAP.erase(name);
     }
     if (enginePtr != nullptr) {
-        enginePtr->Stop();
+        auto ret = enginePtr->Stop();
+        if (ret != HOK) {
+            std::lock_guard<std::mutex> locker(G_MUTEX);
+            G_ENGINE_MAP.emplace(name, enginePtr);
+            return ret;
+        }
         delete enginePtr;
         enginePtr = nullptr;
+        return HOK;
     }
+    return HOK;
 }
 
 void MxmComEngineManager::DeleteAllEngine()
@@ -1043,7 +1073,7 @@ HRESULT MxmCommunication::CreateMxmComEngine(const MxmComEngineInfo &engine, con
     return MxmComEngineManager::CreateEngine(engine, notify, handlerWorker);
 }
 
-void MxmCommunication::DeleteMxmComEngine(const std::string &name)
+HRESULT MxmCommunication::DeleteMxmComEngine(const std::string &name)
 {
     return MxmComEngineManager::DeleteEngine(name);
 }

@@ -862,4 +862,4 @@ int32_t RackMemShm::UbsMemQueryDlockStatus(bool &isReady)
     return 0;
 }
 } // namespace ock::mxmd
-  // ock
+// ock

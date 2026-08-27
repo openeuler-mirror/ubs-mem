@@ -30,7 +30,7 @@ struct CheckMemoryLeaseRequest : MsgBase {
     CheckMemoryLeaseRequest() : MsgBase(0, IPC_CHECK_MEMORY_LEASE, 0) {}
     explicit CheckMemoryLeaseRequest(const std::vector<std::string> &names)
         : MsgBase(0, IPC_CHECK_MEMORY_LEASE, 0),
-          names_(names){};
+          names_(names) {};
     int32_t Serialize(NetMsgPacker &packer) const override
     {
         packer.Serialize(msgVer);
@@ -54,7 +54,7 @@ struct CheckShareMemoryMapRequest : MsgBase {
     CheckShareMemoryMapRequest() : MsgBase(0, IPC_CHECK_SHARE_MEMORY, 0) {}
     explicit CheckShareMemoryMapRequest(const std::vector<std::string> &names)
         : MsgBase(0, IPC_CHECK_SHARE_MEMORY, 0),
-          names_(names){};
+          names_(names) {};
     int32_t Serialize(NetMsgPacker &packer) const override
     {
         packer.Serialize(msgVer);
@@ -77,7 +77,7 @@ struct CommonRequest : MsgBase {
     uint32_t input_;
 
     CommonRequest() : MsgBase{0, MXM_MSG_BUTT, 0} {};
-    explicit CommonRequest(int32_t input) : MsgBase{0, MXM_MSG_BUTT, 0}, input_(input){};
+    explicit CommonRequest(int32_t input) : MsgBase{0, MXM_MSG_BUTT, 0}, input_(input) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -105,7 +105,7 @@ struct CommonResponse : MsgBase {
     {
         errCode_ = UBSM_ERR_UNIMPL;
     };
-    explicit CommonResponse(int32_t errCode) : MsgBase{0, MXM_MSG_BUTT, 0}, errCode_(errCode){};
+    explicit CommonResponse(int32_t errCode) : MsgBase{0, MXM_MSG_BUTT, 0}, errCode_(errCode) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -141,7 +141,7 @@ struct ShmemAllocateRequest : MsgBase {
           shmName_(shmName),
           size_(size),
           mode_(mode),
-          flag_(flag){};
+          flag_(flag) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -176,7 +176,7 @@ struct ShmemDeallocateRequest : MsgBase {
     ShmemDeallocateRequest() : MsgBase{0, MXM_MSG_SHM_DEALLOCATE, 0} {};
     explicit ShmemDeallocateRequest(const std::string &shmName)
         : MsgBase{0, MXM_MSG_SHM_DEALLOCATE, 0},
-          shmName_(shmName){};
+          shmName_(shmName) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -300,7 +300,7 @@ struct AppFreeMemoryRequest : MsgBase {
         : MsgBase{0, IPC_FREE_RACKMEM, 0},
           memIds_(memids),
           regionName_(regionName),
-          name_(name){};
+          name_(name) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -345,7 +345,7 @@ struct AppMallocMemoryResponse : MsgBase {
           numaId_(numaId),
           isNuma_(isNuma),
           unitSize_(unitSize),
-          name_(name){};
+          name_(name) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -387,7 +387,7 @@ struct AppQueryClusterInfoResponse : MsgBase {
     AppQueryClusterInfoResponse(int32_t errCode, ubsmemClusterInfo &info)
         : MsgBase{0, MXM_MSG_BUTT, 0},
           errCode_(errCode),
-          info_(info){};
+          info_(info) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -421,7 +421,7 @@ struct AppQueryCachedMemoryResponse : MsgBase {
     AppQueryCachedMemoryResponse(int32_t errCode, std::vector<std::string> &records)
         : MsgBase{0, MXM_MSG_BUTT, 0},
           errCode_(errCode),
-          records_(records){};
+          records_(records) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -454,7 +454,7 @@ struct ShmLookRegionListRequest : MsgBase {
     ShmLookRegionListRequest(const std::string &baseNid, int32_t regionType)
         : MsgBase{0, IPC_RACKMEMSHM_LOOKUP_SHAREREGIONS, 0},
           baseNid_(baseNid),
-          regionType_(regionType){};
+          regionType_(regionType) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -485,7 +485,7 @@ struct ShmCreateRegionRequest : MsgBase {
     ShmCreateRegionRequest(const std::string &regionName, const SHMRegionDesc &region)
         : MsgBase{0, IPC_REGION_CREATE_REGION, 0},
           regionName_(regionName),
-          region_(region){};
+          region_(region) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -514,7 +514,7 @@ struct ShmLookupRegionRequest : MsgBase {
     ShmLookupRegionRequest() : MsgBase{0, IPC_REGION_LOOKUP_REGION, 0} {};
     explicit ShmLookupRegionRequest(const std::string &regionName)
         : MsgBase{0, IPC_REGION_LOOKUP_REGION, 0},
-          regionName_(regionName){};
+          regionName_(regionName) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -541,7 +541,7 @@ struct ShmDestroyRegionRequest : MsgBase {
     ShmDestroyRegionRequest() : MsgBase{0, IPC_REGION_DESTROY_REGION, 0} {};
     explicit ShmDestroyRegionRequest(const std::string &regionName)
         : MsgBase{0, IPC_REGION_DESTROY_REGION, 0},
-          regionName_(regionName){};
+          regionName_(regionName) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -581,7 +581,7 @@ struct ShmCreateRequest : MsgBase {
           baseNid_(baseNid),
           regionDesc_(regionDesc),
           flags_(flags),
-          mode_(mode){};
+          mode_(mode) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -635,7 +635,7 @@ struct ShmCreateWithProviderRequest : MsgBase {
           name_(std::move(name)),
           size_(size),
           flags_(flags),
-          mode_(mode){};
+          mode_(mode) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -678,7 +678,7 @@ struct ShmDeleteRequest : MsgBase {
     explicit ShmDeleteRequest(const std::string &regionName, const std::string &name)
         : MsgBase{0, IPC_RACKMEMSHM_DELETE, 0},
           regionName_(regionName),
-          name_(name){};
+          name_(name) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -715,7 +715,7 @@ struct ShmMapRequest : MsgBase {
           name_(shmName),
           size_(size),
           mode_(mode),
-          prot_(prot){};
+          prot_(prot) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -752,7 +752,7 @@ struct ShmUnmapRequest : MsgBase {
     explicit ShmUnmapRequest(const std::string &regionName, const std::string &name)
         : MsgBase{0, IPC_RACKMEMSHM_UNMMAP, 0},
           regionName_(regionName),
-          name_(name){};
+          name_(name) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -781,7 +781,7 @@ struct ShmQueryMemFaultStatusRequest : MsgBase {
     ShmQueryMemFaultStatusRequest() : MsgBase{0, IPC_RACKMEMSHM_QUERY_MEM_FAULT_STATUS, 0} {};
     explicit ShmQueryMemFaultStatusRequest(const std::string &name)
         : MsgBase{0, IPC_RACKMEMSHM_QUERY_MEM_FAULT_STATUS, 0},
-          name_(name){};
+          name_(name) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -806,7 +806,7 @@ struct PingRequest : MsgBase {
     std::string nodeId_;
 
     PingRequest() : MsgBase{0, MXM_MSG_SHM_ALLOCATE, 0} {};
-    explicit PingRequest(const std::string &nodeId) : MsgBase{0, MXM_MSG_BUTT, 0}, nodeId_(nodeId){};
+    explicit PingRequest(const std::string &nodeId) : MsgBase{0, MXM_MSG_BUTT, 0}, nodeId_(nodeId) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -837,7 +837,7 @@ struct VoteRequest : MsgBase {
         : MsgBase{0, MXM_MSG_SHM_ALLOCATE, 0},
           nodeId_(nodeId),
           masterNode_(masterNode),
-          term_(term){};
+          term_(term) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -867,7 +867,7 @@ struct BroadcastRequest : MsgBase {
     bool isSeverInited_;
     std::map<std::string, ock::rpc::ClusterNode> nodes_;
 
-    BroadcastRequest() : MsgBase{0, MXM_MSG_SHM_ALLOCATE, 0}, isSeverInited_(false){};
+    BroadcastRequest() : MsgBase{0, MXM_MSG_SHM_ALLOCATE, 0}, isSeverInited_(false) {};
     BroadcastRequest(const std::string &nodeId, const std::map<std::string, ock::rpc::ClusterNode> &nodes,
                      bool isSeverInited)
         : MsgBase{0, MXM_MSG_SHM_ALLOCATE, 0},
@@ -948,7 +948,7 @@ struct ShmLookRegionListResponse : MsgBase {
     ShmLookRegionListResponse(int32_t errCode, SHMRegions &regions)
         : MsgBase{0, MXM_MSG_BUTT, 0},
           errCode_(errCode),
-          regions_(regions){};
+          regions_(regions) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -978,7 +978,7 @@ struct ShmCreateRegionResponse : MsgBase {
     {
         errCode_ = UBSM_ERR_UNIMPL;
     };
-    explicit ShmCreateRegionResponse(int32_t errCode) : MsgBase{0, MXM_MSG_BUTT, 0}, errCode_(errCode){};
+    explicit ShmCreateRegionResponse(int32_t errCode) : MsgBase{0, MXM_MSG_BUTT, 0}, errCode_(errCode) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1010,7 +1010,7 @@ struct ShmLookupRegionResponse : MsgBase {
     ShmLookupRegionResponse(int32_t errCode, const SHMRegionDesc &region)
         : MsgBase{0, MXM_MSG_BUTT, 0},
           errCode_(errCode),
-          region_(region){};
+          region_(region) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1040,7 +1040,7 @@ struct ShmDestroyRegionResponse : MsgBase {
     {
         errCode_ = UBSM_ERR_UNIMPL;
     };
-    explicit ShmDestroyRegionResponse(int32_t errCode) : MsgBase{0, MXM_MSG_BUTT, 0}, errCode_(errCode){};
+    explicit ShmDestroyRegionResponse(int32_t errCode) : MsgBase{0, MXM_MSG_BUTT, 0}, errCode_(errCode) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1081,7 +1081,7 @@ struct ShmMapResponse : MsgBase {
           shmSize_(shmSize),
           unitSize_(unitSize),
           flag_(flag),
-          oflag_(oflag){};
+          oflag_(oflag) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1123,7 +1123,7 @@ struct ShmQueryMemFaultStatusResponse : MsgBase {
     ShmQueryMemFaultStatusResponse(int32_t errCode, bool isMemFault)
         : MsgBase{0, MXM_MSG_BUTT, 0},
           errCode_(errCode),
-          isMemFault_(isMemFault){};
+          isMemFault_(isMemFault) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1154,7 +1154,7 @@ struct ShmWriteLockRequest : MsgBase {
     ShmWriteLockRequest(const std::string &regionName, const std::string &shmName)
         : MsgBase{0, IPC_RACKMEMSHM_WRITELOCK, 0},
           regionName_(regionName),
-          name_(shmName){};
+          name_(shmName) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1212,7 +1212,7 @@ struct ShmReadLockRequest : MsgBase {
     ShmReadLockRequest(const std::string &regionName, const std::string &shmName)
         : MsgBase{0, IPC_RACKMEMSHM_READLOCK, 0},
           regionName_(regionName),
-          name_(shmName){};
+          name_(shmName) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1270,7 +1270,7 @@ struct ShmUnLockRequest : MsgBase {
     ShmUnLockRequest(const std::string &regionName, const std::string &shmName)
         : MsgBase{0, IPC_RACKMEMSHM_UNLOCK, 0},
           regionName_(regionName),
-          name_(shmName){};
+          name_(shmName) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1331,7 +1331,7 @@ struct RpcQueryInfoResponse : MsgBase {
     RpcQueryInfoResponse(int32_t errCode, const std::string &name)
         : MsgBase{0, MXM_MSG_BUTT, 0},
           errCode_(errCode),
-          name_(name){};
+          name_(name) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1358,7 +1358,9 @@ struct DLockClientReinitRequest : MsgBase {
     std::string serverIp_;
 
     DLockClientReinitRequest() : MsgBase{0, MXM_MSG_BUTT, 0} {};
-    explicit DLockClientReinitRequest(const std::string &serverIp) : MsgBase{0, MXM_MSG_BUTT, 0}, serverIp_(serverIp){};
+    explicit DLockClientReinitRequest(const std::string &serverIp)
+        : MsgBase{0, MXM_MSG_BUTT, 0},
+          serverIp_(serverIp) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1391,7 +1393,7 @@ struct DLockClientReinitResponse : MsgBase {
     DLockClientReinitResponse(int32_t errCode, int32_t dLockerrCode)
         : MsgBase{0, MXM_MSG_BUTT, 0},
           errCode_(errCode),
-          dLockCode_(dLockerrCode){};
+          dLockCode_(dLockerrCode) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1428,7 +1430,7 @@ struct LockRequest : MsgBase {
           isExclusive_(isExclusive),
           pid_(pid),
           uid_(uid),
-          gid_(gid){};
+          gid_(gid) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1469,7 +1471,7 @@ struct UnLockRequest : MsgBase {
           memName_(memName),
           pid_(pid),
           uid_(uid),
-          gid_(gid){};
+          gid_(gid) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1507,7 +1509,7 @@ struct DLockResponse : MsgBase {
     DLockResponse(int32_t errCode, int32_t dLockerrCode)
         : MsgBase{0, MXM_MSG_BUTT, 0},
           errCode_(errCode),
-          dLockCode_(dLockerrCode){};
+          dLockCode_(dLockerrCode) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1541,7 +1543,7 @@ struct RpcJoinInfoResponse : MsgBase {
     RpcJoinInfoResponse(int32_t errCode, int32_t nodetype)
         : MsgBase{0, MXM_MSG_BUTT, 0},
           errCode_(errCode),
-          nodetype_(nodetype){};
+          nodetype_(nodetype) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1577,7 +1579,7 @@ struct RpcVoteInfoResponse : MsgBase {
         : MsgBase{0, MXM_MSG_BUTT, 0},
           errCode_(errCode),
           name_(name),
-          isGranted_(granted){};
+          isGranted_(granted) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1610,7 +1612,7 @@ struct ShmAttachRequest : MsgBase {
     ShmAttachRequest(const std::string &regionName, const std::string &shmName)
         : MsgBase{0, IPC_RACKMEMSHM_ATTACH, 0},
           regionName_(regionName),
-          name_(shmName){};
+          name_(shmName) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1653,7 +1655,7 @@ struct ShmAttachResponse : MsgBase {
           shmSize_(shmSize),
           unitSize_(unitSize),
           flag_(flag),
-          oflag_(oflag){};
+          oflag_(oflag) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1692,7 +1694,7 @@ struct ShmDetachRequest : MsgBase {
     ShmDetachRequest(const std::string &regionName, const std::string &shmName)
         : MsgBase{0, IPC_RACKMEMSHM_DETACH, 0},
           regionName_(regionName),
-          name_(shmName){};
+          name_(shmName) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1723,7 +1725,7 @@ struct ShmLookupRequest : MsgBase {
     ShmLookupRequest(const std::string &regionName, const std::string &shmName)
         : MsgBase{0, IPC_RACKMEMSHM_LOOKUP, 0},
           regionName_(regionName),
-          name_(shmName){};
+          name_(shmName) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1757,7 +1759,7 @@ struct ShmLookupResponse : MsgBase {
     ShmLookupResponse(int32_t errCode, ubsmem_shmem_info_t &shmInfo)
         : MsgBase{0, MXM_MSG_BUTT, 0},
           errCode_(errCode),
-          shmInfo_(shmInfo){};
+          shmInfo_(shmInfo) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1788,7 +1790,7 @@ struct QueryNodeRequest : MsgBase {
     QueryNodeRequest() : MsgBase{0, IPC_RACKMEMSHM_QUERY_NODE, 0} {};
     explicit QueryNodeRequest(bool queryMasterNodeFlag)
         : MsgBase{0, IPC_RACKMEMSHM_QUERY_NODE, 0},
-          queryMasterNodeFlag_(queryMasterNodeFlag){};
+          queryMasterNodeFlag_(queryMasterNodeFlag) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1822,7 +1824,7 @@ struct QueryNodeResponse : MsgBase {
         : MsgBase{0, MXM_MSG_BUTT, 0},
           errCode_(errCode),
           nodeId_(nodeId),
-          nodeIsReady_(nodeIsReady){};
+          nodeIsReady_(nodeIsReady) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1858,7 +1860,7 @@ struct QueryDlockStatusResponse : MsgBase {
     QueryDlockStatusResponse(int32_t errCode, bool isReady)
         : MsgBase{0, MXM_MSG_BUTT, 0},
           errCode_(errCode),
-          isReady_(isReady){};
+          isReady_(isReady) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1889,7 +1891,7 @@ struct ShmListLookupRequest : MsgBase {
     ShmListLookupRequest(const std::string &regionName, const std::string &shmPrefix)
         : MsgBase{0, IPC_RACKMEMSHM_LOOKUP_LIST, 0},
           regionName_(regionName),
-          prefix_(shmPrefix){};
+          prefix_(shmPrefix) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1923,7 +1925,7 @@ struct ShmListLookupResponse : MsgBase {
     ShmListLookupResponse(int32_t errCode, std::vector<ubsmem_shmem_desc_t> &shmNames)
         : MsgBase{0, MXM_MSG_BUTT, 0},
           errCode_(errCode),
-          shmNames_(shmNames){};
+          shmNames_(shmNames) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1958,7 +1960,7 @@ struct LookupSlotIdResponse : MsgBase {
     LookupSlotIdResponse(int errCode, uint32_t slotId)
         : MsgBase(0, MXM_MSG_BUTT, 0),
           errCode_(errCode),
-          slotId_(slotId){};
+          slotId_(slotId) {};
 
     int32_t Serialize(NetMsgPacker &packer) const override
     {
@@ -1976,6 +1978,42 @@ struct LookupSlotIdResponse : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
         unpacker.Deserialize(slotId_);
+        return UBSM_OK;
+    }
+};
+
+struct IpcSuspendRequest : MsgBase {
+    IpcSuspendRequest() : MsgBase(0, IPC_SUSPEND_CLIENT, 0) {}
+    int32_t Serialize(NetMsgPacker &packer) const override
+    {
+        packer.Serialize(msgVer);
+        packer.Serialize(opCode);
+        packer.Serialize(destRankId);
+        return UBSM_OK;
+    }
+    int32_t Deserialize(NetMsgUnpacker &unpacker) override
+    {
+        unpacker.Deserialize(msgVer);
+        unpacker.Deserialize(opCode);
+        unpacker.Deserialize(destRankId);
+        return UBSM_OK;
+    }
+};
+
+struct IpcResumeRequest : MsgBase {
+    IpcResumeRequest() : MsgBase(0, IPC_RESUME_CLIENT, 0) {}
+    int32_t Serialize(NetMsgPacker &packer) const override
+    {
+        packer.Serialize(msgVer);
+        packer.Serialize(opCode);
+        packer.Serialize(destRankId);
+        return UBSM_OK;
+    }
+    int32_t Deserialize(NetMsgUnpacker &unpacker) override
+    {
+        unpacker.Deserialize(msgVer);
+        unpacker.Deserialize(opCode);
+        unpacker.Deserialize(destRankId);
         return UBSM_OK;
     }
 };

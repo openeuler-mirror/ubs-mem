@@ -90,6 +90,7 @@ TEST_F(RackMemFunctionsTestSuite, TestGetErrCode)
     EXPECT_EQ(GetErrCode(MXM_ERR_CHECK_RESOURCE), UBSM_CHECK_RESOURCE_ERROR);
     EXPECT_EQ(GetErrCode(MXM_ERR_DAEMON_NO_FEATURE_ENABLED), UBSM_ERR_UNIMPL);
     EXPECT_EQ(GetErrCode(MXM_ERR_NAME_BUSY), UBSM_ERR_BUSY);
+    EXPECT_EQ(GetErrCode(MXM_ERR_IPC_SUSPENDED), UBSM_ERR_IPC_SUSPENDED);
     EXPECT_EQ(GetErrCode(MXM_ERR_IPC_INIT_CALL), UBSM_ERR_NET);
     EXPECT_EQ(GetErrCode(MXM_ERR_IPC_SYNC_CALL), UBSM_ERR_NET);
     EXPECT_EQ(GetErrCode(MXM_ERR_IPC_HCOM_INNER_SYNC_CALL), UBSM_ERR_NET);
@@ -137,6 +138,7 @@ TEST_F(RackMemFunctionsTestSuite, TestConvertBoolToString)
 TEST_F(RackMemFunctionsTestSuite, TestConvertErrorToString)
 {
     EXPECT_EQ(ConvertErrorToString(MXM_OK), "MXM_OK");
+    EXPECT_EQ(ConvertErrorToString(MXM_ERR_IPC_SUSPENDED), "MXM_ERR_IPC_SUSPENDED");
     EXPECT_NE(ConvertErrorToString(9999).find("UNKNOWN_ERROR"), std::string::npos);
 }
 

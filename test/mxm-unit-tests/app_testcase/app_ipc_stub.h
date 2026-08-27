@@ -27,7 +27,7 @@ namespace UT {
 
 void ClientIpcStubSetUdsInfo(uint32_t pid, uint32_t uid, uint32_t gid);
 
-void MxmComStopIpcClientStub();
+int MxmComStopIpcClientStub();
 
 int MxmComIpcClientSendStub(uint16_t opCode, MsgBase *request, MsgBase *response);
 

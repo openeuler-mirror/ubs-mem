@@ -42,10 +42,11 @@ HRESULT MxmRpcServer::Start()
     return MxmCommunication::CreateMxmComEngine(engineInfo, LinkNotify, RPCServerHandlerWork);
 }
 
-void MxmRpcServer::Stop()
+HRESULT MxmRpcServer::Stop()
 {
-    MxmCommunication::DeleteMxmComEngine(name);
+    auto ret = MxmCommunication::DeleteMxmComEngine(name);
     ock::ubsm::UbsCertifyHandler::GetInstance().StopScheduledCertVerify();
+    return ret;
 }
 
 HRESULT MxmRpcServer::Connect(const RpcNode &remoteNodeId)

@@ -195,10 +195,10 @@ int ClientIpcShmDetachStub(MsgBase *request, MsgBase *response)
     return 0;
 }
 
-void MxmComStopIpcClientStub()
+int MxmComStopIpcClientStub()
 {
     printf("MxmComStopIpcClientStub\n");
-    return;
+    return 0;
 }
 
 int MxmComIpcClientSendStub(uint16_t opCode, MsgBase *request, MsgBase *response)

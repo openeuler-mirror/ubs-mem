@@ -42,12 +42,13 @@ TEST(daemon_init, ulog_init)
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
-    auto result = sprintf_s(binPath, sizeof(binPath), "-binpath=%s\0", DaemonTestCommon::CWD().c_str());
+    auto result =
+        sprintf_s(binPath, sizeof(binPath), "--config=%s/config/ubsmd.conf\0", DaemonTestCommon::CWD().c_str());
     EXPECT_GE(result, 0);
     av[0] = &empty;
     av[1] = binPath;
 
-    auto hr = daemon->CheckParam(av[1]);
+    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD() + "/config", av[1]);
     EXPECT_EQ(hr, HOK);
     hr = daemon->Initialize();
     EXPECT_EQ(hr, HRESULT_NO_FEATURE_ENABLED);
@@ -82,17 +83,17 @@ TEST(daemon_init, ulog_init_check_params_2)
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
-    auto ret = sprintf_s(binPath, sizeof(binPath), "-binpath=%s/not_exist\0", DaemonTestCommon::CWD().c_str());
+    auto ret = sprintf_s(binPath, sizeof(binPath), "--config=%s/not_exist\0", DaemonTestCommon::CWD().c_str());
     EXPECT_GE(ret, 0);
     av[0] = &empty;
     av[1] = binPath;
 
-    auto hr = daemon->CheckParam(av[1]);
+    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD(), av[1]);
     EXPECT_EQ(hr, HFAIL);
 
     ret = sprintf_s(binPath, sizeof(binPath), "-path=%s\0", DaemonTestCommon::CWD().c_str());
     EXPECT_GE(ret, 0);
-    hr = daemon->CheckParam(av[1]);
+    hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD(), av[1]);
     EXPECT_EQ(hr, HFAIL);
 
     DaemonTestCommon::DeleteConf();
@@ -140,12 +141,13 @@ TEST(daemon_init, ulog_audit_conf_1)
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
-    auto result = sprintf_s(binPath, sizeof(binPath), "-binpath=%s\0", DaemonTestCommon::CWD().c_str());
+    auto result =
+        sprintf_s(binPath, sizeof(binPath), "--config=%s/config/ubsmd.conf\0", DaemonTestCommon::CWD().c_str());
     EXPECT_GE(result, 0);
     av[0] = &empty;
     av[1] = binPath;
 
-    auto hr = daemon->CheckParam(av[1]);
+    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD(), av[1]);
     EXPECT_EQ(hr, HOK);
     hr = daemon->Initialize();
     EXPECT_EQ(hr, HFAIL);
@@ -179,12 +181,12 @@ TEST(daemon_init, init_number_conf_1)
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
-    auto ret = sprintf_s(binPath, sizeof(binPath), "-binpath=%s\0", DaemonTestCommon::CWD().c_str());
+    auto ret = sprintf_s(binPath, sizeof(binPath), "--config=%s/config/ubsmd.conf\0", DaemonTestCommon::CWD().c_str());
     EXPECT_GE(ret, 0);
     av[0] = &empty;
     av[1] = binPath;
 
-    auto hr = daemon->CheckParam(av[1]);
+    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD(), av[1]);
     EXPECT_EQ(hr, HOK);
     hr = daemon->Initialize();
     EXPECT_EQ(hr, HFAIL);
@@ -215,12 +217,13 @@ TEST(daemon_init, ulog_audit_conf_2)
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
-    auto result = sprintf_s(binPath, sizeof(binPath), "-binpath=%s\0", DaemonTestCommon::CWD().c_str());
+    auto result =
+        sprintf_s(binPath, sizeof(binPath), "--config=%s/config/ubsmd.conf\0", DaemonTestCommon::CWD().c_str());
     EXPECT_GE(result, 0);
     av[0] = &empty;
     av[1] = binPath;
 
-    auto hr = daemon->CheckParam(av[1]);
+    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD(), av[1]);
     EXPECT_EQ(hr, HOK);
     hr = daemon->Initialize();
     EXPECT_EQ(hr, HFAIL);
@@ -262,12 +265,13 @@ TEST(daemon_init, ulog_audit_conf_3)
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
-    auto result = sprintf_s(binPath, sizeof(binPath), "-binpath=%s\0", DaemonTestCommon::CWD().c_str());
+    auto result =
+        sprintf_s(binPath, sizeof(binPath), "--config=%s/config/ubsmd.conf\0", DaemonTestCommon::CWD().c_str());
     EXPECT_GE(result, 0);
     av[0] = &empty;
     av[1] = binPath;
 
-    auto hr = daemon->CheckParam(av[1]);
+    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD() + "/config", av[1]);
     EXPECT_EQ(hr, HOK);
     hr = daemon->Initialize();
     EXPECT_EQ(hr, HRESULT_NO_FEATURE_ENABLED);
@@ -309,12 +313,12 @@ TEST(daemon_init, init_service_without_lib)
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
-    auto ret = sprintf_s(binPath, sizeof(binPath), "-binpath=%s\0", DaemonTestCommon::CWD().c_str());
+    auto ret = sprintf_s(binPath, sizeof(binPath), "--config=%s/config/ubsmd.conf\0", DaemonTestCommon::CWD().c_str());
     EXPECT_GE(ret, 0);
     av[0] = &empty;
     av[1] = binPath;
 
-    auto hr = daemon->CheckParam(av[1]);
+    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD() + "/config", av[1]);
     EXPECT_EQ(hr, HOK);
     hr = daemon->Initialize();
     EXPECT_EQ(hr, HRESULT_NO_FEATURE_ENABLED);
@@ -334,7 +338,7 @@ TEST(daemon_init, init_service_without_lib)
 TEST(daemon_init, append_args)
 {
     char binPath[MAX_SIZE];
-    auto ret = sprintf_s(binPath, sizeof(binPath), "-binpath=%s\0", DaemonTestCommon::CWD().c_str());
+    auto ret = sprintf_s(binPath, sizeof(binPath), "--config=%s/config/ubsmd.conf\0", DaemonTestCommon::CWD().c_str());
     EXPECT_GE(ret, 0);
 
     int newArgc = 0;
@@ -387,12 +391,12 @@ TEST(daemon_init, conf_1)
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
-    auto ret = sprintf_s(binPath, sizeof(binPath), "-binpath=%s\0", DaemonTestCommon::CWD().c_str());
+    auto ret = sprintf_s(binPath, sizeof(binPath), "--config=%s/config/ubsmd.conf\0", DaemonTestCommon::CWD().c_str());
     EXPECT_GE(ret, 0);
     av[0] = &empty;
     av[1] = binPath;
 
-    auto hr = daemon->CheckParam(av[1]);
+    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD(), av[1]);
     EXPECT_EQ(hr, HOK);
 
     hr = daemon->Initialize();
@@ -426,13 +430,13 @@ TEST(daemon_init, conf_2)
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
-    auto ret = sprintf_s(binPath, sizeof(binPath), "-binpath=%s\0", DaemonTestCommon::CWD().c_str());
+    auto ret = sprintf_s(binPath, sizeof(binPath), "--config=%s/config/ubsmd.conf\0", DaemonTestCommon::CWD().c_str());
     EXPECT_GE(ret, 0);
 
     av[0] = &empty;
     av[1] = binPath;
 
-    auto hr = daemon->CheckParam(av[1]);
+    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD(), av[1]);
     EXPECT_EQ(hr, HOK);
 
     hr = daemon->Initialize();
@@ -466,12 +470,12 @@ TEST(daemon_init, conf_3)
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
-    auto ret = sprintf_s(binPath, sizeof(binPath), "-binpath=%s\0", DaemonTestCommon::CWD().c_str());
+    auto ret = sprintf_s(binPath, sizeof(binPath), "--config=%s/config/ubsmd.conf\0", DaemonTestCommon::CWD().c_str());
     EXPECT_GE(ret, 0);
     av[0] = &empty;
     av[1] = binPath;
 
-    auto hr = daemon->CheckParam(av[1]);
+    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD(), av[1]);
     EXPECT_EQ(hr, HOK);
 
     hr = daemon->Initialize();
@@ -505,12 +509,12 @@ TEST(daemon_init, conf_5)
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
-    auto ret = sprintf_s(binPath, sizeof(binPath), "-binpath=%s\0", DaemonTestCommon::CWD().c_str());
+    auto ret = sprintf_s(binPath, sizeof(binPath), "--config=%s/config/ubsmd.conf\0", DaemonTestCommon::CWD().c_str());
     EXPECT_GE(ret, 0);
     av[0] = &empty;
     av[1] = binPath;
 
-    auto hr = daemon->CheckParam(av[1]);
+    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD(), av[1]);
     EXPECT_EQ(hr, HOK);
 
     hr = daemon->Initialize();
@@ -544,12 +548,12 @@ TEST(daemon_init, conf_6)
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
-    auto ret = sprintf_s(binPath, sizeof(binPath), "-binpath=%s\0", DaemonTestCommon::CWD().c_str());
+    auto ret = sprintf_s(binPath, sizeof(binPath), "--config=%s/config/ubsmd.conf\0", DaemonTestCommon::CWD().c_str());
     EXPECT_GE(ret, 0);
     av[0] = &empty;
     av[1] = binPath;
 
-    auto hr = daemon->CheckParam(av[1]);
+    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD(), av[1]);
     EXPECT_EQ(hr, HOK);
 
     hr = daemon->Initialize();

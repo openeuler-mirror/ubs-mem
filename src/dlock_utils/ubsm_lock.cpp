@@ -113,9 +113,9 @@ int32_t UbsmLock::DlockServerInit(struct dlock::ssl_cfg ssl)
     auto &ctx = DLockContext::Instance();
     DLockConfig cfg = ctx.GetConfig();
 
-    DBG_LOGINFO("Server Config: "
-                << "IP=" << cfg.serverIp << ":" << cfg.serverPort << ", CPUs=" << cfg.cmdCpuSet
-                << ", Replicas=" << cfg.numOfReplica << ", RecoveryClients=" << cfg.recoveryClientNum);
+    DBG_LOGINFO("Server Config: " << "IP=" << cfg.serverIp << ":" << cfg.serverPort << ", CPUs=" << cfg.cmdCpuSet
+                                  << ", Replicas=" << cfg.numOfReplica
+                                  << ", RecoveryClients=" << cfg.recoveryClientNum);
 
     struct dlock::primary_cfg primaryCfg = {0};
     primaryCfg.num_of_replica = cfg.numOfReplica;
@@ -126,8 +126,7 @@ int32_t UbsmLock::DlockServerInit(struct dlock::ssl_cfg ssl)
     primaryCfg.replica_enable = false;
     primaryCfg.server_ip_str = const_cast<char *>(cfg.serverIp.c_str());
 
-    struct dlock::server_cfg conf {
-    };
+    struct dlock::server_cfg conf {};
     conf.type = dlock::server_type::SERVER_PRIMARY;
     conf.log_level = cfg.dlockLogLevel;
     conf.sleep_mode_enable = cfg.sleepMode;
@@ -437,8 +436,7 @@ int32_t UbsmLock::TryLock(const std::string &name, ClientDesc *clientDesc, bool 
     auto lockId = lockIdPair.second;
     auto lockExpireTime = DLockContext::Instance().GetConfig().lockExpireTime;
     int32_t ret = dlock::DLOCK_FAIL;
-    struct dlock::lock_request req {
-    };
+    struct dlock::lock_request req {};
     req.lock_id = lockId;
     req.lock_op = isExclusive ? dlock::LOCK_EXCLUSIVE : dlock::LOCK_SHARED;
     req.expire_time = lockExpireTime;
@@ -506,8 +504,7 @@ ClientDesc *UbsmLock::GetLock(const std::string &name, const LockUdsInfo &udsInf
     }
     auto clientId = clientDesc->GetClientId();
 
-    struct dlock::lock_desc desc {
-    };
+    struct dlock::lock_desc desc {};
 
     desc.p_desc = const_cast<char *>(name.c_str());
     desc.len = name.size();

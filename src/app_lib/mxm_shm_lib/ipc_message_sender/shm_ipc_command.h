@@ -56,6 +56,9 @@ public:
 
     static uint32_t AppGetLocalSlotId(uint32_t &slotId);
 
+    static uint32_t IpcCallSuspendInner();
+    static uint32_t IpcCallResumeInner();
+
 private:
 };
 } // namespace ock::mxmd

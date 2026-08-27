@@ -17,6 +17,7 @@
 #include <string>
 #include <utility>
 
+#include "lock/dg_lock.h"
 #include "log.h"
 #include "mxm_ipc_client_interface.h"
 #include "mxm_msg.h"
@@ -26,30 +27,63 @@
 
 namespace ock::mxmd {
 using namespace ock::common;
+
+enum class IpcSuspendState {
+    UNINITIALIZED,
+    RUNNING,
+    SUSPENDING,
+    SUSPENDED,
+    RESUMING,
+    FINALIZING,
+    FAILED_SUSPENDING, // Suspend请求结果不确定，IPC client仍保留
+    FAILED_STOPPING,   // 本地IPC client停止失败，client/engine保留等待重试
+    FAILED_RESUMING,   // Resume请求发生传输错误，已启动的IPC client仍保留
+};
+
 class IpcProxy {
 public:
     static uint32_t Initialize();
+
+    static uint32_t Suspend();
+
+    static uint32_t Resume();
 
     uint32_t SyncCall(int opcode, MsgBase *request, MsgBase *response);
 
     static uint32_t Destroy();
 
+    template <typename Operation>
+    static uint32_t RunOperation(Operation &&operation)
+    {
+        ock::dagger::ReadLocker<ock::dagger::ReadWriteLock> stateGuard(&stateLock_);
+        const auto ret = GetOperationStateError();
+        if (ret != UBSM_OK) {
+            return ret;
+        }
+        return operation();
+    }
+
     uint32_t Ipc(MsgBase *request, MsgBase *response, const int opCode)
     {
         if (request == nullptr) {
-            DBG_LOGINFO("Request is nullptr.");
+            DBG_LOGERROR("IPC request is nullptr.");
             return MXM_ERR_PARAM_INVALID;
         }
         if (response == nullptr) {
-            DBG_LOGINFO("Response is nullptr.");
+            DBG_LOGERROR("IPC response is nullptr.");
             return MXM_ERR_PARAM_INVALID;
         };
 
+        return RunOperation([&] { return IpcCallInner(*request, *response, opCode); });
+    }
+
+    uint32_t IpcCallInner(MsgBase &request, MsgBase &response, const int opCode)
+    {
         DBG_LOGINFO("IPC SyncCall begin, opCode=" << opCode);
         uint32_t hr;
         for (int i = 0; i < 3u; ++i) {
             TP_TRACE_BEGIN(TP_UBSM_IPC_CALL);
-            hr = SyncCall(opCode, request, response);
+            hr = SyncCall(opCode, &request, &response);
             TP_TRACE_END(TP_UBSM_IPC_CALL, hr);
             if (hr != MXM_ERR_IPC_CRC_CHECK_ERROR && hr != MXM_ERR_IPC_SERIALIZE_DESERIALIZE_ERROR) {
                 break;
@@ -77,7 +111,13 @@ public:
 
     DAGGER_DEFINE_REF_COUNT_FUNCTIONS
 private:
-    std::mutex mLock{};
+    static uint32_t GetOperationStateError();
+    static uint32_t EnterResumingState(IpcSuspendState &stateBeforeResume);
+    static uint32_t EnsureResumeClientReady(IpcSuspendState stateBeforeResume);
+    static uint32_t HandleResumeResult(IpcSuspendState stateBeforeResume, uint32_t ret);
+    static void SetState(IpcSuspendState state);
+    static ock::dagger::ReadWriteLock stateLock_;
+    static IpcSuspendState state_;
     DAGGER_DEFINE_REF_COUNT_VARIABLE;
     IpcProxy() = default;
 };

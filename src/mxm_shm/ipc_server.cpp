@@ -136,6 +136,12 @@ const std::unordered_map<int, HcomServiceHandle> &IpcServer::GetIpcCallbackTable
         GetInstance().MsgHandle(udsInfo, IPC_RACKMEMSHM_QUERY_SLOT_ID, req, rsp,
                                 execMap.at(IPC_RACKMEMSHM_QUERY_SLOT_ID));
     }};
+    callBackMap[IPC_SUSPEND_CLIENT] = {[](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
+        GetInstance().MsgHandle(udsInfo, IPC_SUSPEND_CLIENT, req, rsp, execMap.at(IPC_SUSPEND_CLIENT));
+    }};
+    callBackMap[IPC_RESUME_CLIENT] = {[](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
+        GetInstance().MsgHandle(udsInfo, IPC_RESUME_CLIENT, req, rsp, execMap.at(IPC_RESUME_CLIENT));
+    }};
     GetIpcCallbackTablePartition();
     return callBackMap;
 }
@@ -181,6 +187,8 @@ uint32_t IpcServer::InitExecMap()
     execMap.emplace(IPC_RACKMEMSHM_QUERY_NODE, MxmServerMsgHandle::ShmQueryNode);
     execMap.emplace(IPC_RACKMEMSHM_QUERY_DLOCK_STATUS, MxmServerMsgHandle::ShmQueryDlockStatus);
     execMap.emplace(IPC_RACKMEMSHM_QUERY_SLOT_ID, MxmServerMsgHandle::LookupLocalSlotId);
+    execMap.emplace(IPC_SUSPEND_CLIENT, MxmServerMsgHandle::IpcSuspend);
+    execMap.emplace(IPC_RESUME_CLIENT, MxmServerMsgHandle::IpcResume);
     for (auto &iter : execMap) {
         if (iter.second == nullptr) {
             DBG_LOGERROR("RPC init exe map error, no func");
