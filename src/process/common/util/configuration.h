@@ -128,6 +128,8 @@ private:
     void LoadDefault()
     {
         using namespace ConfConstant;
+        AddStrConf(MXMD_DAEMON_RUNTIME, VNoCheck::Create(), 0);
+        AddStrConf(MXMD_DAEMON_CONFIG, VNoCheck::Create(), 0);
         AddPathConf(MXMD_SERVER_LOG_PATH, VPathAccess::Create(MXMD_SERVER_LOG_PATH.first, R_OK | W_OK | X_OK));
         AddStrConf(MXMD_SERVER_LOG_LEVEL,
                    VStrEnum::Create(MXMD_SERVER_LOG_LEVEL.first, "DEBUG||INFO||WARN||ERROR||CRITICAL"));
@@ -202,8 +204,10 @@ private:
     std::vector<std::string> mLoadDefaultErrors;
 
     std::vector<std::string> mPathConfs;
-    std::vector<std::string> mExceptPrintConfs{ConfConstant::MXMD_DAEMON_BINPATH.first};
-    std::vector<std::string> mInvalidSetConfs{ConfConstant::MXMD_DAEMON_BINPATH.first};
+    std::vector<std::string> mExceptPrintConfs{ConfConstant::MXMD_DAEMON_RUNTIME.first,
+                                               ConfConstant::MXMD_DAEMON_CONFIG.first};
+    std::vector<std::string> mInvalidSetConfs{ConfConstant::MXMD_DAEMON_RUNTIME.first,
+                                              ConfConstant::MXMD_DAEMON_CONFIG.first};
 
     bool mInitialized = false;
     Lock mLock;

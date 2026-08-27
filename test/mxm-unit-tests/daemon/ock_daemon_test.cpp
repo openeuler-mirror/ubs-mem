@@ -17,8 +17,9 @@ using namespace ock::ubsm;
 #define MOCKER_CPP(api, TT) (MOCKCPP_NS::mockAPI((#api), (reinterpret_cast<TT>(api))))
 namespace UT {
 using namespace ock::daemon;
-std::string testPath = "/tmp/test_bin_path_XXXXXX";
-std::string validBinPathHeader = "-binpath=";
+std::string testPath = "/tmp/test_config_path_XXXXXX";
+std::string validRuntimePathHeader = "--runtime=";
+std::string validConfigPathHeader = "--config=";
 
 std::string testConf = R"(# the log level of ubsm server, (DEBUG, INFO, WARN, ERROR, CRITICAL)
 ubsm.server.log.level = INFO
@@ -101,34 +102,52 @@ TEST_F(OckDaemonTest, TestCheckParamInvalidHeader)
 {
     std::string invalidPath = "invalid=" + testPath;
     ock::daemon::OckDaemon ockDaemon;
-    auto result = ockDaemon.CheckParam(invalidPath);
+    auto result = ockDaemon.CheckParam(validRuntimePathHeader + testPath, invalidPath);
+
+    ASSERT_EQ(HFAIL, result);
+}
+
+TEST_F(OckDaemonTest, TestCheckParamInvalidRuntimeHeader)
+{
+    std::string configPath = validConfigPathHeader + testPath + "/config/ubsmd.conf";
+    ock::daemon::OckDaemon ockDaemon;
+    auto result = ockDaemon.CheckParam("invalid=" + testPath, configPath);
+
+    ASSERT_EQ(HFAIL, result);
+}
+
+TEST_F(OckDaemonTest, TestCheckParamRuntimeIsFile)
+{
+    std::string configPath = validConfigPathHeader + testPath + "/config/ubsmd.conf";
+    ock::daemon::OckDaemon ockDaemon;
+    auto result = ockDaemon.CheckParam(validRuntimePathHeader + testPath + "/config/ubsmd.conf", configPath);
 
     ASSERT_EQ(HFAIL, result);
 }
 
 TEST_F(OckDaemonTest, TestCheckParamPathTooLong)
 {
-    std::string binPath = validBinPathHeader + std::string(PATH_MAX * 2, 'a');
+    std::string configPath = validConfigPathHeader + std::string(PATH_MAX * 2, 'a');
     ock::daemon::OckDaemon ockDaemon;
-    auto result = ockDaemon.CheckParam(binPath);
+    auto result = ockDaemon.CheckParam(validRuntimePathHeader + testPath, configPath);
 
     ASSERT_EQ(HFAIL, result);
 }
 
 TEST_F(OckDaemonTest, TestCheckParamNonExist)
 {
-    std::string nonExistentPath = validBinPathHeader + "/non/existent/path";
+    std::string nonExistentPath = validConfigPathHeader + "/non/existent/path";
     ock::daemon::OckDaemon ockDaemon;
-    auto result = ockDaemon.CheckParam(nonExistentPath);
+    auto result = ockDaemon.CheckParam(validRuntimePathHeader + testPath, nonExistentPath);
 
     ASSERT_EQ(HFAIL, result);
 }
 
 TEST_F(OckDaemonTest, TestCheckParamValidPath)
 {
-    std::string validPath = validBinPathHeader + testPath;
+    std::string validPath = validConfigPathHeader + testPath + "/config/ubsmd.conf";
     ock::daemon::OckDaemon ockDaemon;
-    auto result = ockDaemon.CheckParam(validPath);
+    auto result = ockDaemon.CheckParam(validRuntimePathHeader + testPath, validPath);
     EXPECT_EQ(HOK, result);
 }
 
@@ -137,18 +156,18 @@ void EmptyStub()
     printf("EmptyStub.\n");
 }
 
-TEST_F(OckDaemonTest, TestInitializeMHomePathEmpty)
+TEST_F(OckDaemonTest, TestInitializeMConfigPathEmpty)
 {
     ock::daemon::OckDaemon ockDaemon;
     auto result = ockDaemon.Initialize();
     ASSERT_EQ(HFAIL, result);
 }
 
-TEST_F(OckDaemonTest, TestInitializeMHomePathValid)
+TEST_F(OckDaemonTest, TestInitializeMConfigPathValid)
 {
-    std::string validPath = validBinPathHeader + testPath;
+    std::string validPath = validConfigPathHeader + testPath + "/config/ubsmd.conf";
     ock::daemon::OckDaemon ockDaemon;
-    ockDaemon.CheckParam(validPath);
+    ockDaemon.CheckParam(validRuntimePathHeader + testPath, validPath);
     auto result = ockDaemon.Initialize();
 }
 
@@ -182,12 +201,13 @@ TEST_F(OckDaemonTest, TestInitializeUbsmLock)
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
-    auto result = sprintf_s(binPath, sizeof(binPath), "-binpath=%s\0", DaemonTestCommon::CWD().c_str());
+    auto result =
+        sprintf_s(binPath, sizeof(binPath), "--config=%s/config/ubsmd.conf\0", DaemonTestCommon::CWD().c_str());
     EXPECT_GE(result, 0);
     av[0] = &empty;
     av[1] = binPath;
 
-    auto hr = daemon->CheckParam(av[1]);
+    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD(), av[1]);
     EXPECT_EQ(hr, HOK);
     hr = daemon->InitHandler();
     EXPECT_EQ(hr, HOK);
@@ -226,12 +246,13 @@ TEST_F(OckDaemonTest, TestInitializeUbsmTlsShouldFailed)
     char *av[2];
     char empty = '\0';
     char binPath[MAX_SIZE];
-    auto result = sprintf_s(binPath, sizeof(binPath), "-binpath=%s\0", DaemonTestCommon::CWD().c_str());
+    auto result =
+        sprintf_s(binPath, sizeof(binPath), "--config=%s/config/ubsmd.conf\0", DaemonTestCommon::CWD().c_str());
     EXPECT_GE(result, 0);
     av[0] = &empty;
     av[1] = binPath;
 
-    auto hr = daemon->CheckParam(av[1]);
+    auto hr = daemon->CheckParam("--runtime=" + DaemonTestCommon::CWD(), av[1]);
     EXPECT_EQ(hr, HOK);
     hr = daemon->InitHandler();
     EXPECT_EQ(hr, HOK);
@@ -252,9 +273,9 @@ TEST_F(OckDaemonTest, TestockDaemonStartShouldFailed)
 
 TEST_F(OckDaemonTest, TestockDaemonStartShouldSuccess)
 {
-    std::string validPath = validBinPathHeader + testPath;
+    std::string validPath = validConfigPathHeader + testPath + "/config/ubsmd.conf";
     ock::daemon::OckDaemon ockDaemon;
-    ockDaemon.CheckParam(validPath);
+    ockDaemon.CheckParam(validRuntimePathHeader + testPath, validPath);
     ockDaemon.Initialize();
     auto start = std::chrono::steady_clock::now();
     auto result = ockDaemon.Start(start);

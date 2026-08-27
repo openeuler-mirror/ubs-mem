@@ -26,14 +26,15 @@
 
 namespace ock {
 namespace daemon {
-constexpr int ARGS_NUM = 2;
-constexpr int BIN_PATH_POSITION = 1;
+constexpr int ARGS_NUM = 3;
+constexpr int RUNTIME_PATH_POSITION = 1;
+constexpr int CONFIG_PATH_POSITION = 2;
 class OckDaemon : public ock::common::Referable {
 public:
     OckDaemon();
     ~OckDaemon() override;
 
-    HRESULT CheckParam(const std::string &binPath);
+    HRESULT CheckParam(const std::string &runtimePath, const std::string &configPath);
     HRESULT Initialize();
     HRESULT Start(const std::chrono::time_point<std::chrono::steady_clock> &start);
     void TryStop();
@@ -63,7 +64,8 @@ private:
 
     HpcServiceManagerPtr serviceManager = nullptr;
     ock::common::ConfigurationPtr mConf = nullptr;
-    std::string mHomePath = "";
+    std::string mRuntimePath = "";
+    std::string mConfigPath = "";
 
     enum KeepAliveStatus : int {
         KEEP_ALIVE_IDLE,
@@ -80,7 +82,8 @@ private:
     HRESULT LoadDaemonConf();
     HRESULT InitDaemonLog();
     HRESULT InitHtrace();
-    HRESULT CheckBinPath(const char *binPath);
+    HRESULT CheckRuntimePath(const char *runtimePath);
+    HRESULT CheckConfigPath(const char *configPath);
 
     void StoppingKeepAlive();
     void StoppedKeepAlive();
