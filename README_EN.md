@@ -1,5 +1,9 @@
 # ubs-mem
 
+<p align="center">
+  English | <a href="./README.md">简体中文</a>
+</p>
+
 ## Overview
 
 Unified Bus Service Core Memory (UBS Memory) provides advanced memory services on supernodes based on UB hardware capabilities, enabling memory borrowing, sharing, and caching across supernodes.
@@ -142,3 +146,5 @@ ubs-mem uses the Mulan V2 license.
 ## How to Contribute
 
 Read the [contribution guide](CONTRIBUTING.md) to learn how to contribute to the project.
+
+This open-source project is not a Huawei product. Huawei offers only limited support.

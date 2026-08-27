@@ -316,7 +316,7 @@ int ubsmem_destroy_region(const char *region_name);
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
-### 内存共享  
+### 内存共享
 
 #### ubsmem\_shmem\_allocate
 
