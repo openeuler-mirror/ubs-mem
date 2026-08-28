@@ -34,7 +34,7 @@ namespace ock::common {
 
 #define SAFE_DELETE_ARRAY(p) \
     do {                     \
-        delete[](p);         \
+        delete[] (p);        \
         p = nullptr;         \
     } while (0)
 

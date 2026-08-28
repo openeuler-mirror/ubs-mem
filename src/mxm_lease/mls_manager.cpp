@@ -441,8 +441,7 @@ std::vector<MLSMemInfo> MLSManager::GetUsedMemByPid(uint32_t pid)
 }
 std::string MLSManager::GenerateMemName(uint64_t size)
 {
-    struct timespec ts {
-    };
+    struct timespec ts {};
     clock_gettime(CLOCK_MONOTONIC, &ts);
     auto timeStamp = static_cast<uint64_t>(ts.tv_sec) * NANOSECONDS + static_cast<uint64_t>(ts.tv_nsec);
     std::stringstream ss;

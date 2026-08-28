@@ -1,16 +1,18 @@
 #!/bin/bash
 
 usage() {
-    echo "Usage: $0 [ -h | --help ] [ -t | --type <build_type> ] [--ut=UT] [--cov=COV] [ -d | --docker ] [ -n | --ninja ] \
-     [ -b | --builddir <build_path> ] [ -c | --component ] [ -f | --flags <cmake_flags> ] [ -p | --packaging] [ -pdeb ]"
+    echo "Usage: $0 [ -h | --help ] [ -t | --type <build_type> ] [ -j | --jobs <count> ] [--ut=UT] [--cov=COV] [ -d | --docker ] [ -n | --ninja ] \
+     [ -b | --builddir <build_path> ] [ -c | --component ] [ -f | --flags <cmake_flags> ] [ -p | --packaging] [ -pdeb ] [ --build_test ]"
     echo "build_type: [debug, release, relwithdebinfo, asan, tsan, clean]"
     echo "ut: unit test, default don't exic ut when not specified, <on|off> [default: \"off\"]"
     echo "cov: Instrument code coverage, default is no instrumentation when not specified, <on|off> [default: \"off\"]"
     echo "docker: enable docker build"
+    echo "build_test: build test, default is off"
     echo "packaging (-p): generate RPM package"
     echo "pdeb: generate DEB package (delegates to build_deb.sh)"
     echo "builddir: specify build directory instead of using the default aka. Build"
     echo "ninja: use ninja instead of make as cmake generator"
+    echo "jobs: build parallelism, default is 50% of available CPUs; BUILD_JOBS can also set it"
     echo "cmake_flags: customized flags passed to cmake (these arguments must appear after all other arguments)"
     echo "component: generate componet package"
     echo
@@ -32,6 +34,7 @@ PACKAGING=false
 PACKAGING_DEB=false
 PACK_COMPONENT=false
 UBSE_SDK=ON
+REQUESTED_JOBS=
 CMAKE_FLAGS+='-G Ninja '
 # Parse the argument params
 while true; do
@@ -70,11 +73,22 @@ while true; do
             fi
             shift 2
             ;;
+        -j | --jobs )
+            if [[ -z "$2" ]]; then
+                echo "Error: --jobs requires a value."
+                exit 1
+            fi
+            REQUESTED_JOBS=$2
+            shift 2
+            ;;
         --ut )
             USING_UT=$(echo "$2"|tr a-z A-Z|tr -d "'")
             CMAKE_FLAGS+="-DDEBUG_UT=${USING_UT} "
             shift 2
             ;;
+        --build_test )
+            CMAKE_FLAGS+='-DBUILD_TEST=ON '
+            shift ;;
         --ubse )
             UBSE_SDK=ON
             shift ;;
@@ -143,11 +157,17 @@ if [ "$PACKAGING" == "false" ] && [ "$PACKAGING_DEB" == "false" ]; then
       exit 1;
     }
 
-    N_CPUS=$(grep processor /proc/cpuinfo | wc -l)
-    if [ -n "$CI_BUILD" ];then
-        N_CPUS=16
+    N_CPUS=$(nproc)
+    DEFAULT_JOBS=$((N_CPUS / 2))
+    if [ "$DEFAULT_JOBS" -lt 1 ]; then
+        DEFAULT_JOBS=1
     fi
-    echo "$N_CPUS processors detected."
+    BUILD_JOBS=${REQUESTED_JOBS:-${BUILD_JOBS:-$DEFAULT_JOBS}}
+    if ! [[ "$BUILD_JOBS" =~ ^[1-9][0-9]*$ ]]; then
+        echo "Invalid build job count: $BUILD_JOBS"
+        exit 1
+    fi
+    echo "$N_CPUS processors detected; building with $BUILD_JOBS jobs."
 
     if [ "$UBSE_SDK" == "ON" ]; then
         CMAKE_FLAGS+='-DUBSE_SDK=ON'
@@ -156,7 +176,7 @@ if [ "$PACKAGING" == "false" ] && [ "$PACKAGING_DEB" == "false" ]; then
     fi
 
     CMAKE_CMD="cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_EXPORT_COMPILE_COMMANDS=ON $CMAKE_FLAGS $PROJ_DIR"
-    BUILD_CMD="$BUILD_TOOL -j $((N_CPUS-2)) install"
+    BUILD_CMD="$BUILD_TOOL -j $BUILD_JOBS install"
 
     echo $CMAKE_CMD
     $CMAKE_CMD || {

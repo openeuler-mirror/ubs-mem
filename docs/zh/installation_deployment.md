@@ -12,6 +12,17 @@
 |-----|-----|
 | 服务器 | <ul><li>TaiShan 500 2280</li> <li>其他配备支持UB的CPU的服务器</li></ul> |
 
+**软件依赖**
+
+UBS Memory依赖[UBS Engine](https://gitcode.com/openeuler/ubs-engine)提供资源调度与管理能力。相关运行时软件包如下：
+
+| 软件包 | 说明 |
+|-----|-----|
+| `ubs-engine` | 提供UBS Engine守护进程和`ubse.service` |
+| `ubs-engine-client-libs` | 提供UBS Memory访问UBS Engine所需的`libubse-client.so.1` |
+
+在线安装`ubs-mem-shmem`时，包管理器会根据RPM依赖自动安装上述软件包。离线安装前，需要从对应openEuler版本的软件源获取上述软件包及其依赖；也可以参考[UBS Engine部署说明](https://gitcode.com/openeuler/ubs-engine/blob/master/docs/build_install/%E9%83%A8%E7%BD%B2%E8%AF%B4%E6%98%8E.md)从源码构建。
+
 ## 安装UBS Memory
 
 **操作步骤**
@@ -26,30 +37,36 @@
         ```
 
     - 离线安装
+
+        将`ubs-mem-shmem`、`ubs-engine`、`ubs-engine-client-libs`及其依赖的RPM包放入同一目录，然后执行：
     
         ```bash
-        dnf install -y ubs-mem-shmem-x.x.x-x.x.*.rpm
+        dnf install -y ./*.rpm
         ```
 
     >[!NOTE]说明
     >- 内存服务以ubsmd用户的身份运行，在使用RPM包安装时，若系统中不存在ubsmd用户，安装脚本将自动创建该用户。
-    >- 安装成功后，so会默认安装到“/usr/local/ubs\_mem/lib”目录，使用时需要export该路径。
-    >- 安装成功后，.h头文件会默认安装到“/usr/local/ubs\_mem/include”目录。
+    >- 安装成功后，SDK动态库安装到“/usr/lib64”，服务动态库安装到“/usr/lib/ubs\_mem”。
+    >- 安装成功后，.h头文件会默认安装到“/usr/include”目录。
     >- 配置环境变量 **UBSM\_SDK\_TRACE\_ENABLE = 1**，开启性能打点统计，会在默认的日志路径（/var/log/ubsm）生成对应的打点数据。
     >- 配置环境变量 **MXM\_CHANNEL\_TIMEOUT= xx**，控制IPC通信的channel超时时间（单位s），当大块内存操作耗时较久时，可以配置较长时间，默认为60s。
 
 3. 启动UBS Engine服务。
 
     ```bash
+    rpm -q ubs-engine ubs-engine-client-libs
     systemctl start ubse.service
+    systemctl status ubse.service
     ```
+
+    UBS Engine的配置和部署方法请参见[UBS Engine部署说明](https://gitcode.com/openeuler/ubs-engine/blob/master/docs/build_install/%E9%83%A8%E7%BD%B2%E8%AF%B4%E6%98%8E.md)。
 
 4. （可选）修改ubsmd.conf配置文件。
 
-    a. 打开“/usr/local/ubs\_mem/config/ubsmd.conf”配置文件。
+    a. 打开“/etc/ubs\_mem/ubsmd.conf”配置文件。
 
     ```bash
-    vim /usr/local/ubs_mem/config/ubsmd.conf
+    vim /etc/ubs_mem/ubsmd.conf
     ```
 
     b. 按“i”进入编辑模式，根据实际情况对相关参数进行配置，参数详情请参见附录的[表1 ubsmd.conf配置文件参数说明](configuration_description.md#配置参数说明)。
@@ -138,7 +155,7 @@
        FD Store: 1 (limit: 3)
          Memory: xxG ()
          CGroup: /system.slice/ubsmd.service
-                 └─xxx /usr/local/ubs_mem/bin/ubsmd -binpath=/usr/local/ubs_mem
+                 └─xxx /usr/bin/ubsmd --runtime=/usr/lib/ubs_mem --config=/etc/ubs_mem/ubsmd.conf
     ```
 
 ## 卸载UBS Memory
@@ -154,4 +171,4 @@
     >
     >- 卸载会自动停止ubsmd并释放占用的远端内存，因此在卸载ubsmd时，应确保UBSE正常运行且无业务正在进行。
     >- 为了避免权限问题，卸载后用户和用户组ubsmd将会保留。
-    >- 如需卸载UBS Engine，请参见[UBS Engine 部署说明](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/build_install/%E9%83%A8%E7%BD%B2%E8%AF%B4%E6%98%8E.md)文档。
+    >- 如需卸载UBS Engine，请参见[UBS Engine部署说明](https://gitcode.com/openeuler/ubs-engine/blob/master/docs/build_install/%E9%83%A8%E7%BD%B2%E8%AF%B4%E6%98%8E.md)文档。

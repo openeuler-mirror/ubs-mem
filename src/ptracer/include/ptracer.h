@@ -81,7 +81,7 @@ const char *ptracer_get_last_err_msg(void);
 
 #define TP_CURRENT_TIME_NS (g_tracer.current_time_ns ? g_tracer.current_time_ns() : 0)
 
-#define PTRACER_ID(MODULE_ID_, traceId_) ((MODULE_ID_) << 16 | ((traceId_)&0xFFFF))
+#define PTRACER_ID(MODULE_ID_, traceId_) ((MODULE_ID_) << 16 | ((traceId_) & 0xFFFF))
 
 #ifdef __cplusplus
 }

@@ -125,6 +125,14 @@ static std::unordered_map<int16_t, MsgBaseFunc> requestMap = {
      []() {
          return new (std::nothrow) CommonRequest();
      }},
+    {IPC_SUSPEND_CLIENT,
+     []() {
+         return new (std::nothrow) IpcSuspendRequest();
+     }},
+    {IPC_RESUME_CLIENT,
+     []() {
+         return new (std::nothrow) IpcResumeRequest();
+     }},
 };
 static std::unordered_map<int16_t, MsgBaseFunc> responseMap = {
     {MXM_MSG_SHM_ALLOCATE,
@@ -234,6 +242,14 @@ static std::unordered_map<int16_t, MsgBaseFunc> responseMap = {
     {IPC_RACKMEMSHM_QUERY_SLOT_ID,
      []() {
          return new (std::nothrow) LookupSlotIdResponse();
+     }},
+    {IPC_SUSPEND_CLIENT,
+     []() {
+         return new (std::nothrow) CommonResponse();
+     }},
+    {IPC_RESUME_CLIENT,
+     []() {
+         return new (std::nothrow) CommonResponse();
      }},
 };
 

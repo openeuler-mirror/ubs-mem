@@ -36,6 +36,8 @@ namespace mxm {
 
 constexpr auto MIN_NODE_NUM = 2;
 
+#define UBS_FEATURE_BIT_CC_CACHEABLE (1ULL << 3)
+
 // 使用方进程信息
 typedef struct ubse_uds_info {
     uid_t uid; /* 使用方进程的运行用户的uid */
@@ -222,12 +224,16 @@ private:
     static int GetSlotIdFromHostName(const std::string &hostName, uint32_t *slotId);
     static int PrepareShmCreateWithProviderParams(const CreateShmWithProviderParam &param, uint8_t *usrInfo,
                                                   uint64_t *ubseFlags, uint32_t *slotId, uint64_t &seqNo);
+    static int CheckFeatureCompatibility(uint64_t flags);
 
 private:
     static std::mutex gMutex;
     static bool initialized_;
     static std::unordered_map<std::string, uint32_t> hostnameMapping_;
     static std::atomic<uint32_t> nodeId_;
+    static uint64_t ubFeature_;
+    static bool ubFeatureLoaded_;
+    static bool ubFeatureValid_;
 
     static UbseClientInitializeFunc pUbseClientInitialize;
     static UbseClientFinalizeFunc pUbseClientFinalize;

@@ -37,11 +37,13 @@ public:
     int Decrypt(int domainId, const std::string &filePath, std::pair<char *, int> &result) noexcept;
     void EraseDecryptData(char *data, int len) noexcept;
     static int SetCryptorLogger(CryptorLogHandler logger) noexcept;
+    void SetDecryptLibPath(const std::string &path);
     int LoadDecryptFunction() noexcept;
 
 private:
     std::atomic<bool> initialized;
     std::mutex decryptMutex;
+    std::string decryptLibPath;
     DecryptFunc decryptLibHandlePtr = nullptr;
 };
 } // namespace ock::ubsm

@@ -28,7 +28,7 @@ OckServiceManager::~OckServiceManager()
     }
 }
 
-HRESULT OckServiceManager::ServicePut(const std::vector<std::string> &services, const std::string &libHomePath)
+HRESULT OckServiceManager::ServicePut(const std::vector<std::string> &services, const std::string &libPath)
 {
     if ((services.size() < 1) || (services.size() > 2)) { // 2
         DBG_LOGERROR("Services count should be within the range of [1, 2], size is: " << services.size());
@@ -39,13 +39,13 @@ HRESULT OckServiceManager::ServicePut(const std::vector<std::string> &services, 
         OckTrimString(serviceName);
         std::string lowerServiceName = serviceName;
         transform(lowerServiceName.begin(), lowerServiceName.end(), lowerServiceName.begin(), ::tolower);
-        std::string libPath = libHomePath + "/lib/lib" + lowerServiceName + ".so";
-        if (libPath.size() > PATH_MAX) {
-            DBG_LOGERROR("libPath size exceeds maximum limit.");
+        std::string serviceLibPath = libPath + "/lib" + lowerServiceName + ".so";
+        if (serviceLibPath.size() > PATH_MAX) {
+            DBG_LOGERROR("serviceLibPath size exceeds maximum limit.");
             return HFAIL;
         }
 
-        OckServiceAdapter *adapter = new (std::nothrow) OckServiceAdapter(serviceName, libPath);
+        OckServiceAdapter *adapter = new (std::nothrow) OckServiceAdapter(serviceName, serviceLibPath);
         if (adapter == nullptr) {
             DBG_LOGERROR("Fail to create service adapter.");
             return HFAIL;

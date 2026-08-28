@@ -19,7 +19,7 @@ OckServiceArgs *OckServiceAdapter::CreateServiceArgs(const std::vector<std::stri
     auto argKeys = argNames;
     if (argKeys.empty()) {
         using namespace ock::common::ConfConstant;
-        argKeys = {"", MXMD_DAEMON_BINPATH.first, MXMD_SERVER_LOG_LEVEL.first};
+        argKeys = {"", MXMD_DAEMON_RUNTIME.first, MXMD_DAEMON_CONFIG.first, MXMD_SERVER_LOG_LEVEL.first};
     }
     for (auto &name : argKeys) {
         auto config = Configuration::GetInstance();

@@ -89,8 +89,7 @@ inline uint64_t Monotonic::TimeNs()
     __asm__ volatile("mrs %0, cntvct_el0" : "=r"(timeValue));
     return timeValue * 1000ULL / TICK_PER_US;
 #else
-    struct timespec ts {
-    };
+    struct timespec ts {};
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return static_cast<uint64_t>(ts.tv_sec) * 1000000000UL + static_cast<uint64_t>(ts.tv_nsec);
 #endif

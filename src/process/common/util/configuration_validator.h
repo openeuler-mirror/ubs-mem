@@ -183,7 +183,7 @@ public:
         return ValidatorPtr(new (std::nothrow) VStrNotNull(name));
     }
 
-    explicit VStrNotNull(const std::string &name) : Validator(name){};
+    explicit VStrNotNull(const std::string &name) : Validator(name) {};
 
     ~VStrNotNull() override = default;
 
@@ -208,7 +208,7 @@ public:
     {
         return ValidatorPtr(new (std::nothrow) VIntRange(name, start, end));
     }
-    VIntRange(const std::string &name, const int &start, const int &end) : Validator(name), mStart(start), mEnd(end){};
+    VIntRange(const std::string &name, const int &start, const int &end) : Validator(name), mStart(start), mEnd(end) {};
 
     ~VIntRange() override = default;
 

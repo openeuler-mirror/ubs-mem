@@ -1,6 +1,15 @@
 #include <gtest/gtest.h>
+#include <chrono>
+#include <future>
 #include "ubs_mem.h"
+#include "rack_mem_functions.h"
 #include "rack_mem_lib.h"
+#define private public
+#include "ipc_proxy.h"
+#undef private
+
+using namespace ock::common;
+using namespace ock::mxmd;
 
 TEST(RackMemLibCApiTest, InitAttributesNull)
 {
@@ -27,4 +36,75 @@ TEST(RackMemLibCApiTest, SetExternLoggerNull)
 {
     int ret = ubsmem_set_extern_logger(nullptr);
     EXPECT_EQ(ret, UBSM_ERR_PARAM_INVALID);
+}
+
+TEST(RackMemLibCApiTest, SuspendedControlOperationReturnsDedicatedError)
+{
+    const auto previousState = IpcProxy::state_;
+    IpcProxy::state_ = IpcSuspendState::SUSPENDED;
+    bool called = false;
+
+    const auto ret = IpcProxy::RunOperation([&called]() {
+        called = true;
+        return static_cast<uint32_t>(UBSM_OK);
+    });
+
+    IpcProxy::state_ = previousState;
+    EXPECT_EQ(ret, MXM_ERR_IPC_SUSPENDED);
+    EXPECT_EQ(GetErrCode(ret), UBSM_ERR_IPC_SUSPENDED);
+    EXPECT_FALSE(called);
+}
+
+TEST(RackMemLibCApiTest, TransitioningControlOperationReturnsBusy)
+{
+    const auto previousState = IpcProxy::state_;
+    IpcProxy::state_ = IpcSuspendState::SUSPENDING;
+
+    const auto ret = IpcProxy::RunOperation([]() { return static_cast<uint32_t>(UBSM_OK); });
+
+    IpcProxy::state_ = previousState;
+    EXPECT_EQ(ret, MXM_ERR_NAME_BUSY);
+    EXPECT_EQ(GetErrCode(ret), UBSM_ERR_BUSY);
+}
+
+TEST(RackMemLibCApiTest, SetOwnershipIsAllowedWhileIpcSuspended)
+{
+    const auto previousState = IpcProxy::state_;
+    IpcProxy::state_ = IpcSuspendState::SUSPENDED;
+
+    const auto ret = ubsmem_shmem_set_ownership(nullptr, nullptr, 0, 0);
+
+    IpcProxy::state_ = previousState;
+    EXPECT_EQ(ret, UBSM_ERR_PARAM_INVALID);
+}
+
+TEST(RackMemLibCApiTest, ControlOperationsCanRunConcurrently)
+{
+    const auto previousState = IpcProxy::state_;
+    IpcProxy::state_ = IpcSuspendState::RUNNING;
+    std::promise<void> firstStarted;
+    std::promise<void> releaseFirst;
+    auto releaseFuture = releaseFirst.get_future().share();
+
+    auto first = std::async(std::launch::async, [&]() {
+        return IpcProxy::RunOperation([&]() {
+            firstStarted.set_value();
+            releaseFuture.wait();
+            return static_cast<uint32_t>(UBSM_OK);
+        });
+    });
+    firstStarted.get_future().wait();
+    auto second = std::async(std::launch::async,
+                             []() { return IpcProxy::RunOperation([]() { return static_cast<uint32_t>(UBSM_OK); }); });
+
+    const auto secondStatus = second.wait_for(std::chrono::seconds(1));
+    releaseFirst.set_value();
+    EXPECT_EQ(first.get(), UBSM_OK);
+    EXPECT_EQ(second.get(), UBSM_OK);
+    EXPECT_EQ(secondStatus, std::future_status::ready);
+
+    const auto ret = IpcProxy::RunOperation([]() { return static_cast<uint32_t>(UBSM_OK); });
+
+    IpcProxy::state_ = previousState;
+    EXPECT_EQ(ret, UBSM_OK);
 }

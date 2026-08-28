@@ -49,7 +49,7 @@ protected:
 
 TEST_F(UbsmemShmemAllocateTest, NormalCase)
 {
-    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase * request, MsgBase * response))
+    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase *request, MsgBase *response))
         .stubs()
         .will(invoke(MxmShmIpcClientSendStub));
     MOCKER_CPP(&RackMemShm::UbsMemShmCreate,
@@ -63,7 +63,7 @@ TEST_F(UbsmemShmemAllocateTest, NormalCase)
 
 TEST_F(UbsmemShmemAllocateTest, NormalCaseIpcStub)
 {
-    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase * request, MsgBase * response))
+    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase *request, MsgBase *response))
         .stubs()
         .will(invoke(MxmShmIpcClientSendStub));
 
@@ -540,7 +540,7 @@ TEST_F(UbsmemCreateRegionTest, CreateRegion2)
 {
     MOCKER_CPP(&RackMemLib::StartRackMem, int (*)()).stubs().will(returnValue(0));
 
-    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase * request, MsgBase * response))
+    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t opCode, MsgBase *request, MsgBase *response))
         .stubs()
         .will(invoke(MxmShmIpcClientSendStub));
     EXPECT_EQ(UBSM_CHECK_RESOURCE_ERROR, ubsmem_create_region("name", valid_size, &valid_reg_attr));

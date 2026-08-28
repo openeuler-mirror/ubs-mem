@@ -2,7 +2,8 @@
 set -e
 
 set_ownership() {
-    chown -R ubsmd:ubsmd /usr/local/ubs_mem 2>/dev/null || true
+    chown -R ubsmd:ubsmd /usr/bin/ubsmd /usr/lib/ubs_mem /usr/lib/*/libubsm_sdk.so \
+        /etc/ubs_mem /usr/include/ubs_mem 2>/dev/null || true
 }
 
 create_log_directory() {

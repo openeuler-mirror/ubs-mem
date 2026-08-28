@@ -59,6 +59,9 @@ public:
     static int AppCheckShareMemoryMap(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo);
     static int LookupLocalSlotId(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo);
 
+    static int IpcSuspend(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo);
+    static int IpcResume(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo);
+
 private:
     static std::mutex &GetMutexByName(const std::string &name) noexcept;
     static std::array<std::mutex, MUTEX_HASH_SIZE> mutexArray;
