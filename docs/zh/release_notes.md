@@ -28,9 +28,9 @@
 | GCC-C++ | ≥ 10.3.1 |
 | C | C99以上 |
 | C++ | C++ 17 |
-| UBSE软件包：<br> ubs-engine-x.x.x-x.aarch64 | - |
-| HCOM软件包：<br> &#8226; ubs-comm-lib-x.x.x-x.x.aarch64.rpm <br> &#8226; ubs-comm-devel-x.x.x-x.x.aarch64.rpm | - |
-| 共享内存的锁功能依赖软件包（可选）：<br>&#8226; umdk-dlock-devel.aarch64 <br> &#8226; umdk-dlock-devel.aarch64 | - |
+| UBSE软件包：<br> &#8226; ubs-engine <br> &#8226; ubs-engine-client-libs | ≥ 1.0.0 |
+| HCOM软件包：<br> &#8226; ubs-comm-lib <br> &#8226; ubs-comm-devel | ≥ 1.0.0 |
+| 共享内存的锁功能依赖软件包（可选）：<br>&#8226; umdk-dlock-lib <br> &#8226; umdk-dlock-devel | ≥ 25.12.0 |
 
 ## 版本兼容性说明
 

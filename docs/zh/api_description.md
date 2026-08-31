@@ -522,7 +522,7 @@ int ubsmem_lookup_cluster_statistic(ubsmem_cluster_info_t* info);
 #define MAX_HOST_NAME_DESC_LENGTH 64
 
 typedef struct {
-  uint32_t slot_id;    // 节点唯一标识，采用slot id，与UBS Eengine一致
+  uint32_t slot_id;    // 节点唯一标识，采用slot id，与UBS Engine一致
   uint32_t socket_id;
   uint32_t numa_id;    
   uint32_t mem_lend_ratio;  // 池化内存借出比例上限
@@ -855,7 +855,7 @@ int ubs_mem_initialize_demo()
     /* finalize ubs-mem library. */
     ret = ubsmem_finalize();
     if (ret != UBSM_OK) {
-        std::cerr << "Failed to finalize  ubs-mem. ret: " << ret << std::endl;
+        std::cerr << "Failed to finalize ubs-mem. ret: " << ret << std::endl;
         return -1;
     }
     return 0;
