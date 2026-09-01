@@ -94,7 +94,7 @@ RPM 包输出至 `build/rpm`。
 └── build.sh  // 统一的构建入口
 ```
 
-### 开发者测试
+## 开发者测试
 
 运行单元测试前需要安装 `git`、`patch`、`libasan`、`openssl` 和 `openssl-devel`：
 
@@ -135,14 +135,14 @@ sh run_dt.sh --jobs 8
     `UBSM_FLAG_CACHE` 模式下创建、映射、读写和释放 128MB 共享内存的完整样例请参见
     [example/README.md](example/README.md)。
 
-### License
+## License
 
 ubs-mem 采用 Mulan V2 License.
 
-### 贡献指南
+## 贡献指南
 
 请阅读[贡献指南](CONTRIBUTING.md)以了解如何贡献项目。
 
-### 说明
+## 说明
 
 此开源项目非华为产品，仅提供有限支持。
