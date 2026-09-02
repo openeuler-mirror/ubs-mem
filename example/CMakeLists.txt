@@ -12,6 +12,10 @@ if(NOT UBSM_INCLUDE_DIR OR NOT UBSM_LIBRARY)
     message(FATAL_ERROR "UBS Memory SDK not found; set UBSM_ROOT to its installation prefix")
 endif()
 
-add_executable(cache_shmem_example cache_shmem_example.cpp)
-target_include_directories(cache_shmem_example PRIVATE ${UBSM_INCLUDE_DIR})
-target_link_libraries(cache_shmem_example PRIVATE ${UBSM_LIBRARY})
+add_executable(01_cache_shmem 01_cache_shmem.cpp)
+target_include_directories(01_cache_shmem PRIVATE ${UBSM_INCLUDE_DIR})
+target_link_libraries(01_cache_shmem PRIVATE ${UBSM_LIBRARY})
+
+add_executable(02_contiguous_shmem 02_contiguous_shmem.cpp)
+target_include_directories(02_contiguous_shmem PRIVATE ${UBSM_INCLUDE_DIR})
+target_link_libraries(02_contiguous_shmem PRIVATE ${UBSM_LIBRARY})
