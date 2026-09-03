@@ -1,6 +1,6 @@
 # ubs-mem
 
-<p align="center">
+<p>
   English | <a href="./README.md">简体中文</a>
 </p>
 
