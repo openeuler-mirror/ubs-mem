@@ -35,9 +35,9 @@ void OckTrimString(std::string &str)
 
 std::string OckGetHostname()
 {
-    struct utsname buf;
+    struct utsname buf = {};
     if (uname(&buf) != 0) {
-        *buf.nodename = '\0';
+        buf.nodename[0] = '\0';
     }
 
     return buf.nodename;
