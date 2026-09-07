@@ -877,6 +877,10 @@ int32_t UbseMemAdapter::CheckAndCopyRegionStatus(SHMRegions &staticRegions, SHMR
     int regionsCnt = 0;
     for (int i = 0; i < staticRegions.num; ++i) {
         const auto &region = staticRegions.region[i];
+        if (region.num > MEM_TOPOLOGY_MAX_HOSTS) {
+            DBG_LOGERROR("Region num=" << region.num << " exceeds maximum=" << MEM_TOPOLOGY_MAX_HOSTS);
+            return MXM_ERR_PARAM_INVALID;
+        }
         int nodeCnt = 0;
         activeRegion.region[regionsCnt].type = region.type;
         activeRegion.region[regionsCnt].perfLevel = region.perfLevel;
