@@ -326,7 +326,7 @@ int ubsmem_shmem_allocate(const char *region_name, const char *name, size_t size
 |--|--|--|--|
 |region_name|const char *|入参|内存域名称（默认域为“default”，包含与当前节点全互联的节点）。|
 |name|const char *|入参|共享内存名称。全局唯一标识，最大有效长度为47字符（不包括“\0”），仅允许使用大小写字母、数字、“.”、“:”、“-”和“_”。|
-|size|size_t|入参|共享内存size，最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse/ubse_configration_instructions.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
+|size|size_t|入参|共享内存size，最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse_configration_instructions.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
 |mode|mode_t|入参|访问权限，Unix文件权限位的 *rwx* 权限控制（ *x* 权限暂不支持，请忽略）。用于控制不同用户对该共享内存的访问权限，若无权限则映射失败。建议值： `S_IRUSR \| S_IWUSR` （即仅创建该共享内存的用户可以访问该共享内存）。|
 |flags|uint64_t|入参|创建共享内存的标志信息。flag有效比特位含义请参见[表1 共享内存的flags](#table005)，各有效比特位组合关系参见[表2 共享内存的flags可组合关系](#table006)。|
 
@@ -377,7 +377,7 @@ int ubsmem_shmem_allocate_with_provider(const ubs_mem_provider_t *src_loc, const
 |--|--|--|--|
 |src_loc|const ubs_mem_provider_t *|入参|指定内存创建的节点信息，包括：<ul><li>host_name：节点名称，必填。</li><li>socket_id：指定内存导出的socket id，选填（UINT32_MAX）。</li><li>numa_id：指定内存导出的numa id，选填（UINT32_MAX）。</li><li>port_id：指定内存导出的port id，选填（UINT32_MAX）。</li></ul>|
 |name|const char *|入参|共享内存名称。全局唯一标识，最大有效长度为47字符（不包括“\0”），仅允许使用大小写字母、数字、“.”、“:”、“-”和“_”。|
-|size|size_t|入参|共享内存size，最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse/ubse_configration_instructions.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
+|size|size_t|入参|共享内存size，最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse_configration_instructions.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
 |mode|mode_t|入参|访问权限，Unix文件权限位的 *rwx* 权限控制（ *x* 权限暂不支持，忽略）。|
 |flags|uint64_t|入参|创建共享内存的标志信息。flag有效比特位含义请参见[表1 共享内存的flags](#table005)，各有效比特位组合关系参见[表2 共享内存的flags可组合关系](#table006)。|
 
@@ -544,7 +544,7 @@ typedef struct {
 订阅共享内存故障事件，当共享内存发生故障时，会调用注册的事件通知函数。
 
 >[!NOTE]说明
->用户在调用该接口前，需加入ubse属组，并具备ubse的mem.shm类接口权限，具体配置请参见[UBSE 配置说明](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse/ubse_configration_instructions.md)文档。
+>用户在调用该接口前，需加入ubse属组，并具备ubse的mem.shm类接口权限，具体配置请参见[UBSE 配置说明](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse_configration_instructions.md)文档。
 
 **接口格式**
 
@@ -572,7 +572,7 @@ int ubsmem_shmem_faults_register(shmem_faults_func registerFunc);
 查询该节点在超节点域中的节点ID。
 
 >[!NOTE]说明
->用户在调用该接口前，需加入ubse属组，并具备ubse的topo类接口权限，具体配置请参见[UBSE 配置说明](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse/ubse_configration_instructions.md)文档。
+>用户在调用该接口前，需加入ubse属组，并具备ubse的topo类接口权限，具体配置请参见[UBSE 配置说明](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse_configration_instructions.md)文档。
 
 **接口格式**
 
@@ -701,7 +701,7 @@ int ubsmem_lease_malloc(const char *region_name, size_t size, ubsmem_distance_t 
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
 |region_name|const char *|入参|内存域名称（默认域为“default”，包含与当前节点全互联的节点）。节点内唯一标识，最大有效长度为47字符（不包括“\0”），仅允许使用大小写字母、数字、“-”和“_”。|
-|size|size_t|入参|申请的内存size。最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse/ubse_configration_instructions.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
+|size|size_t|入参|申请的内存size。最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse_configration_instructions.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
 |mem_distance|ubsmem_distance_t|入参|节点连接模式，当前仅支持直连借用，即 `DISTANCE_DIRECT_NODE` 取值为0。|
 |flags|uint64_t|入参|借用的标志信息。如果为0，默认进行FD借用。当前支持以下flags：<ul><li>UBSM_FLAG_MMAP_HUGETLB_PMD：表示以2MB大页粒度进行映射。</li><li>UBSM_FLAG_MALLOC_WITH_NUMA：表示借用以远端NUMA呈现。与UBSM_FLAG_MMAP_HUGETLB_PMD不可同时指定，设置该flag借用最小值为128MB。</li></ul>|
 |local_ptr|void **|出参|申请后得到的本地地址。|
@@ -730,7 +730,7 @@ int ubsmem_lease_malloc_with_location(const ubs_mem_location_t *src_loc, size_t 
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
 |src_loc|const ubs_mem_location_t *|入参|指定借出内存节点的信息，包括slot_id、socket_id、numa_id和port_id。|
-|size|size_t|入参|申请的内存size。最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse/ubse_configration_instructions.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
+|size|size_t|入参|申请的内存size。最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse_configration_instructions.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
 |flags|uint64_t|入参|借用的标志信息。如果为0，默认进行FD借用。当前支持以下flags：<ul><li>UBSM_FLAG_MMAP_HUGETLB_PMD：表示以2MB大页粒度进行映射。</li><li>UBSM_FLAG_MALLOC_WITH_NUMA：表示借用以远端NUMA呈现。与UBSM_FLAG_MMAP_HUGETLB_PMD不可同时指定，设置该flag借用最小值为128MB。</li></ul>|
 |local_ptr|void **|出参|申请后得到的本地地址。|
 
