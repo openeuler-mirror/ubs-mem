@@ -12,13 +12,13 @@
 #ifndef OCK_COMMON_CONFIGURATION_CONVERTER_H
 #define OCK_COMMON_CONFIGURATION_CONVERTER_H
 
-#include <string>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <iostream>
-#include <sys/stat.h>
-#include "ref.h"
+#include <string>
 #include "functions.h"
 #include "log_adapter.h"
+#include "ref.h"
 
 namespace ock {
 namespace common {
@@ -27,7 +27,7 @@ class Converter : public Referable {
 public:
     ~Converter() override = default;
 
-    virtual std::string Convert(const std::string& str)
+    virtual std::string Convert(const std::string &str)
     {
         return str;
     }
@@ -43,11 +43,11 @@ public:
     }
     ConLogLevel() = default;
     ~ConLogLevel() override = default;
-    std::string Convert(const std::string& str) override
+    std::string Convert(const std::string &str) override
     {
         return std::to_string(LogAdapter::StringToLogLevel(str));
     }
 };
-}
-}
+} // namespace common
+} // namespace ock
 #endif

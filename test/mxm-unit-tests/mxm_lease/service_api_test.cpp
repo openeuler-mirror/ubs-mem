@@ -3,11 +3,10 @@
  */
 
 #include "service_api_test.h"
-#include "mem_lease_service.h"
 #include "app_ipc_stub.h"
+#include "mem_lease_service.h"
 #include "mxm_ipc_server_interface.h"
 #include "mxm_rpc_server_interface.h"
-#include "mxm_ipc_server_interface.h"
 #include "region_manager.h"
 
 namespace UT {
@@ -76,4 +75,4 @@ TEST_F(ServiceApiTestSuite, ServiceApiTest)
     EXPECT_EQ(ret, 0);
     Destroy(service);
 }
-}
+} // namespace UT

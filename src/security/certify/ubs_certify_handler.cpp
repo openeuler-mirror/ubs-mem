@@ -12,12 +12,12 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <atomic>
+#include "ubs_certify_handler.h"
 #include <pthread.h>
-#include "ubs_common_config.h"
+#include <atomic>
 #include "log.h"
 #include "openssl_dl.h"
-#include "ubs_certify_handler.h"
+#include "ubs_common_config.h"
 
 namespace ock::ubsm {
 
@@ -25,9 +25,9 @@ static pthread_t g_verifyTaskId;
 static pthread_mutex_t g_verifyMutex;
 static pthread_cond_t g_verifyCond;
 static std::atomic_bool g_verifyThreadRunning(false);
-const char* VERIFY_TASK_NAME = "ubsm_cert_verify_task";
-const char* CA_FILE_NAME = "Ubsm CA Cert";
-const char* CERT_FILE_NAME = "Ubsm Server Cert";
+const char *VERIFY_TASK_NAME = "ubsm_cert_verify_task";
+const char *CA_FILE_NAME = "Ubsm CA Cert";
+const char *CERT_FILE_NAME = "Ubsm Server Cert";
 #ifndef DEBUG_MEM_UT
 const int64_t CERT_VERIFY_PERIOD_SECONDS = 24 * 3600;
 #else
@@ -40,14 +40,12 @@ static int32_t DoVerify(void)
     int32_t ret = 0;
     if (UbsCommonConfig::GetInstance().GetCrlPath().empty()) {
         ret = VerifyCertificate(UbsCommonConfig::GetInstance().GetCaPath().c_str(),
-            UbsCommonConfig::GetInstance().GetCertPath().c_str(),
-            nullptr,
-            CA_FILE_NAME, CERT_FILE_NAME, CERT_EXPIRE_THRESHOLD);
+                                UbsCommonConfig::GetInstance().GetCertPath().c_str(), nullptr, CA_FILE_NAME,
+                                CERT_FILE_NAME, CERT_EXPIRE_THRESHOLD);
     } else {
-        ret = VerifyCertificate(UbsCommonConfig::GetInstance().GetCaPath().c_str(),
-            UbsCommonConfig::GetInstance().GetCertPath().c_str(),
-            UbsCommonConfig::GetInstance().GetCrlPath().c_str(),
-            CA_FILE_NAME, CERT_FILE_NAME, CERT_EXPIRE_THRESHOLD);
+        ret = VerifyCertificate(
+            UbsCommonConfig::GetInstance().GetCaPath().c_str(), UbsCommonConfig::GetInstance().GetCertPath().c_str(),
+            UbsCommonConfig::GetInstance().GetCrlPath().c_str(), CA_FILE_NAME, CERT_FILE_NAME, CERT_EXPIRE_THRESHOLD);
     }
     if (ret != 0) {
         DBG_LOGERROR("Schedule VerifyCertificate failed");
@@ -121,4 +119,4 @@ void UbsCertifyHandler::StopScheduledCertVerify()
     CleanupOpensslDl();
 }
 
-}
+} // namespace ock::ubsm

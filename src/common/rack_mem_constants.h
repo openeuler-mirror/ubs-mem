@@ -13,20 +13,20 @@
 #ifndef RACK_MEMORYFABRIC_CONSTANTS_H
 #define RACK_MEMORYFABRIC_CONSTANTS_H
 
+#include <regex.h>
+#include <securec.h>
+#include <sys/types.h>
+#include <sys/utsname.h>
+#include <unistd.h>
 #include <climits>
 #include <cmath>
 #include <cstring>
 #include <fstream>
-#include <regex.h>
+#include <list>
+#include <random>
 #include <set>
 #include <string>
-#include <random>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/utsname.h>
 #include <vector>
-#include <list>
-#include <securec.h>
 
 #define INVALID_MEM_ID 0
 
@@ -48,5 +48,5 @@ constexpr int16_t NO_1000 = 1000;
 constexpr int16_t NO_1024 = 1024;
 constexpr int16_t NO_2048 = 2048;
 constexpr int32_t NO_60000 = 60000;
-}  // namespace ock::mxmd
+} // namespace ock::mxmd
 #endif

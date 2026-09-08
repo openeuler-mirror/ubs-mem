@@ -9,28 +9,28 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include "rpc_handler.h"
+#include <securec.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <securec.h>
+#include "dlock_utils/ubsm_lock.h"
 #include "rack_mem_functions.h"
 #include "rpc_config.h"
 #include "zen_discovery.h"
-#include "dlock_utils/ubsm_lock.h"
-#include "rpc_handler.h"
 
 namespace ock::rpc::service {
 using namespace ock::mxmd;
 using namespace ock::rpc;
 using namespace ock::common;
 
-int MxmServerMsgHandle::QueryNodeInfo(const MsgBase* req, MsgBase* rsp)
+int MxmServerMsgHandle::QueryNodeInfo(const MsgBase *req, MsgBase *rsp)
 {
     if (req == nullptr || rsp == nullptr) {
         DBG_LOGERROR("invalid param.");
         return MXM_ERR_NULLPTR;
     }
-    auto request = dynamic_cast<const CommonRequest*>(req);
-    auto response = dynamic_cast<RpcQueryInfoResponse*>(rsp);
+    auto request = dynamic_cast<const CommonRequest *>(req);
+    auto response = dynamic_cast<RpcQueryInfoResponse *>(rsp);
     if (request == nullptr || response == nullptr) {
         DBG_LOGERROR("invalid param.");
         return MXM_ERR_NULLPTR;
@@ -42,19 +42,19 @@ int MxmServerMsgHandle::QueryNodeInfo(const MsgBase* req, MsgBase* rsp)
     return MXM_OK;
 }
 
-int MxmServerMsgHandle::DLockClientReinit(const MsgBase* req, MsgBase* rsp)
+int MxmServerMsgHandle::DLockClientReinit(const MsgBase *req, MsgBase *rsp)
 {
     if (req == nullptr || rsp == nullptr) {
         DBG_LOGERROR("RPC_DLockClientReinit: invalid param.");
         return MXM_ERR_NULLPTR;
     }
-    auto request = dynamic_cast<const DLockClientReinitRequest*>(req);
-    auto response = dynamic_cast<DLockClientReinitResponse*>(rsp);
+    auto request = dynamic_cast<const DLockClientReinitRequest *>(req);
+    auto response = dynamic_cast<DLockClientReinitResponse *>(rsp);
     if (request == nullptr || response == nullptr) {
         DBG_LOGERROR("RPC_DLockClientReinit: invalid param.");
         return MXM_ERR_NULLPTR;
     }
-    auto& cfg = dlock_utils::DLockContext::Instance().GetConfig();
+    auto &cfg = dlock_utils::DLockContext::Instance().GetConfig();
     cfg.serverIp = request->serverIp_;
     auto ret = dlock_utils::UbsmLock::Instance().Reinit();
     if (ret != 0) {
@@ -70,14 +70,14 @@ int MxmServerMsgHandle::DLockClientReinit(const MsgBase* req, MsgBase* rsp)
     return UBSM_OK;
 }
 
-int MxmServerMsgHandle::HandleMemLock(const MsgBase* req, MsgBase* rsp)
+int MxmServerMsgHandle::HandleMemLock(const MsgBase *req, MsgBase *rsp)
 {
     if (req == nullptr || rsp == nullptr) {
         DBG_LOGERROR("RPC_GetDLockInitInfo: invalid param.");
         return MXM_ERR_NULLPTR;
     }
-    auto request = dynamic_cast<const LockRequest*>(req);
-    auto response = dynamic_cast<DLockResponse*>(rsp);
+    auto request = dynamic_cast<const LockRequest *>(req);
+    auto response = dynamic_cast<DLockResponse *>(rsp);
     if (request == nullptr || response == nullptr) {
         DBG_LOGERROR("RPC_DLockClientReinit: invalid param.");
         return MXM_ERR_NULLPTR;
@@ -95,14 +95,14 @@ int MxmServerMsgHandle::HandleMemLock(const MsgBase* req, MsgBase* rsp)
     return UBSM_OK;
 }
 
-int MxmServerMsgHandle::HandleMemUnLock(const MsgBase* req, MsgBase* rsp)
+int MxmServerMsgHandle::HandleMemUnLock(const MsgBase *req, MsgBase *rsp)
 {
     if (req == nullptr || rsp == nullptr) {
         DBG_LOGERROR("RPC_GetDLockInitInfo: invalid param.");
         return MXM_ERR_NULLPTR;
     }
-    auto request = dynamic_cast<const UnLockRequest*>(req);
-    auto response = dynamic_cast<DLockResponse*>(rsp);
+    auto request = dynamic_cast<const UnLockRequest *>(req);
+    auto response = dynamic_cast<DLockResponse *>(rsp);
     if (request == nullptr || response == nullptr) {
         DBG_LOGERROR("RPC_DLockClientReinit: invalid param.");
         return MXM_ERR_NULLPTR;
@@ -117,27 +117,27 @@ int MxmServerMsgHandle::HandleMemUnLock(const MsgBase* req, MsgBase* rsp)
     return UBSM_OK;
 }
 
-int MxmServerMsgHandle::PingRequestInfo(const MsgBase* req, MsgBase* rsp)
+int MxmServerMsgHandle::PingRequestInfo(const MsgBase *req, MsgBase *rsp)
 {
     if (req == nullptr || rsp == nullptr) {
         DBG_LOGERROR("invalid param.");
         return MXM_ERR_NULLPTR;
     }
 
-    const PingRequest* request = dynamic_cast<const PingRequest*>(req);
+    const PingRequest *request = dynamic_cast<const PingRequest *>(req);
     if (request == nullptr) {
         DBG_LOGERROR("invalid request type.");
         return MXM_ERR_NULLPTR;
     }
 
-    ock::zendiscovery::ZenDiscovery* zenDiscovery = ock::zendiscovery::ZenDiscovery::GetInstance();
+    ock::zendiscovery::ZenDiscovery *zenDiscovery = ock::zendiscovery::ZenDiscovery::GetInstance();
     if (zenDiscovery == nullptr) {
         DBG_LOGERROR("zenDiscovery is nullptr");
         return MXM_ERR_NULLPTR;
     }
     zenDiscovery->HandlePingRequest(request->nodeId_);
 
-    auto response = dynamic_cast<RpcQueryInfoResponse*>(rsp);
+    auto response = dynamic_cast<RpcQueryInfoResponse *>(rsp);
     if (response == nullptr) {
         DBG_LOGERROR("invalid response type.");
         return MXM_ERR_NULLPTR;
@@ -148,20 +148,20 @@ int MxmServerMsgHandle::PingRequestInfo(const MsgBase* req, MsgBase* rsp)
     return 0;
 }
 
-int MxmServerMsgHandle::JoinRequestInfo(const MsgBase* req, MsgBase* rsp)
+int MxmServerMsgHandle::JoinRequestInfo(const MsgBase *req, MsgBase *rsp)
 {
     if (req == nullptr || rsp == nullptr) {
         DBG_LOGERROR("invalid param.");
         return MXM_ERR_NULLPTR;
     }
 
-    const PingRequest* request = dynamic_cast<const PingRequest*>(req);
+    const PingRequest *request = dynamic_cast<const PingRequest *>(req);
     if (request == nullptr) {
         DBG_LOGERROR("invalid request type.");
         return MXM_ERR_NULLPTR;
     }
 
-    ock::zendiscovery::ZenDiscovery* zenDiscovery = ock::zendiscovery::ZenDiscovery::GetInstance();
+    ock::zendiscovery::ZenDiscovery *zenDiscovery = ock::zendiscovery::ZenDiscovery::GetInstance();
     if (zenDiscovery == nullptr) {
         DBG_LOGERROR("zenDiscovery is nullptr");
         return MXM_ERR_NULLPTR;
@@ -169,7 +169,7 @@ int MxmServerMsgHandle::JoinRequestInfo(const MsgBase* req, MsgBase* rsp)
 
     zenDiscovery->HandleJoinRequest(request->nodeId_);
 
-    auto response = dynamic_cast<RpcJoinInfoResponse*>(rsp);
+    auto response = dynamic_cast<RpcJoinInfoResponse *>(rsp);
     if (response == nullptr) {
         DBG_LOGERROR("invalid response type.");
         return MXM_ERR_NULLPTR;
@@ -181,20 +181,20 @@ int MxmServerMsgHandle::JoinRequestInfo(const MsgBase* req, MsgBase* rsp)
     return 0;
 }
 
-int MxmServerMsgHandle::VoteRequestInfo(const MsgBase* req, MsgBase* rsp)
+int MxmServerMsgHandle::VoteRequestInfo(const MsgBase *req, MsgBase *rsp)
 {
     if (req == nullptr || rsp == nullptr) {
         DBG_LOGERROR("invalid param.");
         return MXM_ERR_NULLPTR;
     }
 
-    ock::zendiscovery::ZenDiscovery* zenDiscovery = ock::zendiscovery::ZenDiscovery::GetInstance();
+    ock::zendiscovery::ZenDiscovery *zenDiscovery = ock::zendiscovery::ZenDiscovery::GetInstance();
     if (zenDiscovery == nullptr) {
         DBG_LOGERROR("zenDiscovery is nullptr");
         return MXM_ERR_NULLPTR;
     }
 
-    const VoteRequest* request = dynamic_cast<const VoteRequest*>(req);
+    const VoteRequest *request = dynamic_cast<const VoteRequest *>(req);
     if (request == nullptr) {
         DBG_LOGERROR("invalid request type.");
         return MXM_ERR_NULLPTR;
@@ -202,7 +202,7 @@ int MxmServerMsgHandle::VoteRequestInfo(const MsgBase* req, MsgBase* rsp)
 
     bool granted = zenDiscovery->HandleVoteRequest(request->nodeId_, request->masterNode_, request->term_);
 
-    auto response = dynamic_cast<RpcVoteInfoResponse*>(rsp);
+    auto response = dynamic_cast<RpcVoteInfoResponse *>(rsp);
     if (response == nullptr) {
         DBG_LOGERROR("invalid response type.");
         return MXM_ERR_NULLPTR;
@@ -214,20 +214,20 @@ int MxmServerMsgHandle::VoteRequestInfo(const MsgBase* req, MsgBase* rsp)
     return 0;
 }
 
-int MxmServerMsgHandle::SendTransElectedInfo(const MsgBase* req, MsgBase* rsp)
+int MxmServerMsgHandle::SendTransElectedInfo(const MsgBase *req, MsgBase *rsp)
 {
     if (req == nullptr || rsp == nullptr) {
         DBG_LOGERROR("invalid param.");
         return MXM_ERR_NULLPTR;
     }
 
-    ock::zendiscovery::ZenDiscovery* zenDiscovery = ock::zendiscovery::ZenDiscovery::GetInstance();
+    ock::zendiscovery::ZenDiscovery *zenDiscovery = ock::zendiscovery::ZenDiscovery::GetInstance();
     if (zenDiscovery == nullptr) {
         DBG_LOGERROR("zenDiscovery is nullptr");
         return MXM_ERR_NULLPTR;
     }
 
-    const TransElectedRequest* request = dynamic_cast<const TransElectedRequest*>(req);
+    const TransElectedRequest *request = dynamic_cast<const TransElectedRequest *>(req);
     if (request == nullptr) {
         DBG_LOGERROR("invalid request type.");
         return MXM_ERR_NULLPTR;
@@ -235,7 +235,7 @@ int MxmServerMsgHandle::SendTransElectedInfo(const MsgBase* req, MsgBase* rsp)
 
     zenDiscovery->HandleSendTransElected(request->nodeId_, request->nodes_, request->term_);
 
-    auto response = dynamic_cast<RpcQueryInfoResponse*>(rsp);
+    auto response = dynamic_cast<RpcQueryInfoResponse *>(rsp);
     if (response == nullptr) {
         DBG_LOGERROR("invalid response type.");
         return MXM_ERR_NULLPTR;
@@ -247,26 +247,26 @@ int MxmServerMsgHandle::SendTransElectedInfo(const MsgBase* req, MsgBase* rsp)
     return 0;
 }
 
-int MxmServerMsgHandle::MasterElectedInfo(const MsgBase* req, MsgBase* rsp)
+int MxmServerMsgHandle::MasterElectedInfo(const MsgBase *req, MsgBase *rsp)
 {
     if (req == nullptr || rsp == nullptr) {
         DBG_LOGERROR("invalid param.");
         return MXM_ERR_NULLPTR;
     }
 
-    ock::zendiscovery::ZenDiscovery* zenDiscovery = ock::zendiscovery::ZenDiscovery::GetInstance();
+    ock::zendiscovery::ZenDiscovery *zenDiscovery = ock::zendiscovery::ZenDiscovery::GetInstance();
     if (zenDiscovery == nullptr) {
         DBG_LOGERROR("zenDiscovery is nullptr");
         return MXM_ERR_NULLPTR;
     }
 
-    const VoteRequest* request = dynamic_cast<const VoteRequest*>(req);
+    const VoteRequest *request = dynamic_cast<const VoteRequest *>(req);
     if (request == nullptr) {
         DBG_LOGERROR("invalid request type.");
         return MXM_ERR_NULLPTR;
     }
 
-    auto response = dynamic_cast<RpcQueryInfoResponse*>(rsp);
+    auto response = dynamic_cast<RpcQueryInfoResponse *>(rsp);
     if (response == nullptr) {
         DBG_LOGERROR("invalid response type.");
         return MXM_ERR_NULLPTR;
@@ -278,27 +278,27 @@ int MxmServerMsgHandle::MasterElectedInfo(const MsgBase* req, MsgBase* rsp)
     return 0;
 }
 
-int MxmServerMsgHandle::BroadCastRequestInfo(const MsgBase* req, MsgBase* rsp)
+int MxmServerMsgHandle::BroadCastRequestInfo(const MsgBase *req, MsgBase *rsp)
 {
     if (req == nullptr || rsp == nullptr) {
         DBG_LOGERROR("invalid param.");
         return MXM_ERR_NULLPTR;
     }
 
-    ock::zendiscovery::ZenDiscovery* zenDiscovery = ock::zendiscovery::ZenDiscovery::GetInstance();
+    ock::zendiscovery::ZenDiscovery *zenDiscovery = ock::zendiscovery::ZenDiscovery::GetInstance();
     if (zenDiscovery == nullptr) {
         DBG_LOGERROR("zenDiscovery is nullptr");
         return MXM_ERR_NULLPTR;
     }
 
-    const BroadcastRequest* request = dynamic_cast<const BroadcastRequest*>(req);
+    const BroadcastRequest *request = dynamic_cast<const BroadcastRequest *>(req);
     if (request == nullptr) {
         DBG_LOGERROR("invalid request type.");
         return MXM_ERR_NULLPTR;
     }
     zenDiscovery->HandleBroadCastRequest(request->nodeId_, request->nodes_, request->isSeverInited_);
 
-    auto response = dynamic_cast<RpcQueryInfoResponse*>(rsp);
+    auto response = dynamic_cast<RpcQueryInfoResponse *>(rsp);
     if (response == nullptr) {
         DBG_LOGERROR("invalid response type.");
         return MXM_ERR_NULLPTR;
@@ -310,4 +310,4 @@ int MxmServerMsgHandle::BroadCastRequestInfo(const MsgBase* req, MsgBase* rsp)
     return 0;
 }
 
-}
+} // namespace ock::rpc::service

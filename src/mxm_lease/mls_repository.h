@@ -20,7 +20,7 @@ namespace ock::lease::service {
 
 class MLSRepository {
 public:
-    static MLSRepository& GetInstance()
+    static MLSRepository &GetInstance()
     {
         static MLSRepository instance;
         return instance;
@@ -37,11 +37,11 @@ public:
 
 private:
     MLSRepository() = default;
-    MLSRepository(const MLSRepository& other) = delete;
-    MLSRepository(MLSRepository&& other) = delete;
-    MLSRepository& operator=(const MLSRepository& other) = delete;
-    MLSRepository& operator=(MLSRepository&& other) noexcept = delete;
+    MLSRepository(const MLSRepository &other) = delete;
+    MLSRepository(MLSRepository &&other) = delete;
+    MLSRepository &operator=(const MLSRepository &other) = delete;
+    MLSRepository &operator=(MLSRepository &&other) noexcept = delete;
 };
 
-}
+} // namespace ock::lease::service
 #endif

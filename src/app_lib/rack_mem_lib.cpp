@@ -10,16 +10,19 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <iostream>
-#include "ipc_proxy.h"
-#include "ubsm_ptracer.h"
-#include "rack_mem_functions.h"
-#include "RmLibObmmExecutor.h"
-#include "mx_def.h"
-#include "ubs_mem.h"
-#include "dg_out_logger.h"
-#include "ShmMetaDataMgr.h"
 #include "rack_mem_lib.h"
+
+#include <algorithm>
+#include <iostream>
+
+#include "ubs_mem.h"
+#include "RmLibObmmExecutor.h"
+#include "ShmMetaDataMgr.h"
+#include "ipc_proxy.h"
+#include "log.h"
+#include "mx_def.h"
+#include "rack_mem_functions.h"
+#include "ubsm_ptracer.h"
 
 void __attribute__((constructor)) InitRackMemLib()
 {
@@ -36,7 +39,7 @@ static const auto UBSM_SDK_TRACE_ENABLE = "UBSM_SDK_TRACE_ENABLE";
 void RackMemLib::InitModules()
 {
     pModules = {{"IPC", [this] { return InitIpc(); }, [this] { return ShutdownIpc(); }, false},
-                {"shmShmMetaMgr", [] { return InitShmMetaMgr(); }, [this] {return HOK; }, false},
+                {"shmShmMetaMgr", [] { return InitShmMetaMgr(); }, [this] { return HOK; }, false},
                 {"MemPerfStat", [this] { return InitHtrace(); }, [this] { return ExitHtrace(); }, false},
                 {"Obmm", [this] { return RmLibObmmExecutor::GetInstance().Initialize(); },
                  [this] { return RmLibObmmExecutor::GetInstance().Exit(); }, false}};
@@ -49,8 +52,20 @@ uint32_t RackMemLib::Initialize()
         DBG_LOGINFO("The rack_mem has been initialized");
         return UBSM_OK;
     }
+    for (int index = static_cast<int>(pModules.size()) - 1; index >= 0; index--) {
+        RackMemModule &desc = pModules.at(index);
+        if (!desc.isInitialized || desc.shutdown == nullptr) {
+            continue;
+        }
+        auto ret = desc.shutdown();
+        if (BresultFail(ret)) {
+            DBG_LOGERROR("Failed to finish pending shutdown for module " << desc.name << ", ret=" << ret);
+            return MXM_ERR_MEMLIB;
+        }
+        desc.isInitialized = false;
+    }
     InitModules();
-    for (auto& desc : pModules) {
+    for (auto &desc : pModules) {
         if (desc.init == nullptr) {
             return MXM_ERR_MEMLIB;
         }
@@ -68,21 +83,49 @@ uint32_t RackMemLib::Initialize()
     return UBSM_OK;
 }
 
-void RackMemLib::Destroy()
+uint32_t RackMemLib::Destroy()
 {
     std::lock_guard<std::mutex> lockGuard(lock);
+    const auto anyInitialized =
+        std::any_of(pModules.begin(), pModules.end(), [](const RackMemModule &module) { return module.isInitialized; });
+    if (!inited && !anyInitialized) {
+        return UBSM_OK;
+    }
+    uint32_t result = UBSM_OK;
+    if (inited) {
+        auto ret = IpcProxy::Resume();
+        if (ret != UBSM_OK) {
+            DBG_LOGERROR("Failed to resume IPC before finalizing, continue cleanup, ret=" << ret);
+            result = ret;
+        }
+    }
+
     for (int index = static_cast<int>(pModules.size()) - 1; index >= 0; index--) {
-        RackMemModule& desc = pModules.at(index);
+        RackMemModule &desc = pModules.at(index);
         if (!desc.isInitialized || desc.shutdown == nullptr) {
             continue;
         }
         auto hr = desc.shutdown();
         if (BresultFail(hr)) {
             DBG_LOGERROR("Module " << desc.name << " module shutdown failure");
+            result = hr;
+            continue;
         }
         desc.isInitialized = false;
     }
     inited = false;
+    ubsmem::log::UbsmemLoggerManager::Destroy();
+    return result;
+}
+
+uint32_t RackMemLib::SuspendIpc()
+{
+    return IpcProxy::Suspend();
+}
+
+uint32_t RackMemLib::ResumeIpc()
+{
+    return IpcProxy::Resume();
 }
 
 uint32_t RackMemLib::InitHtrace() const
@@ -119,16 +162,15 @@ uint32_t RackMemLib::InitShmMetaMgr()
 uint32_t RackMemLib::ShutdownIpc()
 {
     DBG_LOGINFO("Start to shutdown ipc");
-    IpcProxy::Destroy();
-    return UBSM_OK;
+    return IpcProxy::Destroy();
 }
-}  // namespace ock::mxmd
+} // namespace ock::mxmd
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int ubsmem_init_attributes(ubsmem_options_t* ubsm_shmem_opts)
+int ubsmem_init_attributes(ubsmem_options_t *ubsm_shmem_opts)
 {
     if (ubsm_shmem_opts == NULL) {
         DBG_LOGERROR("param is null.");
@@ -137,7 +179,7 @@ int ubsmem_init_attributes(ubsmem_options_t* ubsm_shmem_opts)
     return UBSM_OK;
 }
 
-int ubsmem_initialize(const ubsmem_options_t* ubsm_shmem_opts)
+int ubsmem_initialize(const ubsmem_options_t *ubsm_shmem_opts)
 {
     if (ubsm_shmem_opts == NULL) {
         DBG_LOGERROR("param is null.");
@@ -155,27 +197,27 @@ int ubsmem_finalize(void)
 
 int ubsmem_set_logger_level(int level)
 {
-    if (level < static_cast<int>(ock::dagger::LogLevel::DEBUG_LEVEL) ||
-        level >= static_cast<int>(ock::dagger::LogLevel::BUTT_LEVEL)) {
+    if (level < static_cast<int>(ubsmem::log::UbsmemLogLevel::DEBUG) ||
+        level >= static_cast<int>(ubsmem::log::UbsmemLogLevel::COUNT)) {
         DBG_LOGERROR("Level error, level=" << level);
         return UBSM_ERR_PARAM_INVALID;
     }
-    ock::dagger::OutLogger::Instance()->SetLogLevel(static_cast<ock::dagger::LogLevel>(level));
+    ubsmem::log::UbsmemLoggerManager::Instance()->SetLogLevel(static_cast<ubsmem::log::UbsmemLogLevel>(level));
     DBG_LOGINFO("Set log level successfully, level=" << level);
     return UBSM_OK;
 }
 
-int ubsmem_set_extern_logger(void (*func)(int level, const char* msg))
+int ubsmem_set_extern_logger(void (*func)(int level, const char *msg))
 {
     if (func == nullptr) {
         DBG_LOGERROR("The function is empty");
         return UBSM_ERR_PARAM_INVALID;
     }
-    ock::dagger::OutLogger::Instance()->SetExternalLogFunction(func);
+    ubsmem::log::UbsmemLoggerManager::Instance()->SetExternLogCallback(func);
     DBG_LOGINFO("Set extern log successfully");
     return UBSM_OK;
 }
 
 #ifdef __cplusplus
-}  // end of extern "C"
+} // end of extern "C"
 #endif

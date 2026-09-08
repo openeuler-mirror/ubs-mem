@@ -12,9 +12,9 @@
 #ifndef SIMPLE_SAMPLES_BASE_RECORD_ALLOCATOR_H
 #define SIMPLE_SAMPLES_BASE_RECORD_ALLOCATOR_H
 
-#include <vector>
-#include <mutex>
 #include <functional>
+#include <mutex>
+#include <vector>
 #include "record_store_def.h"
 
 namespace ock {
@@ -84,7 +84,7 @@ private:
     std::mutex recordMutex_;
     std::vector<uint32_t> idleIndexes_;
 };
-}
-}
+} // namespace ubsm
+} // namespace ock
 
-#endif  // SIMPLE_SAMPLES_BASE_RECORD_ALLOCATOR_H
+#endif // SIMPLE_SAMPLES_BASE_RECORD_ALLOCATOR_H

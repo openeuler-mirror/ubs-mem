@@ -19,7 +19,7 @@
 namespace ock::com::ipc {
 class MxmIpcClient : public MxmComBase {
 public:
-    explicit MxmIpcClient(std::string udsPath, const std::string& name, const std::string& nodeId)
+    explicit MxmIpcClient(std::string udsPath, const std::string &name, const std::string &nodeId)
         : MxmComBase(nodeId, name),
           udsPath(std::move(udsPath))
     {
@@ -41,12 +41,12 @@ public:
    * @brief 停止Client
    * @return HRESULT, 成功返回0, 失败返回非0
    */
-    void Stop() override;
+    HRESULT Stop() override;
 
     int SetPostReconnectHandler(MxmComPostReconnectHandler handler);
 
 private:
     std::string udsPath;
 };
-}  // namespace ock::com::ipc
-#endif  // MXM_IPC_CLIENT_H
+} // namespace ock::com::ipc
+#endif // MXM_IPC_CLIENT_H

@@ -14,8 +14,7 @@
 
 namespace ock::com::ipc {
 
-static void IPCClientHandlerWork(void (*handler)(MxmComMessageCtx& messageCtx),
-                                 MxmComMessageCtx& messageCtx)
+static void IPCClientHandlerWork(void (*handler)(MxmComMessageCtx &messageCtx), MxmComMessageCtx &messageCtx)
 {
     if (handler != nullptr) {
         handler(messageCtx);
@@ -36,10 +35,11 @@ HRESULT MxmIpcClient::Start()
     return MxmCommunication::CreateMxmComEngine(engineInfo, LinkNotify, IPCClientHandlerWork);
 }
 
-void MxmIpcClient::Stop()
+HRESULT MxmIpcClient::Stop()
 {
-    MxmCommunication::DeleteMxmComEngine(name);
+    auto ret = MxmCommunication::DeleteMxmComEngine(name);
     ClearStateMap();
+    return ret;
 }
 
 int MxmIpcClient::SetPostReconnectHandler(MxmComPostReconnectHandler handler)

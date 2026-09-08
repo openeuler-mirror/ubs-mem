@@ -9,18 +9,18 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include <string>
+#include "ubsm_lock.h"
 #include <arpa/inet.h>
-#include "dlock_types.h"
-#include "dlock_context.h"
-#include "zen_discovery.h"
 #include <securec.h>
-#include "mxm_shm/rpc_server.h"
+#include <string>
+#include "dlock_context.h"
+#include "dlock_types.h"
 #include "mxm_message/mxm_msg.h"
+#include "mxm_shm/rpc_server.h"
+#include "rack_mem_functions.h"
 #include "ubs_common_config.h"
 #include "ubsm_ptracer.h"
-#include "rack_mem_functions.h"
-#include "ubsm_lock.h"
+#include "zen_discovery.h"
 
 using namespace ock::dlock_utils;
 using RpcServer = ock::rpc::service::RpcServer;
@@ -82,7 +82,7 @@ int32_t UbsmLock::Init()
     return UBSM_OK;
 }
 
-int32_t UbsmLock::SetEid(dlock::dlock_eid_t* eid, std::string &devEid)
+int32_t UbsmLock::SetEid(dlock::dlock_eid_t *eid, std::string &devEid)
 {
     DBG_LOGINFO("Setting device EID: " << devEid);
     if (eid == nullptr) {
@@ -113,9 +113,9 @@ int32_t UbsmLock::DlockServerInit(struct dlock::ssl_cfg ssl)
     auto &ctx = DLockContext::Instance();
     DLockConfig cfg = ctx.GetConfig();
 
-    DBG_LOGINFO("Server Config: "
-                << "IP=" << cfg.serverIp << ":" << cfg.serverPort << ", CPUs=" << cfg.cmdCpuSet
-                << ", Replicas=" << cfg.numOfReplica << ", RecoveryClients=" << cfg.recoveryClientNum);
+    DBG_LOGINFO("Server Config: " << "IP=" << cfg.serverIp << ":" << cfg.serverPort << ", CPUs=" << cfg.cmdCpuSet
+                                  << ", Replicas=" << cfg.numOfReplica
+                                  << ", RecoveryClients=" << cfg.recoveryClientNum);
 
     struct dlock::primary_cfg primaryCfg = {0};
     primaryCfg.num_of_replica = cfg.numOfReplica;
@@ -126,7 +126,7 @@ int32_t UbsmLock::DlockServerInit(struct dlock::ssl_cfg ssl)
     primaryCfg.replica_enable = false;
     primaryCfg.server_ip_str = const_cast<char *>(cfg.serverIp.c_str());
 
-    struct dlock::server_cfg conf{};
+    struct dlock::server_cfg conf {};
     conf.type = dlock::server_type::SERVER_PRIMARY;
     conf.log_level = cfg.dlockLogLevel;
     conf.sleep_mode_enable = cfg.sleepMode;
@@ -193,8 +193,8 @@ int32_t UbsmLock::DlockClientLibInit(const struct dlock::ssl_cfg &ssl)
 int32_t UbsmLock::DeInit()
 {
     UbsmLock::Instance().UbsmLockInitSet(false);
-    auto& ctx = DLockContext::Instance();
-    auto& cfg = ctx.GetConfig();
+    auto &ctx = DLockContext::Instance();
+    auto &cfg = ctx.GetConfig();
     DBG_LOGINFO("DeInit UbsmLock, isDlockServer=" << cfg.isDlockServer << ", isDlockClient=" << cfg.isDlockClient);
     if (cfg.isDlockServer) {
         auto ret = DeInitDlockServer();
@@ -222,7 +222,7 @@ int32_t UbsmLock::DeInit()
 
 int32_t UbsmLock::DeInitDlockServer()
 {
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     DLockConfig cfg = ctx.GetConfig();
     if (!cfg.isDlockServer || !ctx.IsNeedServerDeinit()) {
         return dlock::DLOCK_SUCCESS;
@@ -246,7 +246,7 @@ int32_t UbsmLock::DeInitDlockServer()
 
 int32_t UbsmLock::GetClientNode(std::string &clientNodeId)
 {
-    ZenDiscovery* zenDiscovery = ZenDiscovery::GetInstance();
+    ZenDiscovery *zenDiscovery = ZenDiscovery::GetInstance();
     if (zenDiscovery == nullptr) {
         DBG_LOGERROR("zenDiscovery is nullptr");
         return MXM_ERR_LOCK_NOT_READY;
@@ -260,8 +260,7 @@ int32_t UbsmLock::GetClientNode(std::string &clientNodeId)
     return MXM_OK;
 }
 
-
-int32_t UbsmLock::Lock(const std::string& name, bool isExclusive, LockUdsInfo& udsInfo)
+int32_t UbsmLock::Lock(const std::string &name, bool isExclusive, LockUdsInfo &udsInfo)
 {
     std::string clientNodeId;
     auto localNode = rpc::NetRpcConfig::GetInstance().GetLocalNode();
@@ -315,7 +314,7 @@ int32_t UbsmLock::Lock(const std::string& name, bool isExclusive, LockUdsInfo& u
     return rpcRsp->dLockCode_;
 }
 
-void UbsmLock::CleanUpExpiredLocksForName(const std::string& name, ClientDesc* clientDesc)
+void UbsmLock::CleanUpExpiredLocksForName(const std::string &name, ClientDesc *clientDesc)
 {
     if (clientDesc == nullptr) {
         DBG_LOGERROR("CleanUpExpiredLocksForName failed to get lock: " << name);
@@ -346,15 +345,15 @@ void UbsmLock::CleanupExpiredLocksThread()
         std::this_thread::sleep_for(std::chrono::seconds(1));
         return;
     }
-    auto& instance = UbsmLock::Instance();
+    auto &instance = UbsmLock::Instance();
     while (instance.isCleanupThreadRunning.load()) {
         std::this_thread::sleep_for(std::chrono::seconds(1)); // 定期清理
 
-        auto& ctx = DLockContext::Instance();
+        auto &ctx = DLockContext::Instance();
         auto allName = ctx.GetAllShmLockName();
 
         // 遍历所有锁 name
-        for (const auto& name : allName) {
+        for (const auto &name : allName) {
             // 获取对应的 ClientDesc
             auto clientDesc = ctx.GetClientDesc(name);
             if (!clientDesc) {
@@ -369,7 +368,7 @@ void UbsmLock::CleanupExpiredLocksThread()
     }
 }
 
-int32_t UbsmLock::HandleLock(const std::string& name, bool isExclusive, LockUdsInfo& udsInfo)
+int32_t UbsmLock::HandleLock(const std::string &name, bool isExclusive, LockUdsInfo &udsInfo)
 {
     // 封装一层，判断自己是不是client，是的话才处理，不是的话，发送rpc处理
     DBG_LOGINFO("HandleLock name=" << name << ", isExclusive=" << isExclusive);
@@ -387,7 +386,7 @@ int32_t UbsmLock::HandleLock(const std::string& name, bool isExclusive, LockUdsI
         }
     }
 
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     DBG_LOGINFO("Get client desc for lock=" << name << ", isExclusive=" << isExclusive);
     TP_TRACE_BEGIN(TP_UBSM_GET_LOCK);
     auto clientDesc = GetLock(name, udsInfo);
@@ -410,7 +409,7 @@ int32_t UbsmLock::HandleLock(const std::string& name, bool isExclusive, LockUdsI
     if (ret != MXM_OK) {
         auto clientId = clientDesc->GetClientId();
         DBG_LOGERROR("Trylock failed, clientId=" << clientId << ", lockId=" << lockIdPair.second << ", name=" << name
-                                                  << ", ret=" << ret);
+                                                 << ", ret=" << ret);
         // 初次获取锁，但try_lock失败
         if (ctx.ReleaseClientDescRef(name) < 0) {
             TryReleaseLock(name, lockIdPair.second);
@@ -421,7 +420,7 @@ int32_t UbsmLock::HandleLock(const std::string& name, bool isExclusive, LockUdsI
     return ret;
 }
 
-int32_t UbsmLock::TryLock(const std::string& name, ClientDesc* clientDesc, bool isExclusive, LockUdsInfo& udsInfo)
+int32_t UbsmLock::TryLock(const std::string &name, ClientDesc *clientDesc, bool isExclusive, LockUdsInfo &udsInfo)
 {
     if (isExclusive && DLockContext::Instance().GetClientDescRef(name) > STARTING_REF_COUNT) {
         DBG_LOGINFO("try to acquire write lock again. name=" << name);
@@ -473,7 +472,7 @@ int32_t UbsmLock::TryLock(const std::string& name, ClientDesc* clientDesc, bool 
                                                                   << ", lock id: " << lockId);
             return MXM_ERR_DLOCK_INNER;
         } else if (ret == dlock::DLOCK_SUCCESS || ret == dlock::DLOCK_ALREADY_LOCKED) { // 重复加锁，时间延期
-            auto validTime =  ock::dagger::Monotonic::TimeUs() + (lockExpireTime * 1000000);
+            auto validTime = ock::dagger::Monotonic::TimeUs() + (lockExpireTime * 1000000);
             udsInfo.validTime = validTime;
             // 更新udsInfo
             clientDesc->SetLockUdsInfo(name, udsInfo);
@@ -487,7 +486,7 @@ int32_t UbsmLock::TryLock(const std::string& name, ClientDesc* clientDesc, bool 
     return MXM_ERR_DLOCK_INNER;
 }
 
-ClientDesc *UbsmLock::GetLock(const std::string &name, const LockUdsInfo& udsInfo)
+ClientDesc *UbsmLock::GetLock(const std::string &name, const LockUdsInfo &udsInfo)
 {
     int32_t lockId;
     ClientDesc *clientDesc = nullptr;
@@ -529,12 +528,12 @@ ClientDesc *UbsmLock::GetLock(const std::string &name, const LockUdsInfo& udsInf
     return clientDesc;
 }
 
-int32_t UbsmLock::Unlock(const std::string& name, const LockUdsInfo& udsInfo)
+int32_t UbsmLock::Unlock(const std::string &name, const LockUdsInfo &udsInfo)
 {
     std::string clientNodeId;
     auto localNode = rpc::NetRpcConfig::GetInstance().GetLocalNode();
 
-    ZenDiscovery* zenDiscovery = ZenDiscovery::GetInstance();
+    ZenDiscovery *zenDiscovery = ZenDiscovery::GetInstance();
     if (zenDiscovery == nullptr) {
         DBG_LOGERROR("zenDiscovery is nullptr");
         return MXM_ERR_LOCK_NOT_READY;
@@ -608,7 +607,7 @@ int32_t UbsmLock::HandleUnlock(const std::string &name, const LockUdsInfo &udsIn
         if (!clientDesc->IsLockUdsValid(name, udsInfo)) {
             DBG_LOGERROR("UbsmLock name: " << name << " udsInfo is invalid, pid: " << udsInfo.pid
                                            << " uid: " << udsInfo.uid << " gid: " << udsInfo.gid);
-            return MXM_ERR_LOCK_NOT_FOUND;  // 该进程未给对应name加过锁
+            return MXM_ERR_LOCK_NOT_FOUND; // 该进程未给对应name加过锁
         }
         if (!clientDesc->IsLockInValidTime(name, udsInfo)) {
             DBG_LOGWARN("UbsmLock name: " << name << " time is invalid, pid: " << udsInfo.pid << " uid: " << udsInfo.uid
@@ -623,7 +622,8 @@ int32_t UbsmLock::HandleUnlock(const std::string &name, const LockUdsInfo &udsIn
         auto ret = UnlockWithDesc(name, clientDesc, udsInfo);
         if (ret != MXM_OK) {
             DBG_LOGERROR("UnlockWithDesc failed, name: " << name << " udsInfo is invalid, pid: " << udsInfo.pid
-                                           << " uid: " << udsInfo.uid << " gid: " << udsInfo.gid << ", ret: " << ret);
+                                                         << " uid: " << udsInfo.uid << " gid: " << udsInfo.gid
+                                                         << ", ret: " << ret);
             return ret;
         }
         return ret;
@@ -674,11 +674,10 @@ int32_t UbsmLock::UnlockWithDesc(const std::string &name, ClientDesc *clientDesc
             DBG_LOGERROR("Unlock failed, retCode: " << ret << ", client id: " << clientId << ", lock id: " << lockId);
             return MXM_ERR_DLOCK_INNER;
         }
-    } while  (num++ < DEFAULT_TRY_LOCK_COUNT && (ret == dlock::DLOCK_NOT_READY || ret == dlock::DLOCK_EASYNC));
+    } while (num++ < DEFAULT_TRY_LOCK_COUNT && (ret == dlock::DLOCK_NOT_READY || ret == dlock::DLOCK_EASYNC));
     DBG_LOGERROR("All unlock attempts exhausted. name: " << name << ", final code: " << ret);
     return MXM_ERR_DLOCK_INNER;
 }
-
 
 int32_t UbsmLock::DoUnlock(int32_t lockId, int32_t clientId)
 {
@@ -687,7 +686,7 @@ int32_t UbsmLock::DoUnlock(int32_t lockId, int32_t clientId)
     return DLockExecutor::GetInstance().DLockUnlockFunc(clientId, lockId, &result);
 }
 
-int32_t UbsmLock::TryReleaseLock(const std::string& name, int32_t lockId)
+int32_t UbsmLock::TryReleaseLock(const std::string &name, int32_t lockId)
 {
     DBG_LOGINFO("Releasing lock resources. name: " << name << ", lock id: " << lockId);
     auto &ctx = DLockContext::Instance();
@@ -701,8 +700,8 @@ int32_t UbsmLock::TryReleaseLock(const std::string& name, int32_t lockId)
     auto clientId = clientDesc->GetClientId();
 
     auto ret = DLockExecutor::GetInstance().DLockReleaseLockFunc(clientId, lockId);
-    DBG_LOGINFO(
-        "Dlock client try release lock, client id: " << clientId << ", lock id: " << lockId << ", retCode: " << ret);
+    DBG_LOGINFO("Dlock client try release lock, client id: " << clientId << ", lock id: " << lockId
+                                                             << ", retCode: " << ret);
     return ret;
 }
 
@@ -725,7 +724,7 @@ int32_t UbsmLock::Reinit()
         return ret;
     }
 
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     DBG_LOGINFO("UbsmLock reinit, serverIp: " << ctx.GetConfig().serverIp << ", tls flag: " << sslConfig.ssl_enable);
 
     if (ctx.GetConfig().isDlockServer) {
@@ -746,13 +745,13 @@ int32_t UbsmLock::Reinit()
                 return MXM_ERR_NULLPTR;
             }
             auto clientId = clientDesc->GetClientId();
-            DBG_LOGINFO("Reinitializing client " << clientId << " (" << (i+1) << "/" << clients.size() << ")");
+            DBG_LOGINFO("Reinitializing client " << clientId << " (" << (i + 1) << "/" << clients.size() << ")");
             auto result = DlockClientReinit(clientId, ctx.GetConfig().serverIp);
             if (result != MXM_OK) {
                 DBG_LOGERROR("Failed to reinit client " << clientId << ", return code is " << result);
                 return MXM_ERR_DLOCK_INNER;
             }
-            DBG_LOGINFO("Client "<< clientId <<" reinit successfully");
+            DBG_LOGINFO("Client " << clientId << " reinit successfully");
         }
         DBG_LOGINFO("UbsmLock reinit complete");
         UbsmLock::Instance().UbsmLockInitSet(true); // 锁状态成功
@@ -760,14 +759,14 @@ int32_t UbsmLock::Reinit()
     return MXM_OK;
 }
 
-int32_t UbsmLock::DlockServerReinit(const std::string& serverIp, struct dlock::ssl_cfg ssl)
+int32_t UbsmLock::DlockServerReinit(const std::string &serverIp, struct dlock::ssl_cfg ssl)
 {
     if (serverIp.empty()) {
         DBG_LOGERROR("The server ip is empty!");
         return MXM_ERR_PARAM_INVALID;
     }
 
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     DBG_LOGINFO("Starting server reinit. Server IP: " << serverIp
                                                       << ", Recovery clients: " << ctx.GetConfig().recoveryClientNum);
     dlock::server_cfg conf = {};
@@ -810,9 +809,9 @@ int32_t UbsmLock::DlockServerReinit(const std::string& serverIp, struct dlock::s
     return UBSM_OK;
 }
 
-int32_t UbsmLock::GetServerCfg(const dlock::ssl_cfg& ssl, const dlock::primary_cfg& primCfg, dlock::server_cfg& conf)
+int32_t UbsmLock::GetServerCfg(const dlock::ssl_cfg &ssl, const dlock::primary_cfg &primCfg, dlock::server_cfg &conf)
 {
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     conf.type = dlock::SERVER_PRIMARY;
     conf.dev_name = const_cast<char *>(ctx.GetConfig().dlockDevName.c_str());
     conf.log_level = ctx.GetConfig().dlockLogLevel;
@@ -829,7 +828,7 @@ int32_t UbsmLock::GetServerCfg(const dlock::ssl_cfg& ssl, const dlock::primary_c
     return MXM_OK;
 }
 
-dlock::primary_cfg UbsmLock::GetPrimCfg(const std::string& serverIp, DLockContext& ctx)
+dlock::primary_cfg UbsmLock::GetPrimCfg(const std::string &serverIp, DLockContext &ctx)
 {
     struct dlock::primary_cfg primCfg = {0};
     primCfg.num_of_replica = 0;
@@ -842,7 +841,7 @@ dlock::primary_cfg UbsmLock::GetPrimCfg(const std::string& serverIp, DLockContex
     return primCfg;
 }
 
-void UbsmLock::DoClientReInitStagesClientReInit(int32_t& ret, bool& skipUpdate, int32_t clientId, REINIT_STAGES& stages)
+void UbsmLock::DoClientReInitStagesClientReInit(int32_t &ret, bool &skipUpdate, int32_t clientId, REINIT_STAGES &stages)
 {
     ret = ClientReInitStagesClientReInitDone(clientId, stages);
     DBG_LOGDEBUG("client reinit done with return code " << ret);
@@ -851,7 +850,7 @@ void UbsmLock::DoClientReInitStagesClientReInit(int32_t& ret, bool& skipUpdate, 
     }
 }
 
-int32_t UbsmLock::DlockClientReinit(int32_t clientId, const std::string& serverIp)
+int32_t UbsmLock::DlockClientReinit(int32_t clientId, const std::string &serverIp)
 {
     DBG_LOGINFO("Begin to reinit client " << clientId);
     uint32_t retryCount = 0;
@@ -860,9 +859,8 @@ int32_t UbsmLock::DlockClientReinit(int32_t clientId, const std::string& serverI
     bool skipUpdate = false;
     int32_t updateRetryTimes = 0;
     // 客户端重新初始化、更新锁和客户端重新初始化完成三个阶段. 每个阶段中，根据 stage 的值决定是否进入下一个阶段
-    while (ret != -1 && ret != dlock::DLOCK_EINVAL &&
-           ret != dlock::DLOCK_CLIENT_NOT_INIT && ret != dlock::DLOCK_CLIENT_REMOVED_BY_SERVER &&
-           ret != dlock::DLOCK_SERVER_NO_RESOURCE) {
+    while (ret != -1 && ret != dlock::DLOCK_EINVAL && ret != dlock::DLOCK_CLIENT_NOT_INIT &&
+           ret != dlock::DLOCK_CLIENT_REMOVED_BY_SERVER && ret != dlock::DLOCK_SERVER_NO_RESOURCE) {
         switch (stages) {
             case REINIT_STAGES::CLIENT_REINIT:
                 ret = ClientReInitStagesClientReInit(clientId, serverIp.c_str(), retryCount);
@@ -898,7 +896,7 @@ int32_t UbsmLock::DlockClientReinit(int32_t clientId, const std::string& serverI
     return ret;
 }
 
-int32_t UbsmLock::ClientReInitStagesClientReInit(int32_t clientId, const char *serverIp, uint32_t& retryCount)
+int32_t UbsmLock::ClientReInitStagesClientReInit(int32_t clientId, const char *serverIp, uint32_t &retryCount)
 {
     auto ret = DLockExecutor::ClientReinitWrapper(clientId, serverIp);
     DBG_LOGINFO("The ClientReinit return code is " << ret);
@@ -916,7 +914,7 @@ int32_t UbsmLock::ClientReInitStagesClientReInit(int32_t clientId, const char *s
     return ret;
 }
 
-int32_t UbsmLock::ClientReInitStagesUpdateLocks(int32_t clientId, int32_t& updateRetryTimes, REINIT_STAGES &stages)
+int32_t UbsmLock::ClientReInitStagesUpdateLocks(int32_t clientId, int32_t &updateRetryTimes, REINIT_STAGES &stages)
 {
     int32_t ret = DLockExecutor::GetInstance().DLockUpdateAllLocksFunc(clientId);
     DBG_LOGINFO("UpdateAllLocks ret is " << ret << ", Client reinit stage: " << GetReinitStageName(stages));
@@ -951,7 +949,7 @@ int32_t UbsmLock::ClientReInitStagesClientReInitDone(int32_t clientId, REINIT_ST
 
 int32_t UbsmLock::Heartbeat()
 {
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     // 不需要开启心跳
     if (!ctx.IsHeartBeatActive()) {
         return dlock::DLOCK_SUCCESS;
@@ -992,8 +990,7 @@ void GetPrivateKeyPwd(char **keyPwd, int *keyPwdLen)
     auto path = UbsCommonConfig::GetInstance().GetLockKeyPath();
     DBG_LOGINFO("key.path=" << path);
     std::pair<char *, int> pwPair;
-    auto ret = UbsCryptorHandler::GetInstance().Decrypt(0,
-        UbsCommonConfig::GetInstance().GetLockKeypassPath(), pwPair);
+    auto ret = UbsCryptorHandler::GetInstance().Decrypt(0, UbsCommonConfig::GetInstance().GetLockKeypassPath(), pwPair);
     if (ret != 0) {
         DBG_LOGERROR("Decrypt failed, ret: " << ret);
         return;
@@ -1008,7 +1005,7 @@ void ErasePrivateKey(void *addr, int len)
     if (addr == nullptr) {
         return;
     }
-    char* charAddr = static_cast<char*>(addr);
+    char *charAddr = static_cast<char *>(addr);
     auto ret = memset_s(charAddr, len, 0, len);
     if (ret != 0) {
         DBG_LOGERROR("memset for ErasePrivateKey failed, ret=" << ret);

@@ -48,7 +48,7 @@ private:                                 \
     int32_t mRefCount = 0;
 #endif
 
-#define DAGGER_POWER_OF_2(x) ((((x)-1) & (x)) == 0)
+#define DAGGER_POWER_OF_2(x) ((((x) - 1) & (x)) == 0)
 
 #include <cstdint>
 

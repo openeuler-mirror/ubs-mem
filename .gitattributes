@@ -15,4 +15,4 @@
 .clang-tidy text eol=lf
 .gitattributes text eol=lf
 .gitignore text eol=lf
-.lcovrc text eol=lf
+.lcovrc text eol=lfscript/debian/* text eol=lf

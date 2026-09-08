@@ -21,22 +21,22 @@ extern "C" {
  * @brief ptracer (i.e. performance tracer) interface for extension
  */
 typedef struct {
-    bool enabled; /* if the tracer enabled  */
-    void (*trace_begin)(uint32_t traceId, const char* traceName); /* function hook to start recording */
+    bool enabled;                                                                /* if the tracer enabled  */
+    void (*trace_begin)(uint32_t traceId, const char *traceName);                /* function hook to start recording */
     void (*trace_end)(uint32_t traceId, const uint64_t diff, int32_t goodOrBad); /* function hook to stop recording */
-    uint64_t (*current_time_ns)(); /* function hook to get time in ns */
+    uint64_t (*current_time_ns)();                                               /* function hook to get time in ns */
 } ptracer;
 
 extern ptracer g_tracer;
 
 typedef struct {
-    int32_t tracerType; /* 1 default tracer with file dumper */
-    const char* dumpFilePath; /* dir path of dump file */
+    int32_t tracerType;       /* 1 default tracer with file dumper */
+    const char *dumpFilePath; /* dir path of dump file */
 } ptracer_config_t;
 
-int32_t ptracer_init(ptracer_config_t* config);
+int32_t ptracer_init(ptracer_config_t *config);
 void ptracer_uninit(void);
-const char* ptracer_get_last_err_msg(void);
+const char *ptracer_get_last_err_msg(void);
 
 /**
  * @brief Start to trace
@@ -86,4 +86,4 @@ const char* ptracer_get_last_err_msg(void);
 #ifdef __cplusplus
 }
 #endif
-#endif  // UBSM_MEM_FABRIC_PTRACER_H
+#endif // UBSM_MEM_FABRIC_PTRACER_H

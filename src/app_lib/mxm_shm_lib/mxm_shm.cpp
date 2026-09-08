@@ -10,15 +10,14 @@
  * See the Mulan PSL v2 for more details.
  */
 
-
 #include <fcntl.h>
 
-#include "mx_shm.h"
 #include "RackMemShm.h"
-#include "rack_mem_lib.h"
-#include "rack_mem_macros.h"
 #include "ShmMetaDataMgr.h"
 #include "log.h"
+#include "mx_shm.h"
+#include "rack_mem_lib.h"
+#include "rack_mem_macros.h"
 
 using namespace ock::mxmd;
 using namespace ock::common;

@@ -17,27 +17,27 @@
 #include "rack_mem_libobmm.h"
 
 namespace ock::mxmd {
-using ObmmOwnershipSwitch = int (*)(int fd, void* start, void* end, int prot);
+using ObmmOwnershipSwitch = int (*)(int fd, void *start, void *end, int prot);
 class RmLibObmmExecutor {
 public:
     ObmmOwnershipSwitch obmmOwnershipSwitch{};
     uint32_t Initialize();
     uint32_t Exit();
-    static RmLibObmmExecutor& GetInstance()
+    static RmLibObmmExecutor &GetInstance()
     {
         static RmLibObmmExecutor instance;
         return instance;
     }
-    RmLibObmmExecutor(const RmLibObmmExecutor& other) = default;
-    RmLibObmmExecutor(RmLibObmmExecutor&& other) = default;
-    RmLibObmmExecutor& operator=(const RmLibObmmExecutor& other) = default;
-    RmLibObmmExecutor& operator=(RmLibObmmExecutor&& other) noexcept = default;
+    RmLibObmmExecutor(const RmLibObmmExecutor &other) = default;
+    RmLibObmmExecutor(RmLibObmmExecutor &&other) = default;
+    RmLibObmmExecutor &operator=(const RmLibObmmExecutor &other) = default;
+    RmLibObmmExecutor &operator=(RmLibObmmExecutor &&other) noexcept = default;
 
     DAGGER_DEFINE_REF_COUNT_FUNCTIONS
 private:
     DAGGER_DEFINE_REF_COUNT_VARIABLE;
-    void* handle{nullptr};
+    void *handle{nullptr};
     RmLibObmmExecutor() = default;
 };
-}  // namespace ock::mxmd
-#endif  // MEMORYFABRIC_RMLIBOBMMEXECUTOR_H
+} // namespace ock::mxmd
+#endif // MEMORYFABRIC_RMLIBOBMMEXECUTOR_H

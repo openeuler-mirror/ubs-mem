@@ -9,17 +9,16 @@
 * /var/log/ubsm/htrace.dat 性能数据地址
 */
 
-#include <iostream>
-#include <thread>
-#include <vector>
-#include <chrono>
-#include <atomic>
-#include <iomanip>
-#include <cstdlib>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <atomic>
 #include <cassert>
-#include <sys/mman.h>
+#include <chrono>
+#include <cstdlib>
+#include <iomanip>
+#include <iostream>
+#include <thread>
+#include <vector>
 #include "ubs_mem.h"
 
 static std::atomic_uint32_t g_failedNum{0};
@@ -48,7 +47,7 @@ bool ubsmem_lookup_cluster_statistic_test()
 
 bool ubsmem_create_region_test()
 {
-    ubsmem_regions_t* regions = new ubsmem_regions_t();
+    ubsmem_regions_t *regions = new ubsmem_regions_t();
     ubsmem_lookup_regions(regions);
     if (regions->num <= 0) {
         printf("ubsmem_lookup_regions failed \n");
@@ -76,12 +75,12 @@ int mem_test(size_t threadId, size_t iteration)
     }
     std::string name = std::to_string(threadId) + std::to_string(iteration);
     int result = 0;
-    void* addr = nullptr;
+    void *addr = nullptr;
     result += ubsmem_lease_malloc(g_regionName.c_str(), 1024ULL * 1024 * 1024, DISTANCE_DIRECT_NODE, false, &addr);
     if (addr != nullptr) {
         result += ubsmem_lease_free(addr);
     }
-    mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;  // 0644
+    mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH; // 0644
     auto createRes =
         ubsmem_shmem_allocate(g_regionName.c_str(), name.c_str(), 1024ULL * 1024 * 1024, mode, UBSM_FLAG_CACHE);
     result += createRes;
@@ -138,7 +137,7 @@ int CheckParam(size_t num_threads, size_t iterations_per_thread)
 // ========================
 // 主函数
 // ========================
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
     if (argc != 3) {
         std::cerr << "Usage: " << argv[0] << " <num_threads> <iterations_per_thread>\n";
@@ -161,7 +160,7 @@ int main(int argc, char* argv[])
         threads.emplace_back(thread_test, iterations_per_thread);
     }
     // 等待所有线程结束
-    for (auto& t : threads) {
+    for (auto &t : threads) {
         t.join();
     }
     ubsmem_destroy_region(g_regionName.c_str());

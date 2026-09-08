@@ -3,16 +3,15 @@
  */
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
+#include "RmLibObmmExecutor.h"
 #include "dlfcn.h"
 #include "system_adapter.h"
-#include "RmLibObmmExecutor.h"
 
 namespace UT {
 using namespace ock::ubsm;
 class RmLibObmmExecutorTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
     void TearDown() override
     {
@@ -23,7 +22,7 @@ protected:
 
 TEST_F(RmLibObmmExecutorTest, TestInitializeSuccess)
 {
-    void* mockAddress = reinterpret_cast<void*>(0x123456789);
+    void *mockAddress = reinterpret_cast<void *>(0x123456789);
     MOCKER(SystemAdapter::DlOpen).stubs().with(any(), any()).will(returnValue(mockAddress));
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockAddress));
 
@@ -32,7 +31,7 @@ TEST_F(RmLibObmmExecutorTest, TestInitializeSuccess)
 
 TEST_F(RmLibObmmExecutorTest, TestInitializeOpenLibFailed)
 {
-    void* mockAddress = nullptr;
+    void *mockAddress = nullptr;
     MOCKER(SystemAdapter::DlOpen).stubs().with(any(), any()).will(returnValue(mockAddress));
 
     ASSERT_EQ(ock::mxmd::RmLibObmmExecutor::GetInstance().Initialize(), ock::common::MXM_ERR_PARAM_INVALID);
@@ -40,9 +39,9 @@ TEST_F(RmLibObmmExecutorTest, TestInitializeOpenLibFailed)
 
 TEST_F(RmLibObmmExecutorTest, TestInitializeLocdOpenFuncFailed)
 {
-    void* mockAddress = reinterpret_cast<void*>(0x123456789);
+    void *mockAddress = reinterpret_cast<void *>(0x123456789);
     MOCKER(SystemAdapter::DlOpen).stubs().with(any(), any()).will(returnValue(mockAddress));
-    void* mockLoadFunc = nullptr;
+    void *mockLoadFunc = nullptr;
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockLoadFunc));
     MOCKER(SystemAdapter::DlClose).stubs().with(any()).will(returnValue(0));
 
@@ -51,7 +50,7 @@ TEST_F(RmLibObmmExecutorTest, TestInitializeLocdOpenFuncFailed)
 
 TEST_F(RmLibObmmExecutorTest, TestExit)
 {
-    void* mockAddress = reinterpret_cast<void*>(0x123456789);
+    void *mockAddress = reinterpret_cast<void *>(0x123456789);
     MOCKER(SystemAdapter::DlOpen).stubs().with(any(), any()).will(returnValue(mockAddress));
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockAddress));
     MOCKER(SystemAdapter::DlClose).stubs().with(any()).will(returnValue(0));
@@ -60,4 +59,4 @@ TEST_F(RmLibObmmExecutorTest, TestExit)
 
     ASSERT_EQ(ock::mxmd::RmLibObmmExecutor::GetInstance().Exit(), HOK);
 }
-}  // namespace UT
+} // namespace UT

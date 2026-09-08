@@ -28,6 +28,6 @@ constexpr uint32_t DEFAULT_SEND_RECEIVE_SEG_COUNT = 128;
 constexpr uint16_t MODULES_SIZE = 1000; // 最大模块数
 constexpr uint16_t OP_CODE_SIZE = 1000; // 最大操作码
 
-constexpr uint16_t MIN_UDS_PERM = 0660; // 最小权限
+constexpr uint16_t MIN_UDS_PERM = 0660;  // 最小权限
 constexpr uint16_t UDS_PATH_PERM = 0750; // 目录权限
-#endif // UBSM_COM_CONSTANTS_H
+#endif                                   // UBSM_COM_CONSTANTS_H

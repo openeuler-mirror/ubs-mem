@@ -28,7 +28,8 @@ const auto MXMD_SERVER_AUDIT_LOG_ROTATION_FILE_SIZE = std::make_pair("ubsm.serve
 const auto MXMD_SERVER_AUDIT_LOG_ROTATION_FILE_COUNT = std::make_pair("ubsm.server.audit.log.rotation.file.count", 10);
 
 const auto MXMD_FEATURES_ENABLE = std::make_pair("mxmd.features.enable", "ubsmd");
-const auto MXMD_DAEMON_BINPATH = std::make_pair("mxmd.daemon.binpath", "-binpath=");
+const auto MXMD_DAEMON_RUNTIME = std::make_pair("mxmd.daemon.runtime", "--runtime=");
+const auto MXMD_DAEMON_CONFIG = std::make_pair("mxmd.daemon.config", "--config=");
 const auto MXMD_LOCK_DEV_NAME = std::make_pair("ubsm.lock.dev.name", "bonding_dev_0");
 const auto MXMD_LOCK_DEV_EID = std::make_pair("ubsm.lock.dev.eid", "0000:0000:0000:1000:0010:0000:df00:0404");
 const auto MXMD_LOCK_EXPIRE_TIME = std::make_pair("ubsm.lock.expire.time", 300);
@@ -58,12 +59,12 @@ const auto UBSMD_SERVER_TLS_KEYPASS_PATH = std::make_pair("ubsm.server.tls.keypa
 
 const auto MXMD_SERVER_LEASE_CACHE_ENABLE = std::make_pair("ubsm.server.lease.cache.enable", "on");
 
-constexpr int MIN_LOG_FILE_SIZE = 2;  // MB
-constexpr int MAX_LOG_FILE_SIZE = 100;  // MB
+constexpr int MIN_LOG_FILE_SIZE = 2;   // MB
+constexpr int MAX_LOG_FILE_SIZE = 100; // MB
 constexpr int MIN_LOG_FILE_COUNT = 1;
 constexpr int MAX_LOG_FILE_COUNT = 50;
-constexpr int MIN_AUDIT_LOG_FILE_SIZE = 2;  // MB
-constexpr int MAX_AUDIT_LOG_FILE_SIZE = 100;  // MB
+constexpr int MIN_AUDIT_LOG_FILE_SIZE = 2;   // MB
+constexpr int MAX_AUDIT_LOG_FILE_SIZE = 100; // MB
 constexpr int MIN_AUDIT_LOG_FILE_COUNT = 1;
 constexpr int MAX_AUDIT_LOG_FILE_COUNT = 50;
 constexpr int MAX_HCOM_CONNECT_NUM = 256;
@@ -75,7 +76,7 @@ constexpr int MAX_DISCOVERY_MIN_NODES = 30;
 constexpr int MIN_LOCK_EXPIRE_TIME = 30;
 constexpr int MAX_LOCK_EXPIRE_TIME = 86400;
 
-}  // namespace ConfConstant
-}  // namespace common
-}  // namespace ock
+} // namespace ConfConstant
+} // namespace common
+} // namespace ock
 #endif

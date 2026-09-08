@@ -285,26 +285,23 @@ index d4cfa68..964828f 100644
  
     /////////////////////////////////////////////////////
 diff --git a/src/UnixCodeModifier.cpp b/src/UnixCodeModifier.cpp
-index ab4014e..a146f24 100644
+index a8c5b29..f166361 100644
 --- a/src/UnixCodeModifier.cpp
 +++ b/src/UnixCodeModifier.cpp
-@@ -20,6 +20,7 @@
- #include <sys/mman.h>
+@@ -21,6 +21,7 @@
+ #include <unistd.h>
  
  #include <mockcpp/CodeModifier.h>
 +#include "JmpCodeArch.h"
  
- #define PAGE_ALIGN_BITS  12
- 
-@@ -39,6 +40,8 @@ bool CodeModifier::modify(void *dest, const void *src, size_t size)
- 
+ //////////////////////////////////////////////////////////////////
+ #define ALIGN_TO_PAGE_BOUNDARY(addr, page_size) (void*) (((uintptr_t)addr) & (~(page_size - 1)))
+@@ -39,4 +40,5 @@ bool CodeModifier::modify(void *dest, const void *src, size_t size)
      ::memcpy(dest, src, size);
  
+-
 +    FLUSH_CACHE(dest, size);
 +
- 
  #if 0
- 	#if BUILD_FOR_X86
 -- 
 2.43.0
-

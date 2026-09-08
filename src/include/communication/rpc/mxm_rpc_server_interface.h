@@ -13,8 +13,8 @@
 #define MXM_RPC_SERVER_INTERFACE_H
 
 #include <functional>
-#include "mxm_msg.h"
 #include "comm_def.h"
+#include "mxm_msg.h"
 
 namespace ock::com::rpc {
 using namespace ock::mxmd;
@@ -29,11 +29,11 @@ int MxmComStartRpcServer();
  */
 void MxmComStopRpcServer();
 
-uint32_t MxmRegRpcService(const MxmComEndpoint& endpoint, const MxmComServiceHandler& handler);
+uint32_t MxmRegRpcService(const MxmComEndpoint &endpoint, const MxmComServiceHandler &handler);
 
-int MxmComRpcServerSend(uint16_t opCode, MsgBase* request, MsgBase* response, const std::string& nodeId);
+int MxmComRpcServerSend(uint16_t opCode, MsgBase *request, MsgBase *response, const std::string &nodeId);
 
-int MxmComRpcServerConnect(const ock::rpc::RpcNode& nodeId);
-}  // namespace ock::rpc
+int MxmComRpcServerConnect(const ock::rpc::RpcNode &nodeId);
+} // namespace ock::com::rpc
 
-#endif  // MXM_RPC_SERVER_INTERFACE_H
+#endif // MXM_RPC_SERVER_INTERFACE_H

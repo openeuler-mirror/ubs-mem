@@ -24,4 +24,8 @@ __pycache__
 /test/IT/uds
 /build/
 /test/build/
-/test/UT/data_sync/test_log
+/test/UT/data_sync/test_logtest/3rdparty/build/
+test/config/
+/test/3rdparty/build/
+/build/rpm/
+/build/deb/

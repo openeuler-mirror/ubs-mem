@@ -1,0 +1,19 @@
+[Unit]
+Description=UBS memory daemon
+After=network.target ubse.service
+Wants=ubse.service
+
+[Service]
+Type=notify
+User=ubsmd
+Group=ubsmd
+RuntimeDirectory=matrix
+RuntimeDirectoryMode=0750
+RuntimeDirectoryPreserve=yes
+Environment=LD_LIBRARY_PATH=/usr/lib/ubs_mem
+ExecStart=/usr/bin/ubsmd --runtime=/usr/lib/ubs_mem --config=/etc/ubs_mem/ubsmd.conf
+TimeoutStartSec=360s
+Restart=always
+RestartSec=10s
+[Install]
+WantedBy=multi-user.target

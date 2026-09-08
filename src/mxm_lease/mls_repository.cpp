@@ -54,4 +54,4 @@ std::vector<MemLeaseInfo> MLSRepository::RecoverMemRecord()
     return RecordStore::GetInstance().ListMemLeaseRecord();
 }
 
-}
+} // namespace ock::lease::service

@@ -8,7 +8,6 @@
 
 #include "util/functions.h"
 
-
 namespace UT {
 class UtilFunctionTest : public testing::Test {
 public:
@@ -49,4 +48,4 @@ TEST_F(UtilFunctionTest, TestIsBool)
     ret = ock::common::IsBool(trueStr, ret);
     EXPECT_EQ(true, ret);
 }
-}  // namespace UT
+} // namespace UT

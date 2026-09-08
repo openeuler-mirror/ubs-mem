@@ -20,23 +20,23 @@ using namespace ock::com;
 using namespace ock::mxmd;
 
 namespace ock::rpc::service {
-    struct HcomServiceHandle {
-        void (*func)(const MsgBase*, MsgBase*);
-    };
-    class RpcServerEngine final {
-    public:
-        void Initialize() {}
+struct HcomServiceHandle {
+    void (*func)(const MsgBase *, MsgBase *);
+};
+class RpcServerEngine final {
+public:
+    void Initialize() {}
 
-        uint32_t RegisterOpcode(MxmComEndpoint opcode, const HcomServiceHandle& handle);
+    uint32_t RegisterOpcode(MxmComEndpoint opcode, const HcomServiceHandle &handle);
 
-        static RpcServerEngine& GetInstance()
-        {
-            static RpcServerEngine instance;
-            return instance;
-        }
+    static RpcServerEngine &GetInstance()
+    {
+        static RpcServerEngine instance;
+        return instance;
+    }
 
-    private:
-        RpcServerEngine() = default;
-    };
-}  // namespace ock::rpc::service
-#endif  // IOAK_CACHE_RPC_SERVER_H
+private:
+    RpcServerEngine() = default;
+};
+} // namespace ock::rpc::service
+#endif // IOAK_CACHE_RPC_SERVER_H

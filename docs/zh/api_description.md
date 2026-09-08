@@ -15,11 +15,14 @@
 
 ### 设置进程运行环境
 
-- 应用进程依赖UBS Memory SDK动态库，需要设置环境变量用于查找动态库路径。
+- SDK库和头文件的安装路径取决于软件包格式：
 
-    ```bash
-    export LD_LIBRARY_PATH="/usr/local/ubs_mem/lib/:$LD_LIBRARY_PATH"
-    ```
+    | 产物 | RPM | DEB |
+    |-----|-----|-----|
+    | SDK库 | `/usr/lib64/libubsm_sdk.so` | `/usr/lib/<multiarch>/libubsm_sdk.so` |
+    | 头文件 | `/usr/include/` | `/usr/include/ubs_mem/` |
+
+- RPM和DEB均将SDK库安装到系统库目录，通常无需额外设置`LD_LIBRARY_PATH`。
 
 - 当前版本锁的有效期默认为30s，故障恢复流程受UBS Comm建链重试的次数影响，为保证ubsmd故障恢复功能稳定，需设置如下环境变量。
 
@@ -262,7 +265,19 @@ int ubsmem_lookup_region(const char *region_name, ubsmem_region_desc_t *region_d
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
 |region_name|const char *|入参|共享域名称，节点内唯一标识。最大有效长度为47字符（不包括“\0”）。|
-|region_desc|ubsmem_region_desc_t *|出参|共享域信息，如域内节点数、对应节点hostname以及亲和性。相关结构体类型和常量定义请参见ubsmem_lookup_regions章节的[参数说明](#parameter01)。|
+|region_desc|ubsmem_region_desc_t *|出参|共享域信息，如域内节点数、对应节点hostname以及亲和性。|
+
+相关结构体类型和常量定义如下：
+
+```C++
+#define MAX_REGION_NAME_DESC_LENGTH 48
+
+typedef struct {
+    char region_name[MAX_REGION_NAME_DESC_LENGTH];
+    size_t size;
+    ubsmem_region_attributes_t region_attr;
+} ubsmem_region_desc_t;
+```
 
 **返回值**
 
@@ -326,31 +341,31 @@ int ubsmem_shmem_allocate(const char *region_name, const char *name, size_t size
 |--|--|--|--|
 |region_name|const char *|入参|内存域名称（默认域为“default”，包含与当前节点全互联的节点）。|
 |name|const char *|入参|共享内存名称。全局唯一标识，最大有效长度为47字符（不包括“\0”），仅允许使用大小写字母、数字、“.”、“:”、“-”和“_”。|
-|size|size_t|入参|共享内存size，最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/config/%E9%85%8D%E7%BD%AE%E8%AF%B4%E6%98%8E.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
+|size|size_t|入参|共享内存size，最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse_configration_instructions.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
 |mode|mode_t|入参|访问权限，Unix文件权限位的 *rwx* 权限控制（ *x* 权限暂不支持，请忽略）。用于控制不同用户对该共享内存的访问权限，若无权限则映射失败。建议值： `S_IRUSR \| S_IWUSR` （即仅创建该共享内存的用户可以访问该共享内存）。|
 |flags|uint64_t|入参|创建共享内存的标志信息。flag有效比特位含义请参见[表1 共享内存的flags](#table005)，各有效比特位组合关系参见[表2 共享内存的flags可组合关系](#table006)。|
 
 **表 1 <a id="table005"></a>**  共享内存的flags
 
 |flag|描述|说明|
-|--|--|--|
+|--|--|-|
 |UBSM_FLAG_CACHE|表示是否支持cache模式。|该模式需要配合ubsmem_shmem_set_ownership接口对共享内存进行读写操作，同时，在BIOS的启动参数中不能配置snoop参数。|
 |UBSM_FLAG_NONCACHE|表示是否开启NonCache模式。|该模式需要配合非接力，否则不保证数据一致性。|
 |UBSM_FLAG_WR_DELAY_COMP|表示在提供共享内存时，开启非接力模式。|-|
 |UBSM_FLAG_ONLY_IMPORT_NONCACHE|表示是否开启半NonCache模式，该模式下共享的内存导入方使用NonCache模式，导出方使用Cacheable模式。|该模式下，需要在BIOS的启动参数中配置snoop参数。|
 |UBSM_FLAG_MEM_ANONYMOUS|带有该flag的共享内存，在一段时间内（最少5min）没有任何使用方时，UBSE会自动将其回收。|-|
-|UBSM_FLAG_MMAP_HUGETLB_PMD|带有该flag的共享内存，映射时会以2MB大页为粒度进行。|仅支持指定 UBSM_FLAG_ONLY_IMPORT_NONCACHE 的情况下使用该flag。|
+|UBSM_FLAG_MMAP_HUGETLB_PMD|带有该flag的共享内存，映射时会以2MB大页为粒度进行。|-|
 
 **表 2 <a id="table006"></a>**  共享内存的flags可组合关系
 
 |flag|UBSM_FLAG_CACHE|UBSM_FLAG_NONCACHE|UBSM_FLAG_WR_DELAY_COMP|UBSM_FLAG_ONLY_IMPORT_NONCACHE|UBSM_FLAG_MEM_ANONYMOUS|UBSM_FLAG_MMAP_HUGETLB_PMD|
 |--|--|--|--|--|--|--|
-|**UBSM_FLAG_CACHE**|-|-|-|-|**√**|-|
-|**UBSM_FLAG_NONCACHE**|-|-|**√**|-|**√**|-|
-|**UBSM_FLAG_WR_DELAY_COMP**|-|**√**|-|**√**|-|-|
+|**UBSM_FLAG_CACHE**|-|-|-|-|**√**|**√**|
+|**UBSM_FLAG_NONCACHE**|-|-|**√**|-|**√**|**√**|
+|**UBSM_FLAG_WR_DELAY_COMP**|-|**√**|-|**√**|**√**|**√**|
 |**UBSM_FLAG_ONLY_IMPORT_NONCACHE**|-|-|**√**|-|**√**|**√**|
-|**UBSM_FLAG_MEM_ANONYMOUS**|**√**|**√**|-|**√**|-|-|
-|**UBSM_FLAG_MMAP_HUGETLB_PMD**|-|-|-|**√**|-|-|
+|**UBSM_FLAG_MEM_ANONYMOUS**|**√**|**√**|**√**|**√**|-|**√**|
+|**UBSM_FLAG_MMAP_HUGETLB_PMD**|**√**|**√**|**√**|**√**|**√**|-|
 
 **返回值**
 
@@ -377,7 +392,7 @@ int ubsmem_shmem_allocate_with_provider(const ubs_mem_provider_t *src_loc, const
 |--|--|--|--|
 |src_loc|const ubs_mem_provider_t *|入参|指定内存创建的节点信息，包括：<ul><li>host_name：节点名称，必填。</li><li>socket_id：指定内存导出的socket id，选填（UINT32_MAX）。</li><li>numa_id：指定内存导出的numa id，选填（UINT32_MAX）。</li><li>port_id：指定内存导出的port id，选填（UINT32_MAX）。</li></ul>|
 |name|const char *|入参|共享内存名称。全局唯一标识，最大有效长度为47字符（不包括“\0”），仅允许使用大小写字母、数字、“.”、“:”、“-”和“_”。|
-|size|size_t|入参|共享内存size，最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/config/%E9%85%8D%E7%BD%AE%E8%AF%B4%E6%98%8E.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
+|size|size_t|入参|共享内存size，最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse_configration_instructions.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
 |mode|mode_t|入参|访问权限，Unix文件权限位的 *rwx* 权限控制（ *x* 权限暂不支持，忽略）。|
 |flags|uint64_t|入参|创建共享内存的标志信息。flag有效比特位含义请参见[表1 共享内存的flags](#table005)，各有效比特位组合关系参见[表2 共享内存的flags可组合关系](#table006)。|
 
@@ -436,8 +451,8 @@ int ubsmem_shmem_map(void *addr, size_t length, int prot, int flags, const char 
 |--|--|--|--|
 |addr|void *|入参|指定期望的地址。|
 |length|size_t|入参|映射长度。当前仅支持整个共享内存映射，此值必须为共享内存size。|
-|prot|int|入参|映射内存权限。当前支持的组合值包含：<ul><li>PROT_NONE</li><li>PROT_READ</li><li>PROT_READ</li></ul>|PROT_WRITE|
-|flags|int|入参|引用系统mmap的取值，可选如下参数：<ul><li>MAP_SHARED</li><li>MAP_PRIVATE</li><li>MAP_FIXED</li><li>MAP_FIXED_NOREPLACE</li></ul>|
+|prot|int|入参|映射内存权限。当前支持的组合值包含：<ul><li>PROT_NONE</li><li>PROT_READ</li><li>PROT_READ\|PROT_WRITE</li></ul>|
+|flags|int|入参|引用系统mmap的取值，可选如下参数：<ul><li>MAP_SHARED</li><li>MAP_FIXED</li><li>MAP_FIXED_NOREPLACE</li></ul>|
 |name|const char *|入参|通过 ubsmem_shmem_allocate 创建的共享内存的名称。|
 |offset|off_t|入参|映射的起始偏移。当前仅支持整个共享内存映射，此值必须为0。|
 |local_ptr|void **|出参|映射成功时得到的本地地址。|
@@ -544,7 +559,7 @@ typedef struct {
 订阅共享内存故障事件，当共享内存发生故障时，会调用注册的事件通知函数。
 
 >[!NOTE]说明
->用户在调用该接口前，需加入ubse属组，并具备ubse的mem.shm类接口权限，具体配置请参见[UBS Engine 配置说明](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/config/%E9%85%8D%E7%BD%AE%E8%AF%B4%E6%98%8E.md)文档。
+>用户在调用该接口前，需加入ubse属组，并具备ubse的mem.shm类接口权限，具体配置请参见[UBSE 配置说明](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse_configration_instructions.md)文档。
 
 **接口格式**
 
@@ -556,7 +571,39 @@ int ubsmem_shmem_faults_register(shmem_faults_func registerFunc);
 
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
-|registerFunc|shmem_faults_func|入参|共享内存故障事件响应处理函数。类型定义如下：<br>`typedef int32_t (*shmem_faults_func)(const char *shm_name);`|
+|registerFunc|shmem_faults_func|入参|共享内存故障事件响应处理函数，类型定义及故障类型枚举定义如下：|
+
+相关类型定义：
+
+```C++
+typedef int32_t (*shmem_faults_func)(const char *shm_name, ubsmem_fault_type_t fault_type);
+```
+
+ubsmem_fault_type_t枚举定义：
+
+```C++
+typedef enum {
+    UBMEM_ATOMIC_DATA_ERR = 0,
+    UBMEM_READ_DATA_ERR,
+    UBMEM_FLOW_POISON,
+    UBMEM_FLOW_READ_AUTH_POISON,
+    UBMEM_FLOW_READ_AUTH_RESPERR,
+    UBMEM_TIMEOUT_POISON,
+    UBMEM_TIMEOUT_RESPERR,
+    UBMEM_READ_DATA_POISON,
+    UBMEM_READ_DATA_RESPERR,
+    UBMEM_MAR_NOPORT_VLD_INT_ERR,
+    UBMEM_MAR_FLUX_INT_ERR,
+    UBMEM_MAR_WITHOUT_CXT_ERR,
+    UBMEM_RSP_BKPRE_OVER_TIMEOUT_ERR,
+    UBMEM_MAR_NEAR_AUTH_FAIL_ERR,
+    UBMEM_MAR_FAR_AUTH_FAIL_ERR,
+    UBMEM_MAR_TIMEOUT_ERR,
+    UBMEM_MAR_ILLEGAL_ACCESS_ERR,
+    UBMEM_REMOTE_READ_DATA_ERR_OR_WRITE_RESPONSE_ERR,
+    UBMEM_HEALTHY = 1000,
+} ubsmem_fault_type_t;
+```
 
 **返回值**
 
@@ -572,19 +619,19 @@ int ubsmem_shmem_faults_register(shmem_faults_func registerFunc);
 查询该节点在超节点域中的节点ID。
 
 >[!NOTE]说明
->用户在调用该接口前，需加入ubse属组，并具备ubse的topo类接口权限，具体配置请参见[UBS Engine 配置说明](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/config/%E9%85%8D%E7%BD%AE%E8%AF%B4%E6%98%8E.md)文档。
+>用户在调用该接口前，需加入ubse属组，并具备ubse的topo类接口权限，具体配置请参见[UBSE 配置说明](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse_configration_instructions.md)文档。
 
 **接口格式**
 
 ```C++
-int ubsmem_local_nid_query(uint32_t* node_id);
+int ubsmem_local_nid_query(uint32_t* nid);
 ```
 
 **参数说明**
 
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
-|node_id|uint32_t*|出参|该节点在超节点域中的节点ID。|
+|nid|uint32_t*|出参|该节点在超节点域中的节点ID。|
 
 **返回值**
 
@@ -617,7 +664,7 @@ int ubsmem_shmem_set_ownership(const char *name, void *start, size_t length, int
 |name|const char *|入参|通过 ubsmem_shmem_allocate 创建的共享内存的名称。|
 |start|void *|入参|由 ubsmem_shmem_map 得到的地址。支持刷新某一段地址的共享内存。|
 |length|size_t|入参|共享内存的大小。最小值为内核页的大小，且内存地址需与mmap分配的起始地址保持内核页的大小对齐。|
-|prot|int|入参|内存权限。当前支持的组合值包含：<ul><li>PROT_NONE</li><li>PROT_READ</li><li>PROT_READ</li></ul>|PROT_WRITE|
+|prot|int|入参|内存权限。当前支持的组合值包含：<ul><li>PROT_NONE</li><li>PROT_READ</li><li>PROT_READ\|PROT_WRITE</li></ul>|
 
 **返回值**
 
@@ -643,7 +690,7 @@ int ubsmem_shmem_lookup(const char *name, ubsmem_shmem_info_t *shm_info);
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
 |name|const char*|入参|查询的共享名。最大有效长度为47字符（不包括“\0”），仅允许使用大小写字母、数字、“-”和“_”。|
-|shm_info|ubsmem_shmem_info_t *|出参|对应共享的信息。相关结构体和常量定义如下：<pre class="screen">#define MAX_SHM_NAME_LENGTH 48<br><br>typedef struct {<br>char name[MAX_SHM_NAME_LENGTH + 1];<br>size_t size;<br>} ubsmem_shmem_desc_t>;</pre>|
+|shm_info|ubsmem_shmem_info_t *|出参|对应共享的信息。相关结构体和常量定义如下：<pre class="screen">#define MAX_SHM_NAME_LENGTH 48<br>#define MAX_MEMID_NUM 2048<br><br>typedef struct {<br>    char name[MAX_SHM_NAME_LENGTH + 1];<br>    size_t size;<br>    uint32_t mem_num;<br>    uint64_t mem_unit_size;<br>    uint64_t mem_id_list[MAX_MEMID_NUM];<br>} ubsmem_shmem_info_t;</pre>|
 
 **返回值**
 
@@ -701,7 +748,7 @@ int ubsmem_lease_malloc(const char *region_name, size_t size, ubsmem_distance_t 
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
 |region_name|const char *|入参|内存域名称（默认域为“default”，包含与当前节点全互联的节点）。节点内唯一标识，最大有效长度为47字符（不包括“\0”），仅允许使用大小写字母、数字、“-”和“_”。|
-|size|size_t|入参|申请的内存size。最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/config/%E9%85%8D%E7%BD%AE%E8%AF%B4%E6%98%8E.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
+|size|size_t|入参|申请的内存size。最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse_configration_instructions.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
 |mem_distance|ubsmem_distance_t|入参|节点连接模式，当前仅支持直连借用，即 `DISTANCE_DIRECT_NODE` 取值为0。|
 |flags|uint64_t|入参|借用的标志信息。如果为0，默认进行FD借用。当前支持以下flags：<ul><li>UBSM_FLAG_MMAP_HUGETLB_PMD：表示以2MB大页粒度进行映射。</li><li>UBSM_FLAG_MALLOC_WITH_NUMA：表示借用以远端NUMA呈现。与UBSM_FLAG_MMAP_HUGETLB_PMD不可同时指定，设置该flag借用最小值为128MB。</li></ul>|
 |local_ptr|void **|出参|申请后得到的本地地址。|
@@ -730,7 +777,7 @@ int ubsmem_lease_malloc_with_location(const ubs_mem_location_t *src_loc, size_t 
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
 |src_loc|const ubs_mem_location_t *|入参|指定借出内存节点的信息，包括slot_id、socket_id、numa_id和port_id。|
-|size|size_t|入参|申请的内存size。最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/config/%E9%85%8D%E7%BD%AE%E8%AF%B4%E6%98%8E.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
+|size|size_t|入参|申请的内存size。最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse_configration_instructions.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
 |flags|uint64_t|入参|借用的标志信息。如果为0，默认进行FD借用。当前支持以下flags：<ul><li>UBSM_FLAG_MMAP_HUGETLB_PMD：表示以2MB大页粒度进行映射。</li><li>UBSM_FLAG_MALLOC_WITH_NUMA：表示借用以远端NUMA呈现。与UBSM_FLAG_MMAP_HUGETLB_PMD不可同时指定，设置该flag借用最小值为128MB。</li></ul>|
 |local_ptr|void **|出参|申请后得到的本地地址。|
 
@@ -961,12 +1008,17 @@ int ubs_mem_share_memory_map_demo()
 |6014|UBSM_CHECK_RESOURCE_ERROR|资源检查失败。|
 |6015|UBSM_ERR_MEMLIB|MEM LIB失败。|
 |6016|UBSM_ERR_NO_NEEDED|默认共享域，无需创建。|
+|6017|UBSM_ERR_BUSY|资源忙碌。|
 |6020|UBSM_ERR_NOT_FOUND|资源不存在。|
 |6021|UBSM_ERR_ALREADY_EXIST|资源已存在。|
 |6022|UBSM_ERR_MALLOC_FAIL|申请内存失败。|
 |6023|UBSM_ERR_RECORD|资源记录失败。|
 |6024|UBSM_ERR_IN_USING|共享正在被使用，不能删除。|
+|6025|UBSM_ERR_NOT_SUPPORTED|操作不支持。|
 |6040|UBSM_ERR_NET|网络错误。|
 |6050|UBSM_ERR_UBSE|UBSE接口报错。|
 |6051|UBSM_ERR_OBMM|OBMM接口报错。|
+|6060|UBSM_ERR_LOCK_NOT_SUPPORTED|锁操作不支持。|
+|6061|UBSM_ERR_LOCK_ALREADY_LOCKED|锁已被锁定。|
+|6062|UBSM_ERR_DLOCK|dlock内部错误。|
 |6099|UBSM_ERR_BUFF|未知错误。|

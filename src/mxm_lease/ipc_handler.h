@@ -14,9 +14,9 @@
 #define MXM_LEASE_SERVER_IPC_HANDLER_H
 
 #include <unistd.h>
+#include "log.h"
 #include "mxm_ipc_server_interface.h"
 #include "mxm_msg.h"
-#include "log.h"
 
 namespace ock::lease::service {
 using namespace ock::mxmd;
@@ -25,15 +25,15 @@ using namespace ock::common;
 
 class MxmServerMsgHandle {
 public:
-    static int AppMallocMemory(const MsgBase* req, MsgBase* rsp, const MxmComUdsInfo& udsInfo);
-    static int AppMallocMemoryWithLoc(const MsgBase* req, MsgBase* rsp, const MxmComUdsInfo& udsInfo);
-    static int AppFreeMemory(const MsgBase* req, MsgBase* rsp, const MxmComUdsInfo& udsInfo);
-    static int AppQueryClusterInfo(const MsgBase* req, MsgBase* rsp, const MxmComUdsInfo& udsInfo);
-    static int AppForceFreeCachedMemory(const MsgBase* req, MsgBase* rsp, const MxmComUdsInfo& udsInfo);
-    static int AppQueryCachedMemory(const MsgBase* req, MsgBase* rsp, const MxmComUdsInfo& udsInfo);
+    static int AppMallocMemory(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo);
+    static int AppMallocMemoryWithLoc(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo);
+    static int AppFreeMemory(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo);
+    static int AppQueryClusterInfo(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo);
+    static int AppForceFreeCachedMemory(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo);
+    static int AppQueryCachedMemory(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo);
 
-    static int AppCheckMemoryLease(const MsgBase* req, MsgBase* rsp, const MxmComUdsInfo& udsInfo);
+    static int AppCheckMemoryLease(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo);
 };
-}
+} // namespace ock::lease::service
 
 #endif

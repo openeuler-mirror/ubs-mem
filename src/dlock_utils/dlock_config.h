@@ -12,8 +12,8 @@
 #ifndef UBSM_DLOCK_DLOCK_CONFIG_H
 #define UBSM_DLOCK_DLOCK_CONFIG_H
 
-#include "dlock_types.h"
 #include "dlock_common.h"
+#include "dlock_types.h"
 
 namespace ock {
 namespace dlock_utils {
@@ -44,7 +44,7 @@ public:
     std::string clientIp;
     std::string dlockDevName;
     std::string dlockDevEid;
-    uint16_t serverPort = 21616;  // default port: 21616
+    uint16_t serverPort = 21616; // default port: 21616
     std::string cmdCpuSet = DEFAULT_CMD_CPU_SET;
     uint32_t leaseTime = UINT32_MAX;
     unsigned int lockType = dlock::DLOCK_FAIR;
@@ -52,6 +52,6 @@ public:
     bool enableTls = false;
     bool ubToken = true; // dlock的ub_token_disable为false时, 开启ub_token
 };
-}  // namespace dlock_utils
-}  // namespace ock
-#endif  // UBSM_DLOCK_DLOCK_CONFIG_H
+} // namespace dlock_utils
+} // namespace ock
+#endif // UBSM_DLOCK_DLOCK_CONFIG_H

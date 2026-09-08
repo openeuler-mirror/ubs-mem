@@ -9,12 +9,12 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "ulog/log.h"
 #include <securec.h>
+#include "log.h"
 #include "record_store.h"
 #include "ubse_mem_adapter.h"
-#include "region_repository.h"
 
+#include "region_repository.h"
 namespace ock::share::service {
 using namespace ock::ubsm;
 using namespace ock::mxmd;
@@ -40,8 +40,8 @@ bool ToNodeIds(const SHMRegionDesc &region, std::vector<uint32_t> &nodeIds, std:
 static bool CheckRegionMatched(const CreateRegionInput &input, RegionInfo &output, const SHMRegionDesc &example)
 {
     int i;
-    bool flag[MEM_TOPOLOGY_MAX_HOSTS] = { false };
-    bool affinity[MEM_TOPOLOGY_MAX_HOSTS] = { false };
+    bool flag[MEM_TOPOLOGY_MAX_HOSTS] = {false};
+    bool affinity[MEM_TOPOLOGY_MAX_HOSTS] = {false};
     if (example.num > MEM_TOPOLOGY_MAX_HOSTS) {
         DBG_LOGERROR("Impossible.");
         return false;
@@ -122,7 +122,7 @@ bool RegionRepository::UpdateRegionInfo(const RegionInfo &region)
         DBG_LOGERROR("ToNodeIds failed.");
         return false;
     }
-    
+
     CreateRegionInput input(region.name, region.size, nodeIds, affinitys);
     auto hr = RecordStore::GetInstance().AddRegionRecord(input);
     if (hr != 0) {

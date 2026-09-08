@@ -12,16 +12,17 @@
 #ifndef SIMPLE_SAMPLES_RECORD_STORE_H
 #define SIMPLE_SAMPLES_RECORD_STORE_H
 
+#include <atomic>
 #include <map>
-#include <string>
-#include <vector>
 #include <memory>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
-#include "ubs_common_types.h"
-#include "record_store_def.h"
 #include "base_record_allocator.h"
 #include "record_id_pool_allocator.h"
+#include "record_store_def.h"
+#include "ubs_common_types.h"
 
 namespace ock {
 namespace ubsm {
@@ -143,6 +144,10 @@ public:
      * @param name 引用的共享内存名称
      * @return 0表示成功，非0表示失败
      */
+    uint32_t GetCreateSeqNo() const noexcept
+    {
+        return __sync_fetch_and_add(createSeqNo_, 1U);
+    }
     int AddShmRefRecord(pid_t pid, const std::string &name) noexcept;
 
     /**
@@ -174,6 +179,11 @@ public:
      */
     std::unordered_map<pid_t, std::unordered_map<std::string, uint32_t>> ListShmRefRecordPidF() const noexcept;
 
+    int AddSuspendClient(pid_t pid) noexcept;
+    int DelSuspendClient(pid_t pid) noexcept;
+    bool IsClientSuspended(pid_t pid) const noexcept;
+    std::vector<pid_t> ListSuspendClients() const noexcept;
+
 private:
     RecordStore() noexcept;
     ~RecordStore() noexcept;
@@ -201,6 +211,8 @@ private:
     MemShareImportRecord *shmImportRecordBegin_{nullptr};
     MemShareRefRecord *shmRefRecordBegin_{nullptr};
     MemIdRecordPool *memIdRecordPoolBegin_{nullptr};
+    uint32_t *createSeqNo_{nullptr};
+    SuspendClientArray *suspendClientArray_{nullptr};
 
     mutable std::mutex cachedRecordMutex_;
     std::unordered_map<std::string, RegionRecord *> cachedRegionRecords_;
@@ -216,7 +228,7 @@ private:
 
     RecordIdPoolAllocator poolAllocator_;
 };
-}
-}
+} // namespace ubsm
+} // namespace ock
 
-#endif  // SIMPLE_SAMPLES_RECORD_STORE_H
+#endif // SIMPLE_SAMPLES_RECORD_STORE_H

@@ -1,13 +1,13 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <sys/mman.h>
 #include <gtest/gtest.h>
+#include <sys/mman.h>
 #include <mockcpp/mockcpp.hpp>
 
+#include "RackMemShm.h"
 #include "mx_shm.h"
 #include "rack_mem_lib.h"
-#include "RackMemShm.h"
 
 #define MOCKER_CPP(api, TT) (MOCKCPP_NS::mockAPI((#api), (reinterpret_cast<TT>(api))))
 
@@ -38,20 +38,19 @@ protected:
     size_t valid_length;
     off_t valid_offset;
     std::string long_name;
-    void* unaligned_start;
+    void *unaligned_start;
 };
-
 
 class RackMemShmUnmmapTest : public ::testing::Test {
 protected:
     void SetUp() override
     {
         // 设置有效的测试数据
-        valid_start = reinterpret_cast<void*>(0x1000); // 对齐的地址
+        valid_start = reinterpret_cast<void *>(0x1000); // 对齐的地址
         valid_length = 1024;
 
         // 设置无效的测试数据
-        unaligned_start = reinterpret_cast<void*>(0x1001); // 未对齐的地址
+        unaligned_start = reinterpret_cast<void *>(0x1001); // 未对齐的地址
         zero_length = 0;
         negative_length = static_cast<size_t>(-1); // 可能会被视为很大的正数
     }
@@ -62,8 +61,8 @@ protected:
         mockcpp::GlobalMockObject::reset();
     }
 
-    void* valid_start;
-    void* unaligned_start;
+    void *valid_start;
+    void *unaligned_start;
     size_t valid_length;
     size_t zero_length;
     size_t negative_length;
@@ -74,7 +73,7 @@ protected:
     void SetUp() override
     {
         // 设置有效的测试数据
-        valid_start = reinterpret_cast<void*>(0x1000); // 对齐的地址
+        valid_start = reinterpret_cast<void *>(0x1000); // 对齐的地址
         valid_length = 2;
 
         // 设置无效的测试数据
@@ -94,8 +93,8 @@ protected:
         mockcpp::GlobalMockObject::reset();
     }
 
-    void* valid_start;
-    void* null_start;
+    void *valid_start;
+    void *null_start;
     size_t valid_length;
     size_t zero_length;
     ShmCacheOpt valid_cache_opt;
@@ -124,15 +123,14 @@ protected:
 
     std::string valid_name;
     std::string long_name;
-    const char* null_name;
+    const char *null_name;
     bool isShmFault;
-    bool* valid_isShmFault;
-    bool* null_isShmFault;
+    bool *valid_isShmFault;
+    bool *null_isShmFault;
 };
 
 class RpcQueryNodeInfoTest : public testing::Test {
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
     void TearDown() override
     {
@@ -143,13 +141,9 @@ class RpcQueryNodeInfoTest : public testing::Test {
 
 TEST_F(RpcQueryNodeInfoTest, NormalCase)
 {
-    MOCKER_CPP(&RackMemLib::StartRackMem, int(*)())
-        .stubs()
-        .will(returnValue(0));
+    MOCKER_CPP(&RackMemLib::StartRackMem, int (*)()).stubs().will(returnValue(0));
 
-    MOCKER_CPP(&RackMemShm::RpcQueryInfo, int(*)(std::string&))
-        .expects(once())
-        .will(returnValue(0));
+    MOCKER_CPP(&RackMemShm::RpcQueryInfo, int (*)(std::string &)).expects(once()).will(returnValue(0));
 
     int result = RpcQueryNodeInfo();
     EXPECT_EQ(0, result);
@@ -157,13 +151,9 @@ TEST_F(RpcQueryNodeInfoTest, NormalCase)
 
 TEST_F(RpcQueryNodeInfoTest, RpcQueryInfoFailed)
 {
-    MOCKER_CPP(&RackMemLib::StartRackMem, int(*)())
-        .stubs()
-        .will(returnValue(0));
+    MOCKER_CPP(&RackMemLib::StartRackMem, int (*)()).stubs().will(returnValue(0));
 
-    MOCKER_CPP(&RackMemShm::RpcQueryInfo, int(*)(std::string&))
-        .expects(once())
-        .will(returnValue(-1));
+    MOCKER_CPP(&RackMemShm::RpcQueryInfo, int (*)(std::string &)).expects(once()).will(returnValue(-1));
 
     int result = RpcQueryNodeInfo();
     EXPECT_EQ(-1, result);

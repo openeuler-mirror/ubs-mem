@@ -8,6 +8,8 @@ SET(CMAKE_SKIP_RPATH TRUE)
 
 option(ENABLE_PTRACER "build ptracer" ON)
 message(STATUS "ENABLE_PTRACER = ${ENABLE_PTRACER}")
+option(BUILD_TEST "build test" OFF)
+message(STATUS "BUILD_TEST = ${BUILD_TEST}")
 # 编译general
 if (NOT DEFINED BUILD_GENERAL_COMPUTING)
     # 针对跑DT时通过环境变量传递出包类型的方式，读取变量值
@@ -45,4 +47,6 @@ add_subdirectory(src)
 set(MATRIX_MEM_TEST_BINARY_DIR ${UBS_MEMORY_BINARY_DIR}/output_test/bin)
 set(MATRIX_MEM_TEST_LIBRARY_DIR ${UBS_MEMORY_BINARY_DIR}/output_test/lib)
 set(MATRIX_MEM_TEST_SCRIPT_DIR ${UBS_MEMORY_BINARY_DIR}/output_test/script)
-add_subdirectory(test)
+if (BUILD_TEST)
+    add_subdirectory(test)
+endif()

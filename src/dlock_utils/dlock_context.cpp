@@ -9,8 +9,8 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "dlock_executor.h"
 #include "dlock_context.h"
+#include "dlock_executor.h"
 
 using namespace ock::dlock_utils;
 
@@ -72,7 +72,7 @@ void DLockContext::UnInitDlockClient()
 
 DLockContext::~DLockContext()
 {
-    for (auto& client : dlockClients) {
+    for (auto &client : dlockClients) {
         if (client != nullptr) {
             delete client;
             client = nullptr;

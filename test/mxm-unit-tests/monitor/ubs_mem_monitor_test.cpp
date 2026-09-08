@@ -1,17 +1,17 @@
 /*
 Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
  */
+#include "comm_def.h"
 #include "gtest/gtest.h"
 #include "mockcpp/mockcpp.hpp"
-#include "ubs_common_config.h"
 #include "mxm_ipc_server_interface.h"
-#include "comm_def.h"
+#include "ubs_common_config.h"
 #define private public
-#include "ubs_mem_monitor.h"
-#include "mls_repository.h"
-#include "ubs_mem_leak_cleaner.h"
 #include "mls_manager.h"
+#include "mls_repository.h"
 #include "shm_manager.h"
+#include "ubs_mem_leak_cleaner.h"
+#include "ubs_mem_monitor.h"
 
 #undef private
 
@@ -146,10 +146,8 @@ TEST_F(UbseMemMonitorDlTest, FirstFreeFailAndRemoveDelayBorrowsSuccess)
     MOCKER_CPP(&UbseMemAdapter::FdPermissionChange, int (*)(const std::string &, const AppContext &, mode_t))
         .stubs()
         .will(returnValue(0))
-        .then(returnValue(1));  // 修改权限第一次成功，第二次失败
-    MOCKER_CPP(&UbseMemAdapter::LeaseFree, int (*)(const std::string &, bool))
-        .stubs()
-        .will(returnValue(0));
+        .then(returnValue(1)); // 修改权限第一次成功，第二次失败
+    MOCKER_CPP(&UbseMemAdapter::LeaseFree, int (*)(const std::string &, bool)).stubs().will(returnValue(0));
     MOCKER_CPP(&UBSMemLeakCleaner::SHMProcessDeadProcess, int (*)(pid_t)).stubs().will(returnValue(0));
     UBSMemMonitor::GetInstance().ClientProcessExited(12345);
 
@@ -165,4 +163,4 @@ TEST_F(UbseMemMonitorDlTest, FirstFreeFailAndRemoveDelayBorrowsSuccess)
     UBSMemMonitor::GetInstance().running = false;
     MLSManager::GetInstance().isEnableLeaseBuffered_ = true;
 }
-}  // namespace UT
+} // namespace UT

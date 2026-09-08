@@ -22,7 +22,8 @@ namespace dagger {
 /*
  * @brief A ring buffer, guarded by spin lock, allow flex capacity
  */
-template <typename T> class RingBuffer {
+template <typename T>
+class RingBuffer {
 public:
     explicit RingBuffer(uint32_t capacity) : mCapacity(capacity) {}
 
@@ -333,8 +334,8 @@ public:
 
     RingBuffer(const RingBuffer &) = delete;
     RingBuffer(RingBuffer &&) = delete;
-    RingBuffer &operator = (const RingBuffer &) = delete;
-    RingBuffer &operator = (RingBuffer &&) = delete;
+    RingBuffer &operator=(const RingBuffer &) = delete;
+    RingBuffer &operator=(RingBuffer &&) = delete;
 
 private:
     T *mRingBuf = nullptr;
@@ -348,7 +349,8 @@ private:
 /*
  * @brief A blocking queue on top of ring buffer
  */
-template <typename T> class RingBufferBlockingQueue {
+template <typename T>
+class RingBufferBlockingQueue {
 public:
     explicit RingBufferBlockingQueue(uint32_t capacity) : mRingBuffer(capacity) {}
 
@@ -465,9 +467,9 @@ public:
 
 private:
     RingBuffer<T> mRingBuffer; /* ring buffer to data store */
-    sem_t mSem {};             /* semaphore to wait and notify */
+    sem_t mSem{};              /* semaphore to wait and notify */
 };
-}
-}
+} // namespace dagger
+} // namespace ock
 
 #endif // HDAGGER_DG_RING_BUFFER_QUEUE_H

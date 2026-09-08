@@ -13,10 +13,11 @@
 #ifndef SYSTEM_ADAPTER_H
 #define SYSTEM_ADAPTER_H
 
-#include <sys/mman.h>
 #include <dlfcn.h>
 #include <fcntl.h>
+#include <sys/mman.h>
 #include <unistd.h>
+#include <cstdint>
 namespace ock::ubsm {
 class SystemAdapter {
 public:
@@ -46,7 +47,10 @@ public:
 
     // dlclose
     static int DlClose(void *handle);
-};
-}
 
-#endif  // SYSTEM_ADAPTER_H
+    // read ub_feature from sysfs
+    static bool ReadUbfeatureFromSysfs(uint64_t &value);
+};
+} // namespace ock::ubsm
+
+#endif // SYSTEM_ADAPTER_H

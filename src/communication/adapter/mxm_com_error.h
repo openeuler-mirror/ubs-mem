@@ -67,4 +67,4 @@
 
 /* 0x10011010 与远端建连失败 */
 #define MXM_COM_ERROR_NEW_IPC_CLIENT_FAIL 0x10011010
-#endif  // MXM_COM_ERROR_H
+#endif // MXM_COM_ERROR_H

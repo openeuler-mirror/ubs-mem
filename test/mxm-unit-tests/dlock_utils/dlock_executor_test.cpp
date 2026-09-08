@@ -4,32 +4,38 @@
 
 #include "dlock_executor_test.h"
 #include <dlfcn.h>
-#include "dlock_utils/ubsm_lock.h"
 #include <mockcpp/mokc.h>
 #include <mockcpp/mockcpp.hpp>
+#include "dlock_utils/ubsm_lock.h"
 #include "system_adapter.h"
 
 using namespace ock::dlock_utils;
 using namespace UT;
 using namespace ock::ubsm;
-int MockDLockSuccess() { return dlock::DLOCK_SUCCESS; }
-int MockDLockFail() { return -1; }
-
-void MockDlsym(const char* name)
+int MockDLockSuccess()
 {
-    void* mockFunc = reinterpret_cast<void*>(MockDLockSuccess);
+    return dlock::DLOCK_SUCCESS;
+}
+int MockDLockFail()
+{
+    return -1;
+}
+
+void MockDlsym(const char *name)
+{
+    void *mockFunc = reinterpret_cast<void *>(MockDLockSuccess);
     MOCKER(SystemAdapter::DlSym)
         .stubs()
-        .with(any(), checkWith([name](const char* str) mutable -> bool { return strcmp(str, name) == 0; }))
-        .will(returnValue(static_cast<void*>(nullptr)));
+        .with(any(), checkWith([name](const char *str) mutable -> bool { return strcmp(str, name) == 0; }))
+        .will(returnValue(static_cast<void *>(nullptr)));
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockFunc));
 }
 TEST_F(DlockExecutorTestSuite, TestInitDLockServerDlopenLibSuccess)
 {
     // given
     int mockHandle = 0;
-    void* mockFunc = reinterpret_cast<void*>(MockDLockSuccess);
-    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(&mockHandle)));
+    void *mockFunc = reinterpret_cast<void *>(MockDLockSuccess);
+    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockFunc));
     // when
     auto ret = DLockExecutor::GetInstance().InitDLockServerDlopenLib();
@@ -42,7 +48,7 @@ TEST_F(DlockExecutorTestSuite, TestInitDLockServerDlopenLibFail1)
 {
     // given
     int mockHandle = 0;
-    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(&mockHandle)));
+    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
     MockDlsym("dserver_lib_init");
     // when
     auto ret = DLockExecutor::GetInstance().InitDLockServerDlopenLib();
@@ -54,7 +60,7 @@ TEST_F(DlockExecutorTestSuite, TestInitDLockServerDlopenLibFail2)
 {
     // given
     int mockHandle = 0;
-    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(&mockHandle)));
+    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
     MockDlsym("dserver_lib_deinit");
     // when
     auto ret = DLockExecutor::GetInstance().InitDLockServerDlopenLib();
@@ -66,7 +72,7 @@ TEST_F(DlockExecutorTestSuite, TestInitDLockServerDlopenLibFail3)
 {
     // given
     int mockHandle = 0;
-    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(&mockHandle)));
+    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
     MockDlsym("server_start");
     // when
     auto ret = DLockExecutor::GetInstance().InitDLockServerDlopenLib();
@@ -79,7 +85,7 @@ TEST_F(DlockExecutorTestSuite, TestInitDLockServerDlopenLibFail4)
 {
     // given
     int mockHandle = 0;
-    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(&mockHandle)));
+    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
     MockDlsym("server_stop");
     // when
     auto ret = DLockExecutor::GetInstance().InitDLockServerDlopenLib();
@@ -90,7 +96,7 @@ TEST_F(DlockExecutorTestSuite, TestInitDLockServerDlopenLibFail4)
 TEST_F(DlockExecutorTestSuite, TestDLockClientLockInitLibSuccess)
 {
     // given
-    void* mockFunc = reinterpret_cast<void*>(MockDLockSuccess);
+    void *mockFunc = reinterpret_cast<void *>(MockDLockSuccess);
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockFunc));
     // when
     auto ret = DLockExecutor::GetInstance().InitDLockClientLockInitLib();
@@ -177,7 +183,7 @@ TEST_F(DlockExecutorTestSuite, TestInitDLockClientLockInitLibFail6)
 TEST_F(DlockExecutorTestSuite, TestInitDLockClientLockGetLibSuccess)
 {
     // given
-    void* mockFunc = reinterpret_cast<void*>(MockDLockSuccess);
+    void *mockFunc = reinterpret_cast<void *>(MockDLockSuccess);
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockFunc));
     // when
     auto ret = DLockExecutor::GetInstance().InitDLockClientLockGetLib();
@@ -248,7 +254,7 @@ TEST_F(DlockExecutorTestSuite, TestInitDLockClientLockGetLibFail5)
 TEST_F(DlockExecutorTestSuite, TestInitDLockClientLockMgmtLibSuccess)
 {
     // given
-    void* mockFunc = reinterpret_cast<void*>(MockDLockSuccess);
+    void *mockFunc = reinterpret_cast<void *>(MockDLockSuccess);
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockFunc));
     // when
     auto ret = DLockExecutor::GetInstance().InitDLockClientLockMgmtLib();

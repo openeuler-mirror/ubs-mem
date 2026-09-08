@@ -13,16 +13,16 @@
 #ifndef ELECTION_MODULE_H
 #define ELECTION_MODULE_H
 
-#include <string>
-#include <set>
-#include <mutex>
 #include <atomic>
 #include <chrono>
-#include <thread>
 #include <condition_variable>
 #include <functional>
-#include <queue>
 #include <list>
+#include <mutex>
+#include <queue>
+#include <set>
+#include <string>
+#include <thread>
 
 namespace ock::zendiscovery {
 class ZenDiscovery;
@@ -41,32 +41,32 @@ public:
     };
     // 选举
     void RunElection();
-    
+
     bool IsElectionInProgress() const;
     int GetCurrentTerm() const;
-    const std::string& GetElectedMaster() const;
-    void AddJoinsReceived(const std::string& nodeId);
-    void RecordVote(const std::string& nodeId);
+    const std::string &GetElectedMaster() const;
+    void AddJoinsReceived(const std::string &nodeId);
+    void RecordVote(const std::string &nodeId);
     void SetCurrentTerm(int term);
     void ClearJoinsReceived();
     std::set<std::string> GetJoinsReceived() const;
 
-    using ZenEventListener = std::function<void(ZenElectionEventType, const std::string&, const std::string&)>;
+    using ZenEventListener = std::function<void(ZenElectionEventType, const std::string &, const std::string &)>;
 
-    explicit ElectionModule(ZenDiscovery& discovery);
+    explicit ElectionModule(ZenDiscovery &discovery);
 
     // 事件监听管理
     int AddElectionListener(ZenEventListener listener);
     void RemoveElectionListener(int listenerId);
-    void notifyListeners(ZenElectionEventType event, const std::string& masterId = "",
-                         const std::string& voteOnlyId = "");
+    void notifyListeners(ZenElectionEventType event, const std::string &masterId = "",
+                         const std::string &voteOnlyId = "");
     void Stop();
 
 private:
     struct NodeCollections {
-        std::set<std::string> activeMasters;     // 当前活跃的主节点
-        std::set<std::string> masterCandidates;  // 候选主节点
-        std::string voteOnlyNode;                // 只负责投票的节点
+        std::set<std::string> activeMasters;    // 当前活跃的主节点
+        std::set<std::string> masterCandidates; // 候选主节点
+        std::string voteOnlyNode;               // 只负责投票的节点
     };
     struct ListenerParam {
         ZenElectionEventType event;
@@ -79,25 +79,24 @@ private:
     std::condition_variable cond;
 
     NodeCollections CollectNodeInfo();
-    std::string SelectTemporaryMaster(const NodeCollections& collections);
-    bool ConductVoting(const std::string& tempMaster,
-                      const NodeCollections& collections);
-    void ProcessVotingResults(const std::string& tempMaster, const std::vector<std::string>& candidates);
-    void BroadcastElectionResult(const std::string& electedMaster);
+    std::string SelectTemporaryMaster(const NodeCollections &collections);
+    bool ConductVoting(const std::string &tempMaster, const NodeCollections &collections);
+    void ProcessVotingResults(const std::string &tempMaster, const std::vector<std::string> &candidates);
+    void BroadcastElectionResult(const std::string &electedMaster);
     void ListenerLoop();
-    void NotifyListenerParam(const ListenerParam& listenerParam);
-    ZenDiscovery& discovery_;  // 关联的ZenDiscovery实例
+    void NotifyListenerParam(const ListenerParam &listenerParam);
+    ZenDiscovery &discovery_; // 关联的ZenDiscovery实例
 
     // 选举状态
     std::atomic<bool> electionInProgress_{false};
     std::atomic<int> currentTerm_{0};
     std::string electedMaster_;
-    
+
     // 投票状态
     mutable std::mutex votingMutex_;
     std::set<std::string> votesReceived_;
     std::set<std::string> joinsReceived_;
-    
+
     // 时间管理
     std::chrono::steady_clock::time_point electionStartTime_;
 
@@ -106,6 +105,6 @@ private:
     int nextListenerId_ = 0;
     std::atomic<bool> running_{true};
 };
-}
+} // namespace ock::zendiscovery
 
 #endif

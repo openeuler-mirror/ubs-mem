@@ -18,7 +18,7 @@ class UbsmCheckResource {
 public:
     static int UbsmCheckResourceHandler();
 };
-}  // ubsm
-}  // ock
+} // namespace ubsm
+} // namespace ock
 
-#endif  // UBS_MEMORY_UBSM_CHECK_RESOURCE_H
+#endif // UBS_MEMORY_UBSM_CHECK_RESOURCE_H

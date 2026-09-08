@@ -8,8 +8,3 @@ target_compile_definitions(ubs_mem_common_object PUBLIC OCK_RELEASE_APPEND_INFO=
 target_compile_definitions(ubs_mem_common_object PUBLIC OCK_RELEASE_COMPONENT_VERSION="${OCK_RELEASE_COMPONENT_VERSION}")
 target_compile_definitions(ubs_mem_common_object PUBLIC OCK_COMMIT_ID="${GIT_HASH}")
 target_compile_definitions(ubs_mem_common_object PUBLIC _GNU_SOURCE __DPAX_LINUX_USR__)
-
-target_include_directories(ubs_mem_common_object PUBLIC ${CMAKE_CURRENT_LIST_DIR})
-aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} UBS_MEM_SRCS)
-target_sources(ubs_mem_common_object PRIVATE ${UBS_MEM_SRCS})
-unset(UBS_MEM_SRCS)

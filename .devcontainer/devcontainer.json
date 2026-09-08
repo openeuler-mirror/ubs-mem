@@ -1,0 +1,40 @@
+{
+    "name": "ubs-mem Dev Container",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": ".."
+    },
+    "runArgs": [
+        "--cap-add=SYS_PTRACE",
+        "--security-opt=seccomp=unconfined"
+    ],
+    "mounts": [
+        "source=ubs-mem-precommit-${localEnv:USER:unknown},target=/root/.cache/pre-commit,type=volume"
+    ],
+    "containerEnv": {
+        "PRE_COMMIT_HOME": "/root/.cache/pre-commit"
+    },
+    "postCreateCommand": "bash .devcontainer/post_create.sh",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-vscode.cmake-tools",
+                "ms-vscode-remote.remote-containers",
+                "redhat.vscode-yaml",
+                "yzhang.markdown-all-in-one"
+            ],
+            "settings": {
+                "cmake.configureOnOpen": true,
+                "cmake.buildDirectory": "${workspaceFolder}/build/debug",
+                "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+                "editor.formatOnSave": false,
+                "editor.rulers": [120],
+                "files.trimTrailingWhitespace": true,
+                "files.insertFinalNewline": true,
+                "terminal.integrated.defaultProfile.linux": "bash"
+            }
+        }
+    },
+    "remoteUser": "root"
+}

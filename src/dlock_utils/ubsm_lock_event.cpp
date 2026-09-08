@@ -11,9 +11,9 @@
  */
 #include "ubsm_lock_event.h"
 #include "mxm_msg.h"
+#include "rpc_config.h"
 #include "rpc_server.h"
 #include "ubs_common_config.h"
-#include "rpc_config.h"
 #include "ubsm_lock.h"
 
 using namespace ock::dlock_utils;
@@ -21,8 +21,8 @@ using RpcServer = ock::rpc::service::RpcServer;
 using ZenDiscovery = ock::zendiscovery::ZenDiscovery;
 using ZenElectionEventType = ock::zendiscovery::ElectionModule::ZenElectionEventType;
 
-void UbsmLockEvent::HandleElectionEvent(ZenElectionEventType eventType, const std::string& masterId,
-                                        const std::string& clientId)
+void UbsmLockEvent::HandleElectionEvent(ZenElectionEventType eventType, const std::string &masterId,
+                                        const std::string &clientId)
 {
     switch (eventType) {
         case ZenElectionEventType::ELECTION_STARTED:
@@ -62,9 +62,9 @@ void UbsmLockEvent::DoPreElection()
     DBG_LOGDEBUG("In DoPreElection.");
 }
 
-void UbsmLockEvent::OnMasterElected(const std::string& masterId)
+void UbsmLockEvent::OnMasterElected(const std::string &masterId)
 {
-    auto& rpcConfig = rpc::NetRpcConfig::GetInstance();
+    auto &rpcConfig = rpc::NetRpcConfig::GetInstance();
     auto localNode = rpcConfig.GetLocalNode();
     DBG_LOGDEBUG("Local node: " << localNode.name << ", Elected master: " << masterId);
     if (localNode.name != masterId) {
@@ -79,13 +79,13 @@ void UbsmLockEvent::OnMasterElected(const std::string& masterId)
     DoDLockServerInit(localNode.ip);
 }
 
-void UbsmLockEvent::DoDLockServerInit(const std::string& serverIp)
+void UbsmLockEvent::DoDLockServerInit(const std::string &serverIp)
 {
     // 主节Init
     DBG_LOGINFO("Initializing DLock server, serverIp=" << serverIp);
     int32_t ret = dlock::DLOCK_SUCCESS;
-    auto& cfg = DLockContext::Instance().GetConfig();
-//    rpc::RpcNode masterNode;
+    auto &cfg = DLockContext::Instance().GetConfig();
+    //    rpc::RpcNode masterNode;
     cfg.serverIp = serverIp;
     cfg.isDlockServer = true;
     size_t retryCount = 0;
@@ -99,7 +99,7 @@ void UbsmLockEvent::DoDLockServerInit(const std::string& serverIp)
     DBG_LOGINFO("UbsmLock server initialized end, serverIp=" << serverIp << ", ret=" << ret);
 }
 
-void UbsmLockEvent::OnDLockClientInit(const std::string& masterId)
+void UbsmLockEvent::OnDLockClientInit(const std::string &masterId)
 {
     int32_t ret = dlock::DLOCK_SUCCESS;
     if (UbsmLock::Instance().IsUbsmLockInit()) { // 锁状态
@@ -112,10 +112,10 @@ void UbsmLockEvent::OnDLockClientInit(const std::string& masterId)
         DBG_LOGERROR("Invalid master Id: " << masterId);
         return;
     }
-    auto& rpcConfig = rpc::NetRpcConfig::GetInstance();
+    auto &rpcConfig = rpc::NetRpcConfig::GetInstance();
     auto localNode = rpcConfig.GetLocalNode();
     DBG_LOGINFO("UbsmLock client init process, serverIp=" << masterNode.ip << ", clientIp=" << localNode.ip);
-    auto& cfg = DLockContext::Instance().GetConfig();
+    auto &cfg = DLockContext::Instance().GetConfig();
     cfg.serverIp = masterNode.ip;
     cfg.clientIp = localNode.ip;
     cfg.isDlockServer = false;
@@ -133,8 +133,8 @@ void UbsmLockEvent::OnDLockClientInit(const std::string& masterId)
 
 void UbsmLockEvent::OnDLockDemoted()
 {
-    auto& ctx = DLockContext::Instance();
-    auto& cfg = ctx.GetConfig();
+    auto &ctx = DLockContext::Instance();
+    auto &cfg = ctx.GetConfig();
 
     if (cfg.isDlockServer) {
         DBG_LOGINFO("Process master demotion, serverIP=" << cfg.serverIp << ", clientIP=" << cfg.clientIp);
@@ -151,16 +151,16 @@ void UbsmLockEvent::OnDLockDemoted()
     DBG_LOGERROR("Change lock flag to false in OnDLockDemoted.");
     UbsmLock::Instance().UbsmLockInitSet(false);
 }
-void UbsmLockEvent::OnDLockServerRecovery(const std::string& masterId, const std::string& clientId)
+void UbsmLockEvent::OnDLockServerRecovery(const std::string &masterId, const std::string &clientId)
 {
     DBG_LOGINFO("Ubsm Lock server recovery, masterId=" << masterId << ", clientId=" << clientId);
     rpc::RpcNode masterNode;
     rpc::RpcNode reinitNode;
-    if (rpc::NetRpcConfig::GetInstance().ParseRpcNodeFromId(masterId, masterNode)!= UBSM_OK) {
+    if (rpc::NetRpcConfig::GetInstance().ParseRpcNodeFromId(masterId, masterNode) != UBSM_OK) {
         DBG_LOGERROR("Get rpcNode from masterId failed, masterId: " << masterId);
         return;
     }
-    if (rpc::NetRpcConfig::GetInstance().ParseRpcNodeFromId(clientId, reinitNode)!= UBSM_OK) {
+    if (rpc::NetRpcConfig::GetInstance().ParseRpcNodeFromId(clientId, reinitNode) != UBSM_OK) {
         DBG_LOGERROR("Get rpcNode from clientId failed, clientId: " << clientId);
         return;
     }
@@ -170,12 +170,12 @@ void UbsmLockEvent::OnDLockServerRecovery(const std::string& masterId, const std
     }
 }
 
-int32_t UbsmLockEvent::DoRecovery(const rpc::RpcNode& masterNode, const rpc::RpcNode& reinitNode)
+int32_t UbsmLockEvent::DoRecovery(const rpc::RpcNode &masterNode, const rpc::RpcNode &reinitNode)
 {
     DBG_LOGINFO("Starting recovery process for master node=" << masterNode.name << " client node=" << reinitNode.name);
     int32_t ret = dlock::DLOCK_SUCCESS;
     size_t retryCount = 0;
-    auto& cfg = DLockContext::Instance().GetConfig();
+    auto &cfg = DLockContext::Instance().GetConfig();
     cfg.isDlockServer = true;
     cfg.isDlockClient = false;
     cfg.serverIp = masterNode.ip;

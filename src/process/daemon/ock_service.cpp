@@ -16,7 +16,7 @@
 
 using namespace ock::daemon;
 
-void *OckService::GetAgentMethodP(const std::string& name)
+void *OckService::GetAgentMethodP(const std::string &name)
 {
     char *error;
     dlerror();
@@ -57,8 +57,8 @@ HRESULT OckService::Initialize(OckServiceAdapter *serviceConf)
     }
     auto libPath = serviceConf->LibPath();
     if (!OckFileDirExists(libPath) || !(serviceHandler = dlopen(libPath.data(), RTLD_NOW | RTLD_GLOBAL))) {
-        DBG_LOGERROR("OckService: service " << serviceConf->Name() << " open lib <" << libPath <<
-            "> failed with error: " << dlerror());
+        DBG_LOGERROR("OckService: service " << serviceConf->Name() << " open lib <" << libPath
+                                            << "> failed with error: " << dlerror());
         return HFAIL;
     }
     agentCreateP = reinterpret_cast<CreateT>(GetAgentMethodP(SERVICE_METHOD_CREATE));

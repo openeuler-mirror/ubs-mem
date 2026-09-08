@@ -11,8 +11,8 @@
  */
 #include "RmLibObmmExecutor.h"
 #include <cstddef>
-#include "log.h"
 #include "dlfcn.h"
+#include "log.h"
 #include "system_adapter.h"
 
 namespace ock::mxmd {
@@ -20,7 +20,7 @@ using namespace ock::common;
 using namespace ock::ubsm;
 uint32_t RmLibObmmExecutor::Initialize()
 {
-    static constexpr auto obmmPath = "/usr/lib64/libobmm.so.1";
+    static constexpr auto obmmPath = SYS_LIB_DIR "/libobmm.so.1";
     handle = SystemAdapter::DlOpen(obmmPath, RTLD_NOW);
     if (handle == nullptr) {
         DBG_LOGERROR("Failed to dlopen obmm.so, error info=" << dlerror());
@@ -44,4 +44,4 @@ uint32_t RmLibObmmExecutor::Exit()
     }
     return HOK;
 };
-}  // namespace ock::mxmd
+} // namespace ock::mxmd

@@ -11,19 +11,19 @@
  */
 
 #include "mxm_ipc_server_interface.h"
-#include "util/defines.h"
-#include "mxm_ipc_server.h"
 #include "mxm_com_base.h"
+#include "mxm_ipc_server.h"
+#include "mxm_message_handler.h"
 #include "mxm_msg.h"
 #include "ubsm_com_constants.h"
-#include "mxm_message_handler.h"
+#include "util/defines.h"
 
 namespace ock::com::ipc {
 
-MxmIpcServer* g_mxmIpcServer{nullptr};
+MxmIpcServer *g_mxmIpcServer{nullptr};
 std::atomic<int> g_ipcServerCount{0};
 
-HRESULT RegIpcService(MxmComBaseMessageHandlerPtr& handlerPtr)
+HRESULT RegIpcService(MxmComBaseMessageHandlerPtr &handlerPtr)
 {
     if (g_mxmIpcServer != nullptr) {
         return g_mxmIpcServer->RegMessageHandler(handlerPtr);
@@ -80,9 +80,9 @@ void MxmComStopIpcServer()
     }
 }
 
-void MXMSetLinkEventHandler(const MXMLinkEventHandler& handler)
+void MXMSetLinkEventHandler(const MXMLinkEventHandler &handler)
 {
-    g_mxmIpcServer->AddLinkNotifyFunc([handler] (const std::vector<MxmLinkInfo>& linkInfoList) ->void {
+    g_mxmIpcServer->AddLinkNotifyFunc([handler](const std::vector<MxmLinkInfo> &linkInfoList) -> void {
         for (MxmLinkInfo info : linkInfoList) {
             if (info.GetState() == MxmLinkState::LINK_DOWN) {
                 uint32_t pid = info.GetPID();
@@ -92,7 +92,7 @@ void MXMSetLinkEventHandler(const MXMLinkEventHandler& handler)
     });
 }
 
-uint32_t MxmRegIpcService(const MxmComEndpoint& endpoint, const MxmComIpcServiceHandler& handler)
+uint32_t MxmRegIpcService(const MxmComEndpoint &endpoint, const MxmComIpcServiceHandler &handler)
 {
     uint16_t moduleCode = endpoint.moduleId;
     auto opCode = static_cast<uint16_t>(endpoint.serviceId);

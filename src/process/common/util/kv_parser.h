@@ -12,14 +12,14 @@
 #ifndef OCK_COMMON_COMMON_UTIL_KVFILE_H
 #define OCK_COMMON_COMMON_UTIL_KVFILE_H
 
+#include <fstream>
 #include <map>
 #include <string>
-#include <vector>
-#include <fstream>
 #include <unordered_map>
+#include <vector>
 
-#include "lock.h"
 #include "functions.h"
+#include "lock.h"
 
 namespace ock {
 namespace common {
@@ -34,9 +34,9 @@ public:
     ~KVParser();
 
     KVParser(const KVParser &) = delete;
-    KVParser &operator = (const KVParser &) = delete;
+    KVParser &operator=(const KVParser &) = delete;
     KVParser(const KVParser &&) = delete;
-    KVParser &operator = (const KVParser &&) = delete;
+    KVParser &operator=(const KVParser &&) = delete;
 
     HRESULT FromFile(const std::string &filePath);
 

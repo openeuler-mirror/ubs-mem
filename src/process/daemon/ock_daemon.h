@@ -12,37 +12,38 @@
 #ifndef OCK_DAEMON_H
 #define OCK_DAEMON_H
 
-#include <mutex>
 #include <atomic>
-#include <memory>
 #include <chrono>
 #include <condition_variable>
-#include "util/common_headers.h"
-#include "ock_service_manager.h"
+#include <memory>
+#include <mutex>
+#include "log.h"
 #include "ock_service_adapter.h"
+#include "ock_service_manager.h"
+#include "util/common_headers.h"
 #include "util/log_adapter.h"
 #include "util/systemd_wrapper.h"
-#include "ulog/log.h"
 
 namespace ock {
 namespace daemon {
-constexpr int ARGS_NUM = 2;
-constexpr int BIN_PATH_POSITION = 1;
+constexpr int ARGS_NUM = 3;
+constexpr int RUNTIME_PATH_POSITION = 1;
+constexpr int CONFIG_PATH_POSITION = 2;
 class OckDaemon : public ock::common::Referable {
 public:
     OckDaemon();
     ~OckDaemon() override;
 
-    HRESULT CheckParam(const std::string &binPath);
+    HRESULT CheckParam(const std::string &runtimePath, const std::string &configPath);
     HRESULT Initialize();
-    HRESULT Start(const std::chrono::time_point<std::chrono::steady_clock>& start);
+    HRESULT Start(const std::chrono::time_point<std::chrono::steady_clock> &start);
     void TryStop();
     HRESULT InitHandler();
     virtual HRESULT Shutdown();
     HRESULT Uninitialize();
     HRESULT ValidateConfiguration(const std::string &confPath);
     virtual HRESULT CheckServicesCount();
-    static void PrintStartTime(const std::chrono::time_point<std::chrono::steady_clock>& start, const std::string& log);
+    static void PrintStartTime(const std::chrono::time_point<std::chrono::steady_clock> &start, const std::string &log);
     bool GetHtracerEnable()
     {
         return mHtracerEnable;
@@ -59,15 +60,12 @@ private:
     int32_t InitRpcTlsConfig();
     int32_t InitLockTlsConfig();
 
-    enum class ServerStatus {
-        UNINITIALIZED = 0,
-        INITIALIZED = 1,
-        WAITING = 2
-    };
+    enum class ServerStatus { UNINITIALIZED = 0, INITIALIZED = 1, WAITING = 2 };
 
     HpcServiceManagerPtr serviceManager = nullptr;
     ock::common::ConfigurationPtr mConf = nullptr;
-    std::string mHomePath = "";
+    std::string mRuntimePath = "";
+    std::string mConfigPath = "";
 
     enum KeepAliveStatus : int {
         KEEP_ALIVE_IDLE,
@@ -84,7 +82,8 @@ private:
     HRESULT LoadDaemonConf();
     HRESULT InitDaemonLog();
     HRESULT InitHtrace();
-    HRESULT CheckBinPath(const char *binPath);
+    HRESULT CheckRuntimePath(const char *runtimePath);
+    HRESULT CheckConfigPath(const char *configPath);
 
     void StoppingKeepAlive();
     void StoppedKeepAlive();

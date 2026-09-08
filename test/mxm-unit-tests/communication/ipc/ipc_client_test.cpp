@@ -8,7 +8,6 @@
 namespace UT {
 using namespace ock::com;
 
-
 void MockTest()
 {
     MOCKER(MxmComStartIpcClient).stubs().will(returnValue(0));
@@ -18,8 +17,8 @@ void MockTest()
 TEST_F(IpcClinetTestSuite, TestIpcClientStartSuccess)
 {
     MOCKER_CPP(&MxmCommunication::MxmComIpcConnect,
-               HRESULT(*)(const std::string& engineName, const std::string& udsPath, const std::string& nodeId,
-                   MxmChannelType chType))
+               HRESULT(*)(const std::string &engineName, const std::string &udsPath, const std::string &nodeId,
+                          MxmChannelType chType))
         .stubs()
         .will(returnValue(HOK));
 
@@ -30,8 +29,8 @@ TEST_F(IpcClinetTestSuite, TestIpcClientStartSuccess)
 TEST_F(IpcClinetTestSuite, TestIpcClientStartFail)
 {
     MOCKER_CPP(&MxmCommunication::MxmComIpcConnect,
-               HRESULT(*)(const std::string& engineName, const std::string& udsPath, const std::string& nodeId,
-                   MxmChannelType chType))
+               HRESULT(*)(const std::string &engineName, const std::string &udsPath, const std::string &nodeId,
+                          MxmChannelType chType))
         .stubs()
         .will(returnValue(HFAIL));
     auto ret = MxmComStartIpcClient();
@@ -40,14 +39,14 @@ TEST_F(IpcClinetTestSuite, TestIpcClientStartFail)
 
 TEST_F(IpcClinetTestSuite, TestIpcClientSendSuccess)
 {
-    MOCKER_CPP(& MxmCommunication::CreateMxmComEngine,
-               HRESULT(*)(const MxmComEngineInfo& engine, const MxmComLinkStateNotify& notify,
-               const EngineHandlerWorker& handlerWorker))
+    MOCKER_CPP(&MxmCommunication::CreateMxmComEngine,
+               HRESULT(*)(const MxmComEngineInfo &engine, const MxmComLinkStateNotify &notify,
+                          const EngineHandlerWorker &handlerWorker))
         .stubs()
         .will(returnValue(HOK));
     MOCKER_CPP(&MxmCommunication::MxmComIpcConnect,
-               HRESULT(*)(const std::string& engineName, const std::string& udsPath, const std::string& nodeId,
-                   MxmChannelType chType))
+               HRESULT(*)(const std::string &engineName, const std::string &udsPath, const std::string &nodeId,
+                          MxmChannelType chType))
         .stubs()
         .will(returnValue(HOK));
     auto ret = MxmComStartIpcClient();
@@ -55,7 +54,7 @@ TEST_F(IpcClinetTestSuite, TestIpcClientSendSuccess)
     auto request = std::make_shared<CommonRequest>();
     auto response = std::make_shared<CommonResponse>();
     MOCKER_CPP(&MxmCommunication::MxmComMsgSend,
-               HRESULT(*)(const std::string& engineName, MxmComMessageCtx& message, MxmComDataDesc& retData))
+               HRESULT(*)(const std::string &engineName, MxmComMessageCtx &message, MxmComDataDesc &retData))
         .stubs()
         .will(returnValue(HOK));
     ret = MxmComIpcClientSend(1, request.get(), response.get());
@@ -75,8 +74,8 @@ TEST_F(IpcClinetTestSuite, TestIpcClientSendFail02)
 {
     MockTest();
     MOCKER_CPP(&MxmCommunication::MxmComIpcConnect,
-               HRESULT(*)(const std::string& engineName, const std::string& udsPath, const std::string& nodeId,
-                   MxmChannelType chType))
+               HRESULT(*)(const std::string &engineName, const std::string &udsPath, const std::string &nodeId,
+                          MxmChannelType chType))
         .stubs()
         .will(returnValue(HOK));
     auto ret = MxmComStartIpcClient();

@@ -1,9 +1,9 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
+#include <dlfcn.h>
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
-#include <dlfcn.h>
 
 #include "rpc_config.h"
 
@@ -14,8 +14,7 @@ using namespace ock::rpc;
 
 class RpcConfigTestSuite : public Test {
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
     void TearDown() override
     {
@@ -47,4 +46,4 @@ TEST_F(RpcConfigTestSuite, TestParseRpcNodeFromId)
     ASSERT_EQ(NetRpcConfig::GetInstance().ParseRpcNodeFromId("1.1.1.1:1", node), UBSM_OK);
     ASSERT_EQ(node.name, "1.1.1.1:1");
 }
-}  // namespace UT
+} // namespace UT

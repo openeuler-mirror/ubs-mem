@@ -16,12 +16,12 @@
 extern "C" {
 #endif
 
-char* DecryptPassword(const char* encrypted_data, size_t encrypted_len, size_t* p_out_len)
+char *DecryptPassword(const char *encrypted_data, size_t encrypted_len, size_t *p_out_len)
 {
     if (encrypted_data == nullptr || p_out_len == nullptr) {
         return nullptr;
     }
-    char* plaintext = new (std::nothrow) char[encrypted_len];
+    char *plaintext = new (std::nothrow) char[encrypted_len];
     if (!plaintext) {
         return nullptr;
     }

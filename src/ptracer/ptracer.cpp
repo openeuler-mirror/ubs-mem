@@ -30,10 +30,10 @@ namespace ock {
 namespace ubsm {
 namespace tracer {
 
-int32_t InitDefaultTracer(const std::string& dumpDir, ptracer& tracer)
+int32_t InitDefaultTracer(const std::string &dumpDir, ptracer &tracer)
 {
 #ifdef ENABLE_PTRACER
-    auto& service = DefaultTracer::GetInstance();
+    auto &service = DefaultTracer::GetInstance();
     if (service.StartUp(dumpDir) != 0) {
         return -1;
     }
@@ -49,7 +49,7 @@ int32_t InitDefaultTracer(const std::string& dumpDir, ptracer& tracer)
 #endif
 }
 
-void UnInitDefaultTracer(ptracer& tracer)
+void UnInitDefaultTracer(ptracer &tracer)
 {
 #ifdef ENABLE_PTRACER
     DefaultTracer::GetInstance().ShutDown();
@@ -60,11 +60,11 @@ void UnInitDefaultTracer(ptracer& tracer)
 #endif
 }
 
-}  // namespace tracer
-}  // namespace ubsm
-}  // namespace ock
+} // namespace tracer
+} // namespace ubsm
+} // namespace ock
 
-PTRACER_API int32_t ptracer_init(ptracer_config_t* config)
+PTRACER_API int32_t ptracer_init(ptracer_config_t *config)
 {
     std::lock_guard<std::mutex> guard(g_mutex);
     if (g_inited) {
@@ -102,4 +102,7 @@ PTRACER_API void ptracer_uninit(void)
     g_inited = false;
 }
 
-PTRACER_API const char* ptracer_get_last_err_msg(void) { return ock::ubsm::tracer::LastError::Get(); }
+PTRACER_API const char *ptracer_get_last_err_msg(void)
+{
+    return ock::ubsm::tracer::LastError::Get();
+}

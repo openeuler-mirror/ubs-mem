@@ -1,22 +1,22 @@
 /*
 * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
-#include <secodefuzz/secodeFuzz.h>
 #include <dlfcn.h>
-#include "dt_fuzz.h"
+#include <gtest/gtest.h>
+#include <secodefuzz/secodeFuzz.h>
+#include <mockcpp/mockcpp.hpp>
 #include "ubs_mem.h"
-#include "mxm_ipc_client_interface.cpp"
-#include "shmem_stubs.h"
-#include "ubse_mem_adapter_stub.h"
 #include "RmLibObmmExecutor.h"
-#include "rack_mem_fd_map.h"
-#include "mls_manager.h"
-#include "rack_mem_lib_common.h"
-#include "ubsm_lock.h"
-#include "system_adapter.h"
 #include "dlock_types.h"
+#include "dt_fuzz.h"
+#include "mls_manager.h"
+#include "mxm_ipc_client_interface.cpp"
+#include "rack_mem_fd_map.h"
+#include "rack_mem_lib_common.h"
+#include "shmem_stubs.h"
+#include "system_adapter.h"
+#include "ubse_mem_adapter_stub.h"
+#include "ubsm_lock.h"
 namespace FUZZ {
 using namespace ock::com::ipc;
 using namespace ock::dlock_utils;
@@ -86,7 +86,7 @@ TEST_F(TestUbsmem, Test_ubsmem_init_attributes)
     char fuzzName[] = "Test_ubsmem_init_attributes";
     DT_FUZZ_START(0, CAPI_FUZZ_COUNT, fuzzName, 0)
     {
-        bool passNull = bool(*(u8*)DT_SetGetNumberRangeV3(0, 0, 0, 1));
+        bool passNull = bool(*(u8 *)DT_SetGetNumberRangeV3(0, 0, 0, 1));
 
         ubsmem_options_t opts;
 
@@ -106,7 +106,7 @@ TEST_F(TestUbsmem, Test_ubsmem_init)
     char fuzzName[] = "Test_ubsmem_init";
     DT_FUZZ_START(0, CAPI_FUZZ_COUNT, fuzzName, 0)
     {
-        bool passNull = bool(*(u8*)DT_SetGetNumberRangeV3(0, 0, 0, 1));
+        bool passNull = bool(*(u8 *)DT_SetGetNumberRangeV3(0, 0, 0, 1));
 
         ubsmem_options_t opts;
         int ret = passNull ? ubsmem_initialize(nullptr) : ubsmem_initialize(&opts);
@@ -120,8 +120,8 @@ TEST_F(TestUbsmem, Test_ubsmem_init)
     DT_FUZZ_END()
 }
 
-static bool IsInvalidCreateParam(const char* safeRegionName, uint64_t size,
-                                 const ubsmem_region_attributes_t* reg_attr, int i)
+static bool IsInvalidCreateParam(const char *safeRegionName, uint64_t size, const ubsmem_region_attributes_t *reg_attr,
+                                 int i)
 {
     return (safeRegionName == nullptr || reg_attr == nullptr || strlen(safeRegionName) == 0 || size != 0 ||
             reg_attr->host_num > MAX_REGION_NODE_NUM || reg_attr->host_num < NO_2 ||
@@ -130,13 +130,13 @@ static bool IsInvalidCreateParam(const char* safeRegionName, uint64_t size,
             strnlen(reg_attr->hosts[i].host_name, MAX_HOST_NAME_DESC_LENGTH) >= MAX_HOST_NAME_DESC_LENGTH);
 }
 
-static bool IsInvalidLookupParam(const char* safeRegionName, const ubsmem_region_desc_t* regionDesc)
+static bool IsInvalidLookupParam(const char *safeRegionName, const ubsmem_region_desc_t *regionDesc)
 {
     return (safeRegionName == nullptr || regionDesc == nullptr || strlen(safeRegionName) == 0 ||
             strnlen(safeRegionName, MAX_REGION_NAME_DESC_LENGTH) >= MAX_REGION_NAME_DESC_LENGTH);
 }
 
-static bool IsInvalidDestroyParam(const char* safeRegionName)
+static bool IsInvalidDestroyParam(const char *safeRegionName)
 {
     return (safeRegionName == nullptr || strlen(safeRegionName) == 0 ||
             strnlen(safeRegionName, MAX_REGION_NAME_DESC_LENGTH) >= MAX_REGION_NAME_DESC_LENGTH);
@@ -152,7 +152,7 @@ TEST_F(TestUbsmem, Test_ubsmem_create_region)
     DT_FUZZ_START(0, CAPI_FUZZ_COUNT, fuzzName, 0)
     {
         char regionNameTest[] = "ubsmem_create_region";
-        const char* regionName = DT_SetGetString(&g_Element[0], strlen(regionNameTest) + 1, 1024, regionNameTest);
+        const char *regionName = DT_SetGetString(&g_Element[0], strlen(regionNameTest) + 1, 1024, regionNameTest);
 
         char safeRegionName[MAX_REGION_NAME_DESC_LENGTH];
         if (regionName != nullptr) {
@@ -163,18 +163,18 @@ TEST_F(TestUbsmem, Test_ubsmem_create_region)
         uint64_t size = 0;
 
         ubsmem_region_attributes_t reg_attr_obj = {};
-        ubsmem_region_attributes_t* reg_attr = &reg_attr_obj;
+        ubsmem_region_attributes_t *reg_attr = &reg_attr_obj;
         reg_attr->host_num = 2;
         printf("host_num: %lu\n", reg_attr->host_num);
         for (int i = 0; i < reg_attr->host_num && i < MAX_REGION_NODE_NUM; ++i) {
-            const char* fixedHostName = "1";
+            const char *fixedHostName = "1";
             strncpy_s(reg_attr->hosts[i].host_name, MAX_HOST_NAME_DESC_LENGTH, fixedHostName,
                       strnlen(fixedHostName, MAX_HOST_NAME_DESC_LENGTH));
-            reg_attr->hosts[i].affinity = static_cast<bool>(*(u8*)DT_SetGetNumberRangeV3(0, 0, 0, 1));
+            reg_attr->hosts[i].affinity = static_cast<bool>(*(u8 *)DT_SetGetNumberRangeV3(0, 0, 0, 1));
         }
 
         ubsmem_region_desc_t regionDesc_obj = {};
-        ubsmem_region_desc_t* regionDesc = &regionDesc_obj;
+        ubsmem_region_desc_t *regionDesc = &regionDesc_obj;
         strncpy_s(regionDesc->region_name, MAX_REGION_NAME_DESC_LENGTH, safeRegionName,
                   strnlen(safeRegionName, MAX_REGION_NAME_DESC_LENGTH));
 
@@ -182,7 +182,7 @@ TEST_F(TestUbsmem, Test_ubsmem_create_region)
         regionDesc->region_attr = *reg_attr;
 
         ubsmem_regions_t region_t_obj = {};
-        ubsmem_regions_t* region_t = &region_t_obj;
+        ubsmem_regions_t *region_t = &region_t_obj;
         region_t->num = 1;
         region_t->region[0] = *reg_attr;
 
@@ -413,7 +413,7 @@ TEST_F(TestUbsmem, TEST_ubsmem_shmem_list_lookup)
         const char *prefix = DT_SetGetString(&g_Element[0], strlen(nameTest) + 1, 1024, nameTest);
         uint32_t shm_cnt = 1;
         ubsmem_shmem_desc_t shm_list_obj = {};
-        ubsmem_shmem_desc_t* shm_list = &shm_list_obj;
+        ubsmem_shmem_desc_t *shm_list = &shm_list_obj;
 
         int ret = ubsmem_shmem_list_lookup(prefix, shm_list, &shm_cnt);
         if (prefix == nullptr || strnlen(prefix, MAX_SHM_NAME_LENGTH) == 0 ||
@@ -435,7 +435,7 @@ TEST_F(TestUbsmem, TEST_ubsmem_shmem_lookup)
         char nameTest[] = "test";
         const char *name = DT_SetGetString(&g_Element[0], strlen(nameTest) + 1, 1024, nameTest);
         ubsmem_shmem_info_t shm_info_obj = {};
-        ubsmem_shmem_info_t* shm_info = &shm_info_obj;
+        ubsmem_shmem_info_t *shm_info = &shm_info_obj;
 
         int ret = ubsmem_shmem_lookup(name, shm_info);
         if (name == nullptr || strnlen(name, MAX_SHM_NAME_LENGTH) == 0 ||
@@ -447,7 +447,6 @@ TEST_F(TestUbsmem, TEST_ubsmem_shmem_lookup)
     }
     DT_FUZZ_END()
 }
-
 
 TEST_F(TestUbsmem, TEST_ubsmem_shmem_attach)
 {
@@ -467,7 +466,6 @@ TEST_F(TestUbsmem, TEST_ubsmem_shmem_attach)
     }
     DT_FUZZ_END()
 }
-
 
 TEST_F(TestUbsmem, TEST_ubsmem_shmem_detach)
 {
@@ -547,4 +545,4 @@ TEST_F(TestUbsmem, Test_ubsmem_lease_free)
     DT_FUZZ_END()
 }
 
-}  // namespace FUZZ
+} // namespace FUZZ

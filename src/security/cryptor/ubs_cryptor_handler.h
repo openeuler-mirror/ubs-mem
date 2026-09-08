@@ -13,20 +13,20 @@
 #ifndef UBS_HSECRYPTORHELPER_H
 #define UBS_HSECRYPTORHELPER_H
 
-#include <string>
 #include <mutex>
+#include <string>
 #include "log.h"
 
 #include "ubs_cryptor_def.h"
 
 namespace ock::ubsm {
-using DecryptFunc = char* (*)(const char* encrypted_data, size_t encrypted_len, size_t* p_out_len);
+using DecryptFunc = char *(*)(const char *encrypted_data, size_t encrypted_len, size_t *p_out_len);
 
 class UbsCryptorHandler {
 public:
     UbsCryptorHandler() noexcept;
     ~UbsCryptorHandler() noexcept;
-    static UbsCryptorHandler& GetInstance()
+    static UbsCryptorHandler &GetInstance()
     {
         static UbsCryptorHandler instance;
         return instance;
@@ -37,12 +37,14 @@ public:
     int Decrypt(int domainId, const std::string &filePath, std::pair<char *, int> &result) noexcept;
     void EraseDecryptData(char *data, int len) noexcept;
     static int SetCryptorLogger(CryptorLogHandler logger) noexcept;
+    void SetDecryptLibPath(const std::string &path);
     int LoadDecryptFunction() noexcept;
 
 private:
     std::atomic<bool> initialized;
     std::mutex decryptMutex;
+    std::string decryptLibPath;
     DecryptFunc decryptLibHandlePtr = nullptr;
 };
-}
+} // namespace ock::ubsm
 #endif

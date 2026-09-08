@@ -11,17 +11,17 @@
  */
 #ifndef HDAGGER_DG_EXECUTION_SERVICE_H
 #define HDAGGER_DG_EXECUTION_SERVICE_H
+#include <unistd.h>
 #include <atomic>
+#include <functional>
 #include <mutex>
 #include <thread>
-#include <unistd.h>
 #include <vector>
-#include <functional>
 
 #include "../container/dg_ring_buffer.h"
 #include "../dg_common.h"
-#include "../logger/dg_out_logger.h"
 #include "../referable/dg_ref.h"
+#include "log.h"
 
 namespace ock {
 namespace dagger {
@@ -35,9 +35,9 @@ enum RunnableType {
  */
 class Runnable {
 public:
-    Runnable() : mTask{ nullptr } {}
+    Runnable() : mTask{nullptr} {}
 
-    explicit Runnable(const std::function<void()> &task) : mTask{ task } {}
+    explicit Runnable(const std::function<void()> &task) : mTask{task} {}
     virtual ~Runnable() = default;
 
     virtual void Run()
@@ -90,7 +90,7 @@ public:
     static ExecutorServicePtr Create(uint16_t threadNum, uint32_t queueCapacity = 10000)
     {
         if (threadNum > ES_MAX_THR_NUM || threadNum == 0) {
-            DAGGER_LOG_ERROR(ExecSer, "The num of thread must 1-" << ES_MAX_THR_NUM);
+            DBG_LOGERROR("The num of thread must 1-" << ES_MAX_THR_NUM);
             return nullptr;
         }
 
@@ -182,7 +182,8 @@ private:
           mStarted(false),
           mStopped(false),
           mStartedThreadNum(0)
-    {}
+    {
+    }
 
     void RunInThread(int16_t cpuId);
     void DoRunnable(bool &flag);
@@ -211,7 +212,7 @@ inline bool ExecutorService::Start()
     /* init ring buffer blocking queue */
     auto result = mRunnableQueue.Initialize();
     if (result != 0) {
-        DAGGER_LOG_ERROR(ExecSer, "Failed to initialize queue, result " << result);
+        DBG_LOGERROR("Failed to initialize queue, result " << result);
         return false;
     }
 
@@ -219,7 +220,7 @@ inline bool ExecutorService::Start()
         auto cpuId = mCpuSetStartIdx < 0 ? -1 : mCpuSetStartIdx + i;
         auto *thr = new (std::nothrow) std::thread(&ExecutorService::RunInThread, this, cpuId);
         if (thr == nullptr) {
-            DAGGER_LOG_ERROR(ExecSer, "Failed to create executor thread " << i);
+            DBG_LOGERROR("Failed to create executor thread " << i);
             return false;
         }
 
@@ -243,7 +244,7 @@ inline void ExecutorService::Stop()
     for (uint32_t i = 0; i < mThreads.size(); ++i) {
         RunnablePtr stopTask = new (std::nothrow) Runnable();
         if (stopTask == nullptr) {
-            DAGGER_LOG_ERROR(ExecSer, "Failed to new stop task, probably out of memory");
+            DBG_LOGERROR("Failed to new stop task, probably out of memory");
             break;
         }
         stopTask->Type(RunnableType::STOP);
@@ -278,15 +279,15 @@ inline void ExecutorService::DoRunnable(bool &flag)
             } else if (runnable->Type() == RunnableType::STOP) {
                 flag = false;
             } else {
-                DAGGER_LOG_ERROR(ExecSer, "Un-reachable path");
+                DBG_LOGERROR("Un-reachable path");
             }
         } else {
-            DAGGER_LOG_ERROR(ExecSer, "Task is null");
+            DBG_LOGERROR("Task is null");
         }
     } catch (std::runtime_error &ex) {
-        DAGGER_LOG_ERROR(ExecSer, "Caught error " << ex.what() << " when execute a task, continue");
+        DBG_LOGERROR("Caught error " << ex.what() << " when execute a task, continue");
     } catch (...) {
-        DAGGER_LOG_ERROR(ExecSer, "Caught unknown error when execute a task, continue");
+        DBG_LOGERROR("Caught unknown error when execute a task, continue");
     }
 }
 
@@ -302,18 +303,18 @@ inline void ExecutorService::RunInThread(int16_t cpuId)
         CPU_ZERO(&cpuSet);
         CPU_SET(cpuId, &cpuSet);
         if (pthread_setaffinity_np(pthread_self(), sizeof(cpuSet), &cpuSet) != 0) {
-            DAGGER_LOG_WARN(ExecSer, "Failed to bind executor thread" << threadName << " << to cpu " << cpuId);
+            DBG_LOGWARN("Failed to bind executor thread" << threadName << " << to cpu " << cpuId);
         }
     }
 
     pthread_setname_np(pthread_self(), threadName.c_str());
-    DAGGER_LOG_INFO(ExecSer, "Thread is started for executor service <" << threadName << "> cpuId " << cpuId);
+    DBG_LOGINFO("Thread is started for executor service <" << threadName << "> cpuId " << cpuId);
 
     while (runFlag) {
         DoRunnable(runFlag);
     }
-    DAGGER_LOG_INFO(ExecSer, "Thread for executor service <" << threadName << "> cpuId " << cpuId << " exiting");
+    DBG_LOGINFO("Thread for executor service <" << threadName << "> cpuId " << cpuId << " exiting");
 }
-}
-}
+} // namespace dagger
+} // namespace ock
 #endif // HDAGGER_DG_EXECUTION_SERVICE_H

@@ -7,8 +7,8 @@
 
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
-#include "mxm_ipc_client_interface.h"
 #include "daemon/daemon_test_common.h"
+#include "mxm_ipc_client_interface.h"
 namespace UT {
 #ifndef MOCKER_CPP
 #define MOCKER_CPP(api, TT) MOCKCPP_NS::mockAPI(#api, reinterpret_cast<TT>(api))
@@ -30,6 +30,6 @@ public:
         ock::common::Configuration::DestroyInstance();
     };
 };
-}  // namespace UT
+} // namespace UT
 
-#endif  // MXM_IPC_CLIENT_TEST_H
+#endif // MXM_IPC_CLIENT_TEST_H

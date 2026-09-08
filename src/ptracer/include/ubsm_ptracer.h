@@ -155,9 +155,12 @@ public:
         ptracer_config_t config = {traceType, dumpFilePath};
         return ptracer_init(&config);
     }
-    static void UnInit() { ptracer_uninit(); }
+    static void UnInit()
+    {
+        ptracer_uninit();
+    }
 };
-}  // namespace tracer
-}  // namespace ubsm
-}  // namespace ock
-#endif  // UBSM_MEM_FABRIC_PTRACER_CONST_H
+} // namespace tracer
+} // namespace ubsm
+} // namespace ock
+#endif // UBSM_MEM_FABRIC_PTRACER_CONST_H

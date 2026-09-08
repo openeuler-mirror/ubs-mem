@@ -2,8 +2,8 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
 
-#include <cstdio>
 #include <gtest/gtest.h>
+#include <cstdio>
 #include "secodefuzz/secodeFuzz.h"
 #include "test_env_init.h"
 #ifdef DEBUG_MEM_FUZZ

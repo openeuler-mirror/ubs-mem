@@ -1,10 +1,10 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <cmath>
-#include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
 #include <dlfcn.h>
+#include <gtest/gtest.h>
+#include <cmath>
+#include <mockcpp/mockcpp.hpp>
 
 #include "common/hdagger/strings/dg_str_util.h"
 
@@ -15,8 +15,7 @@ using namespace ock::dagger;
 
 class DgStrUtilTestSuite : public Test {
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
     void TearDown() override
     {
@@ -236,4 +235,4 @@ TEST_F(DgStrUtilTestSuite, TestStrReplace)
     StrUtil::Replace(str, "\\w+Replace", "e");
     ASSERT_EQ(str, "%Replac");
 }
-}  // namespace UT
+} // namespace UT

@@ -2,14 +2,14 @@
 * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
 #include "ipc_server_test.h"
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
-#include "service/service.h"
 #include "defines.h"
-#include "util/common_headers.h"
-#include "mxm_com_error.h"
 #include "mxm_com_engine.h"
+#include "mxm_com_error.h"
+#include "service/service.h"
+#include "util/common_headers.h"
 
 namespace UT {
 using namespace ock::com;
@@ -55,9 +55,9 @@ TEST_F(IpcServerTestSuite, TestIpcServerStartSuccess)
 
 TEST_F(IpcServerTestSuite, TestIpcServerStartFail)
 {
-    MOCKER_CPP(& MxmCommunication::CreateMxmComEngine,
-               HRESULT(*)(const MxmComEngineInfo& engine, const MxmComLinkStateNotify& notify,
-               const EngineHandlerWorker& handlerWorker))
+    MOCKER_CPP(&MxmCommunication::CreateMxmComEngine,
+               HRESULT(*)(const MxmComEngineInfo &engine, const MxmComLinkStateNotify &notify,
+                          const EngineHandlerWorker &handlerWorker))
         .stubs()
         .will(returnValue(HFAIL));
     auto ret = MxmComStartIpcServer();

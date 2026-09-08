@@ -4,8 +4,12 @@ set -e
 SRC_PATH=$1
 CURRENT_PATH=$2
 
-LCOV=$(which lcov)
-GEN_HTML=$(which genhtml)
+LCOV=$(command -v lcov || true)
+GEN_HTML=$(command -v genhtml || true)
+if [ -z "$LCOV" ] || [ -z "$GEN_HTML" ]; then
+    echo "[ERROR] --coverage requires both lcov and genhtml."
+    exit 1
+fi
 
 gcno_dirs=$(find $SRC_PATH -name "*.gcno" -exec dirname {} \; | sort -u)
 gcda_dirs=$(find $SRC_PATH -name "*.gcda" -exec dirname {} \; | sort -u)

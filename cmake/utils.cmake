@@ -1,5 +1,5 @@
 function(split_debug_symbols target)
-    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
         return()
     endif ()
     string(TIMESTAMP BUILD_TIMESTAMP "%Y%m%d")

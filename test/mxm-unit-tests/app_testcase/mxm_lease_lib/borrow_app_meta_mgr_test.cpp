@@ -14,9 +14,9 @@ using namespace ock::mxmd;
 
 class AppBorrowMetaMgrTest : public testing::Test {
 protected:
-    BorrowAppMetaMgr& metaMgr = BorrowAppMetaMgr::GetInstance();
-    const void* validAddr = reinterpret_cast<const void*>(0x12345678);
-    const void* anotherAddr = reinterpret_cast<const void*>(0x87654321);
+    BorrowAppMetaMgr &metaMgr = BorrowAppMetaMgr::GetInstance();
+    const void *validAddr = reinterpret_cast<const void *>(0x12345678);
+    const void *anotherAddr = reinterpret_cast<const void *>(0x87654321);
     AppBorrowMetaDesc validDesc;
 
     void SetUp() override
@@ -131,8 +131,8 @@ TEST_F(AppBorrowMetaMgrTest, GetMetaAddressNotFound)
 
 TEST_F(AppBorrowMetaMgrTest, ConcurrentAccessDifferentSegments)
 {
-    const void* addrSeg1 = reinterpret_cast<const void*>(0x1000);
-    const void* addrSeg2 = reinterpret_cast<const void*>(0x20000000);
+    const void *addrSeg1 = reinterpret_cast<const void *>(0x1000);
+    const void *addrSeg2 = reinterpret_cast<const void *>(0x20000000);
 
     // Should not block each other since different segments
     std::thread t1([&]() {
@@ -151,4 +151,4 @@ TEST_F(AppBorrowMetaMgrTest, ConcurrentAccessDifferentSegments)
     EXPECT_TRUE(metaMgr.GetMetaHasUnmapped(addrSeg1));
     EXPECT_TRUE(metaMgr.GetMetaIsLockAddress(addrSeg2));
 }
-}
+} // namespace UT

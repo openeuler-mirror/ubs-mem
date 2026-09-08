@@ -236,6 +236,6 @@ private:
     std::string lockKsfStandbyPath_;
 };
 
-}
+} // namespace ock::ubsm
 
 #endif

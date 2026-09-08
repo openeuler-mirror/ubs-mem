@@ -9,11 +9,12 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include <signal.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include <cstring>
 #include <cerrno>
+#include <cstring>
 
 #include <algorithm>
 
@@ -53,7 +54,7 @@ std::shared_ptr<BaseRecordAllocator<RecordType>> CreateAllocator(RecordType *bas
 {
     return std::make_shared<BaseRecordAllocator<RecordType>>(base, capacity, idleFun, clearFun);
 }
-}
+} // namespace
 
 RecordStore::RecordStore() noexcept : shmFd_{-1} {}
 
@@ -72,7 +73,7 @@ bool RecordStore::CheckAllocators()
 {
     regionAllocator_ = CreateAllocator<RegionRecord>(regionRecordBegin_, REGION_MAX_RECORD, RegionIdle, ClearRegion);
     memLeaseAllocator_ =
-            CreateAllocator<MemLeaseRecord>(memLeaseRecordBegin_, MEM_LEASE_MAX_RECORD, MemLeaseIdle, ClearMemLease);
+        CreateAllocator<MemLeaseRecord>(memLeaseRecordBegin_, MEM_LEASE_MAX_RECORD, MemLeaseIdle, ClearMemLease);
     shmImportAllocator_ = CreateAllocator<MemShareImportRecord>(shmImportRecordBegin_, SHM_MAX_ATTACH_RECORD,
                                                                 MemShareImportIdle, ClearMemShareImport);
     shmRefAllocator_ = CreateAllocator<MemShareRefRecord>(shmRefRecordBegin_, SHM_MAX_REFERENCE_RECORD, MemShareRefIdle,
@@ -119,6 +120,21 @@ int RecordStore::Initialize(int fd) noexcept
     shmImportRecordBegin_ = reinterpret_cast<MemShareImportRecord *>(memLeaseRecordBegin_ + MEM_LEASE_MAX_RECORD);
     shmRefRecordBegin_ = reinterpret_cast<MemShareRefRecord *>(shmImportRecordBegin_ + SHM_MAX_ATTACH_RECORD);
     memIdRecordPoolBegin_ = reinterpret_cast<MemIdRecordPool *>(shmRefRecordBegin_ + SHM_MAX_REFERENCE_RECORD);
+    createSeqNo_ = reinterpret_cast<uint32_t *>(memIdRecordPoolBegin_ + 1);
+    suspendClientArray_ = reinterpret_cast<SuspendClientArray *>(createSeqNo_ + 1);
+    if (suspendClientArray_->count > MAX_SUSPEND_CLIENT) {
+        DBG_LOGERROR("invalid suspend client count=" << suspendClientArray_->count << ", reset it.");
+        memset_s(suspendClientArray_, sizeof(*suspendClientArray_), 0, sizeof(*suspendClientArray_));
+    } else {
+        uint32_t writeIndex = 0;
+        for (uint32_t i = 0; i < suspendClientArray_->count; ++i) {
+            const auto pid = static_cast<pid_t>(suspendClientArray_->pids[i]);
+            if (pid > 0 && (kill(pid, 0) == 0 || errno == EPERM)) {
+                suspendClientArray_->pids[writeIndex++] = static_cast<uint32_t>(pid);
+            }
+        }
+        suspendClientArray_->count = writeIndex;
+    }
 
     if (!CheckAllocators()) {
         DBG_LOGERROR("CheckAllocators failed.");
@@ -159,6 +175,8 @@ void RecordStore::Destroy() noexcept
     shmImportRecordBegin_ = nullptr;
     shmRefRecordBegin_ = nullptr;
     memIdRecordPoolBegin_ = nullptr;
+    createSeqNo_ = nullptr;
+    suspendClientArray_ = nullptr;
 }
 
 int RecordStore::AddRegionRecord(const CreateRegionInput &input) noexcept
@@ -370,7 +388,7 @@ int RecordStore::DelMemLeaseRecord(const std::string &name) noexcept
     return 0;
 }
 
-int RecordStore::AddMemLeaseInput(const LeaseMallocInput& input) noexcept
+int RecordStore::AddMemLeaseInput(const LeaseMallocInput &input) noexcept
 {
     if (input.name.size() >= RECORD_NAME_SIZE) {
         DBG_LOGERROR("input lease memory name(" << input.name << ") too long.");
@@ -415,7 +433,7 @@ int RecordStore::AddMemLeaseInput(const LeaseMallocInput& input) noexcept
     return 0;
 }
 
-int RecordStore::AddMemLeaseResult(const std::string& name, const LeaseMallocResult& result) noexcept
+int RecordStore::AddMemLeaseResult(const std::string &name, const LeaseMallocResult &result) noexcept
 {
     if (mappingAddress_ == nullptr) {
         DBG_LOGERROR("not initialized!");
@@ -447,7 +465,7 @@ int RecordStore::AddMemLeaseResult(const std::string& name, const LeaseMallocRes
     return 0;
 }
 
-int RecordStore::UpdateMemLeaseRecordState(const std::string& name, RecordState state) noexcept
+int RecordStore::UpdateMemLeaseRecordState(const std::string &name, RecordState state) noexcept
 {
     if (mappingAddress_ == nullptr) {
         DBG_LOGERROR("not initialized!");
@@ -673,7 +691,7 @@ int RecordStore::AddShmImportResult(const std::string &name, const ShareMemImpor
     return 0;
 }
 
-int RecordStore::UpdateShmImportRecordState(const std::string& name, RecordState state) noexcept
+int RecordStore::UpdateShmImportRecordState(const std::string &name, RecordState state) noexcept
 {
     if (mappingAddress_ == nullptr) {
         DBG_LOGERROR("not initialized!");
@@ -963,7 +981,7 @@ void RecordStore::RestoreShmImport() noexcept
     std::unique_lock<std::mutex> uniqueLock{cachedRecordMutex_};
     for (auto &share : shares) {
         WithMemIdsRecord<MemShareImportRecord> record{share};
-        if (share->memIdCount !=0 && poolAllocator_.FillAllocated(share->memIdBuffer, record.memIds) != 0) {
+        if (share->memIdCount != 0 && poolAllocator_.FillAllocated(share->memIdBuffer, record.memIds) != 0) {
             continue;
         }
         cachedImportShmRecords_.emplace(share->name, record);
@@ -998,5 +1016,86 @@ void RecordStore::ConvertMemLease(const WithMemIdsRecord<MemLeaseRecord> &record
     info.second.slotId = record.record->slotId;
 }
 
+int RecordStore::AddSuspendClient(pid_t pid) noexcept
+{
+    if (pid <= 0 || mappingAddress_ == nullptr || suspendClientArray_ == nullptr) {
+        DBG_LOGERROR("not initialized!");
+        return -1;
+    }
+    std::unique_lock<std::mutex> uniqueLock{cachedRecordMutex_};
+    if (suspendClientArray_->count > MAX_SUSPEND_CLIENT) {
+        DBG_LOGERROR("invalid suspend client count=" << suspendClientArray_->count);
+        return -1;
+    }
+    for (uint32_t i = 0; i < suspendClientArray_->count; ++i) {
+        if (suspendClientArray_->pids[i] == static_cast<uint32_t>(pid)) {
+            DBG_LOGWARN("pid(" << pid << ") already suspended.");
+            return 0;
+        }
+    }
+    if (suspendClientArray_->count == MAX_SUSPEND_CLIENT) {
+        DBG_LOGERROR("suspend client array is full.");
+        return -2;
+    }
+    suspendClientArray_->pids[suspendClientArray_->count++] = static_cast<uint32_t>(pid);
+    DBG_LOGINFO("add suspend client pid(" << pid << ").");
+    return 0;
 }
+
+int RecordStore::DelSuspendClient(pid_t pid) noexcept
+{
+    if (pid <= 0 || mappingAddress_ == nullptr || suspendClientArray_ == nullptr) {
+        DBG_LOGERROR("not initialized!");
+        return -1;
+    }
+    std::unique_lock<std::mutex> uniqueLock{cachedRecordMutex_};
+    if (suspendClientArray_->count > MAX_SUSPEND_CLIENT) {
+        DBG_LOGERROR("invalid suspend client count=" << suspendClientArray_->count);
+        return -1;
+    }
+    for (uint32_t i = 0; i < suspendClientArray_->count; ++i) {
+        if (suspendClientArray_->pids[i] == static_cast<uint32_t>(pid)) {
+            suspendClientArray_->pids[i] = suspendClientArray_->pids[--suspendClientArray_->count];
+            DBG_LOGINFO("remove suspend client pid(" << pid << ").");
+            return 0;
+        }
+    }
+    DBG_LOGWARN("pid(" << pid << ") not found in suspend array.");
+    return 0;
 }
+
+bool RecordStore::IsClientSuspended(pid_t pid) const noexcept
+{
+    if (pid <= 0 || mappingAddress_ == nullptr || suspendClientArray_ == nullptr) {
+        return false;
+    }
+    std::unique_lock<std::mutex> uniqueLock{cachedRecordMutex_};
+    if (suspendClientArray_->count > MAX_SUSPEND_CLIENT) {
+        DBG_LOGERROR("invalid suspend client count=" << suspendClientArray_->count);
+        return false;
+    }
+    for (uint32_t i = 0; i < suspendClientArray_->count; ++i) {
+        if (suspendClientArray_->pids[i] == static_cast<uint32_t>(pid)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::vector<pid_t> RecordStore::ListSuspendClients() const noexcept
+{
+    std::vector<pid_t> pids;
+    std::unique_lock<std::mutex> uniqueLock{cachedRecordMutex_};
+    if (mappingAddress_ == nullptr || suspendClientArray_ == nullptr ||
+        suspendClientArray_->count > MAX_SUSPEND_CLIENT) {
+        return pids;
+    }
+    pids.reserve(suspendClientArray_->count);
+    for (uint32_t i = 0; i < suspendClientArray_->count; ++i) {
+        pids.push_back(static_cast<pid_t>(suspendClientArray_->pids[i]));
+    }
+    return pids;
+}
+
+} // namespace ubsm
+} // namespace ock

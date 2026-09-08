@@ -10,7 +10,6 @@
  * See the Mulan PSL v2 for more details.
  */
 
-
 #ifndef MEMORYFABRIC_RACKMEM_H
 #define MEMORYFABRIC_RACKMEM_H
 
@@ -25,33 +24,33 @@ public:
     int UbsMemMalloc(std::string &region, size_t size, PerfLevel level, uint64_t flags, void **local_ptr) const;
     int UbsMemMallocWithLoc(const ubs_mem_location_t *src_loc, size_t size, uint64_t flags, void **local_ptr) const;
 
-    uint32_t UbsMemFree(void* ptr);
+    uint32_t UbsMemFree(void *ptr);
 
-    void* MemoryIDUsedByFd(AppBorrowMetaDesc& desc, const std::vector<uint64_t>& memIds, size_t unitSize,
-        const std::string &cachedName, uint64_t flags);
-    void* MemoryIDUsedByNuma(AppBorrowMetaDesc& desc, const std::vector<uint64_t>& memIds, int64_t numaId,
-        size_t unitSize, const std::string &cachedName);
-    static uint32_t RackMemLookupClusterStatistic(ubsmem_cluster_info_t* info);
+    void *MemoryIDUsedByFd(AppBorrowMetaDesc &desc, const std::vector<uint64_t> &memIds, size_t unitSize,
+                           const std::string &cachedName, uint64_t flags);
+    void *MemoryIDUsedByNuma(AppBorrowMetaDesc &desc, const std::vector<uint64_t> &memIds, int64_t numaId,
+                             size_t unitSize, const std::string &cachedName);
+    static uint32_t RackMemLookupClusterStatistic(ubsmem_cluster_info_t *info);
 
     std::pair<int32_t, std::vector<std::string>> QueryLeaseRecord();
     uint32_t ForceFreeCachedMemory();
 
-    static RackMem& GetInstance()
+    static RackMem &GetInstance()
     {
         static RackMem instance;
         return instance;
     }
-    RackMem(const RackMem& other) = delete;
-    RackMem(RackMem&& other) = delete;
-    RackMem& operator=(const RackMem& other) = delete;
-    RackMem& operator=(RackMem&& other) noexcept = delete;
+    RackMem(const RackMem &other) = delete;
+    RackMem(RackMem &&other) = delete;
+    RackMem &operator=(const RackMem &other) = delete;
+    RackMem &operator=(RackMem &&other) noexcept = delete;
 
 private:
     RackMem() = default;
     int UbsMemMap(size_t size, uint64_t flags, std::shared_ptr<AppMallocMemoryResponse> &response,
                   void *&mappedMemory) const;
 };
-}  // namespace ock::mxmd
+} // namespace ock::mxmd
 // ock
 
-#endif  // MEMORYFABRIC_RACKMEM_H
+#endif // MEMORYFABRIC_RACKMEM_H

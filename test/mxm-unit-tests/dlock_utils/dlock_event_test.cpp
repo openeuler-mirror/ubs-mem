@@ -2,17 +2,17 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
 
+#include <dlfcn.h>
 #include <gtest/gtest.h>
 #include <mockcpp/mokc.h>
 #include <mockcpp/mockcpp.hpp>
-#include <dlfcn.h>
+#include "dlock_context.h"
+#include "dlock_types.h"
+#include "dlock_utils/ubsm_lock.h"
 #include "dlock_utils/ubsm_lock_event.h"
 #include "mxm_shm/rpc_server.h"
-#include "zen_discovery/zen_discovery.h"
-#include "dlock_types.h"
-#include "dlock_context.h"
-#include "dlock_utils/ubsm_lock.h"
 #include "system_adapter.h"
+#include "zen_discovery/zen_discovery.h"
 
 using namespace testing;
 using namespace ock::dlock_utils;
@@ -40,21 +40,27 @@ protected:
     }
 };
 
-int MockDLockSuccess() { return dlock::DLOCK_SUCCESS; }
-int MockDLockFail() { return -1; }
-void MockDlsym(const char* name)
+int MockDLockSuccess()
 {
-    void* mockFunc = reinterpret_cast<void*>(MockDLockSuccess);
-    void* mockFailFunc = reinterpret_cast<void*>(MockDLockFail);
+    return dlock::DLOCK_SUCCESS;
+}
+int MockDLockFail()
+{
+    return -1;
+}
+void MockDlsym(const char *name)
+{
+    void *mockFunc = reinterpret_cast<void *>(MockDLockSuccess);
+    void *mockFailFunc = reinterpret_cast<void *>(MockDLockFail);
     MOCKER(SystemAdapter::DlSym)
         .stubs()
-        .with(any(), checkWith([name](const char* str) mutable -> bool { return strcmp(str, name) == 0; }))
+        .with(any(), checkWith([name](const char *str) mutable -> bool { return strcmp(str, name) == 0; }))
         .will(returnValue(mockFailFunc));
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockFunc));
 }
 void TestDefaultConfig()
 {
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     ctx.GetConfig().isDlockServer = true;
     ctx.GetConfig().serverIp = "192.168.1.1";
     ctx.GetConfig().clientIp = "192.168.1.1";
@@ -135,7 +141,7 @@ TEST_F(EventTestSuite, TestHandleElectionEventOnDLockClientInit)
 
 TEST_F(EventTestSuite, TestDoPreElection)
 {
-    auto& ctx = DLockContext::Instance();
+    auto &ctx = DLockContext::Instance();
     // 先将心跳打开
     ctx.SetHeartBeatStatus(true);
     UbsmLock::Instance().UbsmLockInitSet(true);
@@ -148,8 +154,8 @@ TEST_F(EventTestSuite, TestDoPreElection)
 TEST_F(EventTestSuite, TestOnMasterElectedLocalIsNotMaster)
 {
     std::string masterId = "192.168.1.2:1234";
-    auto& rpcConfig = ock::rpc::NetRpcConfig::GetInstance();
-    rpcConfig.SetLocalNode(std::make_pair("192.168.1.1", 1234));  // 1234 是模拟的端口号
+    auto &rpcConfig = ock::rpc::NetRpcConfig::GetInstance();
+    rpcConfig.SetLocalNode(std::make_pair("192.168.1.1", 1234)); // 1234 是模拟的端口号
     UbsmLockEvent::OnMasterElected(masterId);
     // 当本节点不是主节点的时候，UbsmLock将不会初始化
     ASSERT_FALSE(UbsmLock::Instance().IsUbsmLockInit());
@@ -158,15 +164,15 @@ TEST_F(EventTestSuite, TestOnMasterElectedLocalIsNotMaster)
 TEST_F(EventTestSuite, TestOnMasterElectedWithNodeListAndLockNotInit)
 {
     std::string masterId = "192.168.1.1:1234";
-    auto& rpcConfig = ock::rpc::NetRpcConfig::GetInstance();
-    rpcConfig.SetLocalNode(std::make_pair("192.168.1.1", 1234));  // 1234 是模拟的端口号
+    auto &rpcConfig = ock::rpc::NetRpcConfig::GetInstance();
+    rpcConfig.SetLocalNode(std::make_pair("192.168.1.1", 1234)); // 1234 是模拟的端口号
     int mockHandle = 0;
-    void* mockFunc = reinterpret_cast<void*>(MockDLockSuccess);
-    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void*>(&mockHandle)));
+    void *mockFunc = reinterpret_cast<void *>(MockDLockSuccess);
+    MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockFunc));
     TestDefaultConfig();
     UbsmLockEvent::OnMasterElected(masterId);
     // 当本节点是主节点，会初始化 UbsmLock
     ASSERT_TRUE(UbsmLock::Instance().IsUbsmLockInit());
 }
-}  // namespace UT
+} // namespace UT

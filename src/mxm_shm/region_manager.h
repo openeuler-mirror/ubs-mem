@@ -17,14 +17,14 @@
 #include <mutex>
 #include <string>
 
-#include "ulog/log.h"
+#include "log.h"
 #include "region_repository.h"
 
 namespace ock::share::service {
 
 class RegionManager {
 public:
-    static RegionManager& GetInstance()
+    static RegionManager &GetInstance()
     {
         static RegionManager instance;
         return instance;
@@ -84,19 +84,17 @@ public:
     static int32_t Recovery();
 
 private:
-    RegionManager()
-    {
-    }
+    RegionManager() {}
 
     bool RecoverFromRamFS();
 
-    RegionManager(const RegionManager& other) = delete;
-    RegionManager(RegionManager&& other) = delete;
-    RegionManager& operator=(const RegionManager& other) = delete;
-    RegionManager& operator=(RegionManager&& other) noexcept = delete;
+    RegionManager(const RegionManager &other) = delete;
+    RegionManager(RegionManager &&other) = delete;
+    RegionManager &operator=(const RegionManager &other) = delete;
+    RegionManager &operator=(RegionManager &&other) noexcept = delete;
 
     std::mutex mapMutex;
     std::map<std::string, RegionInfo> mRegionMap;
 };
-}  // namespace ock::share::service
+} // namespace ock::share::service
 #endif // OCK_MEM_REGION_MANAGER_H

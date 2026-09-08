@@ -32,7 +32,7 @@ protected:
 TEST_F(ZenDiscoveryTest, TestInitialize)
 {
     ZenDiscovery::Initialize(1000, 2000, 3000, 1);
-    ZenDiscovery* instance = ZenDiscovery::GetInstance();
+    ZenDiscovery *instance = ZenDiscovery::GetInstance();
     EXPECT_NE(instance, nullptr);
 }
 
@@ -53,7 +53,7 @@ TEST_F(ZenDiscoveryTest, TestHandlePingRequest)
 
     auto nodes = discovery->GetClusterNodes();
     bool foundNode2 = false;
-    for (const auto& node : nodes) {
+    for (const auto &node : nodes) {
         if (node.id == "node2" && node.isActive) {
             foundNode2 = true;
             break;
@@ -69,7 +69,7 @@ TEST_F(ZenDiscoveryTest, TestHandlePingResponse)
 
     auto nodes = discovery->GetClusterNodes();
     bool foundNode2 = false;
-    for (const auto& node : nodes) {
+    for (const auto &node : nodes) {
         if (node.id == "node2" && node.isActive) {
             foundNode2 = true;
             break;
@@ -288,7 +288,7 @@ TEST_F(ZenDiscoveryTest, TestModifyNodeList)
 
     auto nodes = discovery->GetClusterNodes();
     bool foundActiveNode = false;
-    for (const auto& node : nodes) {
+    for (const auto &node : nodes) {
         if (node.id == "node1" && node.isActive) {
             foundActiveNode = true;
             break;
@@ -666,4 +666,4 @@ TEST_F(ZenDiscoveryTest, TestHandleJoinRequestWithExistingInactiveNode)
     EXPECT_EQ(result, discovery->type_);
     EXPECT_TRUE(discovery->nodes_["existing_node"].isActive);
 }
-}
+} // namespace UT
