@@ -128,11 +128,11 @@ sh run_dt.sh --jobs 8
 
 - **安装部署**
     
-    安装部署相关内容请参见 [安装部署](docs/zh/installation_deployment.md)。
+    安装部署相关内容请参见 [安装部署](docs/zh/ubsm_installation_deployment.md)。
 
 - **API接口**
     
-    API相关内容请参见 [接口说明](docs/zh/api_description.md)。
+    API相关内容请参见 [接口说明](docs/zh/ubsm_api_description.md)。
     文档中的共享内存和内存借用样例依赖 UB 硬件、UBS Engine 及已部署的 ubsmd 服务，不是脱离物理环境的独立样例。
 
 - **共享内存样例**

@@ -78,6 +78,7 @@
 
 |文档名称|内容简介|
 |---|---|
-|《[安装部署](../zh/installation_deployment.md)》|提供安装UBS Memory的安装、卸载等操作。|
-|《[API接口](../zh/api_description.md)》|提供对外的API。|
-|《[安全说明](../zh/security_description.md)》|提供了UBS Memory安全配置相关的内容。|
+|《[安装部署](../zh/ubsm_installation_deployment.md)》|提供安装UBS Memory的安装、卸载等操作。|
+|《[API接口](../zh/ubsm_api_description.md)》|提供对外的API。|
+|《[配置说明](../zh/ubsm_configuration_description.md)》|提供ubsmd.conf配置文件参数说明。|
+|《[安全说明](../zh/ubsm_security_description.md)》|提供了UBS Memory安全配置相关的内容。|

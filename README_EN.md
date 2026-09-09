@@ -130,9 +130,9 @@ report is written to `test/build/gcovr_report/index.html`.
 ## Instruction
 
 - **Installation and Deployment**
-    For details about the installation and deployment, see [Installation and Deployment](docs/zh/installation_deployment.md).
+    For details about the installation and deployment, see [Installation and Deployment](docs/zh/ubsm_installation_deployment.md).
 - **API Reference**
-    For details about the API, see [API Description](docs/zh/api_description.md).
+    For details about the API, see [API Description](docs/zh/ubsm_api_description.md).
     The shared-memory and memory-borrowing examples require UB hardware, UBS Engine, and a deployed ubsmd service;
     they are not standalone examples for an environment without the required hardware.
 - **Shared-memory example**
