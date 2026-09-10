@@ -426,6 +426,9 @@ static bool MkdirRecursive(const std::string &path, mode_t mode = 0755)
 {
     size_t pos = 0;
     std::string dir;
+    if (path.empty()) {
+        return false;
+    }
     if (path[0] == '/') {
         dir = "/";
         pos = 1;
