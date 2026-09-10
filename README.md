@@ -1,16 +1,21 @@
 # ubs-mem
 
-### 介绍
-UBS Memory(Unified Bus Service Core Memory)在超节点上基于UB硬件能力提供Memory高阶服务能力，实现超节点上的内存借用、共享、缓存等能力。
+<p>
+  简体中文 | <a href="./README_EN.md">English</a>
+</p>
 
-### 环境要求
+## 介绍
 
-操作系统：推荐 openEuler 24.03 LTS SP3或更高版本
+UBS Memory（Unified Bus Service Core Memory）在超节点上基于UB硬件能力提供Memory高阶服务能力，实现超节点上的内存借用、共享、缓存等能力。
 
-架构：项目代码不限制编译架构，支持使用目标操作系统提供的 x86_64 或 aarch64 工具链构建。aarch64
+## 环境要求
+
+**操作系统**：推荐 openEuler 24.03 LTS SP3或更高版本
+
+**架构**：项目代码不限制编译架构，支持使用目标操作系统提供的 x86_64 或 aarch64 工具链构建。aarch64
 环境下，单元测试脚本会自动为 mockcpp 应用指令跳转和缓存刷新补丁。
 
-### 软件要求
+## 软件要求
 
 **构建工具：**
 
@@ -42,14 +47,16 @@ dnf install -y rpm-build git make cmake gcc gcc-c++ ninja-build \
 如果当前软件源不提供上述软件包，请参考
 [UBS Comm](https://gitcode.com/openeuler/ubs-comm) 项目获取源码并构建安装。
 
-### 获取源码
+## 获取源码
+
 ```shell
 git clone https://gitcode.com/openeuler/ubs-mem.git
 
 cd ubs-mem
 ```
 
-### 构建项目
+## 构建项目
+
 代码仓中提供了统一的编译构建脚本 `build.sh`。使用 `-t` 指定 debug、release 等直接编译类型：
 
 ```shell
@@ -76,7 +83,8 @@ sh build.sh -p
 `-p` 会通过 `ubs-mem.spec` 执行独立的 RelWithDebInfo 构建，因此与 `-t` 同时使用时会忽略 `-t`。
 RPM 包输出至 `build/rpm`。
 
-### 项目结构
+## 项目结构
+
 ```text
 .
 ├── build     // 存放项目中使用的脚本文件
@@ -86,7 +94,7 @@ RPM 包输出至 `build/rpm`。
 └── build.sh  // 统一的构建入口
 ```
 
-### 开发者测试
+## 开发者测试
 
 运行单元测试前需要安装 `git`、`patch`、`libasan`、`openssl` 和 `openssl-devel`：
 
@@ -116,18 +124,30 @@ sh run_dt.sh --jobs 8
 覆盖率统计默认关闭。如系统已安装 `lcov` 和 `genhtml`，可执行 `sh run_dt.sh --coverage`。详细报告位于
 `test/build/gcovr_report/index.html`。
 
-### 使用说明
+## 使用说明
+
 - **安装部署**
-    安装部署相关内容请参见 [安装部署](docs/zh/installation_deployment.md)。
+    
+    安装部署相关内容请参见 [安装部署](docs/zh/ubsm_installation_deployment.md)。
+
 - **API接口**
-    API相关内容请参见 [接口说明](docs/zh/api_description.md)。
+    
+    API相关内容请参见 [接口说明](docs/zh/ubsm_api_description.md)。
     文档中的共享内存和内存借用样例依赖 UB 硬件、UBS Engine 及已部署的 ubsmd 服务，不是脱离物理环境的独立样例。
+
 - **共享内存样例**
+    
     `UBSM_FLAG_CACHE` 模式下创建、映射、读写和释放 128MB 共享内存的完整样例请参见
     [example/README.md](example/README.md)。
 
-### License
+## License
+
 ubs-mem 采用 Mulan V2 License.
 
-### 贡献指南
+## 贡献指南
+
 请阅读[贡献指南](CONTRIBUTING.md)以了解如何贡献项目。
+
+## 说明
+
+此开源项目非华为产品，仅提供有限支持。
