@@ -57,6 +57,43 @@ git clone https://gitcode.com/openeuler/ubs-mem.git
 cd ubs-mem
 ```
 
+## Container Development
+
+The repository provides `.devcontainer/Dockerfile`, which installs the dependencies required for project builds,
+unit tests, and pre-commit checks. After installing and starting Docker, build the development image from the
+repository root. The repository root must be the build context so that the Dockerfile can read
+`.devcontainer/requirements.txt`:
+
+```shell
+docker build -f .devcontainer/Dockerfile -t ubs-mem-dev .
+```
+
+Mount the source tree at the image's predefined working directory and start the container:
+
+```shell
+docker run --rm -it \
+    --cap-add=SYS_PTRACE \
+    --security-opt=seccomp=unconfined \
+    -v "$(pwd):/workspaces/ubs-mem" \
+    ubs-mem-dev bash
+```
+
+Inside the container, initialize the test submodules and run a build or the unit tests:
+
+```shell
+git submodule update --init --recursive
+sh build.sh -t release
+
+# Optional: run the unit tests.
+cd test
+sh run_dt.sh
+```
+
+Alternatively, open the repository with the VS Code Dev Containers extension and select **Reopen in Container**.
+This uses `.devcontainer/devcontainer.json` to build the image, initialize the Git submodules, run a CMake configure
+check, and install the pre-commit hook automatically. Creating the container and initializing the submodules for the
+first time requires access to the package repositories and the repositories configured in `.gitmodules`.
+
 ## Build the Project
 
 The repository provides the unified `build.sh` script. Use `-t` to select a direct build type such as debug or

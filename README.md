@@ -55,6 +55,41 @@ git clone https://gitcode.com/openeuler/ubs-mem.git
 cd ubs-mem
 ```
 
+## 容器开发
+
+仓库提供 `.devcontainer/Dockerfile`，其中已安装项目构建、单元测试和 pre-commit 检查所需的依赖。
+安装并启动 Docker 后，在仓库根目录构建开发镜像。构建上下文必须为仓库根目录，以便 Dockerfile 读取
+`.devcontainer/requirements.txt`：
+
+```shell
+docker build -f .devcontainer/Dockerfile -t ubs-mem-dev .
+```
+
+将源码挂载到镜像预设的工作目录并启动容器：
+
+```shell
+docker run --rm -it \
+    --cap-add=SYS_PTRACE \
+    --security-opt=seccomp=unconfined \
+    -v "$(pwd):/workspaces/ubs-mem" \
+    ubs-mem-dev bash
+```
+
+进入容器后，可初始化测试子模块并执行构建或测试：
+
+```shell
+git submodule update --init --recursive
+sh build.sh -t release
+
+# 可选：运行单元测试
+cd test
+sh run_dt.sh
+```
+
+也可以使用 VS Code 的 Dev Containers 扩展打开仓库并选择 **Reopen in Container**。该方式会读取
+`.devcontainer/devcontainer.json`，自动构建镜像、初始化 Git 子模块、执行 CMake 配置检查并安装 pre-commit hook。
+首次创建容器和初始化子模块时需要访问软件源及 `.gitmodules` 中配置的仓库。
+
 ## 构建项目
 
 代码仓中提供了统一的编译构建脚本 `build.sh`。使用 `-t` 指定 debug、release 等直接编译类型：
