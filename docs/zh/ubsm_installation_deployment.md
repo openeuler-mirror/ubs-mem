@@ -10,7 +10,7 @@
 
 | 类型 | 配置参考|
 |-----|-----|
-| 服务器 | <ul><li>TaiShan 500 2280</li> <li>其他配备支持UB的CPU的服务器</li></ul> |
+| 服务器 | <ul><li>TaiShan 500 2280</li> <li>Taishan 950 SuperPod</li> <li>其他配备支持UB的CPU的服务器</li></ul> |
 
 **软件依赖**
 
