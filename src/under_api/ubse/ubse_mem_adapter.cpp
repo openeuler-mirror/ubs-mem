@@ -983,6 +983,7 @@ int UbseMemAdapter::LookUpClusterStatistic(ubsmemClusterInfo &clusterInfo)
         }
 
         DBG_LOGINFO("NodeId=" << std::to_string(nodeList[i].slot_id) << " has numaMemCnt=" << numaMemCnt);
+        clusterInfo.host[clusterInfo.host_num].numa_num = 0;
         for (int j = 0; j < numaMemCnt; ++j) {
             if (strlen(nodeList[i].host_name) >= MAX_HOST_NAME_DESC_LENGTH) {
                 DBG_LOGERROR("hostname too long: name=" << nodeList[i].host_name);
