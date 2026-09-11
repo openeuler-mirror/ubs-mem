@@ -10,7 +10,7 @@
 
 | 类型 | 配置参考|
 |-----|-----|
-| 服务器 | <ul><li>TaiShan 500 2280</li> <li>其他配备支持UB的CPU的服务器</li></ul> |
+| 服务器 | <ul><li>TaiShan 500 2280</li> <li>Taishan 950 SuperPod</li> <li>其他配备支持UB的CPU的服务器</li></ul> |
 
 **软件依赖**
 
@@ -44,7 +44,7 @@ UBS Memory依赖[UBS Engine](https://gitcode.com/openeuler/ubs-engine)提供资�
         dnf install -y ./*.rpm
         ```
 
-    >[!NOTE]说明
+    >[!NOTE] 说明
     >- 内存服务以ubsmd用户的身份运行，在使用RPM包安装时，若系统中不存在ubsmd用户，安装脚本将自动创建该用户。
     >- 安装成功后，SDK动态库安装到“/usr/lib64”，服务动态库安装到“/usr/lib/ubs\_mem”。
     >- 安装成功后，.h头文件会默认安装到“/usr/include”目录。
@@ -121,7 +121,7 @@ UBS Memory依赖[UBS Engine](https://gitcode.com/openeuler/ubs-engine)提供资�
     ubsm.performance.statistics.enable = off
     ```
 
-    >[!NOTE]说明
+    >[!NOTE] 说明
     >
     >- 使用共享内存的分布式锁功能时，需要在配置文件中主动设置当前节点的IP地址和端口号以及集群中其他节点的节点信息，启动当前节点的ubsmd进程，会同步启动其他节点。
     >- 开启TLS（Transport Layer Security，安全传输层协议）认证功能操作详情可参见[开启TLS认证](ubsm_security_description.md#开启tls认证)，如果不使用该功能，将配置项 `ubsm.server.tls.enable` 设为 `off` 即可。
@@ -134,7 +134,7 @@ UBS Memory依赖[UBS Engine](https://gitcode.com/openeuler/ubs-engine)提供资�
     systemctl start ubsmd
     ```
 
-    >[!NOTE]说明
+    >[!NOTE] 说明
     >ubsmd进程启动依赖UBSE，该服务启动成功方可加载成功。
 
 6. 查看ubsmd状态。
@@ -167,7 +167,7 @@ UBS Memory依赖[UBS Engine](https://gitcode.com/openeuler/ubs-engine)提供资�
     dnf remove ubs-mem-shmem
     ```
 
-    >[!CAUTION]注意
+    >[!CAUTION] 注意
     >
     >- 卸载会自动停止ubsmd并释放占用的远端内存，因此在卸载ubsmd时，应确保UBSE正常运行且无业务正在进行。
     >- 为了避免权限问题，卸载后用户和用户组ubsmd将会保留。
