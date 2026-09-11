@@ -32,6 +32,10 @@ void *RackMem::MemoryIDUsedByNuma(AppBorrowMetaDesc &desc, const std::vector<uin
         DBG_LOGERROR("numaid invalid, numaid is " << numaId);
         return nullptr;
     }
+    if (numaId >= static_cast<int64_t>(8 * sizeof(unsigned long))) {
+        DBG_LOGERROR("numaid out of range, numaid is " << numaId);
+        return nullptr;
+    }
     void *mappedMemory = nullptr;
     DBG_LOGINFO("Borrowing memory by numa, name=" << name << ", numa id=" << numaId << ", size=" << desc.GetFileSize()
                                                   << "mem ids");
