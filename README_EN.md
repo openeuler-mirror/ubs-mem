@@ -59,9 +59,31 @@ cd ubs-mem
 
 ## Container Development
 
-The repository provides `.devcontainer/Dockerfile`, which installs the dependencies required for project builds,
-unit tests, and pre-commit checks. After installing and starting Docker, build the development image from the
-repository root. The repository root must be the build context so that the Dockerfile can read
+Choose either of the following methods to prepare the containerized development environment.
+
+### Option 1: Use the Prebuilt Image
+
+The project provides a prebuilt multi-architecture development image based on openEuler 24.03 LTS SP3, with support
+for x86_64 and aarch64. The image includes the dependencies required to build the project and run its unit tests.
+
+```shell
+docker pull swr.cn-north-4.myhuaweicloud.com/ubscore/ubs-mem:oe2403-sp3-multiarch
+```
+
+From the repository root, mount the source tree and start the container:
+
+```shell
+docker run --rm -it \
+    -v "$(pwd):/workspaces/ubs-mem" \
+    -w /workspaces/ubs-mem \
+    swr.cn-north-4.myhuaweicloud.com/ubscore/ubs-mem:oe2403-sp3-multiarch bash
+```
+
+### Option 2: Build Locally from the Dockerfile
+
+The repository provides `.devcontainer/Dockerfile` for building a development image that includes the dependencies
+required for project builds, unit tests, and pre-commit checks. After installing and starting Docker, build the image
+from the repository root. The repository root must be the build context so that the Dockerfile can read
 `.devcontainer/requirements.txt`:
 
 ```shell
@@ -72,19 +94,18 @@ Mount the source tree at the image's predefined working directory and start the 
 
 ```shell
 docker run --rm -it \
-    --cap-add=SYS_PTRACE \
-    --security-opt=seccomp=unconfined \
     -v "$(pwd):/workspaces/ubs-mem" \
     ubs-mem-dev bash
 ```
 
-Inside the container, initialize the test submodules and run a build or the unit tests:
+After completing either option, run the following commands inside the container to build the project or execute the
+unit tests:
 
 ```shell
-git submodule update --init --recursive
+# Build the project.
 sh build.sh -t release
 
-# Optional: run the unit tests.
+# Run all unit tests. The test submodules are initialized automatically on the first run.
 cd test
 sh run_dt.sh
 ```
