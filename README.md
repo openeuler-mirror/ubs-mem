@@ -57,7 +57,31 @@ cd ubs-mem
 
 ## 容器开发
 
-仓库提供 `.devcontainer/Dockerfile`，其中已安装项目构建、单元测试和 pre-commit 检查所需的依赖。
+可选择以下任一方式准备容器开发环境。
+
+### 方式一：使用预构建镜像
+
+项目提供基于 openEuler 24.03 LTS SP3 构建的多架构开发镜像，支持 x86_64 和 aarch64。镜像已预置
+项目编译及单元测试所需依赖，可直接用于构建和测试：
+
+```shell
+docker pull swr.cn-north-4.myhuaweicloud.com/ubscore/ubs-mem:oe2403-sp3-multiarch
+```
+
+在仓库根目录挂载源码并启动容器：
+
+```shell
+docker run --rm -it \
+    -v "$(pwd):/workspaces/ubs-mem" \
+    -w /workspaces/ubs-mem \
+    swr.cn-north-4.myhuaweicloud.com/ubscore/ubs-mem:oe2403-sp3-multiarch bash
+```
+
+### 方式二：基于 Dockerfile 本地构建
+
+仓库提供 `.devcontainer/Dockerfile`，用于构建包含项目编译、单元测试和 pre-commit 检查依赖的
+开发镜像。
+
 安装并启动 Docker 后，在仓库根目录构建开发镜像。构建上下文必须为仓库根目录，以便 Dockerfile 读取
 `.devcontainer/requirements.txt`：
 
@@ -69,19 +93,17 @@ docker build -f .devcontainer/Dockerfile -t ubs-mem-dev .
 
 ```shell
 docker run --rm -it \
-    --cap-add=SYS_PTRACE \
-    --security-opt=seccomp=unconfined \
     -v "$(pwd):/workspaces/ubs-mem" \
     ubs-mem-dev bash
 ```
 
-进入容器后，可初始化测试子模块并执行构建或测试：
+完成上述任一方式后，可在容器中执行以下命令构建项目或运行单元测试：
 
 ```shell
-git submodule update --init --recursive
+# 构建项目
 sh build.sh -t release
 
-# 可选：运行单元测试
+# 运行全部 UT；首次执行时会自动初始化测试子模块
 cd test
 sh run_dt.sh
 ```
