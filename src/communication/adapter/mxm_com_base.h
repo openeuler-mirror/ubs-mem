@@ -345,6 +345,10 @@ private:
     static void HandleRequest(MxmComMessageCtx &message)
     {
         auto ucMsg = static_cast<MxmComMessage *>(static_cast<void *>(message.GetMessage()));
+        if (ucMsg == nullptr) {
+            DBG_LOGERROR("Received request with null message.");
+            return;
+        }
         uint16_t moduleCode = ucMsg->GetMessageHead().GetModuleCode();
         uint16_t opCode = ucMsg->GetMessageHead().GetOpCode();
         uint32_t crc = ucMsg->GetMessageHead().GetCrc();

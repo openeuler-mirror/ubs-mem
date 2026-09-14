@@ -211,7 +211,11 @@ char *DefaultDecrypt(const char *encrypted_data, size_t encrypted_len, size_t *p
     if (encrypted_len == 0) {
         return nullptr;
     }
-    char *result = new char[encrypted_len];
+    char *result = new (std::nothrow) char[encrypted_len];
+    if (result == nullptr) {
+        DBG_LOGERROR("Failed to allocate decrypt result.");
+        return nullptr;
+    }
     auto ret = memcpy_s(result, encrypted_len, encrypted_data, encrypted_len);
     if (ret != 0) {
         DBG_LOGERROR("memcpy_s failed, ret:" << ret);

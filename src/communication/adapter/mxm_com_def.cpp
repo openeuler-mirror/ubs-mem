@@ -15,6 +15,8 @@
 #include "crc/dg_crc.h"
 #include "strings/dg_str_util.h"
 
+#include <limits>
+
 #include <log.h>
 
 namespace ock::com {
@@ -303,7 +305,8 @@ std::string MxmComChannelInfo::ConvertMxmComChannelInfoToString()
 {
     std::string infoStr = "engine Name: " + engineName + "; ";
     infoStr = infoStr + "channel type: " + std::to_string(static_cast<int>(channelType)) + "; ";
-    infoStr = infoStr + "channel id: " + std::to_string(channel->GetId()) + "; ";
+    infoStr = infoStr +
+              "channel id: " + (channel == nullptr ? std::string("invalid") : std::to_string(channel->GetId())) + "; ";
     infoStr = infoStr + "cur node id: " + connectInfo.GetCurNodeId() + "; ";
     infoStr = infoStr + "remote node id: " + connectInfo.GetRemoteNodeId() + "; ";
     return infoStr;
@@ -517,6 +520,10 @@ const MxmComMessageHead &MxmComMessage::GetMessageHead() const
 
 MxmComMessagePtr MxmComMessage::AllocMessage(uint32_t len)
 {
+    if (len > std::numeric_limits<uint32_t>::max() - sizeof(MxmComMessageHead)) {
+        DBG_LOGERROR("Message length is too large: " << len);
+        return nullptr;
+    }
     uint32_t sumLen = sizeof(MxmComMessageHead) + len;
     auto msg = new (std::nothrow) uint8_t[sumLen];
     return msg;

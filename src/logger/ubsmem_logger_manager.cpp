@@ -125,7 +125,7 @@ void UbsmemLoggerManager::Push(UbsmemLoggerEntry &&loggerEntry)
             oss << "[UBS_SDK " << loggerEntry.GetFile() << ":" << loggerEntry.GetLine() << "] ";
             loggerEntry.DecodePayload(oss);
             externLogCallback_(static_cast<int>(loggerEntry.GetLogLevel()), oss.str().c_str());
-        } else {
+        } else if (writer_ != nullptr) {
             writer_->Write(loggerEntry);
         }
         if (syslogOpen_) {

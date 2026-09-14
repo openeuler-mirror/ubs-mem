@@ -139,7 +139,8 @@ inline bool FileUtil::MakeDirRecursive(const std::string &path, uint32_t mode)
         return true;
     }
 
-    auto chPath = const_cast<char *>(path.c_str());
+    std::string mutablePath(path);
+    auto chPath = mutablePath.data();
     auto p = strchr(chPath + 1, '/');
     for (; p != nullptr; (p = strchr(p + 1, '/'))) {
         *p = '\0';

@@ -185,6 +185,7 @@ bool UbsmemLoggerFilesink::OpenFile(const std::string &fileName)
             fs::permissions(filePath, fs::perms::owner_read | fs::perms::owner_write | fs::perms::group_read);
         } catch (const std::exception &e) {
             std::cerr << "Error: " << e.what() << std::endl;
+            fileMap_[fileName].logFile.close();
             return false;
         }
         return true;

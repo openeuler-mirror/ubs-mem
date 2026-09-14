@@ -33,7 +33,6 @@
 #include "rack_mem_constants.h"
 #include "referable/dg_ref.h"
 #include "strings/dg_str_util.h"
-#include "thread_pool/dg_execution_service.h"
 #include "time/dg_monotonic.h"
 #include "util/defines.h"
 

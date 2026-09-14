@@ -18,13 +18,17 @@
 #include "ubsm_com_constants.h"
 #include "util/defines.h"
 
+#include <mutex>
+
 namespace ock::com::ipc {
 
 MxmIpcServer *g_mxmIpcServer{nullptr};
 std::atomic<int> g_ipcServerCount{0};
+std::mutex g_mxmIpcServerMutex;
 
 HRESULT RegIpcService(MxmComBaseMessageHandlerPtr &handlerPtr)
 {
+    std::lock_guard<std::mutex> guard(g_mxmIpcServerMutex);
     if (g_mxmIpcServer != nullptr) {
         return g_mxmIpcServer->RegMessageHandler(handlerPtr);
     }
@@ -37,7 +41,9 @@ HRESULT RegIpcService(MxmComBaseMessageHandlerPtr &handlerPtr)
  */
 int MxmComStartIpcServer()
 {
-    if (g_ipcServerCount.load() > 0 && g_mxmIpcServer != nullptr) {
+    std::lock_guard<std::mutex> guard(g_mxmIpcServerMutex);
+    if (g_mxmIpcServer != nullptr) {
+        g_ipcServerCount.fetch_add(1);
         return HOK;
     }
     std::string udsPathPrefix = MXM_IPC_UDS_PATH_PREFIX_DEFAULT;
@@ -72,16 +78,21 @@ int MxmComStartIpcServer()
  */
 void MxmComStopIpcServer()
 {
-    if (g_mxmIpcServer != nullptr) {
+    std::lock_guard<std::mutex> guard(g_mxmIpcServerMutex);
+    if (g_mxmIpcServer != nullptr && g_ipcServerCount.fetch_sub(1) == 1) {
         g_mxmIpcServer->Stop();
         delete g_mxmIpcServer;
         g_mxmIpcServer = nullptr;
-        g_ipcServerCount.fetch_sub(1);
     }
 }
 
 void MXMSetLinkEventHandler(const MXMLinkEventHandler &handler)
 {
+    std::lock_guard<std::mutex> guard(g_mxmIpcServerMutex);
+    if (g_mxmIpcServer == nullptr) {
+        DBG_LOGERROR("IPC server is not started.");
+        return;
+    }
     g_mxmIpcServer->AddLinkNotifyFunc([handler](const std::vector<MxmLinkInfo> &linkInfoList) -> void {
         for (MxmLinkInfo info : linkInfoList) {
             if (info.GetState() == MxmLinkState::LINK_DOWN) {

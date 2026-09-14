@@ -81,16 +81,20 @@ int LoadFd(const std::string &name, int &fd) noexcept
         return -1;
     }
 
+    bool found = false;
     for (int i = 0; i < n; ++i) {
         int cur = SD_LISTEN_FDS_START + i;
         if (name == restores[i]) {
             fd = cur;
-            free(restores);
-            return 0;
+            found = true;
         }
+        free(restores[i]);
     }
 
     free(restores);
+    if (found) {
+        return 0;
+    }
     DBG_LOGINFO("sd_listen_fds_with_names get fd count: " << n << ", not matches " << name);
     return -1;
 }

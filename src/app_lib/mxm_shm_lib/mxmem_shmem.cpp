@@ -11,6 +11,7 @@
  */
 
 #include <sys/mman.h>
+#include <new>
 #include "ubs_mem.h"
 #include "RackMemShm.h"
 #include "UbseMemExecutor.h"
@@ -36,9 +37,9 @@ static int find_region_desc(const char *region_name, SHMRegionDesc *region)
     if (strcmp(region_name, "default") == 0) {
         std::string baseNid;
         ShmRegionType type = ALL2ALL_SHARE;
-        SHMRegions *regions = static_cast<SHMRegions *>(malloc(sizeof(SHMRegions)));
+        SHMRegions *regions = new (std::nothrow) SHMRegions{};
         if (regions == nullptr) {
-            DBG_LOGERROR("SHMRegions malloc failed.");
+            DBG_LOGERROR("SHMRegions allocation failed.");
             return MXM_ERR_MALLOC_FAIL;
         }
         TP_TRACE_BEGIN(TP_UBSM_LOOKUP_REGION_DEFAULT_IPC_REQUEST);
@@ -46,17 +47,17 @@ static int find_region_desc(const char *region_name, SHMRegionDesc *region)
         TP_TRACE_END(TP_UBSM_LOOKUP_REGION_DEFAULT_IPC_REQUEST, ret);
         if (ret != 0) {
             DBG_LOGERROR("Failed to lookup shared regions, ret=" << ret);
-            free(regions);
+            ock::mxmd::SafeDelete(regions);
             return ret;
         }
         if (regions->num <= 0) {
             DBG_LOGERROR("Failed to lookup shared Region, region number=" << ret);
-            free(regions);
+            ock::mxmd::SafeDelete(regions);
             return ret;
         }
 
         *region = regions->region[0];
-        free(regions);
+        ock::mxmd::SafeDelete(regions);
 
         DBG_LOGINFO("Get region successfully, name=" << region_name);
         return UBSM_OK;
@@ -75,30 +76,36 @@ static int find_region_desc(const char *region_name, SHMRegionDesc *region)
     return UBSM_OK;
 }
 
-static int translate_to_region_attributes(SHMRegionDesc *regionDesc, ubsmem_region_attributes_t *region_attr)
+static int translate_to_region_attributes(const SHMRegionDesc &regionDesc, ubsmem_region_attributes_t &regionAttr)
 {
-    region_attr->host_num = regionDesc->num;
+    if (regionDesc.num < 0 || regionDesc.num > MAX_REGION_NODE_NUM) {
+        return MXM_ERR_REGION_PARAM_INVALID;
+    }
+    regionAttr.host_num = regionDesc.num;
 
-    for (int i = 0; i < regionDesc->num; i++) {
-        auto ret = strcpy_s(region_attr->hosts[i].host_name, MAX_HOST_NAME_DESC_LENGTH, regionDesc->hostName[i]);
+    for (int i = 0; i < regionDesc.num; i++) {
+        auto ret = strcpy_s(regionAttr.hosts[i].host_name, MAX_HOST_NAME_DESC_LENGTH, regionDesc.hostName[i]);
         if (ret != UBSM_OK) {
             DBG_LOGERROR("host name copy error, ret=" << ret);
             return MXM_ERR_MEMORY;
         }
-        region_attr->hosts[i].affinity = regionDesc->affinity[i];
-        DBG_LOGINFO("Coping region name=" << region_attr->hosts[i].host_name
-                                          << ", affinity=" << region_attr->hosts[i].affinity << " to list");
+        regionAttr.hosts[i].affinity = regionDesc.affinity[i];
+        DBG_LOGINFO("Coping region name=" << regionAttr.hosts[i].host_name
+                                          << ", affinity=" << regionAttr.hosts[i].affinity << " to list");
     }
 
     return UBSM_OK;
 }
 
-static int translate_to_regions(SHMRegions *list, ubsmem_regions_t *regions)
+static int translate_to_regions(const SHMRegions &list, ubsmem_regions_t &regions)
 {
-    regions->num = list->num;
+    if (list.num < 0 || list.num > MAX_REGIONS_NUM) {
+        return MXM_ERR_REGION_PARAM_INVALID;
+    }
+    regions.num = list.num;
 
-    for (int i = 0; i < list->num; i++) {
-        auto ret = translate_to_region_attributes(&list->region[i], &regions->region[i]);
+    for (int i = 0; i < list.num; i++) {
+        auto ret = translate_to_region_attributes(list.region[i], regions.region[i]);
         if (ret != UBSM_OK) {
             DBG_LOGERROR("region attribute copy error, ret=" << ret);
             return ret;
@@ -117,7 +124,7 @@ static int translate_to_region_desc(const char *region_name, SHMRegionDesc *regi
         return MXM_ERR_MEMORY;
     }
     region_desc->size = 0;
-    ret = translate_to_region_attributes(regionDesc, &region_desc->region_attr);
+    ret = translate_to_region_attributes(*regionDesc, region_desc->region_attr);
     if (ret != UBSM_OK) {
         DBG_LOGERROR("region attributes copy error, ret=" << ret);
         return ret;
@@ -125,58 +132,62 @@ static int translate_to_region_desc(const char *region_name, SHMRegionDesc *regi
     return UBSM_OK;
 }
 
-static bool contain_all_hosts_in_attr(SHMRegionDesc *regionDesc, const ubsmem_region_attributes_t *reg_attr)
+static bool contain_all_hosts_in_attr(SHMRegionDesc &regionDesc, const ubsmem_region_attributes_t &regAttr)
 {
+    if (regionDesc.num < 0 || regionDesc.num > MAX_REGION_NODE_NUM || regAttr.host_num < 0 ||
+        regAttr.host_num > MAX_REGION_NODE_NUM) {
+        return false;
+    }
     bool flag[MAX_REGION_NODE_NUM] = {false};
     int i;
     int j;
 
-    for (i = 0; i < reg_attr->host_num; i++) {
-        for (j = 0; j < regionDesc->num; j++) {
+    for (i = 0; i < regAttr.host_num; i++) {
+        for (j = 0; j < regionDesc.num; j++) {
             if (flag[j]) {
                 continue;
             }
-            DBG_LOGDEBUG("Host name=" << reg_attr->hosts[i].host_name);
-            if (strcmp(reg_attr->hosts[i].host_name, regionDesc->hostName[j]) == 0) {
+            DBG_LOGDEBUG("Host name=" << regAttr.hosts[i].host_name);
+            if (strcmp(regAttr.hosts[i].host_name, regionDesc.hostName[j]) == 0) {
                 flag[j] = true;
-                regionDesc->affinity[j] = reg_attr->hosts[i].affinity;
-                DBG_LOGDEBUG("affinity[" << j << "]=" << regionDesc->affinity[j] << ", i=" << i);
+                regionDesc.affinity[j] = regAttr.hosts[i].affinity;
+                DBG_LOGDEBUG("affinity[" << j << "]=" << regionDesc.affinity[j] << ", i=" << i);
                 break;
             }
         }
-        if (j == regionDesc->num) {
-            DBG_LOGERROR("Failed to find host name=" << reg_attr->hosts[i].host_name);
+        if (j == regionDesc.num) {
+            DBG_LOGERROR("Failed to find host name=" << regAttr.hosts[i].host_name);
             return false;
         }
     }
     int k = 0;
-    for (j = 0; j < regionDesc->num; j++) {
+    for (j = 0; j < regionDesc.num; j++) {
         if (!flag[j]) {
             continue;
         }
         if (k != j) {
-            auto ret = strcpy_s(regionDesc->nodeId[k], MEM_MAX_ID_LENGTH, regionDesc->nodeId[j]);
+            auto ret = strcpy_s(regionDesc.nodeId[k], MEM_MAX_ID_LENGTH, regionDesc.nodeId[j]);
             if (ret != UBSM_OK) {
                 DBG_LOGERROR("Failed to copy node id, ret=" << ret);
                 return false;
             }
-            ret = strcpy_s(regionDesc->hostName[k], MAX_HOST_NAME_DESC_LENGTH, regionDesc->hostName[j]);
+            ret = strcpy_s(regionDesc.hostName[k], MAX_HOST_NAME_DESC_LENGTH, regionDesc.hostName[j]);
             if (ret != UBSM_OK) {
                 DBG_LOGERROR("Failed to copy host name, ret=" << ret);
                 return false;
             }
-            regionDesc->affinity[k] = regionDesc->affinity[j];
+            regionDesc.affinity[k] = regionDesc.affinity[j];
         }
         k++;
     }
-    regionDesc->num = k;
+    regionDesc.num = k;
     return true;
 }
 
 static int filter_all_hosts_in_attr(SHMRegions *list, const ubsmem_region_attributes_t *reg_attr, int &index)
 {
     for (int i = 0; i < list->num; i++) {
-        if (contain_all_hosts_in_attr(&list->region[i], reg_attr)) {
+        if (contain_all_hosts_in_attr(list->region[i], *reg_attr)) {
             index = i;
             return UBSM_OK;
         }
@@ -305,16 +316,16 @@ uint32_t ubsmem_shmem_allocate_impl(const char *region_name, const char *name, s
     DBG_LOGINFO("Allocating shared memory, region=" << region_name << ", name=" << name << ", size=" << size);
     std::string regionName = region_name;
     std::string baseNid;
-    auto regions = static_cast<SHMRegionDesc *>(malloc(sizeof(SHMRegionDesc)));
+    auto regions = new (std::nothrow) SHMRegionDesc{};
     if (regions == nullptr) {
-        DBG_LOGERROR("SHMRegions malloc failed.");
+        DBG_LOGERROR("SHMRegionDesc allocation failed.");
         return MXM_ERR_MALLOC_FAIL;
     }
 
     auto ret = find_region_desc(region_name, regions);
     if (ret != 0) {
         DBG_LOGERROR("RackMemShmLookupShareRegions failed, ret=" << ret);
-        free(regions);
+        ock::mxmd::SafeDelete(regions);
         return ret;
     }
 
@@ -323,11 +334,11 @@ uint32_t ubsmem_shmem_allocate_impl(const char *region_name, const char *name, s
     TP_TRACE_END(TP_UBSM_SHM_CREATE_IPC_REQUEST, ret);
     if (ret != 0) {
         DBG_LOGERROR("UbsMemShmCreate failed, ret=" << ret);
-        free(regions);
+        ock::mxmd::SafeDelete(regions);
         return ret;
     }
 
-    free(regions);
+    ock::mxmd::SafeDelete(regions);
     DBG_LOGINFO("Allocating shared memory successfully, memory name=" << name);
     return UBSM_OK;
 }
@@ -587,9 +598,9 @@ uint32_t ubsm_lookup_regions_ompl(ubsmem_regions_t *regions)
     DBG_LOGINFO("Start to looking up regions");
     std::string baseNid;
     ShmRegionType type = ALL2ALL_SHARE;
-    SHMRegions *list = static_cast<SHMRegions *>(malloc(sizeof(SHMRegions)));
+    SHMRegions *list = new (std::nothrow) SHMRegions{};
     if (list == nullptr) {
-        DBG_LOGERROR("Failed to malloc, error info=no memory.");
+        DBG_LOGERROR("Failed to allocate SHMRegions, error info=no memory.");
         return MXM_ERR_MALLOC_FAIL;
     }
     TP_TRACE_BEGIN(TP_UBSM_LOOKUP_REGIONS_IPC_REQUEST);
@@ -597,17 +608,17 @@ uint32_t ubsm_lookup_regions_ompl(ubsmem_regions_t *regions)
     TP_TRACE_END(TP_UBSM_LOOKUP_REGIONS_IPC_REQUEST, ret);
     if (ret != UBSM_OK) {
         DBG_LOGERROR("LookupResourceRegions fail, ret is: " << ret);
-        free(list);
+        ock::mxmd::SafeDelete(list);
         return ret;
     }
 
-    ret = translate_to_regions(list, regions);
+    ret = translate_to_regions(*list, *regions);
     if (ret != UBSM_OK) {
         DBG_LOGERROR("Translating regiosn to nodes list, ret=" << ret);
-        free(list);
+        ock::mxmd::SafeDelete(list);
         return ret;
     }
-    free(list);
+    ock::mxmd::SafeDelete(list);
     DBG_LOGINFO("Looking up regions successfully");
     return UBSM_OK;
 }
@@ -635,7 +646,7 @@ uint32_t ubsmem_create_region_impl(const char *region_name, size_t size, const u
 
     std::string baseNid;
     ShmRegionType type = ALL2ALL_SHARE;
-    SHMRegions *list = static_cast<SHMRegions *>(malloc(sizeof(SHMRegions)));
+    SHMRegions *list = new (std::nothrow) SHMRegions{};
     if (list == nullptr) {
         DBG_LOGERROR("Failed to SHMRegions, error info=no memory");
         return MXM_ERR_MALLOC_FAIL;
@@ -650,7 +661,7 @@ uint32_t ubsmem_create_region_impl(const char *region_name, size_t size, const u
     TP_TRACE_END(TP_UBSM_LOOKUP_REGIONS_IPC_REQUEST, ret);
     if (ret != UBSM_OK) {
         DBG_LOGERROR("Failed to look up regions, ret=" << ret);
-        free(list);
+        ock::mxmd::SafeDelete(list);
         return ret;
     }
 
@@ -658,7 +669,7 @@ uint32_t ubsmem_create_region_impl(const char *region_name, size_t size, const u
     ret = filter_all_hosts_in_attr(list, reg_attr, index);
     if (ret != UBSM_OK || index >= MAX_REGIONS_NUM) {
         DBG_LOGERROR("Failed to filter designated region, index=" << index << ", ret=" << ret);
-        free(list);
+        ock::mxmd::SafeDelete(list);
         return ret;
     }
 
@@ -668,11 +679,11 @@ uint32_t ubsmem_create_region_impl(const char *region_name, size_t size, const u
     TP_TRACE_END(TP_UBSM_CREATE_REGIONS_IPC_REQUEST, ret);
     if (ret != UBSM_OK) {
         DBG_LOGERROR("Failed to create resource region, ret=" << ret);
-        free(list);
+        ock::mxmd::SafeDelete(list);
         return ret;
     }
 
-    free(list);
+    ock::mxmd::SafeDelete(list);
 
     DBG_LOGINFO("Create region successfully, region name=" << region_name);
     return UBSM_OK;
@@ -705,9 +716,9 @@ uint32_t ubsmem_lookup_region_impl(const char *region_name, ubsmem_region_desc_t
         return MXM_ERR_MEMLIB;
     }
 
-    SHMRegionDesc *region = static_cast<SHMRegionDesc *>(malloc(sizeof(SHMRegionDesc)));
+    SHMRegionDesc *region = new (std::nothrow) SHMRegionDesc{};
     if (region == nullptr) {
-        DBG_LOGERROR("SHMRegion malloc failed.");
+        DBG_LOGERROR("SHMRegion allocation failed.");
         return MXM_ERR_MALLOC_FAIL;
     }
 
@@ -718,17 +729,17 @@ uint32_t ubsmem_lookup_region_impl(const char *region_name, ubsmem_region_desc_t
     TP_TRACE_END(TP_UBSM_LOOKUP_REGION_IPC_REQUEST, ret);
     if (ret != UBSM_OK) {
         DBG_LOGERROR("Failed to look up resource region, ret=" << ret);
-        free(region);
+        ock::mxmd::SafeDelete(region);
         return ret;
     }
 
     ret = translate_to_region_desc(region_name, region, region_desc);
     if (ret != UBSM_OK) {
         DBG_LOGERROR("translate region info, ret=" << ret);
-        free(region);
+        ock::mxmd::SafeDelete(region);
         return ret;
     }
-    free(region);
+    ock::mxmd::SafeDelete(region);
     DBG_LOGINFO("Looking up region successfully, region name=" << region_name);
     return UBSM_OK;
 }

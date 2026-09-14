@@ -12,12 +12,20 @@
 
 #include "mxm_ipc_client.h"
 
+#include <exception>
+
 namespace ock::com::ipc {
 
 static void IPCClientHandlerWork(void (*handler)(MxmComMessageCtx &messageCtx), MxmComMessageCtx &messageCtx)
 {
-    if (handler != nullptr) {
-        handler(messageCtx);
+    try {
+        if (handler != nullptr) {
+            handler(messageCtx);
+        }
+    } catch (const std::exception &e) {
+        DBG_LOGERROR("IPC handler threw an exception: " << e.what());
+    } catch (...) {
+        DBG_LOGERROR("IPC handler threw an unknown exception.");
     }
     messageCtx.FreeMessage();
 }

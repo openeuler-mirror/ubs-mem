@@ -24,20 +24,6 @@ protected:
     }
 };
 
-class Task : public Runnable {
-public:
-    void Run() override
-    {
-        std::cout << "task is executed" << std::endl;
-    }
-};
-
-TEST_F(RackMemFunctionsTestSuite, TestGetThreadExecutorService)
-{
-    ASSERT_NE(GetOneThreadExecutorService(), nullptr);
-    ASSERT_NE(GetMoreThreadExecutorService(), nullptr);
-}
-
 TEST_F(RackMemFunctionsTestSuite, TestMemStrUtil)
 {
     uint64_t value = 0;

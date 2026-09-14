@@ -135,7 +135,12 @@ void MxmComLinkManager::InsertChannel(MxmComChannelInfo &channelInfo)
 {
     auto chType = channelInfo.GetChannelType();
     if (chType == MxmChannelType::SINGLE_SIDE && channelInfo.IsServerSide()) {
-        auto channelId = channelInfo.GetChannel()->GetId();
+        const auto &channel = channelInfo.GetChannel();
+        if (channel == nullptr) {
+            DBG_LOGERROR("Cannot insert a null channel.");
+            return;
+        }
+        auto channelId = channel->GetId();
         channelIdMap.emplace(channelId, channelInfo);
         DBG_LOGINFO("Insert channel id: " << channelId << ", cur node id" << channelInfo.GetConnectInfo().GetCurNodeId()
                                           << ", remote node id" << channelInfo.GetConnectInfo().GetRemoteNodeId());
@@ -491,7 +496,12 @@ HRESULT MxmComEngine::Start()
     if (engineInfo.GetEngineType() != MxmEngineType::CLIENT && engineInfo.IsUds()) {
         // 设置uds文件权限
         const std::string udsPath = GetUdsPath(engineInfo.GetUdsInfo().first);
-        if (chmod(udsPath.c_str(), engineInfo.GetUdsInfo().second) != 0) {
+        const mode_t udsMode = engineInfo.GetUdsInfo().second;
+        if ((udsMode & ~0777U) != 0 || (udsMode & 0002U) != 0) {
+            DBG_LOGERROR("Refuse unsafe uds file permission: " << udsMode);
+            return HFAIL;
+        }
+        if (chmod(udsPath.c_str(), udsMode) != 0) {
             DBG_LOGERROR("Failed to change uds file permission, " << strerror(errno));
             return HFAIL;
         }
@@ -663,7 +673,6 @@ bool MxmComEngine::TlsPrivateKeyCallback(const std::string &name, std::string &p
                                          UBSHcomTLSEraseKeypass &erase)
 {
     path = UbsCommonConfig::GetInstance().GetKeyPath();
-    DBG_LOGINFO("key.path=" << path);
     std::pair<char *, int> pwPair;
     auto ret = UbsCryptorHandler::GetInstance().Decrypt(0, UbsCommonConfig::GetInstance().GetKeypassPath(), pwPair);
     if (ret != 0) {
@@ -1024,6 +1033,10 @@ HRESULT CreateChannel(bool isUds, const std::string &engineName, const std::pair
 
 HRESULT CreateCallBack(const MxmComCallback &usrCb, Callback *&done)
 {
+    if (usrCb.cb == nullptr) {
+        DBG_LOGERROR("User callback is nullptr.");
+        return MXM_COM_ERROR_NEW_NET_CALLBACK_FAIL;
+    }
     done = UBSHcomNewCallback(
         [usrCb](UBSHcomServiceContext &context) {
             if (context.Result() != 0) {
@@ -1174,7 +1187,7 @@ void MxmCommunication::MxmComMsgReply(MxmComMessageCtx &message, const MxmComDat
     UBSHcomRequest reqMsg{(data.data), data.len, 0};
     UBSHcomReplyContext replyCtx(rspCtx, 0);
 
-    Callback *done;
+    Callback *done = nullptr;
     if (CreateCallBack(usrCb, done) != HOK) {
         return;
     }

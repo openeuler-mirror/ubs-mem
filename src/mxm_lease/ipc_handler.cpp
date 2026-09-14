@@ -85,17 +85,14 @@ static void RollBackBorrowNewMemory(const std::string &name, bool isNuma)
     auto ret = MLSManager::GetInstance().UpdateMemRecordState(name, RecordState::PRE_DEL);
     if (ret != 0) {
         DBG_LOGERROR("UpdateMemRecordState failed. name=" << name);
-        return;
     }
     ret = mxm::UbseMemAdapter::LeaseFree(name, isNuma);
     if (ret != 0 && ret != MXM_ERR_LEASE_NOT_EXIST) {
         DBG_LOGERROR("LeaseFree failed. name=" << name);
-        return;
     }
     ret = MLSManager::GetInstance().DeleteUsedMem(name);
     if (ret != 0) {
         DBG_LOGERROR("LeaseFree failed. name=" << name);
-        return;
     }
 }
 

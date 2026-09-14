@@ -413,4 +413,16 @@ TEST_F(RecordStoreTest, TestFillAllocated_FailWhenHeadIndexInvalid)
     ret = poolAllocator_.FillAllocated(7777U, TEST_LEASE_RECORD.second.memIds);
     EXPECT_EQ(ret, -1);
 }
+
+TEST_F(RecordStoreTest, TestCorruptedIdChainDoesNotLoopForever)
+{
+    constexpr uint64_t USED_AND_HEAD_WITH_SELF_LOOP = 3U;
+    ptr->memIds[0][0] = USED_AND_HEAD_WITH_SELF_LOOP;
+    std::vector<uint64_t> ids;
+    EXPECT_EQ(poolAllocator_.FillAllocated(0, ids), -1);
+    EXPECT_TRUE(ids.empty());
+    EXPECT_EQ(poolAllocator_.Release(0), -1);
+    EXPECT_EQ(ptr->memIds[0][0], USED_AND_HEAD_WITH_SELF_LOOP);
+    ptr->memIds[0][0] = 0;
+}
 } // namespace UT
