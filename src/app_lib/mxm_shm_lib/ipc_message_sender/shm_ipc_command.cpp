@@ -148,9 +148,13 @@ uint32_t ShmIpcCommand::IpcCallShmLookRegionList(const std::string &baseNid, Shm
     DBG_LOGINFO("Result of Ipc looking up regions list, number=" << shmRegions.num);
     list.num = shmRegions.num;
     for (int i = 0; i < list.num; ++i) {
+        if (shmRegions.region[i].num < 0 || shmRegions.region[i].num > MAX_REGION_NODE_NUM) {
+            DBG_LOGERROR("Invalid node count in region " << i << ": " << shmRegions.region[i].num);
+            return MXM_ERR_CHECK_RESOURCE;
+        }
         list.region[i] = shmRegions.region[i];
         DBG_LOGINFO("Serial number=" << i << ", number=" << shmRegions.region[i].num);
-        for (int j = 0; j < shmRegions.num; ++j) {
+        for (int j = 0; j < shmRegions.region[i].num; ++j) {
             DBG_LOGDEBUG("Node id=" << shmRegions.region[i].nodeId[j]
                                     << ", host name=" << shmRegions.region[i].hostName[j]);
         }
@@ -764,7 +768,7 @@ uint32_t ShmIpcCommand::IpcCallSuspendInner()
         DBG_LOGERROR("Failed to allocate suspend IPC message.");
         return MXM_ERR_MALLOC_FAIL;
     }
-    auto ret = IpcProxy::GetInstance().SyncCall(IPC_SUSPEND_CLIENT, request.get(), response.get());
+    auto ret = IpcProxy::GetInstance().SyncCall(IPC_SUSPEND_CLIENT, *request, *response);
     if (ret != UBSM_OK) {
         DBG_LOGERROR("IpcCallSuspend failed, ret=" << ret);
         return ret;
@@ -789,7 +793,7 @@ uint32_t ShmIpcCommand::IpcCallResumeInner()
         DBG_LOGERROR("Failed to allocate resume IPC message.");
         return MXM_ERR_MALLOC_FAIL;
     }
-    auto ret = IpcProxy::GetInstance().SyncCall(IPC_RESUME_CLIENT, request.get(), response.get());
+    auto ret = IpcProxy::GetInstance().SyncCall(IPC_RESUME_CLIENT, *request, *response);
     if (ret != UBSM_OK) {
         DBG_LOGERROR("IpcCallResume failed, ret=" << ret);
         return ret;

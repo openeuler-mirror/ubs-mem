@@ -102,7 +102,7 @@ private:
     int32_t ClientReInitStagesClientReInit(int32_t clientId, const char *serverIp, uint32_t &retryCount);
     int32_t ClientReInitStagesUpdateLocks(int32_t clientId, int32_t &updateRetryTimes, REINIT_STAGES &stages);
     int32_t ClientReInitStagesClientReInitDone(int32_t clientId, REINIT_STAGES &stages);
-    dlock::primary_cfg GetPrimCfg(const std::string &serverIp, DLockContext &ctx);
+    int32_t GetPrimCfg(const std::string &serverIp, DLockContext &ctx, dlock::primary_cfg &primCfg);
     int32_t GetServerCfg(const dlock::ssl_cfg &ssl, const dlock::primary_cfg &primCfg, dlock::server_cfg &conf);
     int32_t InitTlsConfig(struct dlock::ssl_cfg &conf);
     int32_t InitializeTlsPaths();

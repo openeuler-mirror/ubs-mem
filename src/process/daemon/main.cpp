@@ -10,20 +10,32 @@
  * See the Mulan PSL v2 for more details.
  */
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include "ock_daemon.h"
 #include "syslog.h"
 
 using namespace ock::daemon;
 
+namespace {
+constexpr const char *UBSMD_LOCK_FILE = "/run/matrix/ubsmd.lock";
+int g_lockFd = -1;
+} // namespace
+
 bool CheckIsRunning()
 {
-    std::string filePath = "/tmp/matrix_mem_daemon";
-    std::string fileName = filePath + ".lock";
-    int fd = open(fileName.c_str(), O_WRONLY | O_CREAT, 0600);
-    if (fd < 0) {
-        std::cerr << "Open file " << fileName.c_str() << " failed, error message is " << strerror(errno) << "."
+    g_lockFd = open(UBSMD_LOCK_FILE, O_WRONLY | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0600);
+    if (g_lockFd < 0) {
+        std::cerr << "Open file " << UBSMD_LOCK_FILE << " failed, error message is " << strerror(errno) << "."
                   << std::endl;
+        return true;
+    }
+    struct stat lockStat {};
+    if (fstat(g_lockFd, &lockStat) != 0 || !S_ISREG(lockStat.st_mode) || lockStat.st_uid != getuid() ||
+        lockStat.st_nlink != 1) {
+        std::cerr << "Invalid ubsmd lock file." << std::endl;
+        close(g_lockFd);
+        g_lockFd = -1;
         return true;
     }
     flock lock{};
@@ -31,13 +43,13 @@ bool CheckIsRunning()
     lock.l_start = 0;
     lock.l_whence = SEEK_SET;
     lock.l_len = 0;
-    auto ret = fcntl(fd, F_SETLK, &lock);
+    auto ret = fcntl(g_lockFd, F_SETLK, &lock);
     if (ret < 0) {
         std::cerr << "Fail to start ubsmd, process lock file is locked." << std::endl;
-        close(fd);
+        close(g_lockFd);
+        g_lockFd = -1;
         return true;
     }
-    close(fd);
     return false;
 }
 

@@ -12,6 +12,7 @@
 #include "ubsm_lock.h"
 #include <arpa/inet.h>
 #include <securec.h>
+#include <limits>
 #include <string>
 #include "dlock_context.h"
 #include "dlock_types.h"
@@ -48,6 +49,8 @@ int32_t UbsmLock::Init()
     ret = InitTlsConfig(sslConfig);
     if (ret != MXM_OK) {
         DBG_LOGERROR("Failed to init tls config of ubsm lock, ret: " << ret);
+        DeinitTlsConfig();
+        DLockExecutor::GetInstance().DestroyDLockDlopenLib();
         return ret;
     }
 
@@ -154,6 +157,9 @@ int32_t UbsmLock::DlockServerInit(struct dlock::ssl_cfg ssl)
         DBG_LOGERROR("ServerStartWrapper failed, ret: " << ret);
         if (ret == dlock::DLOCK_SERVER_NO_RESOURCE) {
             DBG_LOGERROR("ServerStartWrapper dlock server no resource");
+        }
+        if (DLockExecutor::GetInstance().DLockSeverLibDeInitFunc != nullptr) {
+            DLockExecutor::GetInstance().DLockSeverLibDeInitFunc();
         }
         return MXM_ERR_DLOCK_INNER;
     }
@@ -635,6 +641,10 @@ int32_t UbsmLock::HandleUnlock(const std::string &name, const LockUdsInfo &udsIn
 
 int32_t UbsmLock::UnlockWithDesc(const std::string &name, ClientDesc *clientDesc, const LockUdsInfo &udsInfo)
 {
+    if (clientDesc == nullptr) {
+        DBG_LOGERROR("Client descriptor is nullptr.");
+        return MXM_ERR_NULLPTR;
+    }
     auto clientId = clientDesc->GetClientId();
     auto lockIdPair = clientDesc->GetLockId(name);
     if (!lockIdPair.first) {
@@ -721,6 +731,7 @@ int32_t UbsmLock::Reinit()
     if (ret != MXM_OK) {
         DBG_LOGINFO("Failed to init tls config of ubsmlock, ret: " << ret);
         DeinitTlsConfig();
+        DLockExecutor::GetInstance().DestroyDLockDlopenLib();
         return ret;
     }
 
@@ -770,8 +781,12 @@ int32_t UbsmLock::DlockServerReinit(const std::string &serverIp, struct dlock::s
     DBG_LOGINFO("Starting server reinit. Server IP: " << serverIp
                                                       << ", Recovery clients: " << ctx.GetConfig().recoveryClientNum);
     dlock::server_cfg conf = {};
-    dlock::primary_cfg primCfg = GetPrimCfg(serverIp, ctx);
-    auto retCode = GetServerCfg(ssl, primCfg, conf);
+    dlock::primary_cfg primCfg = {};
+    auto retCode = GetPrimCfg(serverIp, ctx, primCfg);
+    if (retCode != MXM_OK) {
+        return retCode;
+    }
+    retCode = GetServerCfg(ssl, primCfg, conf);
     if (retCode != MXM_OK) {
         DBG_LOGERROR("Get server config failed, ret: " << retCode);
         return retCode;
@@ -779,6 +794,7 @@ int32_t UbsmLock::DlockServerReinit(const std::string &serverIp, struct dlock::s
 
     DBG_LOGINFO("Server bind core " << primCfg.cmd_cpuset << ", sleep" << conf.sleep_mode_enable);
 
+    bool initializedServerLib = false;
     if (ctx.IsNeedServerDeinit()) {
         DBG_LOGINFO("Attempting to stop server with serverId=" << ctx.GetConfig().serverId);
         auto ret = DLockExecutor::GetInstance().DLockServerStopFunc(ctx.GetConfig().serverId);
@@ -795,6 +811,7 @@ int32_t UbsmLock::DlockServerReinit(const std::string &serverIp, struct dlock::s
             return MXM_ERR_DLOCK_INNER;
         }
         DBG_LOGINFO("Server library initialized successfully");
+        initializedServerLib = true;
         ctx.SetServerDeinitFlag(true);
     }
     auto ret = DLockExecutor::ServerStartWrapper(conf, ctx.GetConfig().serverId);
@@ -803,6 +820,12 @@ int32_t UbsmLock::DlockServerReinit(const std::string &serverIp, struct dlock::s
             DBG_LOGERROR("Failed to start server, dlock server has no resource");
         }
         DBG_LOGERROR("Failed to start server, retCode: " << ret);
+        if (initializedServerLib) {
+            if (DLockExecutor::GetInstance().DLockSeverLibDeInitFunc != nullptr) {
+                DLockExecutor::GetInstance().DLockSeverLibDeInitFunc();
+            }
+            ctx.SetServerDeinitFlag(false);
+        }
         return MXM_ERR_DLOCK_INNER;
     }
     DBG_LOGINFO("Server started successfully, serverId=" << ctx.GetConfig().serverId);
@@ -828,17 +851,22 @@ int32_t UbsmLock::GetServerCfg(const dlock::ssl_cfg &ssl, const dlock::primary_c
     return MXM_OK;
 }
 
-dlock::primary_cfg UbsmLock::GetPrimCfg(const std::string &serverIp, DLockContext &ctx)
+int32_t UbsmLock::GetPrimCfg(const std::string &serverIp, DLockContext &ctx, dlock::primary_cfg &primCfg)
 {
-    struct dlock::primary_cfg primCfg = {0};
+    const auto recoveryClientNum = ctx.GetConfig().recoveryClientNum;
+    const auto dlockClientNum = ctx.GetConfig().dlockClientNum;
+    if (dlockClientNum != 0 && recoveryClientNum > std::numeric_limits<unsigned int>::max() / dlockClientNum) {
+        DBG_LOGERROR("Recovery client count overflow.");
+        return MXM_ERR_PARAM_INVALID;
+    }
     primCfg.num_of_replica = 0;
-    primCfg.recovery_client_num = ctx.GetConfig().recoveryClientNum * ctx.GetConfig().dlockClientNum;
+    primCfg.recovery_client_num = recoveryClientNum * dlockClientNum;
     primCfg.cmd_cpuset = const_cast<char *>(ctx.GetConfig().cmdCpuSet.c_str());
     primCfg.ctrl_cpuset = nullptr;
     primCfg.server_ip_str = const_cast<char *>(serverIp.c_str());
     primCfg.server_port = ctx.GetConfig().serverPort;
     primCfg.replica_enable = false;
-    return primCfg;
+    return MXM_OK;
 }
 
 void UbsmLock::DoClientReInitStagesClientReInit(int32_t &ret, bool &skipUpdate, int32_t clientId, REINIT_STAGES &stages)
@@ -987,8 +1015,8 @@ void GetPrivateKeyPwd(char **keyPwd, int *keyPwdLen)
         DBG_LOGERROR("Invalid input parameters (keyPwd or keyPwdLen is nullptr).");
         return;
     }
-    auto path = UbsCommonConfig::GetInstance().GetLockKeyPath();
-    DBG_LOGINFO("key.path=" << path);
+    *keyPwd = nullptr;
+    *keyPwdLen = 0;
     std::pair<char *, int> pwPair;
     auto ret = UbsCryptorHandler::GetInstance().Decrypt(0, UbsCommonConfig::GetInstance().GetLockKeypassPath(), pwPair);
     if (ret != 0) {
@@ -1094,10 +1122,6 @@ int32_t UbsmLock::InitTlsConfig(struct dlock::ssl_cfg &conf)
     tlsConfig.erase_prkey_cb = &ErasePrivateKey;
     tlsConfig.ssl_enable = true;
     conf = tlsConfig;
-    DBG_LOGINFO("Tls config ca_path: " << conf.ca_path);
-    DBG_LOGDEBUG("Tls config crl_path: " << conf.crl_path);
-    DBG_LOGDEBUG("Tls config cert_path: " << conf.cert_path);
-    DBG_LOGDEBUG("Tls config prkey_path: " << conf.prkey_path);
     return MXM_OK;
 }
 

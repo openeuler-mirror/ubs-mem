@@ -369,7 +369,9 @@ void UbseMemAdapter::Destroy()
      * 关闭dlopen句柄，清除函数指针，清除初始化状态
      */
     std::lock_guard<std::mutex> guard(gMutex);
-    pUbseClientFinalize();
+    if (pUbseClientFinalize != nullptr) {
+        pUbseClientFinalize();
+    }
     ResetLibUbseDl();
     initialized_ = false;
 }
@@ -684,8 +686,8 @@ int32_t UbseMemAdapter::PopulateHostNameMap(SHMRegions &regions)
         DBG_LOGERROR("Ubsm is not initialized.");
         return MXM_ERR_UBSE_INNER;
     }
-    ubs_topo_node_t *nodeList;
-    uint32_t nodeCnt;
+    ubs_topo_node_t *nodeList = nullptr;
+    uint32_t nodeCnt = 0;
     TP_TRACE_BEGIN(TP_UBSM_GET_NODE_LIST);
     auto ret = pUbseNodeList(&nodeList, &nodeCnt);
     TP_TRACE_END(TP_UBSM_GET_NODE_LIST, ret);
@@ -697,6 +699,7 @@ int32_t UbseMemAdapter::PopulateHostNameMap(SHMRegions &regions)
 
     if (nodeList == nullptr || nodeCnt == 0 || (nodeCnt > UBS_MEM_MAX_SLOT_NUM)) {
         DBG_LOGERROR("pUbseNodeList failed, ret=" << ret << ", nodeCnt=" << nodeCnt);
+        free(nodeList);
         return MXM_ERR_UBSE_INNER;
     }
 
@@ -720,8 +723,14 @@ int32_t UbseMemAdapter::PopulateHostNameMap(SHMRegions &regions)
         return MXM_ERR_UBSE_INNER;
     }
 
+    if (regions.num < 0 || regions.num > MAX_REGIONS_NUM) {
+        return MXM_ERR_REGION_PARAM_INVALID;
+    }
     for (int i = 0; i < regions.num; ++i) {
         SHMRegionDesc &region = regions.region[i];
+        if (region.num < 0 || region.num > MEM_TOPOLOGY_MAX_HOSTS) {
+            return MXM_ERR_REGION_PARAM_INVALID;
+        }
         for (int j = 0; j < region.num; ++j) {
             DBG_LOGINFO("region nodeId[" << j << "]=" << region.nodeId[j]);
             uint32_t nodeId{1u};
@@ -958,8 +967,8 @@ int UbseMemAdapter::LookUpClusterStatistic(ubsmemClusterInfo &clusterInfo)
         DBG_LOGERROR("Ubsm is not initialized.");
         return MXM_ERR_UBSE_INNER;
     }
-    ubs_topo_node_t *nodeList;
-    uint32_t nodeCnt;
+    ubs_topo_node_t *nodeList = nullptr;
+    uint32_t nodeCnt = 0;
     DBG_LOGINFO("LookUpClusterStatistic start.");
     auto ret = pUbseNodeList(&nodeList, &nodeCnt);
     if (ret != UBS_SUCCESS) {
@@ -968,17 +977,21 @@ int UbseMemAdapter::LookUpClusterStatistic(ubsmemClusterInfo &clusterInfo)
     }
     if (nodeList == nullptr || nodeCnt == 0 || (nodeCnt > UBS_MEM_MAX_SLOT_NUM)) {
         DBG_LOGERROR("pUbseNodeList failed, ret=" << ret << ", nodeCnt=" << nodeCnt);
+        free(nodeList);
         return MXM_ERR_UBSE_INNER;
     }
 
-    ubs_mem_numastat_t *numaMems;
-    uint32_t numaMemCnt;
+    ubs_mem_numastat_t *numaMems = nullptr;
+    uint32_t numaMemCnt = 0;
     clusterInfo.host_num = 0;
     for (int i = 0; i < nodeCnt; ++i) {
         DBG_LOGINFO("Query nodeId=" << std::to_string(nodeList[i].slot_id) << ", nodeCnt=" << nodeCnt);
+        numaMems = nullptr;
+        numaMemCnt = 0;
         ret = pUbseNumaStatGet(nodeList[i].slot_id, &numaMems, &numaMemCnt);
         if (ret != UBS_SUCCESS || numaMems == nullptr || numaMemCnt == 0 || numaMemCnt > UBS_TOPO_NUMA_NUM) {
             DBG_LOGERROR("pUbseNumaStatGet failed, ret: " << ret);
+            free(numaMems);
             continue;
         }
 
@@ -1270,8 +1283,8 @@ int UbseMemAdapter::GetSlotIdFromHostName(const std::string &hostName, uint32_t 
         DBG_LOGERROR("Host name is empty");
         return MXM_ERR_PARAM_INVALID;
     }
-    ubs_topo_node_t *nodeList;
-    uint32_t nodeCnt;
+    ubs_topo_node_t *nodeList = nullptr;
+    uint32_t nodeCnt = 0;
     TP_TRACE_BEGIN(TP_UBSM_GET_NODE_LIST);
     ret = pUbseNodeList(&nodeList, &nodeCnt);
     TP_TRACE_END(TP_UBSM_GET_NODE_LIST, ret);
@@ -1283,6 +1296,7 @@ int UbseMemAdapter::GetSlotIdFromHostName(const std::string &hostName, uint32_t 
 
     if (nodeList == nullptr || nodeCnt == 0 || (nodeCnt > UBS_MEM_MAX_SLOT_NUM)) {
         DBG_LOGERROR("pUbseNodeList return invalid, ret=" << ret << ", nodeCnt=" << nodeCnt);
+        free(nodeList);
         return MXM_ERR_UBSE_INNER;
     }
 

@@ -671,6 +671,10 @@ int32_t RackMemShm::UbsMemShmWriteLock(const std::string &name)
     result = ShmMetaDataMgr::GetInstance().UpdateMetaData(name, meta);
     if (BresultFail(result)) {
         DBG_LOGERROR("Update shm meta by name failed, ret: " << result);
+        auto unlockRet = ShmIpcCommand::IpcShmemUnLock(name);
+        if (BresultFail(unlockRet)) {
+            DBG_LOGERROR("Rollback write lock failed, ret: " << unlockRet);
+        }
         return result;
     }
     DBG_LOGINFO("Ipc Shm WriteLock success, name=" << name);
@@ -724,6 +728,10 @@ int32_t RackMemShm::UbsMemShmReadLock(const std::string &name)
     result = ShmMetaDataMgr::GetInstance().UpdateMetaData(name, meta);
     if (BresultFail(result)) {
         DBG_LOGERROR("Update shm meta by name failed, ret: " << result);
+        auto unlockRet = ShmIpcCommand::IpcShmemUnLock(name);
+        if (BresultFail(unlockRet)) {
+            DBG_LOGERROR("Rollback read lock failed, ret: " << unlockRet);
+        }
         return result;
     }
     DBG_LOGINFO("Ipc Shm ReadLock success, name=" << name);

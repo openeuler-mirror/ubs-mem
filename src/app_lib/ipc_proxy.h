@@ -48,7 +48,7 @@ public:
 
     static uint32_t Resume();
 
-    uint32_t SyncCall(int opcode, MsgBase *request, MsgBase *response);
+    uint32_t SyncCall(int opcode, MsgBase &request, MsgBase &response);
 
     static uint32_t Destroy();
 
@@ -83,7 +83,7 @@ public:
         uint32_t hr;
         for (int i = 0; i < 3u; ++i) {
             TP_TRACE_BEGIN(TP_UBSM_IPC_CALL);
-            hr = SyncCall(opCode, &request, &response);
+            hr = SyncCall(opCode, request, response);
             TP_TRACE_END(TP_UBSM_IPC_CALL, hr);
             if (hr != MXM_ERR_IPC_CRC_CHECK_ERROR && hr != MXM_ERR_IPC_SERIALIZE_DESERIALIZE_ERROR) {
                 break;
@@ -104,10 +104,10 @@ public:
         static IpcProxy instance;
         return instance;
     }
-    IpcProxy(const IpcProxy &other) = default;
-    IpcProxy(IpcProxy &&other) = default;
-    IpcProxy &operator=(const IpcProxy &other) = default;
-    IpcProxy &operator=(IpcProxy &&other) noexcept = default;
+    IpcProxy(const IpcProxy &other) = delete;
+    IpcProxy(IpcProxy &&other) = delete;
+    IpcProxy &operator=(const IpcProxy &other) = delete;
+    IpcProxy &operator=(IpcProxy &&other) noexcept = delete;
 
     DAGGER_DEFINE_REF_COUNT_FUNCTIONS
 private:

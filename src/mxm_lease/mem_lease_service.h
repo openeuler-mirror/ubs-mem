@@ -149,9 +149,9 @@ private:
         if (end == modules.cbegin()) {
             return;
         }
-        auto next = end;
         auto pos = end;
-        for (--pos; next != modules.cbegin(); --next, --pos) {
+        while (pos != modules.cbegin()) {
+            --pos;
             if (pos->exit != nullptr) {
                 pos->exit();
             }
@@ -163,9 +163,9 @@ private:
         if (end == modules.cbegin()) {
             return;
         }
-        auto next = end;
         auto pos = end;
-        for (--pos; next != modules.cbegin(); --next, --pos) {
+        while (pos != modules.cbegin()) {
+            --pos;
             if (pos->shutdown != nullptr) {
                 pos->shutdown();
             }

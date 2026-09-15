@@ -253,9 +253,9 @@ uint32_t IpcProxy::Destroy()
     return ret == UBSM_OK ? static_cast<uint32_t>(UBSM_OK) : static_cast<uint32_t>(MXM_ERR_MEMLIB);
 }
 
-uint32_t IpcProxy::SyncCall(int opcode, MsgBase *request, MsgBase *response)
+uint32_t IpcProxy::SyncCall(int opcode, MsgBase &request, MsgBase &response)
 {
-    auto ret = MxmComIpcClientSend(opcode, request, response);
+    auto ret = MxmComIpcClientSend(opcode, &request, &response);
     if (ret != 0) {
         return MXM_ERR_IPC_HCOM_INNER_SYNC_CALL;
     }

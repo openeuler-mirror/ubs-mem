@@ -495,7 +495,7 @@ int32_t OckDaemon::InitLockTlsConfig()
     ock::ubsm::UbsCommonConfig::GetInstance().SetLockKeyPath(keyPath);
     ock::ubsm::UbsCommonConfig::GetInstance().SetLockKeypassPath(keypassPath);
 
-    DBG_LOGINFO("InitLockTlsConfig finished, ca path: " << ock::ubsm::UbsCommonConfig::GetInstance().GetLockCaPath());
+    DBG_LOGINFO("InitLockTlsConfig finished.");
     return HOK;
 }
 
@@ -536,7 +536,7 @@ int32_t OckDaemon::InitRpcTlsConfig()
     ock::ubsm::UbsCommonConfig::GetInstance().SetCertPath(certPath);
     ock::ubsm::UbsCommonConfig::GetInstance().SetKeyPath(keyPath);
     ock::ubsm::UbsCommonConfig::GetInstance().SetKeypassPath(keypassPath);
-    DBG_LOGDEBUG("InitTlsConfig finished, ca path: " << ock::ubsm::UbsCommonConfig::GetInstance().GetCaPath());
+    DBG_LOGDEBUG("InitTlsConfig finished.");
     return HOK;
 }
 
@@ -758,6 +758,7 @@ HRESULT OckDaemon::RegisterSignalHandler()
 {
     struct sigaction saUsr {};
     saUsr.sa_handler = &OckDaemon::HandleSignal;
+    sigemptyset(&saUsr.sa_mask);
     if (sigaction(SIGTERM, &saUsr, nullptr) < 0) {
         DBG_LOGERROR("Register signal SIGTERM failed. errno(" << errno << "). ");
         return HFAIL;
@@ -765,6 +766,7 @@ HRESULT OckDaemon::RegisterSignalHandler()
 
     struct sigaction saUsr1 {};
     saUsr1.sa_handler = &OckDaemon::HandleSigpipe;
+    sigemptyset(&saUsr1.sa_mask);
     if (sigaction(SIGPIPE, &saUsr1, nullptr) < 0) {
         DBG_LOGERROR("Register signal SIGTERM failed. errno(" << errno << "). ");
         return HFAIL;

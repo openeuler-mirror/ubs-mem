@@ -28,10 +28,10 @@ public:
         static RmLibObmmExecutor instance;
         return instance;
     }
-    RmLibObmmExecutor(const RmLibObmmExecutor &other) = default;
-    RmLibObmmExecutor(RmLibObmmExecutor &&other) = default;
-    RmLibObmmExecutor &operator=(const RmLibObmmExecutor &other) = default;
-    RmLibObmmExecutor &operator=(RmLibObmmExecutor &&other) noexcept = default;
+    RmLibObmmExecutor(const RmLibObmmExecutor &other) = delete;
+    RmLibObmmExecutor(RmLibObmmExecutor &&other) = delete;
+    RmLibObmmExecutor &operator=(const RmLibObmmExecutor &other) = delete;
+    RmLibObmmExecutor &operator=(RmLibObmmExecutor &&other) noexcept = delete;
 
     DAGGER_DEFINE_REF_COUNT_FUNCTIONS
 private:

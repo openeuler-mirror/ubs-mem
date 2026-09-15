@@ -13,12 +13,20 @@
 #include "ubs_certify_handler.h"
 #include "ubs_common_config.h"
 
+#include <exception>
+
 namespace ock::com::rpc {
 
 static void RPCServerHandlerWork(void (*handler)(MxmComMessageCtx &messageCtx), MxmComMessageCtx &messageCtx)
 {
-    if (handler != nullptr) {
-        handler(messageCtx);
+    try {
+        if (handler != nullptr) {
+            handler(messageCtx);
+        }
+    } catch (const std::exception &e) {
+        DBG_LOGERROR("RPC handler threw an exception: " << e.what());
+    } catch (...) {
+        DBG_LOGERROR("RPC handler threw an unknown exception.");
     }
     messageCtx.FreeMessage();
 }

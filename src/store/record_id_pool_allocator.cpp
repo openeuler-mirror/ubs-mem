@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "record_id_pool_allocator.h"
+#include <array>
 #include "log.h"
 
 namespace ock {
@@ -135,15 +136,37 @@ int RecordIdPoolAllocator::FillAllocated(uint32_t headIndex, std::vector<uint64_
     }
 
     auto currentIndex = headIndex;
+    uint32_t traversed = 0;
+    std::array<bool, RECORD_MEM_ID_POOL_LINE_COUNT> visited{};
+    visited[currentIndex] = true;
     while (idHead.u.tail == 0U) {
+        if (++traversed >= RECORD_MEM_ID_POOL_LINE_COUNT || idHead.u.nextIndex >= RECORD_MEM_ID_POOL_LINE_COUNT) {
+            DBG_LOGERROR("Corrupted memory id chain from head index(" << headIndex << ")");
+            ids.clear();
+            return -1;
+        }
+        if (visited[idHead.u.nextIndex]) {
+            DBG_LOGERROR("Cycle detected in memory id chain from head index(" << headIndex << ")");
+            ids.clear();
+            return -1;
+        }
         for (auto i = 1U; i < RECORD_MEM_ID_POOL_LINE_SIZE; i++) {
             ids.emplace_back(memIdRecordPool_->memIds[currentIndex][i]);
         }
 
         currentIndex = idHead.u.nextIndex;
+        visited[currentIndex] = true;
         idHead.id = memIdRecordPool_->memIds[currentIndex][0];
+        if (idHead.u.used == 0U) {
+            ids.clear();
+            return -1;
+        }
     }
 
+    if (idHead.u.nextIndex >= RECORD_MEM_ID_POOL_LINE_SIZE) {
+        ids.clear();
+        return -1;
+    }
     for (auto i = 0U; i < idHead.u.nextIndex && i < RECORD_MEM_ID_POOL_LINE_SIZE; i++) {
         ids.emplace_back(memIdRecordPool_->memIds[currentIndex][i + 1]);
     }
@@ -178,14 +201,31 @@ int RecordIdPoolAllocator::Release(uint32_t headIndex) noexcept
 
     std::vector<uint32_t> releasedIndexes;
     auto currentIndex = headIndex;
+    uint32_t traversed = 0;
+    std::array<bool, RECORD_MEM_ID_POOL_LINE_COUNT> visited{};
+    visited[currentIndex] = true;
     while (idHead.u.tail == 0U) {
-        memIdRecordPool_->memIds[currentIndex][0] = 0UL;
         releasedIndexes.emplace_back(currentIndex);
+        if (++traversed >= RECORD_MEM_ID_POOL_LINE_COUNT || idHead.u.nextIndex >= RECORD_MEM_ID_POOL_LINE_COUNT) {
+            DBG_LOGERROR("Corrupted memory id chain from head index(" << headIndex << ")");
+            return -1;
+        }
+        if (visited[idHead.u.nextIndex]) {
+            DBG_LOGERROR("Cycle detected in memory id chain from head index(" << headIndex << ")");
+            return -1;
+        }
         currentIndex = idHead.u.nextIndex;
+        visited[currentIndex] = true;
         idHead.id = memIdRecordPool_->memIds[currentIndex][0];
+        if (idHead.u.used == 0U) {
+            return -1;
+        }
     }
-    memIdRecordPool_->memIds[currentIndex][0] = 0UL;
     releasedIndexes.emplace_back(currentIndex);
+
+    for (auto index : releasedIndexes) {
+        memIdRecordPool_->memIds[index][0] = 0UL;
+    }
 
     std::unique_lock<std::mutex> uniqueLock{indexMutex_};
     idleIdIndexes_.insert(idleIdIndexes_.end(), releasedIndexes.begin(), releasedIndexes.end());

@@ -257,11 +257,17 @@ void DLockExecutor::DestroyDLockDlopenLib()
 
 int DLockExecutor::ClientInitWrapper(int *clientId, const char *serverIp)
 {
+    if (GetInstance().DLockClientInitFunc == nullptr) {
+        return dlock::DLOCK_FAIL;
+    }
     return GetInstance().DLockClientInitFunc(clientId, serverIp);
 }
 
 int DLockExecutor::ClientReinitWrapper(int clientId, const char *serverIp)
 {
+    if (GetInstance().DLockClientReinitFunc == nullptr) {
+        return dlock::DLOCK_FAIL;
+    }
     return GetInstance().DLockClientReinitFunc(clientId, serverIp);
 }
 

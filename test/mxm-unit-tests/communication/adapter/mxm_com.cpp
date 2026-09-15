@@ -3,6 +3,7 @@
  */
 #include "mxm_com.h"
 #include <sys/socket.h>
+#include <limits>
 #ifdef DEBUG_MEM_UT
 #define private public
 #define protected public
@@ -133,6 +134,7 @@ TEST_F(MxmComTestSuite, TestMxmComBaseInterface4)
     EXPECT_EQ(type, MxmChannelType::NORMAL);
     auto name = info.GetEngineName();
     EXPECT_EQ(name, "engineName");
+    EXPECT_NE(info.ConvertMxmComChannelInfoToString().find("channel id: invalid"), std::string::npos);
 }
 
 TEST_F(MxmComTestSuite, TestMxmComBaseInterface5)
@@ -156,6 +158,7 @@ TEST_F(MxmComTestSuite, TestMxmComBaseInterface5)
 
     UBSHcomServiceContext context{};
     MxmUdsIdInfo udsIdInfo{};
+    EXPECT_EQ(MxmComMessage::AllocMessage(std::numeric_limits<uint32_t>::max()), nullptr);
     delete[] messagePtr;
     ctx.FreeMessage();
 }
