@@ -25,8 +25,8 @@
 |`ubsm.lock.tls.keypass.path`|str|符合规范的路径|用户使用加密工具seceasy_encrypt生成的Server端证书对应的私钥的加密密文文件的绝对路径，不支持填写相对路径，不支持软链接。默认值：/path/keypass.txt。|
 |`ubsm.discovery.election.timeout`|int|[0, 2000]|选主延迟时间，用于从节点发现主节点失联后开始选主的随机推迟时间。默认值：1000，单位：ms。|
 |`ubsm.discovery.min.nodes`|int|[0, 30]|选主的最小投票数。一般设置为集群总节点数的一半以上，如：(集群总节点数)/ 2 + 1，默认值：0。|
-|`ubsm.server.rpc.local.ipseg`|str|IPv4地址|本地节点的IP地址及端口号。格式为**IP:Port**，**Port**取值范围为7201~7800，且必须和 `ubsm.server.rpc.remote.ipseg` 的**Port**保持一致。默认值：127.0.0.1:7201**。**|
-|`ubsm.server.rpc.remote.ipseg`|str|IPv4地址|远端节点的IP地址及端口号。格式为**IP:Port**, **IP:Port**, **IP:Port**,...，**Port**取值范围为7201~7800，且必须和 `ubsm.server.rpc.local.ipseg` 的**Port**保持一致。默认值：127.0.0.1:7301。可以配置多个，例如：192.168.100.101:7301, 192.168.100.103:7301, 192.168.100.102:7301。|
+|`ubsm.server.rpc.local.ipseg`|str|IPv4地址|本地节点的IP地址及端口号。格式为 `IP:Port`，`Port` 取值范围为7201~7800，且必须和 `ubsm.server.rpc.remote.ipseg` 的 `Port` 保持一致。默认值：127.0.0.1:7201**。**|
+|`ubsm.server.rpc.remote.ipseg`|str|IPv4地址|远端节点的IP地址及端口号。格式为 `IP:Port, IP:Port, IP:Port,...`，`Port` 取值范围为7201~7800，且必须和 `ubsm.server.rpc.local.ipseg` 的 `Port` 保持一致。默认值：127.0.0.1:7301。可以配置多个，例如：`192.168.100.101:7301, 192.168.100.103:7301, 192.168.100.102:7301`。|
 |`ubsm.server.tls.enable`|str|<ul><li>on</li><li>off</li></ul>|是否开启安全特性。安全配置项需要默认开启（on），关闭可能会有安全风险。<ul><li>on：启用</li><li>off：关闭</li></ul>|
 |`ubsm.server.tls.ciphersuits`|str|<ul><li>aes_gcm_128</li><li>aes_gcm_256</li><li>aes_ccm_128</li><li>chacha20_poly1305</li></ul>|通信加密方式，默认值：aes_gcm_128。配置其他加密方式程序启动会失败。|
 |`ubsm.server.tls.ca.path`|str|符合规范的路径|CA证书文件的绝对路径，不支持填写相对路径，不支持软链接。默认值：/path/cacert.pem。|

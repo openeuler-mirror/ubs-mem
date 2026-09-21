@@ -6,7 +6,7 @@
 
 安装前，需要检查以下硬件配置，如[表1](#table001)所示。
 
-**表 1 <a id="table001"></a>**  硬件环境
+**表 1 <a id="table001"></a>** 硬件环境
 
 | 类型 | 配置参考|
 |-----|-----|
@@ -31,7 +31,7 @@ UBS Memory依赖[UBS Engine](https://gitcode.com/openeuler/ubs-engine)提供资�
 2. 安装UBS Memory。
 
     - 在线安装
-    
+
         ```bash
         dnf install -y ubs-mem-shmem
         ```
@@ -39,7 +39,7 @@ UBS Memory依赖[UBS Engine](https://gitcode.com/openeuler/ubs-engine)提供资�
     - 离线安装
 
         将`ubs-mem-shmem`、`ubs-engine`、`ubs-engine-client-libs`及其依赖的RPM包放入同一目录，然后执行：
-    
+
         ```bash
         dnf install -y ./*.rpm
         ```
@@ -71,7 +71,7 @@ UBS Memory依赖[UBS Engine](https://gitcode.com/openeuler/ubs-engine)提供资�
 
     b. 按“i”进入编辑模式，根据实际情况对相关参数进行配置，参数详情请参见附录的[表1 ubsmd.conf配置文件参数说明](ubsm_configuration_description.md#配置参数说明)。
 
-    ```yaml
+    ```ini
     # the log level of ubsm server, (DEBUG, INFO, WARN, ERROR, CRITICAL)
     ubsm.server.log.level = INFO
     # the log file path, must be canonical path

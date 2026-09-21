@@ -10,10 +10,9 @@ UBS Memory（Unified Bus Service Core Memory）在超节点上基于UB硬件能�
 
 ## 环境要求
 
-**操作系统**：推荐 openEuler 24.03 LTS SP3或更高版本
+**操作系统**：推荐 openEuler 24.03 LTS SP3或更高版本。
 
-**架构**：项目代码不限制编译架构，支持使用目标操作系统提供的 x86_64 或 aarch64 工具链构建。aarch64
-环境下，单元测试脚本会自动为 mockcpp 应用指令跳转和缓存刷新补丁。
+**架构**：项目代码不限制编译架构，支持使用目标操作系统提供的 x86_64 或 aarch64 工具链构建。aarch64 环境下，单元测试脚本会自动为 mockcpp 应用指令跳转和缓存刷新补丁。
 
 ## 软件要求
 
@@ -31,8 +30,8 @@ UBS Memory（Unified Bus Service Core Memory）在超节点上基于UB硬件能�
 
 **依赖库：**
 
-- `numactl-devel`: NUMA (Non-Uniform Memory Access) 支持库
-- `systemd-devel`: systemd 服务管理支持库
+- `numactl-devel`: NUMA (Non-Uniform Memory Access) 支持库。
+- `systemd-devel`: systemd 服务管理支持库。
 - `libboundscheck`: 安全函数库，提供 `/usr/include/securec.h`，包含 `memcpy_s` 等安全 C 函数接口。
 - `ubs-comm-devel`: UBS 通信库开发包，提供 `/usr/include/hcom/hcom_service.h` 和 HCOM 链接库。
 
@@ -44,8 +43,7 @@ dnf install -y rpm-build git make cmake gcc gcc-c++ ninja-build \
 ```
 
 `ubs-comm-devel` 会依赖安装运行时包 `ubs-comm-lib`。项目使用 `hcom_service.h`，库文件默认安装在 `/usr/lib64`。
-如果当前软件源不提供上述软件包，请参考
-[UBS Comm](https://gitcode.com/openeuler/ubs-comm) 项目获取源码并构建安装。
+如果当前软件源不提供上述软件包，请参考 [UBS Comm](https://gitcode.com/openeuler/ubs-comm) 项目获取源码并构建安装。
 
 ## 获取源码
 
@@ -61,8 +59,7 @@ cd ubs-mem
 
 ### 方式一：使用预构建镜像
 
-项目提供基于 openEuler 24.03 LTS SP3 构建的多架构开发镜像，支持 x86_64 和 aarch64。镜像已预置
-项目编译及单元测试所需依赖，可直接用于构建和测试：
+项目提供基于 openEuler 24.03 LTS SP3 构建的多架构开发镜像，支持 x86_64 和 aarch64。镜像已预置项目编译及单元测试所需依赖，可直接用于构建和测试：
 
 ```shell
 docker pull swr.cn-north-4.myhuaweicloud.com/ubscore/ubs-mem:oe2403-sp3-multiarch
@@ -79,11 +76,9 @@ docker run --rm -it \
 
 ### 方式二：基于 Dockerfile 本地构建
 
-仓库提供 `.devcontainer/Dockerfile`，用于构建包含项目编译、单元测试和 pre-commit 检查依赖的
-开发镜像。
+仓库提供 `.devcontainer/Dockerfile`，用于构建包含项目编译、单元测试和 pre-commit 检查依赖的开发镜像。
 
-安装并启动 Docker 后，在仓库根目录构建开发镜像。构建上下文必须为仓库根目录，以便 Dockerfile 读取
-`.devcontainer/requirements.txt`：
+安装并启动 Docker 后，在仓库根目录构建开发镜像。构建上下文必须为仓库根目录，以便 Dockerfile 读取 `.devcontainer/requirements.txt`：
 
 ```shell
 docker build -f .devcontainer/Dockerfile -t ubs-mem-dev .
@@ -108,8 +103,8 @@ cd test
 sh run_dt.sh
 ```
 
-也可以使用 VS Code 的 Dev Containers 扩展打开仓库并选择 **Reopen in Container**。该方式会读取
-`.devcontainer/devcontainer.json`，自动构建镜像、初始化 Git 子模块、执行 CMake 配置检查并安装 pre-commit hook。
+也可以使用 VS Code 的 Dev Containers 扩展打开仓库并选择 **Reopen in Container**。
+该方式会读取 `.devcontainer/devcontainer.json`，自动构建镜像、初始化 Git 子模块、执行 CMake 配置检查并安装 pre-commit hook。
 首次创建容器和初始化子模块时需要访问软件源及 `.gitmodules` 中配置的仓库。
 
 ## 构建项目
@@ -123,8 +118,7 @@ sh build.sh -p
 sh build.sh -t release
 ```
 
-构建默认使用当前可用 CPU 核心数的 50%（至少 1 个任务）。可通过 `--jobs`（或 `-j`）指定并发数，
-也可以使用 `BUILD_JOBS` 环境变量；命令行参数优先级更高：
+构建默认使用当前可用 CPU 核心数的 50%（至少 1 个任务）。可通过 `--jobs`（或 `-j`）指定并发数，也可以使用 `BUILD_JOBS` 环境变量；命令行参数优先级更高：
 
 ```shell
 sh build.sh -t release --jobs 8
@@ -137,8 +131,8 @@ BUILD_JOBS=8 sh build.sh -t release
 sh build.sh -p
 ```
 
-`-p` 会通过 `ubs-mem.spec` 执行独立的 RelWithDebInfo 构建，因此与 `-t` 同时使用时会忽略 `-t`。
-RPM 包输出至 `build/rpm`。
+- `-p` 会通过 `ubs-mem.spec` 执行独立的 RelWithDebInfo 构建，因此与 `-t` 同时使用时会忽略 `-t`。
+- RPM 包输出至 `build/rpm`。
 
 ## 项目结构
 
@@ -159,8 +153,7 @@ RPM 包输出至 `build/rpm`。
 dnf install -y git patch libasan openssl openssl-devel
 ```
 
-首次执行 `sh run_dt.sh` 时，脚本会联网拉取 `googletest` 和 `mockcpp` Git 子模块；请确保能够访问
-`.gitmodules` 中配置的仓库地址。
+首次执行 `sh run_dt.sh` 时，脚本会联网拉取 `googletest` 和 `mockcpp` Git 子模块；请确保能够访问 `.gitmodules` 中配置的仓库地址。
 
 ```shell
 cd test
@@ -178,28 +171,27 @@ sh run_dt.sh --skip-run-tests
 sh run_dt.sh --jobs 8
 ```
 
-覆盖率统计默认关闭。如系统已安装 `lcov` 和 `genhtml`，可执行 `sh run_dt.sh --coverage`。详细报告位于
-`test/build/gcovr_report/index.html`。
+覆盖率统计默认关闭。如系统已安装 `lcov` 和 `genhtml`，可执行 `sh run_dt.sh --coverage`。详细报告位于 `test/build/gcovr_report/index.html`。
 
 ## 使用说明
 
 - **安装部署**
-    
+
     安装部署相关内容请参见 [安装部署](docs/zh/ubsm_installation_deployment.md)。
 
 - **API接口**
-    
+
     API相关内容请参见 [接口说明](docs/zh/ubsm_api_description.md)。
+
     文档中的共享内存和内存借用样例依赖 UB 硬件、UBS Engine 及已部署的 ubsmd 服务，不是脱离物理环境的独立样例。
 
 - **共享内存样例**
-    
-    `UBSM_FLAG_CACHE` 模式下创建、映射、读写和释放 128MB 共享内存的完整样例请参见
-    [example/README.md](example/README.md)。
+
+    `UBSM_FLAG_CACHE` 模式下创建、映射、读写和释放 128MB 共享内存的完整样例请参见[example/README.md](example/README.md)。
 
 ## License
 
-ubs-mem 采用 Mulan V2 License.
+ubs-mem 采用 Mulan V2 License。
 
 ## 贡献指南
 

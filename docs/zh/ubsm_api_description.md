@@ -24,7 +24,7 @@
 
 - RPM和DEB均将SDK库安装到系统库目录，通常无需额外设置`LD_LIBRARY_PATH`。
 
-- 当前版本锁的有效期默认为30s，故障恢复流程受UBS Comm建链重试的次数影响，为保证ubsmd故障恢复功能稳定，需设置如下环境变量。
+- 当前版本锁的有效期默认为30s，故障恢复流程受UBS Comm建链重试的次数影响，为保证ubsmd故障恢复功能稳定，需设置如下环境变量：
 
     ```bash
     export HCOM_CONNECTION_RETRY_TIMES=2
@@ -185,7 +185,7 @@ int ubsmem_lookup_regions(ubsmem_regions_t *regions);
 |--|--|--|--|
 |regions|ubsmem_regions_t *|出参|互联节点数以及对应节点的hostname。|
 
-相关结构体类型和常量定义。
+相关结构体类型和常量定义：
 
 ```C++
 #define MAX_HOST_NAME_DESC_LENGTH 64
@@ -342,7 +342,7 @@ int ubsmem_shmem_allocate(const char *region_name, const char *name, size_t size
 |region_name|const char *|入参|内存域名称（默认域为“default”，包含与当前节点全互联的节点）。|
 |name|const char *|入参|共享内存名称。全局唯一标识，最大有效长度为47字符（不包括“\0”），仅允许使用大小写字母、数字、“.”、“:”、“-”和“_”。|
 |size|size_t|入参|共享内存size，最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse_configuration_instructions.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
-|mode|mode_t|入参|访问权限，Unix文件权限位的 *rwx* 权限控制（ *x* 权限暂不支持，请忽略）。用于控制不同用户对该共享内存的访问权限，若无权限则映射失败。建议值： `S_IRUSR \| S_IWUSR` （即仅创建该共享内存的用户可以访问该共享内存）。|
+|mode|mode_t|入参|访问权限，Unix文件权限位的 *rwx* 权限控制（ *x* 权限暂不支持，请忽略）。用于控制不同用户对该共享内存的访问权限，若无权限则映射失败。建议值：`S_IRUSR \| S_IWUSR`（即仅创建该共享内存的用户可以访问该共享内存）。|
 |flags|uint64_t|入参|创建共享内存的标志信息。flag有效比特位含义请参见[表1 共享内存的flags](#table005)，各有效比特位组合关系参见[表2 共享内存的flags可组合关系](#table006)。|
 
 **表 1 <a id="table005"></a>**  共享内存的flags
@@ -677,7 +677,7 @@ int ubsmem_shmem_set_ownership(const char *name, void *start, size_t length, int
 
 **接口功能**
 
-根据名称查询指定共享的信息。
+根据名称查询指定共享内存的信息。
 
 **接口格式**
 
@@ -808,8 +808,8 @@ int ubsmem_lease_free(void *local_ptr);
 
 >[!NOTE]说明
 >
->- 若传入的参数不是通过 ubsmem\_lease\_malloc 申请的内存（即为无效内存地址），系统将检测并打印告警日志，避免引发系统异常。
->- 若传入的参数是通过 ubsmem\_lease\_malloc 申请的内存，无论内存是否成功释放，该虚拟地址都将无法访问。
+>- 若传入的参数不是通过 ubsmem\_lease\_malloc 或 ubsmem\_lease\_malloc\_with\_location 申请的内存（即为无效内存地址），系统将检测并打印告警日志，避免引发系统异常。
+>- 若传入的参数是通过 ubsmem\_lease\_malloc 或 ubsmem\_lease\_malloc\_with\_location 申请的内存，无论内存是否成功释放，该虚拟地址都将无法访问。
 >- 释放该段内存时，UBSM不会主动清除其中的数据，需用户自行处理以确保安全性。
 >- 若传入NULL，则忽略，并返回相应错误码。
 
@@ -822,7 +822,7 @@ int ubsmem_lease_free(void *local_ptr);
 
 ## 使用示例
 
-典型代码示例如下所示。
+典型代码示例如下所示：
 
 ### 初始化
 

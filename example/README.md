@@ -109,5 +109,5 @@ segment[3] 0x7f0018000000-0x7f0020000000: pattern=0x04
 实际地址由操作系统选择。共享内存名称由进程ID和分段编号生成；样例退出时会尽最大努力解除映射并删除
 所有对象。
 
-具体部署和权限配置参见[安装部署文档](../docs/zh/installation_deployment.md)和
-[API文档](../docs/zh/api_description.md)。
+具体部署和权限配置参见[安装部署文档](../docs/zh/ubsm_installation_deployment.md)和
+[API文档](../docs/zh/ubsm_api_description.md)。
