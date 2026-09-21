@@ -50,7 +50,7 @@ void *RackMem::MemoryIDUsedByNuma(AppBorrowMetaDesc &desc, const std::vector<uin
     int mode = MPOL_PREFERRED;
     unsigned long nodemask[1];
     nodemask[0] = 1UL << numaId;
-    unsigned long maxNode = 16;
+    unsigned long maxNode = MAX_NUMA_NODE;
     unsigned int flags = 0;
     errno = 0;
     TP_TRACE_BEGIN(TP_UBSM_MALLOC_NUMA_BIND);
@@ -272,11 +272,9 @@ uint32_t RackMem::UbsMemFree(void *ptr)
         DBG_LOGERROR("Failed to free memory, memid=" << metaDesc.GetMinMemId() << ", name=" << metaDesc.GetName()
                                                      << ", error=" << ret2);
     } else {
-        if (!metaDesc.GetIsNuma()) {
-            TP_TRACE_BEGIN(TP_UBSM_FREE_NUMA_UNMMAP);
-            SystemAdapter::MemoryUnMap(ptr, metaDesc.GetActualMapFileSize());
-            TP_TRACE_END(TP_UBSM_FREE_NUMA_UNMMAP, 0L);
-        }
+        TP_TRACE_BEGIN(TP_UBSM_FREE_NUMA_UNMMAP);
+        SystemAdapter::MemoryUnMap(ptr, metaDesc.GetActualMapFileSize());
+        TP_TRACE_END(TP_UBSM_FREE_NUMA_UNMMAP, 0L);
         if (BresultFail(BorrowAppMetaMgr::GetInstance().RemoveMeta(ptr))) {
             DBG_LOGWARN("Failed to remove meta, name= " << metaDesc.GetName());
         }

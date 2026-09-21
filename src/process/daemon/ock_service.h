@@ -76,16 +76,16 @@ protected:
     void PrintVersionInfo() override {}
 
 private:
-    void *serviceHandler;
-    void *ockServiceAgentP;
-    CreateT agentCreateP;
-    ServiceProcessArgsT agentProcessArgsP;
-    ServiceInitializeT agentInitializeP;
-    ServiceStartT agentStartP;
-    ServiceHealthyT agentHealthyP;
-    ServiceShutdownT agentShutdownP;
-    ServiceUninitializeT agentUninitializeP;
-    DestroyT agentDestroyP;
+    void *serviceHandler{nullptr};
+    void *ockServiceAgentP{nullptr};
+    CreateT agentCreateP{nullptr};
+    ServiceProcessArgsT agentProcessArgsP{nullptr};
+    ServiceInitializeT agentInitializeP{nullptr};
+    ServiceStartT agentStartP{nullptr};
+    ServiceHealthyT agentHealthyP{nullptr};
+    ServiceShutdownT agentShutdownP{nullptr};
+    ServiceUninitializeT agentUninitializeP{nullptr};
+    DestroyT agentDestroyP{nullptr};
     std::vector<std::string> mArgNames;
 
     void *GetAgentMethodP(const std::string &name);

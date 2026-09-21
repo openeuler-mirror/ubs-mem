@@ -25,6 +25,11 @@ using namespace ock::mxmd;
 using namespace ock::com;
 using namespace ock::ubsm;
 
+static bool IsSameApp(const AppContext &owner, const MxmComUdsInfo &caller)
+{
+    return owner.pid == caller.pid && owner.uid == caller.uid && owner.gid == caller.gid;
+}
+
 static int RollBackReuseCacheMemory(const std::string &name, bool isNuma)
 {
     auto hr = MLSManager::GetInstance().PreDeleteUsedMem(name);
@@ -176,6 +181,11 @@ int MxmServerMsgHandle::AppMallocMemory(const MsgBase *req, MsgBase *rsp, const 
         DBG_LOGERROR("Invalid param.");
         return MXM_ERR_NULLPTR;
     }
+    if (request->size_ == 0) {
+        DBG_LOGERROR("Lease memory size must not be zero.");
+        response->errCode_ = MXM_ERR_PARAM_INVALID;
+        return MXM_ERR_PARAM_INVALID;
+    }
 
     DBG_AUDITINFO("user info of AppMallocMemory, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
                                                        << ", pid=" << udsInfo.pid);
@@ -262,6 +272,11 @@ int MxmServerMsgHandle::AppMallocMemoryWithLoc(const MsgBase *req, MsgBase *rsp,
         DBG_LOGERROR("Invalid param.");
         return MXM_ERR_NULLPTR;
     }
+    if (request->size_ == 0) {
+        DBG_LOGERROR("Lease memory size must not be zero.");
+        response->errCode_ = MXM_ERR_PARAM_INVALID;
+        return MXM_ERR_PARAM_INVALID;
+    }
 
     MLSMemInfo memory;
     AppContext appContext(udsInfo.pid, udsInfo.uid, udsInfo.gid);
@@ -325,6 +340,11 @@ int MxmServerMsgHandle::AppFreeMemory(const MsgBase *req, MsgBase *rsp, const Mx
                                                          << ", ret=" << ConvertErrorToString(ret));
         response->errCode_ = ret;
         return ret;
+    }
+    if (!IsSameApp(memory.appContext, udsInfo)) {
+        DBG_LOGERROR("AppFreeMemory caller does not own name=" << request->name_);
+        response->errCode_ = MXM_ERR_SHM_PERMISSION_DENIED;
+        return MXM_ERR_SHM_PERMISSION_DENIED;
     }
     if (memory.state == RecordState::DELETED) {
         response->errCode_ = MXM_OK;

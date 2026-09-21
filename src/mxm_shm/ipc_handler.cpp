@@ -33,6 +33,26 @@ using namespace ock::com;
 
 std::array<std::mutex, MUTEX_HASH_SIZE> MxmServerMsgHandle::mutexArray;
 
+static bool IsBoundedString(const char *value, size_t capacity)
+{
+    return value != nullptr && strnlen(value, capacity) < capacity;
+}
+
+static bool ValidateRegionDesc(const SHMRegionDesc &region)
+{
+    if (region.num < 0 || region.num > MEM_TOPOLOGY_MAX_HOSTS ||
+        static_cast<uint32_t>(region.num) > UBS_MEM_MAX_SLOT_NUM) {
+        return false;
+    }
+    for (int i = 0; i < region.num; ++i) {
+        if (!IsBoundedString(region.nodeId[i], MEM_MAX_ID_LENGTH) ||
+            !IsBoundedString(region.hostName[i], MAX_HOST_NAME_DESC_LENGTH)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 int MxmServerMsgHandle::ShmLookRegionList(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo)
 {
     if (req == nullptr || rsp == nullptr) {
@@ -50,7 +70,7 @@ int MxmServerMsgHandle::ShmLookRegionList(const MsgBase *req, MsgBase *rsp, cons
                                                                  << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid);
     DBG_LOGINFO("Looking up regions list, region type=" << request->regionType_ << ", uid=" << udsInfo.uid
                                                         << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid);
-    SHMRegions regions;
+    SHMRegions regions{};
     int hr{0};
     hr = mxm::UbseMemAdapter::LookupRegionList(regions);
     if (hr != 0) {
@@ -66,7 +86,7 @@ int MxmServerMsgHandle::ShmLookRegionList(const MsgBase *req, MsgBase *rsp, cons
     DBG_LOGINFO("Look region list info message from agent successfully, number=" << regions.num);
     for (int i = 0; i < regions.num; ++i) {
         DBG_LOGINFO("Serial number=" << i << ", number=" << regions.region[i].num);
-        for (int j = 0; j < regions.num; ++j) {
+        for (int j = 0; j < regions.region[i].num; ++j) {
             DBG_LOGINFO("Node id=" << regions.region[i].nodeId[j] << ", host name=" << regions.region[i].hostName[j]
                                    << ", affinity=" << regions.region[i].affinity[j]);
         }
@@ -96,8 +116,8 @@ int MxmServerMsgHandle::ShmCreate(const MsgBase *req, MsgBase *rsp, const MxmCom
                                                      << ", size=" << request->size_ << ", mode=" << request->mode_
                                                      << ", flags=" << request->flags_);
 
-    if (request->regionDesc_.num > MEM_TOPOLOGY_MAX_HOSTS) {
-        DBG_LOGERROR("Region num=" << request->regionDesc_.num << " exceeds maximum=" << MEM_TOPOLOGY_MAX_HOSTS);
+    if (!ValidateRegionDesc(request->regionDesc_)) {
+        DBG_LOGERROR("Invalid region description, num=" << request->regionDesc_.num);
         response->errCode_ = MXM_ERR_PARAM_INVALID;
         return MXM_ERR_PARAM_INVALID;
     }
@@ -153,6 +173,11 @@ int MxmServerMsgHandle::ShmCreate(const MsgBase *req, MsgBase *rsp, const MxmCom
                         return MXM_ERR_PARAM_INVALID;
                     }
                     DBG_LOGINFO("Integer nodeId=" << nodeId);
+                    if (count >= static_cast<int>(UBS_MEM_MAX_SLOT_NUM)) {
+                        DBG_LOGERROR("Provider slot count exceeds maximum=" << UBS_MEM_MAX_SLOT_NUM);
+                        response->errCode_ = MXM_ERR_PARAM_INVALID;
+                        return MXM_ERR_PARAM_INVALID;
+                    }
                     createParam.privider.slot_ids[count] = nodeId;
                     count++;
                 }
@@ -287,6 +312,8 @@ int MxmServerMsgHandle::ShmDelete(const MsgBase *req, MsgBase *rsp, const MxmCom
                                                  << ", name=" << request->name_);
     DBG_LOGINFO("ShmDelete, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
                                   << ", name=" << request->name_);
+
+    std::unique_lock<std::mutex> uniqueLock{GetMutexByName(request->name_)};
 
     DelayRemovedKey queryBusyKey{request->name_};
     if (UBSMemMonitor::GetInstance().GetDelayRemoveRecord(queryBusyKey)) {
@@ -571,7 +598,7 @@ int MxmServerMsgHandle::ShmMap(const MsgBase *req, MsgBase *rsp, const MxmComUds
         return MXM_ERR_NAME_BUSY;
     }
 
-    AttachedShareMemory memory;
+    AttachedShareMemory memory{};
     response->errCode_ = UBSM_OK;
     std::unique_lock<std::mutex> uniqueLock{GetMutexByName(request->name_)};
     TP_TRACE_BEGIN(TP_UBSM_GET_SHARED_MEMORY_INFO);
@@ -584,11 +611,12 @@ int MxmServerMsgHandle::ShmMap(const MsgBase *req, MsgBase *rsp, const MxmComUds
         TP_TRACE_END(TP_UBEM_IPC_HANDLER_MAP, ret);
         return ret;
     }
-    if (memory.state == RecordState::DELETED) {
+    if (ret == UBSM_OK && memory.state == RecordState::DELETED) {
         // 删除后重新调用attach接口映射
         ret = SHMManager::GetInstance().RemoveMemoryInfo(memory.name, true);
         if (ret != 0) {
             DBG_LOGERROR("RemoveMemoryInfo error. ret=" << ConvertErrorToString(ret));
+            response->errCode_ = ret;
             return ret;
         }
     }
@@ -672,7 +700,7 @@ int MxmServerMsgHandle::ShmUnmap(const MsgBase *req, MsgBase *rsp, const MxmComU
                                   << ", pid=" << udsInfo.pid);
     DBG_AUDITINFO("user info of ShmUnmap, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
                                                 << ", name=" << request->name_);
-    AttachedShareMemory memory;
+    AttachedShareMemory memory{};
     std::unique_lock<std::mutex> uniqueLock{GetMutexByName(request->name_)};
     auto ret = SHMManager::GetInstance().GetShareMemoryInfo(request->name_, memory);
     if (ret != UBSM_OK) {
@@ -684,9 +712,10 @@ int MxmServerMsgHandle::ShmUnmap(const MsgBase *req, MsgBase *rsp, const MxmComU
         return ret;
     }
     if (memory.state == RecordState::DELETED) {
-        SHMManager::GetInstance().RemoveMemoryInfo(request->name_, true);
+        ret = SHMManager::GetInstance().RemoveMemoryInfo(request->name_, true);
         if (ret != 0) {
             DBG_LOGERROR("RemoveMemoryInfo fail. name=" << request->name_);
+            response->errCode_ = ret;
             return ret;
         }
         response->errCode_ = MXM_OK;
@@ -781,8 +810,8 @@ int MxmServerMsgHandle::RegionCreateRegion(const MsgBase *req, MsgBase *rsp, con
     DBG_AUDITINFO("user info of RegionCreateRegion, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
                                                           << udsInfo.pid << ", region_name=" << request->regionName_);
     DBG_LOGINFO("Start to create region, name=" << request->regionName_);
-    if (request->region_.num > MEM_TOPOLOGY_MAX_HOSTS) {
-        DBG_LOGERROR("Region num=" << request->region_.num << " exceeds maximum=" << MEM_TOPOLOGY_MAX_HOSTS);
+    if (!ValidateRegionDesc(request->region_)) {
+        DBG_LOGERROR("Invalid region description, num=" << request->region_.num);
         response->errCode_ = MXM_ERR_PARAM_INVALID;
         return MXM_ERR_PARAM_INVALID;
     }
@@ -799,7 +828,7 @@ int MxmServerMsgHandle::RegionCreateRegion(const MsgBase *req, MsgBase *rsp, con
                       << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid << ", region_name="
                       << request->regionName_ << ", ret=" << ConvertErrorToString(MXM_ERR_REGION_EXIST));
         response->errCode_ = MXM_ERR_REGION_EXIST;
-        return ret;
+        return MXM_ERR_REGION_EXIST;
     }
 
     response->errCode_ = 0;
@@ -874,7 +903,7 @@ int MxmServerMsgHandle::RegionDestroyRegion(const MsgBase *req, MsgBase *rsp, co
                       << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid << ", region_name="
                       << request->regionName_ << ", ret=" << ConvertErrorToString(MXM_ERR_REGION_NOT_EXIST));
         response->errCode_ = MXM_ERR_REGION_NOT_EXIST;
-        return ret;
+        return MXM_ERR_REGION_NOT_EXIST;
     }
 
     response->errCode_ = 0;
@@ -1283,6 +1312,7 @@ int MxmServerMsgHandle::ShmDetach(const MsgBase *req, MsgBase *rsp, const MxmCom
         DBG_AUDITINFO("user info of ShmDetach, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
                                                      << ", pid=" << udsInfo.pid << ", name=" << request->name_
                                                      << ", ret=" << ConvertErrorToString(rt));
+        response->errCode_ = rt;
         return rt;
     }
     uid_t owner_uid = ubsUserInfo.udsInfo.uid;
@@ -1401,7 +1431,7 @@ int MxmServerMsgHandle::IpcSuspend(const MsgBase *req, MsgBase *rsp, const MxmCo
     if (ret != 0) {
         DBG_LOGERROR("IpcSuspend: AddSuspendClient failed, pid=" << udsInfo.pid);
         response->errCode_ = ret == -2 ? MXM_ERR_NAME_BUSY : MXM_ERR_RECORD_ADD;
-        return ret;
+        return response->errCode_;
     }
     response->errCode_ = UBSM_OK;
     DBG_LOGINFO("IpcSuspend success, pid=" << udsInfo.pid);
@@ -1424,7 +1454,7 @@ int MxmServerMsgHandle::IpcResume(const MsgBase *req, MsgBase *rsp, const MxmCom
     if (ret != 0) {
         DBG_LOGERROR("IpcResume: DelSuspendClient failed, pid=" << udsInfo.pid);
         response->errCode_ = MXM_ERR_RECORD_DELETE;
-        return ret;
+        return response->errCode_;
     }
     response->errCode_ = UBSM_OK;
     DBG_LOGINFO("IpcResume success, pid=" << udsInfo.pid);

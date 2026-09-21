@@ -23,6 +23,22 @@ ShareMemImportInfo TEST_SHM_IMPORT_RECORD{};
 std::unique_ptr<MemIdRecordPool> ptr = std::make_unique<MemIdRecordPool>();
 RecordIdPoolAllocator poolAllocator_;
 
+static int AddTestImportRecord(const ShareMemImportInfo &info)
+{
+    ShareMemImportInput input{.name = info.name, .size = info.size, .pid = info.appContext.pid};
+    auto ret = RecordStore::GetInstance().AddShmImportInput(input);
+    if (ret != 0) {
+        return ret;
+    }
+    ShareMemImportResult result{.memIds = info.memIds,
+                                .unitSize = info.unitSize,
+                                .createFlags = info.flag,
+                                .openFlag = info.oflag,
+                                .ownerUserId = info.appContext.uid,
+                                .ownerGroupId = info.appContext.gid};
+    return RecordStore::GetInstance().AddShmImportResult(info.name, result);
+}
+
 class RecordStoreTest : public testing::Test {
 public:
     void SetUp() override {}
@@ -151,19 +167,12 @@ TEST_F(RecordStoreTest, TestListRegionRecord_AfterAdd_AfterDelete)
     EXPECT_EQ(regionsAfter.size(), 0);
 }
 
-// AddMemLeaseRecord
-TEST_F(RecordStoreTest, TestAddMemLeaseRecord_FailWhenNameOverLimit)
-{
-    MemLeaseInfo leaseInfo;
-    leaseInfo.first.name = std::string(NO_64, 'x');
-    auto ret = RecordStore::GetInstance().AddMemLeaseRecord(leaseInfo);
-    EXPECT_EQ(ret, -1);
-}
-
 // DelMemLeaseRecord
-TEST_F(RecordStoreTest, TestAddMemLeaseRecord_DelMemLeaseRecord_Success)
+TEST_F(RecordStoreTest, TestAddMemLeaseInputAndResult_DelMemLeaseRecord_Success)
 {
-    auto ret = RecordStore::GetInstance().AddMemLeaseRecord(TEST_LEASE_RECORD);
+    auto ret = RecordStore::GetInstance().AddMemLeaseInput(TEST_LEASE_RECORD.first);
+    ASSERT_EQ(ret, 0);
+    ret = RecordStore::GetInstance().AddMemLeaseResult(TEST_LEASE_NAME, TEST_LEASE_RECORD.second);
     EXPECT_EQ(ret, 0);
     ret = RecordStore::GetInstance().DelMemLeaseRecord(TEST_LEASE_NAME);
     EXPECT_EQ(ret, 0);
@@ -175,10 +184,19 @@ TEST_F(RecordStoreTest, TestDelMemLeaseRecord_WhenRecordNotExist)
     EXPECT_EQ(ret, -1);
 }
 
+TEST_F(RecordStoreTest, TestDeletePreAddLeaseDoesNotReleaseMemIdPool)
+{
+    LeaseMallocInput input{.name = "PRE_ADD_LEASE", .size = 4096, .appContext = TEST_APP_CTX};
+    EXPECT_EQ(RecordStore::GetInstance().AddMemLeaseInput(input), 0);
+    EXPECT_EQ(RecordStore::GetInstance().DelMemLeaseRecord(input.name), 0);
+}
+
 // ListMemLeaseRecord
 TEST_F(RecordStoreTest, TestListMemLeaseRecord_AfterAdd_AfterDelete)
 {
-    auto ret = RecordStore::GetInstance().AddMemLeaseRecord(TEST_LEASE_RECORD);
+    auto ret = RecordStore::GetInstance().AddMemLeaseInput(TEST_LEASE_RECORD.first);
+    ASSERT_EQ(ret, 0);
+    ret = RecordStore::GetInstance().AddMemLeaseResult(TEST_LEASE_NAME, TEST_LEASE_RECORD.second);
     EXPECT_EQ(ret, 0);
 
     auto list = RecordStore::GetInstance().ListMemLeaseRecord();
@@ -205,7 +223,9 @@ TEST_F(RecordStoreTest, TestUpdateMemLeaseRecord_WhenNameNotExist)
 TEST_F(RecordStoreTest, TestUpdateMemLeaseRecord_Success)
 {
     AppContext ctx{0, 0, 0};
-    auto ret = RecordStore::GetInstance().AddMemLeaseRecord(TEST_LEASE_RECORD);
+    auto ret = RecordStore::GetInstance().AddMemLeaseInput(TEST_LEASE_RECORD.first);
+    ASSERT_EQ(ret, 0);
+    ret = RecordStore::GetInstance().AddMemLeaseResult(TEST_LEASE_NAME, TEST_LEASE_RECORD.second);
     EXPECT_EQ(ret, 0);
 
     ret = RecordStore::GetInstance().UpdateMemLeaseRecord(TEST_LEASE_NAME, ctx, 0);
@@ -215,39 +235,46 @@ TEST_F(RecordStoreTest, TestUpdateMemLeaseRecord_Success)
     EXPECT_EQ(ret, 0);
 }
 
-// AddShmImportRecord
-TEST_F(RecordStoreTest, TestAddShmImportRecord_FailWhenNameLengthOverLimit)
+// AddShmImportInput
+TEST_F(RecordStoreTest, TestAddShmImportInput_FailWhenNameLengthOverLimit)
 {
-    ShareMemImportInfo record{};
-    record.name = std::string(NO_64, 'x');
-    auto ret = RecordStore::GetInstance().AddShmImportRecord(record);
+    ShareMemImportInput input{};
+    input.name = std::string(NO_64, 'x');
+    auto ret = RecordStore::GetInstance().AddShmImportInput(input);
     EXPECT_EQ(ret, -1);
 }
 
-TEST_F(RecordStoreTest, TestAddShmImportRecord_FailWhenAlreadyExist)
+TEST_F(RecordStoreTest, TestAddShmImportInput_FailWhenAlreadyExist)
 {
-    auto ret = RecordStore::GetInstance().AddShmImportRecord(TEST_SHM_IMPORT_RECORD);
+    auto ret = AddTestImportRecord(TEST_SHM_IMPORT_RECORD);
     EXPECT_EQ(ret, 0);
-    ret = RecordStore::GetInstance().AddShmImportRecord(TEST_SHM_IMPORT_RECORD);
+    ret = AddTestImportRecord(TEST_SHM_IMPORT_RECORD);
     EXPECT_EQ(ret, -1);
     ret = RecordStore::GetInstance().DelShmImportRecord(TEST_SHM_IMPORT_RECORD.name);
     EXPECT_EQ(ret, 0);
 }
 
 // DelShmImportRecord
-TEST_F(RecordStoreTest, TestAddShmImportRecord_DelShmImportRecord_Success)
+TEST_F(RecordStoreTest, TestAddShmImportInput_DelShmImportRecord_Success)
 {
-    auto ret = RecordStore::GetInstance().AddShmImportRecord(TEST_SHM_IMPORT_RECORD);
+    auto ret = AddTestImportRecord(TEST_SHM_IMPORT_RECORD);
     EXPECT_EQ(ret, 0);
     ret = RecordStore::GetInstance().DelShmImportRecord(TEST_SHM_IMPORT_RECORD.name);
     EXPECT_EQ(ret, 0);
+}
+
+TEST_F(RecordStoreTest, TestDeletePreAddImportDoesNotReleaseMemIdPool)
+{
+    ShareMemImportInput input{.name = "PRE_ADD_IMPORT", .size = 4096, .pid = TEST_APP_CTX.pid};
+    EXPECT_EQ(RecordStore::GetInstance().AddShmImportInput(input), 0);
+    EXPECT_EQ(RecordStore::GetInstance().DelShmImportRecord(input.name), 0);
 }
 
 // ListShmImportRecord
 TEST_F(RecordStoreTest, TestListShmImportRecord_AfterAdd_AfterDelete)
 {
     auto records1 = RecordStore::GetInstance().ListShmImportRecord();
-    auto ret = RecordStore::GetInstance().AddShmImportRecord(TEST_SHM_IMPORT_RECORD);
+    auto ret = AddTestImportRecord(TEST_SHM_IMPORT_RECORD);
     EXPECT_EQ(ret, 0);
 
     auto records2 = RecordStore::GetInstance().ListShmImportRecord();
@@ -286,7 +313,7 @@ TEST_F(RecordStoreTest, TestAddShmRefRecord_FailWhenNameNotImport)
 // DelShmRefRecord
 TEST_F(RecordStoreTest, TestAddShmRefRecord_DelShmRefRecord_Success)
 {
-    auto ret = RecordStore::GetInstance().AddShmImportRecord(TEST_SHM_IMPORT_RECORD);
+    auto ret = AddTestImportRecord(TEST_SHM_IMPORT_RECORD);
     EXPECT_EQ(ret, 0);
 
     ret = RecordStore::GetInstance().AddShmRefRecord(static_cast<pid_t>(TEST_SHM_IMPORT_RECORD.appContext.pid),
@@ -319,7 +346,7 @@ TEST_F(RecordStoreTest, TestDelShmRefRecord_FailWhenNameNotExist)
 
 TEST_F(RecordStoreTest, TestDelShmImportRecord_FailWhenRefRecordLeft)
 {
-    auto ret = RecordStore::GetInstance().AddShmImportRecord(TEST_SHM_IMPORT_RECORD);
+    auto ret = AddTestImportRecord(TEST_SHM_IMPORT_RECORD);
     ret += RecordStore::GetInstance().AddShmRefRecord(static_cast<pid_t>(TEST_SHM_IMPORT_RECORD.appContext.pid),
                                                       TEST_SHM_NAME);
     EXPECT_EQ(ret, 0);
@@ -336,7 +363,7 @@ TEST_F(RecordStoreTest, TestDelShmImportRecord_FailWhenRefRecordLeft)
 // DelShmRefRecordsByPid
 TEST_F(RecordStoreTest, TestDelShmRefRecordsByPid_Success)
 {
-    auto ret = RecordStore::GetInstance().AddShmImportRecord(TEST_SHM_IMPORT_RECORD);
+    auto ret = AddTestImportRecord(TEST_SHM_IMPORT_RECORD);
     ret += RecordStore::GetInstance().AddShmRefRecord(static_cast<pid_t>(TEST_SHM_IMPORT_RECORD.appContext.pid),
                                                       TEST_SHM_NAME);
     EXPECT_EQ(ret, 0);
@@ -361,7 +388,7 @@ TEST_F(RecordStoreTest, TestDelShmRefRecordsByPid_SuccessWhenPidNoRef)
 TEST_F(RecordStoreTest, TestListShmRefRecordNameF_AfterAddRef)
 {
     auto records1 = RecordStore::GetInstance().ListShmRefRecordNameF();
-    auto ret = RecordStore::GetInstance().AddShmImportRecord(TEST_SHM_IMPORT_RECORD);
+    auto ret = AddTestImportRecord(TEST_SHM_IMPORT_RECORD);
     ret += RecordStore::GetInstance().AddShmRefRecord(static_cast<pid_t>(TEST_SHM_IMPORT_RECORD.appContext.pid),
                                                       TEST_SHM_NAME);
     EXPECT_EQ(ret, 0);
@@ -379,7 +406,7 @@ TEST_F(RecordStoreTest, TestListShmRefRecordNameF_AfterAddRef)
 TEST_F(RecordStoreTest, TestListShmRefRecordPidF_AfterAddRef)
 {
     auto records1 = RecordStore::GetInstance().ListShmRefRecordNameF();
-    auto ret = RecordStore::GetInstance().AddShmImportRecord(TEST_SHM_IMPORT_RECORD);
+    auto ret = AddTestImportRecord(TEST_SHM_IMPORT_RECORD);
     ret += RecordStore::GetInstance().AddShmRefRecord(static_cast<pid_t>(TEST_SHM_IMPORT_RECORD.appContext.pid),
                                                       TEST_SHM_NAME);
     EXPECT_EQ(ret, 0);

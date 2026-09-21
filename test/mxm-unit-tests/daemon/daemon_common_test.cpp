@@ -5,6 +5,7 @@
 //
 #include <sanitizer/asan_interface.h>
 #include "daemon_test_common.h"
+#include "util/configuration_validator.h"
 
 using namespace ock::common;
 using namespace UT::Daemon;
@@ -67,6 +68,14 @@ TEST(daemon_common, configuration)
     conf->Set("ubsm.server.log.path", (long)100);
     conf->AddConverter("ubsm.server.log.path", nullptr);
     conf->Validate(true, true, true, true);
+}
+
+TEST(daemon_common, InvalidIpAndPortIsRejected)
+{
+    auto validator = VIpAndPort::Create(ConfConstant::MXMD_SERVER_RPC_LOCAL_IPSEG.first);
+
+    ASSERT_NE(validator, nullptr);
+    EXPECT_FALSE(validator->Validate("999.0.0.1:7201"));
 }
 
 TEST(daemon_common, FuncSplitStrSet)

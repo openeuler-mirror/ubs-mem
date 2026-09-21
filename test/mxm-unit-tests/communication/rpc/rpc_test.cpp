@@ -4,6 +4,8 @@
 #include "rpc_test.h"
 #include <netinet/tcp.h>
 #include <sys/socket.h>
+#include <cstdlib>
+#include <cstring>
 #include "defines.h"
 #include "hcom_service.h"
 #include "mxm_com_def.h"
@@ -54,6 +56,18 @@ TEST_F(RpcTestSuite, TestRpcStartSuccess)
     MOCKER_CPP(&MxmRpcServer::Start, HRESULT(*)()).stubs().will(returnValue(HOK));
     auto ret = RpcServerTestMock();
     EXPECT_EQ(ret, HOK);
+}
+
+TEST_F(RpcTestSuite, TestRpcServerReferenceCountKeepsServerAlive)
+{
+    MOCKER_CPP(&MxmRpcServer::Start, HRESULT(*)()).stubs().will(returnValue(HOK));
+    MOCKER_CPP(&MxmRpcServer::Connect, HRESULT(*)(const RpcNode &)).stubs().will(returnValue(HOK));
+    ASSERT_EQ(RpcServerTestMock(), HOK);
+    ASSERT_EQ(RpcServerTestMock(), HOK);
+
+    MxmComStopRpcServer();
+    RpcNode node = {"127.0.0.1:7201", "127.0.0.1", 7201};
+    EXPECT_EQ(MxmComRpcServerConnect(node), HOK);
 }
 
 TEST_F(RpcTestSuite, TestRpcServiceRegSuccess)
@@ -134,7 +148,18 @@ TEST_F(RpcTestSuite, TestRpcMessageSendSuccess)
     MOCKER_CPP(&MxmCommunication::MxmComMsgSend,
                HRESULT(*)(const std::string &engineName, MxmComMessageCtx &message, MxmComDataDesc &retData))
         .stubs()
-        .will(returnValue(HOK));
+        .will(invoke(+[](const std::string &, MxmComMessageCtx &, MxmComDataDesc &retData) -> HRESULT {
+            NetMsgPacker packer;
+            RpcQueryInfoResponse(0, "node").Serialize(packer);
+            const auto data = packer.String();
+            retData.data = static_cast<uint8_t *>(malloc(data.size()));
+            if (retData.data == nullptr) {
+                return HFAIL;
+            }
+            memcpy(retData.data, data.data(), data.size());
+            retData.len = data.size();
+            return HOK;
+        }));
     ret = MxmComRpcServerSend(endPoint.serviceId, request.get(), response.get(), nodeId);
     EXPECT_EQ(ret, HOK);
 }

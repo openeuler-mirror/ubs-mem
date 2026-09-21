@@ -47,6 +47,7 @@ using namespace ock::com::rpc;
 using namespace ock::rpc::service;
 using namespace ock::dlock_utils;
 OCKDaemonPtr OckDaemon::mDaemon = nullptr;
+volatile std::sig_atomic_t OckDaemon::stopRequested = 0;
 
 const auto RUNTIME_PATH_HEADER = std::string("--runtime=");
 const auto CONFIG_PATH_HEADER = std::string("--config=");
@@ -384,6 +385,7 @@ int32_t OckDaemon::InitializeRpcServer()
     ret = RpcServer::GetInstance().RackMemConBaseInitialize();
     if (ret != 0) {
         DBG_LOGERROR("RackMemConBaseInitialize failed, ret: " << ret);
+        MxmComStopRpcServer();
         return ret;
     }
     DBG_LOGINFO("InitializeRpcServer success.");
@@ -450,6 +452,7 @@ uint32_t OckDaemon::InitUbsmLock()
     // init zenDiscovery
     if (!InitializeZenDiscovery()) {
         DBG_LOGERROR("InitializeZenDiscovery failed.");
+        MxmComStopRpcServer();
     }
     return HOK;
 }
@@ -548,8 +551,8 @@ HRESULT OckDaemon::CheckUbseStatus()
     do {
         ret = ock::mxm::UbseMemAdapter::LookupRegionList(regionList);
         if (ret != HOK) {
-            if (mStatus == ServerStatus::UNINITIALIZED) {
-                DBG_LOGERROR("OckDaemon status changed to UNINITIALIZED, stop check ubse status.");
+            if (mStatus == ServerStatus::UNINITIALIZED || stopRequested != 0) {
+                DBG_LOGERROR("OckDaemon is stopping, stop check ubse status.");
                 return HFAIL;
             }
             DBG_LOGWARN("UBS Engine is not ready, will retry, retcode: " << ret);
@@ -654,12 +657,15 @@ HRESULT OckDaemon::Wait()
     mDaemon->mStatus = ServerStatus::WAITING; // 设置等待状态
 
     std::unique_lock<std::mutex> lock(mDaemon->mMutex);
-    mDaemon->mCV.wait(lock, [this] {
-        if (mDaemon->mStatus == ServerStatus::WAITING) {
-            return false;
-        }
-        return true;
-    });
+    while (mDaemon->mStatus == ServerStatus::WAITING && stopRequested == 0) {
+        mDaemon->mCV.wait_for(lock, std::chrono::milliseconds(100));
+    }
+    if (stopRequested != 0 && mDaemon->mStatus == ServerStatus::WAITING) {
+        stopRequested = 0;
+        lock.unlock();
+        mDaemon->TryStop();
+        lock.lock();
+    }
 
     keepAliveStatus = KEEP_ALIVE_STOPPING;
     mCV.notify_all();
@@ -756,6 +762,7 @@ void OckDaemon::StoppedKeepAlive()
 
 HRESULT OckDaemon::RegisterSignalHandler()
 {
+    stopRequested = 0;
     struct sigaction saUsr {};
     saUsr.sa_handler = &OckDaemon::HandleSignal;
     sigemptyset(&saUsr.sa_mask);
@@ -777,10 +784,7 @@ HRESULT OckDaemon::RegisterSignalHandler()
 void OckDaemon::HandleSignal(int signum)
 {
     (void)signum;
-    if (mDaemon == nullptr) {
-        return;
-    }
-    mDaemon->TryStop();
+    stopRequested = 1;
 }
 
 void OckDaemon::HandleSigpipe(int signum)

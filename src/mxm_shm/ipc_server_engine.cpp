@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "ipc_server_engine.h"
+#include <exception>
 #include "log.h"
 
 using namespace ock::common;
@@ -23,8 +24,13 @@ uint32_t IpcServerEngine::RegisterOpcode(MxmComEndpoint opcode, const HcomServic
     opcode.moduleId = 1;
     auto ret = MxmRegIpcService(
         opcode, [opcode, handle](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *resp) -> void {
-            handle.func(udsInfo, req, resp);
-            return;
+            try {
+                handle.func(udsInfo, req, resp);
+            } catch (const std::exception &e) {
+                DBG_LOGERROR("IPC callback failed, serviceId=" << opcode.serviceId << ", error=" << e.what());
+            } catch (...) {
+                DBG_LOGERROR("IPC callback failed, serviceId=" << opcode.serviceId << ", unknown exception");
+            }
         });
     if (ret != 0) {
         return MXM_ERR_REGISTER_OP_CODE;

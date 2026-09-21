@@ -140,7 +140,7 @@ TEST_F(RackMemLibCommonTestSuite, RackMemShmCppStub)
     ASSERT_EQ(RackMemShm::GetInstance().RackMemLookupResourceRegion("name", region), 0);
     ASSERT_EQ(RackMemShm::GetInstance().RackMemDestroyResourceRegion("name"), 0);
     ASSERT_EQ(RackMemShm::GetInstance().UbsMemShmAttach("name"), MXM_ERR_SHM_NOT_EXIST);
-    ASSERT_EQ(RackMemShm::GetInstance().UbsMemShmDetach("name"), 0);
+    ASSERT_EQ(RackMemShm::GetInstance().UbsMemShmDetach("name"), MXM_ERR_SHM_NOT_EXIST);
     ASSERT_EQ(RackMemShm::GetInstance().UbsMemShmListLookup("name", shm_list), 0);
     ASSERT_EQ(RackMemShm::GetInstance().UbsMemShmLookup("name", shm_info), MXM_ERR_SHM_NOT_FOUND);
     ASSERT_EQ(RackMemShm::GetInstance().RpcQueryInfo(name), 0);

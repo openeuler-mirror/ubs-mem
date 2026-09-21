@@ -14,6 +14,7 @@
 #define MEMORYFABRIC_SHM_META_DATA_MGR_H
 
 #include <cstring>
+#include <mutex>
 #include <ostream>
 #include <unordered_map>
 #include <utility>
@@ -40,6 +41,7 @@ struct ShmAppMetaData {
     uint64_t flag{};
     uint64_t oflag{};
     int isLocked{0};
+    ShmOwnStatus lockedStatus{ShmOwnStatus::UNACCESS};
     ShmAppMetaData() = default;
 
     ShmAppMetaData(std::string name, const std::vector<mem_id> &memIdIn, void *const addr, const size_t mapSize,
@@ -124,7 +126,13 @@ class ShmMetaDataMgr {
 public:
     uint32_t Init();
     uint32_t Destroy();
+    // Acquire before accessing metadata; operation locks are separate from internal container locks.
+    [[nodiscard]] std::unique_lock<std::mutex> LockMeta(const std::string &name)
+    {
+        return std::unique_lock<std::mutex>(mOperationLocks[StrToSegment(name)]);
+    }
     void *GetAddr(const std::string &name);
+    int32_t GetNameByAddr(void *start, std::string &name);
     uint32_t AddMetaData(const std::string &name, void *mAddr, ShmAppMetaData &shmAppMetaData);
     int32_t UpdateMetaData(const std::string &name, const ShmAppMetaData &shmAppMetaData);
     // 检查start已经被map过，传入的mapsize必须是map时传入的大小，unmap size必须等于map的大小
@@ -175,6 +183,7 @@ private:
     std::hash<std::string> strHash{};
     std::hash<void *> ptrHash{};
     Lock mNameLock[SEGMENT_COUNT]{};
+    std::mutex mOperationLocks[SEGMENT_COUNT]{};
     Lock mPtrLock[SEGMENT_COUNT]{};
     ReadWriteLock mVmasLock{};
     // 不支持name多次map

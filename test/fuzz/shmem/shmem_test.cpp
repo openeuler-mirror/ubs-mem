@@ -52,7 +52,8 @@ void MockTest()
     MOCKER_CPP(&ock::mxm::UbseMemAdapter::ShmImport, int (*)(const ImportShmParam &param, ImportShmResult &result))
         .stubs()
         .will(invoke(ShmImportStub));
-    MOCKER_CPP(&ock::mxmd::RackMemFdMap::MapForEachFd, uint32_t(*)(void *startAddr, size_t length, int fd, int prot))
+    MOCKER_CPP(&ock::mxmd::RackMemFdMap::MapForEachFd,
+               uint32_t(*)(void *startAddr, size_t length, int fd, int prot, int flags, off_t offset))
         .stubs()
         .will(returnValue(0));
 }
@@ -62,7 +63,8 @@ void MockDlockTest()
     MOCKER_CPP(&ock::mxm::UbseMemAdapter::ShmImport, int (*)(const ImportShmParam &param, ImportShmResult &result))
         .stubs()
         .will(invoke(ShmImportStub2));
-    MOCKER_CPP(&ock::mxmd::RackMemFdMap::MapForEachFd, uint32_t(*)(void *startAddr, size_t length, int fd, int prot))
+    MOCKER_CPP(&ock::mxmd::RackMemFdMap::MapForEachFd,
+               uint32_t(*)(void *startAddr, size_t length, int fd, int prot, int flags, off_t offset))
         .stubs()
         .will(returnValue(0));
     DLockExecutor::GetInstance().DLockClientLibInitFunc = static_cast<DLockClientLibInitPtr>(
@@ -154,10 +156,10 @@ TEST_F(TestUbsmem, Test_ubsmem_create_region)
         char regionNameTest[] = "ubsmem_create_region";
         const char *regionName = DT_SetGetString(&g_Element[0], strlen(regionNameTest) + 1, 1024, regionNameTest);
 
-        char safeRegionName[MAX_REGION_NAME_DESC_LENGTH];
+        char safeRegionName[MAX_REGION_NAME_DESC_LENGTH] = {};
         if (regionName != nullptr) {
             strncpy_s(safeRegionName, MAX_REGION_NAME_DESC_LENGTH, regionName,
-                      strnlen(safeRegionName, MAX_REGION_NAME_DESC_LENGTH));
+                      strnlen(regionName, MAX_REGION_NAME_DESC_LENGTH));
         }
 
         uint64_t size = 0;
@@ -165,7 +167,7 @@ TEST_F(TestUbsmem, Test_ubsmem_create_region)
         ubsmem_region_attributes_t reg_attr_obj = {};
         ubsmem_region_attributes_t *reg_attr = &reg_attr_obj;
         reg_attr->host_num = 2;
-        printf("host_num: %lu\n", reg_attr->host_num);
+        printf("host_num: %u\n", reg_attr->host_num);
         for (int i = 0; i < reg_attr->host_num && i < MAX_REGION_NODE_NUM; ++i) {
             const char *fixedHostName = "1";
             strncpy_s(reg_attr->hosts[i].host_name, MAX_HOST_NAME_DESC_LENGTH, fixedHostName,
@@ -490,12 +492,12 @@ TEST_F(TestUbsmem, TEST_ubsmem_shmem_detach)
 TEST_F(TestUbsmem, TEST_ubsmem_lease_malloc)
 {
     char fuzzName[] = "TEST_ubsmem_lease_malloc";
-    ubsmem_distance_t distance;
     MOCKER_CPP(&ock::mxm::UbseMemAdapter::LeaseMalloc,
                int (*)(const ock::mxm::LeaseMallocParam &param, ock::mxm::LeaseMallocResult &result))
         .stubs()
         .will(invoke(LeaseMallocStub));
-    MOCKER_CPP(&ock::mxmd::RackMemFdMap::MapForEachFd, uint32_t(*)(void *startAddr, size_t length, int fd, int prot))
+    MOCKER_CPP(&ock::mxmd::RackMemFdMap::MapForEachFd,
+               uint32_t(*)(void *startAddr, size_t length, int fd, int prot, int flags, off_t offset))
         .stubs()
         .will(returnValue(0));
     DT_FUZZ_START(0, CAPI_FUZZ_COUNT, fuzzName, 0)
@@ -524,7 +526,8 @@ TEST_F(TestUbsmem, Test_ubsmem_lease_free)
                int (*)(const ock::mxm::LeaseMallocParam &param, ock::mxm::LeaseMallocResult &result))
         .stubs()
         .will(invoke(LeaseMallocStub));
-    MOCKER_CPP(&ock::mxmd::RackMemFdMap::MapForEachFd, uint32_t(*)(void *startAddr, size_t length, int fd, int prot))
+    MOCKER_CPP(&ock::mxmd::RackMemFdMap::MapForEachFd,
+               uint32_t(*)(void *startAddr, size_t length, int fd, int prot, int flags, off_t offset))
         .stubs()
         .will(returnValue(0));
     DT_FUZZ_START(0, CAPI_FUZZ_COUNT, fuzzName, 0)

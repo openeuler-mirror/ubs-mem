@@ -1,5 +1,7 @@
 #include "dlock_common.h"
 #include <gtest/gtest.h>
+#include <limits>
+#include "client_desc.h"
 #include "log.h"
 
 namespace UT {
@@ -22,5 +24,18 @@ TEST(DLockCommonTest, MapUbsmLogLevel2DLockLevel)
     EXPECT_EQ(MapUbsmLogLevel2DLockLevel(DBG_LOG_ERROR), DLOCK_LOG_LEVEL_ERR);
     EXPECT_EQ(MapUbsmLogLevel2DLockLevel(DBG_LOG_CRITICAL), DLOCK_LOG_LEVEL_CRIT);
     EXPECT_EQ(MapUbsmLogLevel2DLockLevel(-1), DLOCK_LOG_LEVEL_INFO);
+}
+
+TEST(DLockCommonTest, SetLockUdsInfoRefreshesExpiry)
+{
+    ClientDesc client(1);
+    LockUdsInfo info{1, 2, 3, 0};
+    client.SetLockUdsInfo("lock", info);
+
+    info.validTime = std::numeric_limits<uint64_t>::max();
+    client.SetLockUdsInfo("lock", info);
+
+    EXPECT_TRUE(client.IsLockInValidTime("lock", info));
+    EXPECT_EQ(sizeof(info.validTime), sizeof(uint64_t));
 }
 } // namespace UT

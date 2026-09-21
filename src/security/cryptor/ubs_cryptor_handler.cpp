@@ -14,6 +14,7 @@
 #include <securec.h>
 #include <sys/ipc.h>
 #include <fstream>
+#include <limits>
 #include <sstream>
 #include <string>
 #include "log.h"
@@ -122,6 +123,11 @@ int ock::ubsm::UbsCryptorHandler::Decrypt(int domainId, const std::string &fileP
         DBG_LOGERROR("Decrypt tls key password for file failed: " << decryptRes);
         return -1;
     }
+    if (decryptLength == 0 || decryptLength > static_cast<size_t>(std::numeric_limits<int>::max())) {
+        DBG_LOGERROR("Decrypt returned invalid length: " << decryptLength);
+        mxmd::SafeDeleteArray(decryptRes);
+        return -1;
+    }
     auto buffer = new (std::nothrow) char[decryptLength + 1];
     if (buffer == nullptr) {
         DBG_LOGERROR("allocate memory for buffer failed.");
@@ -141,7 +147,7 @@ int ock::ubsm::UbsCryptorHandler::Decrypt(int domainId, const std::string &fileP
     buffer[decryptLength] = '\0';
     SecureClear(decryptRes, decryptLength);
     mxmd::SafeDeleteArray(decryptRes);
-    result = std::make_pair(buffer, decryptLength);
+    result = std::make_pair(buffer, static_cast<int>(decryptLength));
     DBG_LOGINFO("Decrypt success.");
     return 0;
 }

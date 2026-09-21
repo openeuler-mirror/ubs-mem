@@ -33,6 +33,8 @@ using EngineHandlerWorker =
 class MxmComLinkManager {
 public:
     MxmComLinkManager() = default;
+    MxmComLinkManager(const MxmComLinkManager &) = delete;
+    MxmComLinkManager &operator=(const MxmComLinkManager &) = delete;
 
     /* *
    * @brief 根据channel id获取channel
@@ -76,8 +78,6 @@ public:
    */
     void RemoveChannelByChannelId(uint64_t id, UBSHcomService *hcomNetService);
 
-    void UpdateChannel(const std::string &nodeId, MxmChannelType chType);
-
     /* *
    * @brief 移除所有channel
    *
@@ -89,16 +89,17 @@ public:
     bool IsStopped();
 
 private:
+    // Caller must hold channelLock_ for reading or writing.
     void LogChannelInfo();
     NodeChannelMap nodeChannelMap;
     ChannelIdMap channelIdMap;
     bool isStopped{false};
+    ReadWriteLock channelLock_;
 };
 
 class MxmComEngine {
 public:
-    MxmComEngine(MxmComEngineInfo engineInfo, UBSHcomService *hcomNetService, MxmComLinkStateNotify linkStateNotify,
-                 MxmComLinkManager linkManager);
+    MxmComEngine(MxmComEngineInfo engineInfo, UBSHcomService *hcomNetService, MxmComLinkStateNotify linkStateNotify);
 
     /* *
    * @brief 获取引擎信息
@@ -148,9 +149,9 @@ public:
    *
    * @param[in] moduleCode: 模块编码
    * @param[in] opCode: 操作码
-   * @return TransMessageHandler *, 成功返回函数指针, 失败返回非nullptr
+   * @return 消息处理函数的副本，未注册时handler为空
    */
-    MxmComMsgHandler *GetMessageHandler(uint16_t moduleCode, uint16_t opCode);
+    MxmComMsgHandler GetMessageHandler(uint16_t moduleCode, uint16_t opCode);
 
     /**
    * @brief 通过远端节点ID，通道类型删除channel

@@ -74,21 +74,10 @@ const std::unordered_map<int, HcomServiceHandle> &IpcServer::GetIpcCallbackTable
 {
     IpcServer::GetInstance().InitExecMap();
     callBackMap.clear();
-    callBackMap[MXM_MSG_SHM_ALLOCATE] = {[](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
-        GetInstance().MsgHandle(udsInfo, MXM_MSG_SHM_ALLOCATE, req, rsp, execMap.at(MXM_MSG_SHM_ALLOCATE));
-    }};
-    callBackMap[MXM_MSG_SHM_DEALLOCATE] = {[](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
-        GetInstance().MsgHandle(udsInfo, MXM_MSG_SHM_DEALLOCATE, req, rsp, execMap.at(MXM_MSG_SHM_DEALLOCATE));
-    }};
     callBackMap[IPC_RACKMEMSHM_LOOKUP_SHAREREGIONS] = {
         [](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
             GetInstance().MsgHandle(udsInfo, IPC_RACKMEMSHM_LOOKUP_SHAREREGIONS, req, rsp,
                                     execMap.at(IPC_RACKMEMSHM_LOOKUP_SHAREREGIONS));
-        }};
-    callBackMap[IPC_RACKMEMSHM_LOOKUP_REGIONINFO] = {
-        [](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
-            GetInstance().MsgHandle(udsInfo, IPC_RACKMEMSHM_LOOKUP_REGIONINFO, req, rsp,
-                                    execMap.at(IPC_RACKMEMSHM_LOOKUP_REGIONINFO));
         }};
     callBackMap[IPC_RACKMEMSHM_CREATE] = {[](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
         GetInstance().MsgHandle(udsInfo, IPC_RACKMEMSHM_CREATE, req, rsp, execMap.at(IPC_RACKMEMSHM_CREATE));

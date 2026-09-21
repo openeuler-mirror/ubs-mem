@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <mockcpp/mockcpp.hpp>
 #include <string>
 #include <vector>
@@ -62,6 +63,14 @@ static char *MockDecrypt(const char *encryptedData, size_t encryptedLen, size_t 
     (void)encryptedLen;
     (void)outputLen;
     return nullptr;
+}
+
+static char *MockDecryptWithOversizedResult(const char *encryptedData, size_t encryptedLen, size_t *outputLen)
+{
+    (void)encryptedData;
+    (void)encryptedLen;
+    *outputLen = static_cast<size_t>(std::numeric_limits<int>::max()) + 1;
+    return new char[1];
 }
 
 TEST_F(CryptorTest, DefaultDecryptReadsFile)
@@ -159,5 +168,21 @@ TEST_F(CryptorTest, InitializeOnlyLoadsLibraryOnce)
     handler.SetDecryptLibPath("/tmp/ignored_after_initialize.so");
     EXPECT_EQ(handler.Initialize(), 0);
     EXPECT_EQ(UbsCryptorHandler::SetCryptorLogger(TestLogger), 0);
+}
+
+TEST_F(CryptorTest, DecryptRejectsLengthThatCannotFitResultType)
+{
+    auto path = CreateFile("encrypted");
+    ASSERT_FALSE(path.empty());
+    int mockHandle = 0;
+    auto mockDecrypt = reinterpret_cast<void *>(MockDecryptWithOversizedResult);
+    MOCKER(SystemAdapter::DlOpen).expects(once()).will(returnValue(static_cast<void *>(&mockHandle)));
+    MOCKER(SystemAdapter::DlSym).expects(once()).will(returnValue(mockDecrypt));
+    UbsCryptorHandler handler;
+    handler.SetDecryptLibPath(path);
+    std::pair<char *, int> result{nullptr, 0};
+
+    EXPECT_EQ(handler.Decrypt(0, path, result), -1);
+    EXPECT_EQ(result.first, nullptr);
 }
 } // namespace UT

@@ -48,27 +48,27 @@ using DLockLockResultCheckPtr = int (*)(int clientId, void *result);
 
 class DLockExecutor {
 public:
-    DLockSeverLibInitPtr DLockServerLibInitFunc;
-    DLockSeverLibDeInitPtr DLockSeverLibDeInitFunc;
-    DLockServerStartPtr DLockServerStartFunc;
-    DLockServerStopPtr DLockServerStopFunc;
-    DLockClientLibInitPtr DLockClientLibInitFunc;
-    DLockClientLibDeinitPtr DLockClientLibDeInitFunc;
-    DLockClientInitPtr DLockClientInitFunc;
-    DLockClientReinitPtr DLockClientReinitFunc;
-    DLockClientDeInitPtr DLockClientDeInitFunc;
-    DLockClientReinitDonePtr DLockClientReinitDoneFunc;
-    DLockClientHeartbeatPtr DLockClientHeartbeatFunc;
-    DLockClientGetLockPtr DLockClientGetLockFunc;
-    DLockReleaseLockPtr DLockReleaseLockFunc;
-    DLockUpdateAllLocksPtr DLockUpdateAllLocksFunc;
-    DLockGetClientDebugStatsPtr DLockGetClientDebugStatsFunc;
-    DLockTryLockPtr DLockTryLockFunc;
-    DLockLockPtr DLockLockFunc;
-    DLockUnlockPtr DLockUnlockFunc;
-    DLockLockExtendPtr DLockLockExtendFunc;
-    DLockLockRequestAsyncPtr DLockLockRequestAsyncFunc;
-    DLockLockResultCheckPtr DLockLockResultCheckFunc;
+    DLockSeverLibInitPtr DLockServerLibInitFunc{nullptr};
+    DLockSeverLibDeInitPtr DLockSeverLibDeInitFunc{nullptr};
+    DLockServerStartPtr DLockServerStartFunc{nullptr};
+    DLockServerStopPtr DLockServerStopFunc{nullptr};
+    DLockClientLibInitPtr DLockClientLibInitFunc{nullptr};
+    DLockClientLibDeinitPtr DLockClientLibDeInitFunc{nullptr};
+    DLockClientInitPtr DLockClientInitFunc{nullptr};
+    DLockClientReinitPtr DLockClientReinitFunc{nullptr};
+    DLockClientDeInitPtr DLockClientDeInitFunc{nullptr};
+    DLockClientReinitDonePtr DLockClientReinitDoneFunc{nullptr};
+    DLockClientHeartbeatPtr DLockClientHeartbeatFunc{nullptr};
+    DLockClientGetLockPtr DLockClientGetLockFunc{nullptr};
+    DLockReleaseLockPtr DLockReleaseLockFunc{nullptr};
+    DLockUpdateAllLocksPtr DLockUpdateAllLocksFunc{nullptr};
+    DLockGetClientDebugStatsPtr DLockGetClientDebugStatsFunc{nullptr};
+    DLockTryLockPtr DLockTryLockFunc{nullptr};
+    DLockLockPtr DLockLockFunc{nullptr};
+    DLockUnlockPtr DLockUnlockFunc{nullptr};
+    DLockLockExtendPtr DLockLockExtendFunc{nullptr};
+    DLockLockRequestAsyncPtr DLockLockRequestAsyncFunc{nullptr};
+    DLockLockResultCheckPtr DLockLockResultCheckFunc{nullptr};
 
     static int ClientInitWrapper(int *clientId, const char *serverIp);
 

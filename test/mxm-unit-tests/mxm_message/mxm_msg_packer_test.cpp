@@ -1,6 +1,7 @@
 #include "mxm_msg_packer.h"
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
+#include "mxm_msg.h"
 #include "rpc_config.h"
 
 namespace UT {
@@ -240,5 +241,78 @@ TEST_F(MxmMsgPackerTest, StringRoundTrip)
     EXPECT_EQ(ra, 42);
     EXPECT_EQ(rb, "test_string");
     EXPECT_EQ(rc, 0xDEADBEEF);
+}
+
+TEST_F(MxmMsgPackerTest, RejectsTruncatedPod)
+{
+    NetMsgUnpacker unpacker(std::string(1, '\0'));
+    uint32_t value = 42;
+
+    unpacker.Deserialize(value);
+
+    EXPECT_FALSE(unpacker.IsValid());
+    EXPECT_EQ(value, 0U);
+}
+
+TEST_F(MxmMsgPackerTest, RejectsTruncatedString)
+{
+    NetMsgPacker packer;
+    packer.Serialize(static_cast<uint32_t>(4));
+    NetMsgUnpacker unpacker(packer.String());
+    std::string value = "unchanged";
+
+    unpacker.Deserialize(value);
+
+    EXPECT_FALSE(unpacker.IsValid());
+    EXPECT_TRUE(value.empty());
+}
+
+TEST_F(MxmMsgPackerTest, RejectsContainerCountLargerThanPayload)
+{
+    NetMsgPacker packer;
+    packer.Serialize(static_cast<size_t>(2));
+    NetMsgUnpacker unpacker(packer.String());
+    std::vector<uint64_t> values = {1};
+
+    unpacker.Deserialize(values);
+
+    EXPECT_FALSE(unpacker.IsValid());
+    EXPECT_TRUE(values.empty());
+}
+
+TEST_F(MxmMsgPackerTest, MessageDeserializeReportsMalformedInput)
+{
+    ShmDeleteRequest request;
+    NetMsgUnpacker unpacker(std::string(1, '\0'));
+
+    EXPECT_EQ(request.Deserialize(unpacker), MXM_ERR_PARAM_INVALID);
+}
+
+TEST_F(MxmMsgPackerTest, RejectsTruncatedVectorElement)
+{
+    NetMsgPacker packer;
+    packer.Serialize(static_cast<size_t>(2));
+    packer.Serialize(static_cast<uint64_t>(1));
+    NetMsgUnpacker unpacker(packer.String());
+    std::vector<uint64_t> values;
+
+    unpacker.Deserialize(values);
+
+    EXPECT_FALSE(unpacker.IsValid());
+    EXPECT_TRUE(values.empty());
+}
+
+TEST_F(MxmMsgPackerTest, RejectsTruncatedMapValue)
+{
+    NetMsgPacker packer;
+    packer.Serialize(static_cast<size_t>(1));
+    packer.Serialize(static_cast<uint64_t>(1));
+    NetMsgUnpacker unpacker(packer.String());
+    std::map<uint64_t, uint64_t> values;
+
+    unpacker.Deserialize(values);
+
+    EXPECT_FALSE(unpacker.IsValid());
+    EXPECT_TRUE(values.empty());
 }
 } // namespace UT

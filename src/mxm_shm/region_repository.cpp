@@ -21,7 +21,7 @@ using namespace ock::mxmd;
 
 bool ToNodeIds(const SHMRegionDesc &region, std::vector<uint32_t> &nodeIds, std::vector<bool> &affinitys)
 {
-    if (region.num > MEM_TOPOLOGY_MAX_HOSTS) {
+    if (region.num < 0 || region.num > MEM_TOPOLOGY_MAX_HOSTS) {
         DBG_AUDITERROR("num is " << region.num << ", max is " << MEM_TOPOLOGY_MAX_HOSTS);
         return false;
     }
@@ -42,7 +42,8 @@ static bool CheckRegionMatched(const CreateRegionInput &input, RegionInfo &outpu
     int i;
     bool flag[MEM_TOPOLOGY_MAX_HOSTS] = {false};
     bool affinity[MEM_TOPOLOGY_MAX_HOSTS] = {false};
-    if (example.num > MEM_TOPOLOGY_MAX_HOSTS) {
+    if (example.num < 0 || example.num > MEM_TOPOLOGY_MAX_HOSTS || input.nodeIds.size() != input.affinity.size() ||
+        input.nodeIds.size() > static_cast<size_t>(example.num)) {
         DBG_LOGERROR("Impossible.");
         return false;
     }

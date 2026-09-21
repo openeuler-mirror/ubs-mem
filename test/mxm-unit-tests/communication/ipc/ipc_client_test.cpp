@@ -3,6 +3,8 @@
  */
 #include "ipc_client_test.h"
 #include <sys/socket.h>
+#include <cstdlib>
+#include <cstring>
 #include "mxm_com_engine.h"
 
 namespace UT {
@@ -56,7 +58,18 @@ TEST_F(IpcClinetTestSuite, TestIpcClientSendSuccess)
     MOCKER_CPP(&MxmCommunication::MxmComMsgSend,
                HRESULT(*)(const std::string &engineName, MxmComMessageCtx &message, MxmComDataDesc &retData))
         .stubs()
-        .will(returnValue(HOK));
+        .will(invoke(+[](const std::string &, MxmComMessageCtx &, MxmComDataDesc &retData) -> HRESULT {
+            NetMsgPacker packer;
+            CommonResponse(0).Serialize(packer);
+            const auto data = packer.String();
+            retData.data = static_cast<uint8_t *>(malloc(data.size()));
+            if (retData.data == nullptr) {
+                return HFAIL;
+            }
+            memcpy(retData.data, data.data(), data.size());
+            retData.len = data.size();
+            return HOK;
+        }));
     ret = MxmComIpcClientSend(1, request.get(), response.get());
     EXPECT_EQ(ret, HOK);
 }

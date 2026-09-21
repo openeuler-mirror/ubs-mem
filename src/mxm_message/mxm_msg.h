@@ -25,6 +25,14 @@ namespace ock {
 namespace mxmd {
 using namespace ock::ubsm;
 
+inline int32_t DeserializeResult(const NetMsgUnpacker &unpacker)
+{
+    if (!unpacker.IsValid()) {
+        return static_cast<int32_t>(MXM_ERR_PARAM_INVALID);
+    }
+    return static_cast<int32_t>(UBSM_OK);
+}
+
 struct CheckMemoryLeaseRequest : MsgBase {
     std::vector<std::string> names_;
     CheckMemoryLeaseRequest() : MsgBase(0, IPC_CHECK_MEMORY_LEASE, 0) {}
@@ -45,7 +53,7 @@ struct CheckMemoryLeaseRequest : MsgBase {
         unpacker.Deserialize(opCode);
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(names_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -69,12 +77,12 @@ struct CheckShareMemoryMapRequest : MsgBase {
         unpacker.Deserialize(opCode);
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(names_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct CommonRequest : MsgBase {
-    uint32_t input_;
+    uint32_t input_{};
 
     CommonRequest() : MsgBase{0, MXM_MSG_BUTT, 0} {};
     explicit CommonRequest(int32_t input) : MsgBase{0, MXM_MSG_BUTT, 0}, input_(input) {};
@@ -94,12 +102,12 @@ struct CommonRequest : MsgBase {
         unpacker.Deserialize(opCode);
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(input_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct CommonResponse : MsgBase {
-    int32_t errCode_;
+    int32_t errCode_{};
 
     CommonResponse() noexcept : MsgBase{0, MXM_MSG_BUTT, 0}
     {
@@ -122,16 +130,16 @@ struct CommonResponse : MsgBase {
         unpacker.Deserialize(opCode);
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct ShmemAllocateRequest : MsgBase {
     std::string regionName_;
     std::string shmName_;
-    size_t size_;
-    mode_t mode_;
-    uint64_t flag_;
+    size_t size_{};
+    mode_t mode_{};
+    uint64_t flag_{};
 
     ShmemAllocateRequest() : MsgBase{0, MXM_MSG_SHM_ALLOCATE, 0} {};
     ShmemAllocateRequest(const std::string &regionName, const std::string &shmName, size_t size, mode_t mode,
@@ -166,7 +174,7 @@ struct ShmemAllocateRequest : MsgBase {
         unpacker.Deserialize(size_);
         unpacker.Deserialize(mode_);
         unpacker.Deserialize(flag_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -193,16 +201,16 @@ struct ShmemDeallocateRequest : MsgBase {
         unpacker.Deserialize(opCode);
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(shmName_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 /* old rackMem interface */
 
 struct AppMallocMemoryRequest : MsgBase {
-    uint64_t size_;
-    uint16_t perflevel_;
-    uint16_t isNuma_;
+    uint64_t size_{};
+    uint16_t perflevel_{};
+    uint16_t isNuma_{};
     std::string regionName_;
 
     AppMallocMemoryRequest() : MsgBase{0, IPC_MALLOC_MEMORY, 0} {};
@@ -236,17 +244,17 @@ struct AppMallocMemoryRequest : MsgBase {
         unpacker.Deserialize(perflevel_);
         unpacker.Deserialize(isNuma_);
         unpacker.Deserialize(regionName_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct AppMallocMemoryWithLocRequest : MsgBase {
-    uint64_t size_;
-    uint16_t isNuma_;
-    uint32_t slotId_;
-    uint32_t socketId_;
-    uint32_t numaId_;
-    uint32_t portId_;
+    uint64_t size_{};
+    uint16_t isNuma_{};
+    uint32_t slotId_{};
+    uint32_t socketId_{};
+    uint32_t numaId_{};
+    uint32_t portId_{};
 
     AppMallocMemoryWithLocRequest() : MsgBase{0, IPC_MALLOC_MEMORY_LOC, 0} {};
     AppMallocMemoryWithLocRequest(uint64_t size, bool isNuma, uint32_t slotId, uint32_t socketId, uint32_t numaId,
@@ -286,7 +294,7 @@ struct AppMallocMemoryWithLocRequest : MsgBase {
         unpacker.Deserialize(socketId_);
         unpacker.Deserialize(numaId_);
         unpacker.Deserialize(portId_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -321,16 +329,16 @@ struct AppFreeMemoryRequest : MsgBase {
         unpacker.Deserialize(memIds_);
         unpacker.Deserialize(regionName_);
         unpacker.Deserialize(name_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct AppMallocMemoryResponse : MsgBase {
-    int32_t errCode_;
+    int32_t errCode_{};
     std::vector<uint64_t> memIds_{};
-    int64_t numaId_;
-    bool isNuma_;
-    size_t unitSize_;
+    int64_t numaId_{};
+    bool isNuma_{};
+    size_t unitSize_{};
     std::string name_;
 
     AppMallocMemoryResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
@@ -372,12 +380,12 @@ struct AppMallocMemoryResponse : MsgBase {
         unpacker.Deserialize(isNuma_);
         unpacker.Deserialize(unitSize_);
         unpacker.Deserialize(name_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct AppQueryClusterInfoResponse : MsgBase {
-    int32_t errCode_;
+    int32_t errCode_{};
     ubsmemClusterInfo info_{};
 
     AppQueryClusterInfoResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
@@ -406,12 +414,12 @@ struct AppQueryClusterInfoResponse : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
         unpacker.Deserialize(info_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct AppQueryCachedMemoryResponse : MsgBase {
-    int32_t errCode_;
+    int32_t errCode_{};
     std::vector<std::string> records_{};
 
     AppQueryCachedMemoryResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
@@ -440,7 +448,7 @@ struct AppQueryCachedMemoryResponse : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
         unpacker.Deserialize(records_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -448,7 +456,7 @@ struct AppQueryCachedMemoryResponse : MsgBase {
 
 struct ShmLookRegionListRequest : MsgBase {
     std::string baseNid_;
-    int32_t regionType_;
+    int32_t regionType_{};
 
     ShmLookRegionListRequest() : MsgBase{0, IPC_RACKMEMSHM_LOOKUP_SHAREREGIONS, 0} {};
     ShmLookRegionListRequest(const std::string &baseNid, int32_t regionType)
@@ -473,7 +481,7 @@ struct ShmLookRegionListRequest : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(baseNid_);
         unpacker.Deserialize(regionType_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -504,7 +512,7 @@ struct ShmCreateRegionRequest : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(regionName_);
         unpacker.Deserialize(region_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -531,7 +539,7 @@ struct ShmLookupRegionRequest : MsgBase {
         unpacker.Deserialize(opCode);
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(regionName_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -558,18 +566,18 @@ struct ShmDestroyRegionRequest : MsgBase {
         unpacker.Deserialize(opCode);
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(regionName_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct ShmCreateRequest : MsgBase {
     std::string regionName_;
     std::string name_;
-    uint64_t size_;
+    uint64_t size_{};
     std::string baseNid_;
     SHMRegionDesc regionDesc_;
-    uint64_t flags_;
-    mode_t mode_;
+    uint64_t flags_{};
+    mode_t mode_{};
 
     ShmCreateRequest() : MsgBase{0, IPC_RACKMEMSHM_CREATE, 0} {};
     ShmCreateRequest(const std::string &regionName, const std::string &name, uint64_t size, const std::string &baseNid,
@@ -610,19 +618,19 @@ struct ShmCreateRequest : MsgBase {
         unpacker.Deserialize(regionDesc_);
         unpacker.Deserialize(flags_);
         unpacker.Deserialize(mode_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct ShmCreateWithProviderRequest : MsgBase {
     std::string hostName_;
-    uint32_t socketId_;
-    uint32_t numaId_;
-    uint32_t portId_;
+    uint32_t socketId_{};
+    uint32_t numaId_{};
+    uint32_t portId_{};
     std::string name_;
-    uint64_t size_;
-    uint64_t flags_;
-    mode_t mode_;
+    uint64_t size_{};
+    uint64_t flags_{};
+    mode_t mode_{};
 
     ShmCreateWithProviderRequest() : MsgBase{0, IPC_RACKMEMSHM_CREATE_WITH_PROVIDER, 0} {};
     ShmCreateWithProviderRequest(const std::string &hostName, uint32_t socketId, uint32_t numaId, uint32_t portId,
@@ -666,7 +674,7 @@ struct ShmCreateWithProviderRequest : MsgBase {
         unpacker.Deserialize(size_);
         unpacker.Deserialize(flags_);
         unpacker.Deserialize(mode_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -697,16 +705,16 @@ struct ShmDeleteRequest : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(regionName_);
         unpacker.Deserialize(name_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct ShmMapRequest : MsgBase {
     std::string regionName_;
     std::string name_;
-    uint64_t size_;
-    mode_t mode_;
-    int prot_;
+    uint64_t size_{};
+    mode_t mode_{};
+    int prot_{};
 
     ShmMapRequest() : MsgBase{0, IPC_RACKMEMSHM_MMAP, 0} {};
     ShmMapRequest(const std::string &regionName, const std::string &shmName, uint64_t size, mode_t mode, int prot)
@@ -740,7 +748,7 @@ struct ShmMapRequest : MsgBase {
         unpacker.Deserialize(size_);
         unpacker.Deserialize(mode_);
         unpacker.Deserialize(prot_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -771,7 +779,7 @@ struct ShmUnmapRequest : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(regionName_);
         unpacker.Deserialize(name_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -798,7 +806,7 @@ struct ShmQueryMemFaultStatusRequest : MsgBase {
         unpacker.Deserialize(opCode);
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(name_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -823,14 +831,14 @@ struct PingRequest : MsgBase {
         unpacker.Deserialize(opCode);
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(nodeId_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct VoteRequest : MsgBase {
     std::string nodeId_;
     std::string masterNode_;
-    int term_;
+    int term_{};
 
     VoteRequest() : MsgBase{0, MXM_MSG_SHM_ALLOCATE, 0} {};
     VoteRequest(const std::string &nodeId, const std::string &masterNode, int term)
@@ -858,13 +866,13 @@ struct VoteRequest : MsgBase {
         unpacker.Deserialize(nodeId_);
         unpacker.Deserialize(masterNode_);
         unpacker.Deserialize(term_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct BroadcastRequest : MsgBase {
     std::string nodeId_;
-    bool isSeverInited_;
+    bool isSeverInited_{};
     std::map<std::string, ock::rpc::ClusterNode> nodes_;
 
     BroadcastRequest() : MsgBase{0, MXM_MSG_SHM_ALLOCATE, 0}, isSeverInited_(false) {};
@@ -896,14 +904,14 @@ struct BroadcastRequest : MsgBase {
         unpacker.Deserialize(nodeId_);
         unpacker.Deserialize(nodes_);
         unpacker.Deserialize(isSeverInited_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct TransElectedRequest : MsgBase {
     std::string nodeId_;
     std::vector<std::string> nodes_;
-    int term_;
+    int term_{};
 
     TransElectedRequest() : MsgBase{0, MXM_MSG_SHM_ALLOCATE, 0} {};
     TransElectedRequest(const std::string &nodeId, const std::vector<std::string> &nodes, int term)
@@ -933,12 +941,12 @@ struct TransElectedRequest : MsgBase {
         unpacker.Deserialize(nodeId_);
         unpacker.Deserialize(nodes_);
         unpacker.Deserialize(term_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct ShmLookRegionListResponse : MsgBase {
-    int32_t errCode_;
+    int32_t errCode_{};
     SHMRegions regions_{};
 
     ShmLookRegionListResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
@@ -967,12 +975,12 @@ struct ShmLookRegionListResponse : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
         unpacker.Deserialize(regions_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct ShmCreateRegionResponse : MsgBase {
-    int32_t errCode_;
+    int32_t errCode_{};
 
     ShmCreateRegionResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
     {
@@ -995,12 +1003,12 @@ struct ShmCreateRegionResponse : MsgBase {
         unpacker.Deserialize(opCode);
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct ShmLookupRegionResponse : MsgBase {
-    int32_t errCode_;
+    int32_t errCode_{};
     SHMRegionDesc region_{};
 
     ShmLookupRegionResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
@@ -1029,12 +1037,12 @@ struct ShmLookupRegionResponse : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
         unpacker.Deserialize(region_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct ShmDestroyRegionResponse : MsgBase {
-    int32_t errCode_;
+    int32_t errCode_{};
 
     ShmDestroyRegionResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
     {
@@ -1057,17 +1065,17 @@ struct ShmDestroyRegionResponse : MsgBase {
         unpacker.Deserialize(opCode);
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct ShmMapResponse : MsgBase {
-    int32_t errCode_;
+    int32_t errCode_{};
     std::vector<uint64_t> memIds_{};
-    uint64_t shmSize_;
-    uint64_t unitSize_;
-    uint64_t flag_;
-    int oflag_;
+    uint64_t shmSize_{};
+    uint64_t unitSize_{};
+    uint64_t flag_{};
+    int oflag_{};
 
     ShmMapResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
     {
@@ -1108,13 +1116,13 @@ struct ShmMapResponse : MsgBase {
         unpacker.Deserialize(unitSize_);
         unpacker.Deserialize(flag_);
         unpacker.Deserialize(oflag_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct ShmQueryMemFaultStatusResponse : MsgBase {
-    int32_t errCode_;
-    bool isMemFault_;
+    int32_t errCode_{};
+    bool isMemFault_{};
 
     ShmQueryMemFaultStatusResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
     {
@@ -1142,7 +1150,7 @@ struct ShmQueryMemFaultStatusResponse : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
         unpacker.Deserialize(isMemFault_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -1173,12 +1181,12 @@ struct ShmWriteLockRequest : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(regionName_);
         unpacker.Deserialize(name_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct ShmWriteLockResponse : MsgBase {
-    int32_t errCode_;
+    int32_t errCode_{};
 
     ShmWriteLockResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
     {
@@ -1200,7 +1208,7 @@ struct ShmWriteLockResponse : MsgBase {
         unpacker.Deserialize(opCode);
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -1231,12 +1239,12 @@ struct ShmReadLockRequest : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(regionName_);
         unpacker.Deserialize(name_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct ShmReadLockResponse : MsgBase {
-    int32_t errCode_;
+    int32_t errCode_{};
 
     ShmReadLockResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
     {
@@ -1258,7 +1266,7 @@ struct ShmReadLockResponse : MsgBase {
         unpacker.Deserialize(opCode);
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -1289,12 +1297,12 @@ struct ShmUnLockRequest : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(regionName_);
         unpacker.Deserialize(name_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct ShmUnLockResponse : MsgBase {
-    int32_t errCode_;
+    int32_t errCode_{};
 
     ShmUnLockResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
     {
@@ -1316,12 +1324,12 @@ struct ShmUnLockResponse : MsgBase {
         unpacker.Deserialize(opCode);
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct RpcQueryInfoResponse : MsgBase {
-    int32_t errCode_;
+    int32_t errCode_{};
     std::string name_;
 
     RpcQueryInfoResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
@@ -1350,7 +1358,7 @@ struct RpcQueryInfoResponse : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
         unpacker.Deserialize(name_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -1377,13 +1385,13 @@ struct DLockClientReinitRequest : MsgBase {
         unpacker.Deserialize(opCode);
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(serverIp_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct DLockClientReinitResponse : MsgBase {
-    int32_t errCode_;
-    int32_t dLockCode_;
+    int32_t errCode_{};
+    int32_t dLockCode_{};
 
     DLockClientReinitResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
     {
@@ -1412,16 +1420,16 @@ struct DLockClientReinitResponse : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
         unpacker.Deserialize(dLockCode_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct LockRequest : MsgBase {
     std::string memName_;
-    bool isExclusive_;
-    uint32_t pid_;
-    uint32_t uid_;
-    uint32_t gid_;
+    bool isExclusive_{};
+    uint32_t pid_{};
+    uint32_t uid_{};
+    uint32_t gid_{};
 
     LockRequest() : MsgBase{0, MXM_MSG_BUTT, 0} {};
     explicit LockRequest(const std::string &memName, bool isExclusive, uint32_t pid, uint32_t uid, uint32_t gid)
@@ -1455,15 +1463,15 @@ struct LockRequest : MsgBase {
         unpacker.Deserialize(pid_);
         unpacker.Deserialize(uid_);
         unpacker.Deserialize(gid_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct UnLockRequest : MsgBase {
     std::string memName_;
-    uint32_t pid_;
-    uint32_t uid_;
-    uint32_t gid_;
+    uint32_t pid_{};
+    uint32_t uid_{};
+    uint32_t gid_{};
 
     UnLockRequest() : MsgBase{0, MXM_MSG_BUTT, 0} {};
     explicit UnLockRequest(const std::string &memName, uint32_t pid, uint32_t uid, uint32_t gid)
@@ -1494,12 +1502,12 @@ struct UnLockRequest : MsgBase {
         unpacker.Deserialize(pid_);
         unpacker.Deserialize(uid_);
         unpacker.Deserialize(gid_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 struct DLockResponse : MsgBase {
-    int32_t errCode_;
-    int32_t dLockCode_;
+    int32_t errCode_{};
+    int32_t dLockCode_{};
 
     DLockResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
     {
@@ -1528,13 +1536,13 @@ struct DLockResponse : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
         unpacker.Deserialize(dLockCode_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct RpcJoinInfoResponse : MsgBase {
-    int32_t errCode_;
-    int32_t nodetype_;
+    int32_t errCode_{};
+    int32_t nodetype_{};
 
     RpcJoinInfoResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
     {
@@ -1562,14 +1570,14 @@ struct RpcJoinInfoResponse : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
         unpacker.Deserialize(nodetype_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct RpcVoteInfoResponse : MsgBase {
-    int32_t errCode_;
+    int32_t errCode_{};
     std::string name_;
-    bool isGranted_;
+    bool isGranted_{};
 
     RpcVoteInfoResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
     {
@@ -1600,7 +1608,7 @@ struct RpcVoteInfoResponse : MsgBase {
         unpacker.Deserialize(errCode_);
         unpacker.Deserialize(name_);
         unpacker.Deserialize(isGranted_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -1631,17 +1639,17 @@ struct ShmAttachRequest : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(regionName_);
         unpacker.Deserialize(name_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct ShmAttachResponse : MsgBase {
-    int32_t errCode_;
+    int32_t errCode_{};
     std::vector<uint64_t> memIds_{};
-    uint64_t shmSize_;
-    uint64_t unitSize_;
-    uint64_t flag_;
-    int oflag_;
+    uint64_t shmSize_{};
+    uint64_t unitSize_{};
+    uint64_t flag_{};
+    int oflag_{};
 
     ShmAttachResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
     {
@@ -1682,7 +1690,7 @@ struct ShmAttachResponse : MsgBase {
         unpacker.Deserialize(unitSize_);
         unpacker.Deserialize(flag_);
         unpacker.Deserialize(oflag_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -1713,7 +1721,7 @@ struct ShmDetachRequest : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(regionName_);
         unpacker.Deserialize(name_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -1744,12 +1752,12 @@ struct ShmLookupRequest : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(regionName_);
         unpacker.Deserialize(name_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct ShmLookupResponse : MsgBase {
-    int32_t errCode_;
+    int32_t errCode_{};
     ubsmem_shmem_info_t shmInfo_{};
 
     ShmLookupResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
@@ -1778,14 +1786,14 @@ struct ShmLookupResponse : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
         unpacker.Deserialize(shmInfo_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct QueryNodeRequest : MsgBase {
     // true  is queryMasterNode
     // false is queryClientNode
-    bool queryMasterNodeFlag_;
+    bool queryMasterNodeFlag_{};
 
     QueryNodeRequest() : MsgBase{0, IPC_RACKMEMSHM_QUERY_NODE, 0} {};
     explicit QueryNodeRequest(bool queryMasterNodeFlag)
@@ -1807,14 +1815,14 @@ struct QueryNodeRequest : MsgBase {
         unpacker.Deserialize(opCode);
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(queryMasterNodeFlag_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct QueryNodeResponse : MsgBase {
-    int32_t errCode_;
+    int32_t errCode_{};
     std::string nodeId_;
-    bool nodeIsReady_;
+    bool nodeIsReady_{};
 
     QueryNodeResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
     {
@@ -1845,13 +1853,13 @@ struct QueryNodeResponse : MsgBase {
         unpacker.Deserialize(errCode_);
         unpacker.Deserialize(nodeId_);
         unpacker.Deserialize(nodeIsReady_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct QueryDlockStatusResponse : MsgBase {
-    int32_t errCode_;
-    bool isReady_;
+    int32_t errCode_{};
+    bool isReady_{};
 
     QueryDlockStatusResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
     {
@@ -1879,7 +1887,7 @@ struct QueryDlockStatusResponse : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
         unpacker.Deserialize(isReady_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -1910,12 +1918,12 @@ struct ShmListLookupRequest : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(regionName_);
         unpacker.Deserialize(prefix_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct ShmListLookupResponse : MsgBase {
-    int32_t errCode_;
+    int32_t errCode_{};
     std::vector<ubsmem_shmem_desc_t> shmNames_{};
 
     ShmListLookupResponse() : MsgBase{0, MXM_MSG_BUTT, 0}
@@ -1944,13 +1952,13 @@ struct ShmListLookupResponse : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
         unpacker.Deserialize(shmNames_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
 struct LookupSlotIdResponse : MsgBase {
-    int32_t errCode_;
-    uint32_t slotId_;
+    int32_t errCode_{};
+    uint32_t slotId_{};
 
     LookupSlotIdResponse() : MsgBase(0, MXM_MSG_BUTT, 0)
     {
@@ -1978,7 +1986,7 @@ struct LookupSlotIdResponse : MsgBase {
         unpacker.Deserialize(destRankId);
         unpacker.Deserialize(errCode_);
         unpacker.Deserialize(slotId_);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -1996,7 +2004,7 @@ struct IpcSuspendRequest : MsgBase {
         unpacker.Deserialize(msgVer);
         unpacker.Deserialize(opCode);
         unpacker.Deserialize(destRankId);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 
@@ -2014,7 +2022,7 @@ struct IpcResumeRequest : MsgBase {
         unpacker.Deserialize(msgVer);
         unpacker.Deserialize(opCode);
         unpacker.Deserialize(destRankId);
-        return UBSM_OK;
+        return DeserializeResult(unpacker);
     }
 };
 

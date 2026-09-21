@@ -170,9 +170,52 @@ TEST_F(EventTestSuite, TestOnMasterElectedWithNodeListAndLockNotInit)
     void *mockFunc = reinterpret_cast<void *>(MockDLockSuccess);
     MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
     MOCKER(SystemAdapter::DlSym).stubs().with(any(), any()).will(returnValue(mockFunc));
+    MOCKER(SystemAdapter::DlClose).stubs().will(returnValue(0));
     TestDefaultConfig();
     UbsmLockEvent::OnMasterElected(masterId);
     // 当本节点是主节点，会初始化 UbsmLock
     ASSERT_TRUE(UbsmLock::Instance().IsUbsmLockInit());
+    UbsmLockEvent::OnDLockDemoted();
+    DLockExecutor::GetInstance().DestroyDLockDlopenLib();
+}
+
+TEST_F(EventTestSuite, TestDemotionSkipsNullLibraryDeinitFunctions)
+{
+    auto &executor = DLockExecutor::GetInstance();
+    auto serverDeinit = executor.DLockSeverLibDeInitFunc;
+    auto clientDeinit = executor.DLockClientLibDeInitFunc;
+    executor.DLockSeverLibDeInitFunc = nullptr;
+    executor.DLockClientLibDeInitFunc = nullptr;
+    auto &ctx = DLockContext::Instance();
+    ctx.GetConfig().isDlockServer = true;
+    ctx.GetConfig().isDlockClient = true;
+    ctx.GetConfig().recoveryClientNum = 1;
+    ctx.SetServerDeinitFlag(true);
+    UbsmLock::Instance().UbsmLockInitSet(true);
+    mockcpp::mockAPI("UbsmLock::DeInit", reinterpret_cast<int32_t (*)()>(&UbsmLock::DeInit)).expects(never());
+
+    UbsmLockEvent::OnDLockDemoted();
+
+    EXPECT_FALSE(UbsmLock::Instance().IsUbsmLockInit());
+    EXPECT_FALSE(ctx.GetConfig().isDlockServer);
+    EXPECT_FALSE(ctx.GetConfig().isDlockClient);
+    EXPECT_FALSE(ctx.IsNeedServerDeinit());
+    EXPECT_EQ(ctx.GetConfig().recoveryClientNum, 0U);
+    executor.DLockSeverLibDeInitFunc = serverDeinit;
+    executor.DLockClientLibDeInitFunc = clientDeinit;
+}
+
+TEST_F(EventTestSuite, TestDemotionIsSafeAfterFailedInitialization)
+{
+    auto &ctx = DLockContext::Instance();
+    ctx.GetConfig().isDlockServer = false;
+    ctx.GetConfig().isDlockClient = false;
+    UbsmLock::Instance().UbsmLockInitSet(true);
+
+    UbsmLockEvent::OnDLockDemoted();
+
+    EXPECT_FALSE(UbsmLock::Instance().IsUbsmLockInit());
+    EXPECT_FALSE(ctx.GetConfig().isDlockServer);
+    EXPECT_FALSE(ctx.GetConfig().isDlockClient);
 }
 } // namespace UT

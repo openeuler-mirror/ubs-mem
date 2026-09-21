@@ -224,6 +224,12 @@ int RecordStore::AddRegionRecord(const CreateRegionInput &input) noexcept
         DBG_LOGERROR("memset for region nodes bitmap(" << input.name << ") failed: " << sRet);
         return -1;
     }
+    sRet = memset_s(region->bitmapAffinity, sizeof(region->bitmapAffinity), 0, sizeof(region->bitmapAffinity));
+    if (sRet != EOK) {
+        regionAllocator_->Release(region);
+        DBG_LOGERROR("memset for region affinity bitmap(" << input.name << ") failed: " << sRet);
+        return -1;
+    }
 
     for (size_t i = 0; i < input.nodeIds.size(); ++i) {
         auto index = input.nodeIds[i] / U64_BITS_COUNT;
@@ -276,10 +282,7 @@ std::vector<CreateRegionInput> RecordStore::ListRegionRecord() const noexcept
     std::vector<CreateRegionInput> result;
 
     std::unique_lock<std::mutex> uniqueLock{cachedRecordMutex_};
-    auto backup = cachedRegionRecords_;
-    uniqueLock.unlock();
-
-    for (auto &it : backup) {
+    for (const auto &it : cachedRegionRecords_) {
         std::vector<uint32_t> nodeIds;
         std::vector<bool> affinitys;
         for (auto index = 0U; index < REGION_NODE_BITMAP_U64SIZE; index++) {
@@ -300,66 +303,6 @@ std::vector<CreateRegionInput> RecordStore::ListRegionRecord() const noexcept
     }
 
     return result;
-}
-
-int RecordStore::AddMemLeaseRecord(const MemLeaseInfo &info) noexcept
-{
-    if (info.first.name.size() >= RECORD_NAME_SIZE) {
-        DBG_LOGERROR("input lease memory name(" << info.first.name << ") too long.");
-        return -1;
-    }
-
-    if (mappingAddress_ == nullptr) {
-        DBG_LOGERROR("not initialized!");
-        return -1;
-    }
-
-    auto record = memLeaseAllocator_->Allocate();
-    if (record == nullptr) {
-        DBG_LOGERROR("allocate record for MemoryLease failed!");
-        return -1;
-    }
-
-    uint32_t memIdHeadIndex = 0UL;
-    auto ret = poolAllocator_.Allocate(info.second.memIds, memIdHeadIndex);
-    if (ret != 0) {
-        DBG_LOGERROR("allocate record for mem id pool with size:" << info.second.memIds.size() << " failed!");
-        memLeaseAllocator_->Release(record);
-        return -1;
-    }
-
-    auto sRet = strcpy_s(record->name, RECORD_NAME_SIZE, info.first.name.c_str());
-    if (sRet != EOK) {
-        memLeaseAllocator_->Release(record);
-        poolAllocator_.Release(memIdHeadIndex);
-        DBG_LOGERROR("copy memory lease name(" << info.first.name << ") failed: " << sRet);
-        return -1;
-    }
-
-    record->size = info.first.size;
-    record->pid = info.first.appContext.pid;
-    record->uid = info.first.appContext.uid;
-    record->gid = info.first.appContext.gid;
-    record->fdMode = info.first.fdMode ? 1U : 0U;
-    record->distance = info.first.distance;
-    record->numaId = info.second.numaId;
-    record->unitSize = info.second.unitSize;
-    record->memIdCount = info.second.memIds.size();
-    record->slotId = info.second.slotId;
-    record->memIdBuffer = memIdHeadIndex;
-
-    std::unique_lock<std::mutex> uniqueLock{cachedRecordMutex_};
-    auto pos = cachedLeaseRecords_.find(info.first.name);
-    if (pos != cachedLeaseRecords_.end()) {
-        uniqueLock.unlock();
-        memLeaseAllocator_->Release(record);
-        poolAllocator_.Release(memIdHeadIndex);
-        DBG_LOGERROR("input mem lease name(" << info.first.name << ") already exist!");
-        return -1;
-    }
-
-    cachedLeaseRecords_.emplace(info.first.name, WithMemIdsRecord<MemLeaseRecord>{record, info.second.memIds});
-    return 0;
 }
 
 int RecordStore::DelMemLeaseRecord(const std::string &name) noexcept
@@ -383,8 +326,11 @@ int RecordStore::DelMemLeaseRecord(const std::string &name) noexcept
     uniqueLock.unlock();
 
     auto memIdHeadIndex = record->memIdBuffer;
+    auto hasMemIds = record->memIdCount != 0;
     memLeaseAllocator_->Release(record);
-    poolAllocator_.Release(memIdHeadIndex);
+    if (hasMemIds) {
+        poolAllocator_.Release(memIdHeadIndex);
+    }
     return 0;
 }
 
@@ -419,6 +365,8 @@ int RecordStore::AddMemLeaseInput(const LeaseMallocInput &input) noexcept
     record->memIdBuffer = 0;
     record->recordState = input.state;
     record->numaId = -1;
+    record->unitSize = 0;
+    record->slotId = 0;
 
     std::unique_lock<std::mutex> uniqueLock{cachedRecordMutex_};
     auto pos = cachedLeaseRecords_.find(input.name);
@@ -492,10 +440,7 @@ std::vector<MemLeaseInfo> RecordStore::ListMemLeaseRecord() const noexcept
     }
 
     std::unique_lock<std::mutex> uniqueLock{cachedRecordMutex_};
-    auto backup = cachedLeaseRecords_;
-    uniqueLock.unlock();
-
-    for (auto &it : backup) {
+    for (const auto &it : cachedLeaseRecords_) {
         MemLeaseInfo info;
         ConvertMemLease(it.second, info);
         result.emplace_back(info);
@@ -527,62 +472,6 @@ int RecordStore::UpdateMemLeaseRecord(const std::string &name, const AppContext 
     return 0;
 }
 
-int RecordStore::AddShmImportRecord(const ock::ubsm::ShareMemImportInfo &info) noexcept
-{
-    if (info.name.size() >= RECORD_NAME_SIZE) {
-        DBG_LOGERROR("input share memory import name(" << info.name << ") too long.");
-        return -1;
-    }
-
-    if (mappingAddress_ == nullptr) {
-        DBG_LOGERROR("not initialized!");
-        return -1;
-    }
-
-    auto record = shmImportAllocator_->Allocate();
-    if (record == nullptr) {
-        DBG_LOGERROR("allocate record for share memory import failed!");
-        return -1;
-    }
-
-    uint32_t memIdHeadIndex = 0UL;
-    auto ret = poolAllocator_.Allocate(info.memIds, memIdHeadIndex);
-    if (ret != 0) {
-        DBG_LOGERROR("allocate record for mem id pool with size:" << info.memIds.size() << " failed!");
-        shmImportAllocator_->Release(record);
-        return -1;
-    }
-
-    auto sRet = strcpy_s(record->name, RECORD_NAME_SIZE, info.name.c_str());
-    if (sRet != EOK) {
-        shmImportAllocator_->Release(record);
-        DBG_LOGERROR("copy share memory import name(" << info.name << ") failed: " << sRet);
-        return -1;
-    }
-    record->shmSize = info.size;
-    record->pid = info.appContext.pid;
-    record->uid = info.appContext.uid;
-    record->gid = info.appContext.gid;
-    record->unitSize = info.unitSize;
-    record->memIdCount = info.memIds.size();
-    record->memIdBuffer = memIdHeadIndex;
-    record->flag = info.flag;
-    record->oflag = info.oflag;
-
-    std::unique_lock<std::mutex> uniqueLock{cachedRecordMutex_};
-    auto pos = cachedImportShmRecords_.find(info.name);
-    if (pos != cachedImportShmRecords_.end()) {
-        uniqueLock.unlock();
-        shmImportAllocator_->Release(record);
-        poolAllocator_.Release(memIdHeadIndex);
-        DBG_LOGERROR("input share memory import name(" << info.name << ") already exist!");
-        return -1;
-    }
-
-    cachedImportShmRecords_.emplace(info.name, WithMemIdsRecord<MemShareImportRecord>{record, info.memIds});
-    return 0;
-}
-
 int RecordStore::DelShmImportRecord(const std::string &name) noexcept
 {
     if (mappingAddress_ == nullptr) {
@@ -609,8 +498,11 @@ int RecordStore::DelShmImportRecord(const std::string &name) noexcept
     uniqueLock.unlock();
 
     auto memIdHeadIndex = record->memIdBuffer;
+    auto hasMemIds = record->memIdCount != 0;
     shmImportAllocator_->Release(record);
-    poolAllocator_.Release(memIdHeadIndex);
+    if (hasMemIds) {
+        poolAllocator_.Release(memIdHeadIndex);
+    }
     return 0;
 }
 
@@ -639,8 +531,13 @@ int RecordStore::AddShmImportInput(const ShareMemImportInput &input) noexcept
 
     record->shmSize = input.size;
     record->pid = input.pid;
+    record->uid = 0;
+    record->gid = 0;
+    record->unitSize = 0;
     record->memIdCount = 0;
     record->memIdBuffer = 0;
+    record->flag = 0;
+    record->oflag = 0;
     record->recordState = RecordState::PRE_ADD;
 
     std::unique_lock<std::mutex> uniqueLock{cachedRecordMutex_};
@@ -717,10 +614,7 @@ std::vector<ShareMemImportInfo> RecordStore::ListShmImportRecord() const noexcep
     }
 
     std::unique_lock<std::mutex> uniqueLock{cachedRecordMutex_};
-    auto backup = cachedImportShmRecords_;
-    uniqueLock.unlock();
-
-    for (auto &it : backup) {
+    for (const auto &it : cachedImportShmRecords_) {
         ShareMemImportInfo info;
         info.name = it.first;
         info.size = it.second.record->shmSize;

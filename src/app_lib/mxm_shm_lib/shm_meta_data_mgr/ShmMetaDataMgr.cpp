@@ -50,14 +50,13 @@ uint32_t GetSegmentsAndFirstUsage(ShmAppMetaData &shmAppMetaData, void *checkAdd
 
     uintptr_t base = reinterpret_cast<uintptr_t>(shmAppMetaData.addr);
     uintptr_t queryStart = reinterpret_cast<uintptr_t>(checkAddr);
-    uintptr_t queryEnd = queryStart + checkLen;
     // 确保 queryStart >= base，避免偏移量过大
     if (queryStart < base) {
         DBG_LOGERROR("queryStart < base, invalid param, start " << queryStart << ", base " << base);
         return MXM_ERR_PARAM_INVALID;
     }
     if (((queryStart - base) % FOUR_KB) != 0) {
-        DBG_LOGERROR("queryStart not align 4kb " << queryStart << ", end " << queryEnd);
+        DBG_LOGERROR("queryStart not align 4kb " << queryStart);
         return MXM_ERR_PARAM_INVALID;
     }
     // 检查 queryStart + checkLen 是否溢出
@@ -65,13 +64,15 @@ uint32_t GetSegmentsAndFirstUsage(ShmAppMetaData &shmAppMetaData, void *checkAdd
         DBG_LOGERROR("queryStart + checkLen overflow");
         return MXM_ERR_PARAM_INVALID;
     }
+    uintptr_t queryEnd = queryStart + checkLen;
 
     if (queryEnd < queryStart) {
         DBG_LOGERROR("queryEnd < queryStart, invalid param, start " << queryStart << ", end " << queryEnd);
         return MXM_ERR_PARAM_INVALID;
     }
 
-    if (queryEnd > base + shmAppMetaData.mapSize) {
+    if (shmAppMetaData.mapSize > std::numeric_limits<uintptr_t>::max() - base ||
+        queryEnd > base + shmAppMetaData.mapSize) {
         DBG_LOGERROR("queryEnd < base + mapSize, invalid param, start " << queryStart << ", end " << queryEnd
                                                                         << ", base " << base << ", mapSize "
                                                                         << shmAppMetaData.mapSize);
@@ -87,6 +88,10 @@ uint32_t GetSegmentsAndFirstUsage(ShmAppMetaData &shmAppMetaData, void *checkAdd
     int64_t startIdx = static_cast<int64_t>((queryStart - base) / shmAppMetaData.unitSize);
     // 结束段索引 (query_end 是开区间)
     int64_t endIdx = static_cast<int64_t>((queryEnd - 1 - base) / shmAppMetaData.unitSize);
+    if (startIdx < 0 || endIdx < startIdx || static_cast<size_t>(endIdx) >= shmAppMetaData.addrs.size()) {
+        DBG_LOGERROR("Address segment index is outside metadata range");
+        return MXM_ERR_PARAM_INVALID;
+    }
 
     indices.reserve(endIdx - startIdx + 1); // 预分配空间，提高效率
     for (int i = startIdx; i <= endIdx; ++i) {
@@ -120,6 +125,23 @@ int32_t ShmMetaDataMgr::CheckAddr(std::string name, void *start, size_t length, 
     mNameLock[key].UnLock();
     DBG_LOGERROR("CheckAddr failed, name=" << name);
     return MXM_ERR_PARAM_INVALID;
+}
+
+int32_t ShmMetaDataMgr::GetNameByAddr(void *start, std::string &name)
+{
+    if (start == nullptr) {
+        DBG_LOGERROR("Param start is nullptr.");
+        return MXM_ERR_PARAM_INVALID;
+    }
+    const auto key = PtrToSegment(start);
+    Locker<Lock> ptrLocker(&mPtrLock[key]);
+    const auto find = mAddr2NameMap[key].find(start);
+    if (find == mAddr2NameMap[key].end()) {
+        DBG_LOGERROR("Name not exist");
+        return MXM_ERR_SHM_NOT_FOUND;
+    }
+    name = find->second;
+    return UBSM_OK;
 }
 
 int32_t ShmMetaDataMgr::CheckNameExistAndGet(void *start, size_t mapSize, ShmAppMetaData &shmAppMetaData)
@@ -328,21 +350,19 @@ uint32_t ShmMetaDataMgr::RemoveMetaData(void *start, const std::string &name)
         DBG_LOGERROR("Name not exist " << name);
         return MXM_ERR_MEMLIB;
     }
-    auto shmMapMetaData = find->second;
-
+    auto ret = RemoveMappedMemoryRange(start);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("RemoveMappedMemoryRange failed: " << ret);
+        mNameLock[key].UnLock();
+        return ret;
+    }
     mAppShmInfoMap[key].erase(name);
     mNameLock[key].UnLock();
 
     const auto pkey = PtrToSegment(start);
-    mPtrLock[pkey].DoLock();
+    Locker<Lock> ptrLocker(&mPtrLock[pkey]);
     mAddr2NameMap[pkey].erase(start);
-    mPtrLock[pkey].UnLock();
     DBG_LOGINFO("WhenUnMap end name " << name);
-    auto ret = RemoveMappedMemoryRange(start);
-    if (ret != MXM_OK) {
-        DBG_LOGERROR("RemoveMappedMemoryRange failed: " << ret);
-        return ret;
-    }
     return UBSM_OK;
 }
 
@@ -352,27 +372,27 @@ uint32_t ShmMetaDataMgr::AddMetaData(const std::string &name, void *mAddr, ShmAp
         DBG_LOGERROR("Param mAddr is nullptr.");
         return MXM_ERR_NULLPTR;
     }
-    auto ret = AddMappedMemoryRange(mAddr, shmAppMetaData.mapSize);
-    if (ret != MXM_OK) {
-        DBG_LOGERROR("AddMappedMemoryRange failed: " << ret);
-        return ret;
-    }
     DBG_LOGDEBUG("Adding meta data, name=" << name);
     const auto key = StrToSegment(name);
     const auto pkey = PtrToSegment(mAddr);
-    mNameLock[key].DoLock();
-    const auto find = mAppShmInfoMap[key].find(name);
-    if (find == mAppShmInfoMap[key].end()) {
-        mAppShmInfoMap[key].emplace(name, shmAppMetaData);
-    } else {
-        DBG_LOGWARN("AddMetaDataAfterMap name exist! name:" << name);
-        mAppShmInfoMap[key][name] = shmAppMetaData;
+    {
+        Locker<Lock> nameLocker(&mNameLock[key]);
+        auto ret = AddMappedMemoryRange(mAddr, shmAppMetaData.mapSize);
+        if (ret != MXM_OK) {
+            DBG_LOGERROR("AddMappedMemoryRange failed: " << ret);
+            return ret;
+        }
+        const auto find = mAppShmInfoMap[key].find(name);
+        if (find == mAppShmInfoMap[key].end()) {
+            mAppShmInfoMap[key].emplace(name, shmAppMetaData);
+        } else {
+            DBG_LOGWARN("AddMetaDataAfterMap name exist! name:" << name);
+            find->second = shmAppMetaData;
+        }
     }
-    mNameLock[key].UnLock();
 
-    mPtrLock[pkey].DoLock();
+    Locker<Lock> ptrLocker(&mPtrLock[pkey]);
     mAddr2NameMap[pkey][mAddr] = name;
-    mPtrLock[pkey].UnLock();
     DBG_LOGDEBUG("Adding meta data successfully, name=" << name << ", data=" << shmAppMetaData);
     return UBSM_OK;
 }

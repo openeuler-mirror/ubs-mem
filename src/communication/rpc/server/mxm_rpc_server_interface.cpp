@@ -16,18 +16,34 @@
 #include "rpc_config.h"
 #include "util/defines.h"
 
+#include <condition_variable>
+#include <mutex>
+
 namespace ock::com::rpc {
 MxmRpcServer *g_mxmRpcServer{nullptr};
-std::atomic<int> g_rpcServerCount{0};
+int g_rpcServerCount{0};
+std::mutex g_rpcServerMutex;
+std::condition_variable g_rpcServerCv;
+uint32_t g_activeRpcOperations{0};
+bool g_rpcServerStopping{false};
 
 const std::string RACK_AGENT_RPC_SERVER_ENGINE_NAME = "MxmAgentRpcServerEngine";
 
 HRESULT RegRpcService(MxmComBaseMessageHandlerPtr &handlerPtr)
 {
-    if (g_mxmRpcServer != nullptr) {
-        return g_mxmRpcServer->RegMessageHandler(handlerPtr);
+    std::unique_lock<std::mutex> lock(g_rpcServerMutex);
+    if (g_mxmRpcServer == nullptr || g_rpcServerStopping) {
+        return HFAIL;
     }
-    return HOK;
+    auto server = g_mxmRpcServer;
+    ++g_activeRpcOperations;
+    lock.unlock();
+    auto ret = server->RegMessageHandler(handlerPtr);
+    lock.lock();
+    --g_activeRpcOperations;
+    lock.unlock();
+    g_rpcServerCv.notify_all();
+    return ret;
 }
 
 /**
@@ -36,7 +52,13 @@ HRESULT RegRpcService(MxmComBaseMessageHandlerPtr &handlerPtr)
  */
 int MxmComStartRpcServer()
 {
-    if (g_rpcServerCount.load() > 0 && g_mxmRpcServer != nullptr) {
+    std::lock_guard<std::mutex> lock(g_rpcServerMutex);
+    if (g_rpcServerStopping) {
+        DBG_LOGERROR("RPC server is stopping.");
+        return HFAIL;
+    }
+    if (g_mxmRpcServer != nullptr) {
+        ++g_rpcServerCount;
         return HOK;
     }
 
@@ -57,7 +79,7 @@ int MxmComStartRpcServer()
         return HFAIL;
     }
     g_mxmRpcServer = rpcServer;
-    g_rpcServerCount.fetch_add(1);
+    ++g_rpcServerCount;
     return HOK;
 }
 
@@ -66,16 +88,25 @@ int MxmComStartRpcServer()
  */
 void MxmComStopRpcServer()
 {
-    if (g_rpcServerCount.load() == 0) {
+    std::unique_lock<std::mutex> lock(g_rpcServerMutex);
+    if (g_rpcServerCount == 0 || g_mxmRpcServer == nullptr) {
         DBG_LOGINFO("Server has been stopped");
         return;
     }
-    g_rpcServerCount.fetch_sub(1);
-    if (g_mxmRpcServer != nullptr) {
-        g_mxmRpcServer->Stop();
-        delete g_mxmRpcServer;
-        g_mxmRpcServer = nullptr;
+    if (--g_rpcServerCount > 0) {
+        return;
     }
+    g_rpcServerStopping = true;
+    g_rpcServerCv.wait(lock, [] { return g_activeRpcOperations == 0; });
+    auto server = g_mxmRpcServer;
+    lock.unlock();
+    server->Stop();
+    lock.lock();
+    g_mxmRpcServer = nullptr;
+    g_rpcServerStopping = false;
+    lock.unlock();
+    delete server;
+    g_rpcServerCv.notify_all();
 }
 
 uint32_t MxmRegRpcService(const MxmComEndpoint &endpoint, const MxmComServiceHandler &handler)
@@ -102,7 +133,8 @@ uint32_t MxmRegRpcService(const MxmComEndpoint &endpoint, const MxmComServiceHan
 int MxmComRpcServerSend(uint16_t opCode, MsgBase *request, MsgBase *response, const std::string &nodeId)
 {
     SendParam param(nodeId, static_cast<uint16_t>(MxmModuleCode::MEM), opCode, MxmChannelType::NORMAL);
-    if (g_mxmRpcServer == nullptr) {
+    std::unique_lock<std::mutex> lock(g_rpcServerMutex);
+    if (g_mxmRpcServer == nullptr || g_rpcServerStopping) {
         DBG_LOGERROR("g_mxmRpcServer is nullptr");
         return HFAIL;
     }
@@ -110,17 +142,32 @@ int MxmComRpcServerSend(uint16_t opCode, MsgBase *request, MsgBase *response, co
         DBG_LOGERROR("request or response is nullptr");
         return HFAIL;
     }
-    auto ret = g_mxmRpcServer->Send(param, request, response);
+    auto server = g_mxmRpcServer;
+    ++g_activeRpcOperations;
+    lock.unlock();
+    auto ret = server->Send(param, request, response);
+    lock.lock();
+    --g_activeRpcOperations;
+    lock.unlock();
+    g_rpcServerCv.notify_all();
     return ret;
 }
 
 int MxmComRpcServerConnect(const RpcNode &nodeId)
 {
-    if (g_mxmRpcServer == nullptr) {
+    std::unique_lock<std::mutex> lock(g_rpcServerMutex);
+    if (g_mxmRpcServer == nullptr || g_rpcServerStopping) {
         DBG_LOGERROR("g_mxmRpcServer is nullptr");
         return HFAIL;
     }
-    auto ret = g_mxmRpcServer->Connect(nodeId);
+    auto server = g_mxmRpcServer;
+    ++g_activeRpcOperations;
+    lock.unlock();
+    auto ret = server->Connect(nodeId);
+    lock.lock();
+    --g_activeRpcOperations;
+    lock.unlock();
+    g_rpcServerCv.notify_all();
     return ret;
 }
 } // namespace ock::com::rpc

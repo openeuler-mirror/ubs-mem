@@ -282,6 +282,8 @@ void UBSMemMonitor::AddDelayRemoveRecord(const DelayRemovedKey &key)
     std::unique_lock<std::recursive_mutex> lock{mutex};
     delayedRemoveKeys.insert(key);
     delayedRemoveKeysByName.insert(key);
+    lock.unlock();
+    cond.notify_one();
 }
 
 bool UBSMemMonitor::GetDelayRemoveRecord(const DelayRemovedKey &key)

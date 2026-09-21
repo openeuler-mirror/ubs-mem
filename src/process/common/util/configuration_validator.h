@@ -405,6 +405,7 @@ private:
 
         if (!ValidateIp(validSet[0])) {
             mErrMsg = "Invalid Ip for <" + mName;
+            return false;
         }
         ipAndPort.first = validSet[0];
         ipAndPort.second = static_cast<uint16_t>(port);

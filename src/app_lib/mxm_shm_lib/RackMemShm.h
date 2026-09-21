@@ -89,7 +89,6 @@ public:
 private:
     RackMemShm() = default;
     std::unordered_map<void *, RackMemShmOwnStatus> addr2OwnStatus{};
-    std::mutex mapMtx;
 };
 } // namespace mxmd
 } // namespace ock

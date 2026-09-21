@@ -3,6 +3,7 @@
  */
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
+#include <thread>
 
 #include "RackMemShm.cpp"
 #include "RackMemShm.h"
@@ -33,6 +34,57 @@ protected:
     ShmAppMetaData shmMetaData;
     std::vector<uint64_t> memIds = {123, 456};
 };
+
+TEST_F(RackMemShmTest, MetaOperationLockSerializesSameName)
+{
+    auto &mgr = ShmMetaDataMgr::GetInstance();
+    auto lock = mgr.LockMeta(validName);
+    bool acquired = false;
+    std::thread contender([&]() {
+        acquired = lock.mutex()->try_lock();
+        if (acquired) {
+            lock.mutex()->unlock();
+        }
+    });
+    contender.join();
+    EXPECT_FALSE(acquired);
+    lock.unlock();
+    auto nextLock = mgr.LockMeta(validName);
+    EXPECT_TRUE(nextLock.owns_lock());
+}
+
+TEST_F(RackMemShmTest, MetaOperationLocksAllowDifferentSegments)
+{
+    auto &mgr = ShmMetaDataMgr::GetInstance();
+    std::string otherName;
+    for (int i = 0; i < 1024; ++i) {
+        otherName = "other_shm_" + std::to_string(i);
+        if (mgr.StrToSegment(otherName) != mgr.StrToSegment(validName)) {
+            break;
+        }
+    }
+    ASSERT_NE(mgr.StrToSegment(otherName), mgr.StrToSegment(validName));
+    auto lock = mgr.LockMeta(validName);
+    auto otherLock = mgr.LockMeta(otherName);
+    EXPECT_TRUE(otherLock.owns_lock());
+    EXPECT_NE(lock.mutex(), otherLock.mutex());
+}
+
+TEST_F(RackMemShmTest, UnmapRevalidatesMetadataBeforeReleasingMapping)
+{
+    MOCKER_CPP(&ShmMetaDataMgr::GetNameByAddr, int32_t(*)(ShmMetaDataMgr *, void *, std::string &))
+        .expects(once())
+        .with(any(), eq(validAddr), outBound(validName))
+        .will(returnValue(static_cast<int32_t>(UBSM_OK)));
+    MOCKER_CPP(&ShmMetaDataMgr::GetShmMetaFromName, int32_t(*)(ShmMetaDataMgr *, const std::string &, ShmAppMetaData &))
+        .expects(once())
+        .with(any(), eq(validName), any())
+        .will(returnValue(static_cast<int32_t>(MXM_ERR_SHM_NOT_FOUND)));
+    MOCKER(SystemAdapter::MemoryMap).expects(never());
+    MOCKER(ShmIpcCommand::IpcCallShmUnMap).expects(never());
+
+    EXPECT_EQ(RackMemShm::GetInstance().UbsMemShmUnmmap(validAddr, validSize), MXM_ERR_SHM_NOT_FOUND);
+}
 
 TEST_F(RackMemShmTest, TestUbsMemShmCreateParameterCheckFailure)
 {
@@ -166,6 +218,21 @@ TEST_F(RackMemShmTest, TestMmapByMemIDMapFailure)
 
     uint32_t result =
         RackMemShmMmapByMemID(validAddr, validSize, 2, memIds, shmMetaData, O_RDWR, 0, PROT_READ, MAP_SHARED);
+    EXPECT_EQ(result, MXM_ERR_MMAP_VA_FAILED);
+}
+
+TEST_F(RackMemShmTest, TestMmapByMemIDLeavesAddressCleanupToCaller)
+{
+    shmMetaData.mapSize = validSize * memIds.size();
+    MOCKER(ObmmOpenInternal).stubs().with(any(), any(), any()).will(returnValue(123));
+    MOCKER_CPP(&RackMemFdMap::MapForEachFd, uint32_t(*)(void *, size_t, int, int, int, off_t))
+        .stubs()
+        .will(returnValue(static_cast<uint32_t>(UBSM_OK)))
+        .then(returnValue(static_cast<uint32_t>(MXM_ERR_MMAP_VA_FAILED)));
+    MOCKER(SystemAdapter::MemoryUnMap).expects(never());
+
+    auto result = RackMemShmMmapByMemID(validAddr, validSize, 2, memIds, shmMetaData, O_RDWR, 0, PROT_READ, MAP_SHARED);
+
     EXPECT_EQ(result, MXM_ERR_MMAP_VA_FAILED);
 }
 
@@ -312,7 +379,7 @@ TEST_F(RackMemShmTest, TestUbsMemShmMmapSizeMismatch)
     MOCKER(ShmIpcCommand::IpcCallShmUnMap).stubs().with(any()).will(returnValue(static_cast<uint32_t>(UBSM_OK)));
 
     int result = RackMemShm::GetInstance().UbsMemShmMmap(start, mapSize, prot, flags, name, off, local_ptr_addr);
-    EXPECT_EQ(result, UBSM_OK);
+    EXPECT_EQ(result, MXM_ERR_PARAM_INVALID);
 }
 
 TEST_F(RackMemShmTest, TestUbsMemShmMmapFileMapFailure)

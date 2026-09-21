@@ -476,14 +476,14 @@ TEST_F(RackMemTestSuite, TestUbsMemFreeRemoveMetaFailed)
 TEST_F(RackMemTestSuite, TestUbsMemFreeNonNumaLockAddressUnmap)
 {
     void *ptr = reinterpret_cast<void *>(0x12345678);
-    AppBorrowMetaDesc desc(0);
-    desc.UpdateBorrowMetaDesc(std::vector<uint64_t>{}, 0, true, "testName");
+    AppBorrowMetaDesc desc(MOCK_FILE_LEN);
+    desc.UpdateBorrowMetaDesc(std::vector<uint64_t>{}, MOCK_FILE_LEN, true, "testName");
 
     BorrowAppMetaMgr::GetInstance().AddMeta(ptr, desc);
 
     MOCKER_CPP(&BorrowAppMetaMgr::GetMetaIsLockAddress, bool (*)(const void *addr)).stubs().will(returnValue(true));
 
-    MOCKER(SystemAdapter::MemoryUnMap).expects(never()).with(eq(ptr), eq(MOCK_FILE_LEN));
+    MOCKER(SystemAdapter::MemoryUnMap).expects(once()).with(eq(ptr), eq(MOCK_FILE_LEN)).will(returnValue(0));
 
     MOCKER(IpcCommand::AppFreeMemory).stubs().will(returnValue(0));
 

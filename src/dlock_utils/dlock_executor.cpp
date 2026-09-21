@@ -252,6 +252,27 @@ void DLockExecutor::DestroyDLockDlopenLib()
         clientHandle = nullptr;
         DBG_LOGINFO("Closed dlock client library");
     }
+    DLockServerLibInitFunc = nullptr;
+    DLockSeverLibDeInitFunc = nullptr;
+    DLockServerStartFunc = nullptr;
+    DLockServerStopFunc = nullptr;
+    DLockClientLibInitFunc = nullptr;
+    DLockClientLibDeInitFunc = nullptr;
+    DLockClientInitFunc = nullptr;
+    DLockClientReinitFunc = nullptr;
+    DLockClientDeInitFunc = nullptr;
+    DLockClientReinitDoneFunc = nullptr;
+    DLockClientHeartbeatFunc = nullptr;
+    DLockClientGetLockFunc = nullptr;
+    DLockReleaseLockFunc = nullptr;
+    DLockUpdateAllLocksFunc = nullptr;
+    DLockGetClientDebugStatsFunc = nullptr;
+    DLockTryLockFunc = nullptr;
+    DLockLockFunc = nullptr;
+    DLockUnlockFunc = nullptr;
+    DLockLockExtendFunc = nullptr;
+    DLockLockRequestAsyncFunc = nullptr;
+    DLockLockResultCheckFunc = nullptr;
     isInitialized = false;
 }
 

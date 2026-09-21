@@ -105,7 +105,10 @@ void ElectionModule::RunElection()
 
     electionInProgress_ = true;
     currentTerm_++;
-    votesReceived_.clear();
+    {
+        std::lock_guard<std::mutex> lock(votingMutex_);
+        votesReceived_.clear();
+    }
 
     // 通知选举开始
     notifyListeners(ZenElectionEventType::ELECTION_STARTED);
@@ -144,16 +147,19 @@ bool ElectionModule::IsElectionInProgress() const // 选主过程中，不应该
 
 void ElectionModule::ClearJoinsReceived()
 {
+    std::lock_guard<std::mutex> lock(joinsMutex_);
     joinsReceived_.clear();
 }
 
 void ElectionModule::AddJoinsReceived(const std::string &nodeId)
 {
+    std::lock_guard<std::mutex> lock(joinsMutex_);
     joinsReceived_.insert(nodeId);
 }
 
 std::set<std::string> ElectionModule::GetJoinsReceived() const
 {
+    std::lock_guard<std::mutex> lock(joinsMutex_);
     return joinsReceived_;
 }
 
@@ -162,8 +168,9 @@ int ElectionModule::GetCurrentTerm() const
     return currentTerm_;
 }
 
-const std::string &ElectionModule::GetElectedMaster() const
+std::string ElectionModule::GetElectedMaster() const
 {
+    std::lock_guard<std::mutex> lock(electedMasterMutex_);
     return electedMaster_;
 }
 
@@ -191,7 +198,6 @@ ElectionModule::NodeCollections ElectionModule::CollectNodeInfo()
 
     // 获取所有节点
     auto clusterNodes = ZenDiscovery::GetInstance()->GetClusterNodes();
-    std::lock_guard<std::mutex> lock(ZenDiscovery::GetInstance()->GetNodesMutex());
 
     for (const auto &node : clusterNodes) {
         if (node.type == ock::rpc::NodeType::VOTING_ONLY_NODE) {
@@ -258,7 +264,12 @@ bool ElectionModule::ConductVoting(const std::string &tempMaster, const NodeColl
         // 检查超时
         auto now = std::chrono::steady_clock::now();
         if (now - electionStartTime_ > std::chrono::milliseconds(electionTimeout)) {
-            DBG_LOGERROR("Vote has exceeded time limit=" << electionTimeout << ", vote size=" << votesReceived_.size());
+            size_t voteCount;
+            {
+                std::lock_guard<std::mutex> lock(votingMutex_);
+                voteCount = votesReceived_.size();
+            }
+            DBG_LOGERROR("Vote has exceeded time limit=" << electionTimeout << ", vote size=" << voteCount);
             return false;
         }
 
@@ -300,6 +311,7 @@ void ElectionModule::ProcessVotingResults(const std::string &tempMaster,
     // 若临时选举人不是自己，则需要将选举结果transfer给临时选举人，让临时选举人操作
     if (tempMaster != ZenDiscovery::GetInstance()->GetNodeId()) {
         ZenDiscovery::GetInstance()->SendTransElectedRequest(masterCandidates, tempMaster, currentTerm_);
+        std::lock_guard<std::mutex> lock(electedMasterMutex_);
         electedMaster_ = tempMaster;
     }
     // 更新自身状态
@@ -322,6 +334,7 @@ void ElectionModule::BroadcastElectionResult(const std::string &electedMaster)
             ZenDiscovery::GetInstance()->SendMasterElected(node.id, electedMaster, currentTerm_);
         }
     }
+    std::lock_guard<std::mutex> lock(electedMasterMutex_);
     electedMaster_ = electedMaster;
 }
 

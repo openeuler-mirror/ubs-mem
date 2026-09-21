@@ -82,6 +82,25 @@ TEST_F(ElectionModuleTest, TestAddJoinsReceived)
     EXPECT_NE(joins.find("node2"), joins.end());
 }
 
+TEST_F(ElectionModuleTest, TestConcurrentJoinsReceived)
+{
+    constexpr int threadCount = 8;
+    constexpr int joinsPerThread = 50;
+    std::vector<std::thread> threads;
+    for (int threadId = 0; threadId < threadCount; ++threadId) {
+        threads.emplace_back([this, threadId]() {
+            for (int joinId = 0; joinId < joinsPerThread; ++joinId) {
+                electionModule->AddJoinsReceived(std::to_string(threadId) + ":" + std::to_string(joinId));
+            }
+        });
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+
+    EXPECT_EQ(electionModule->GetJoinsReceived().size(), threadCount * joinsPerThread);
+}
+
 TEST_F(ElectionModuleTest, TestRecordVote)
 {
     electionModule->RecordVote("node1");

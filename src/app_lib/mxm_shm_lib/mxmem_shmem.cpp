@@ -51,9 +51,9 @@ static int find_region_desc(const char *region_name, SHMRegionDesc *region)
             return ret;
         }
         if (regions->num <= 0) {
-            DBG_LOGERROR("Failed to lookup shared Region, region number=" << ret);
+            DBG_LOGERROR("Failed to lookup shared Region, region number=" << regions->num);
             ock::mxmd::SafeDelete(regions);
-            return ret;
+            return MXM_ERR_CHECK_RESOURCE;
         }
 
         *region = regions->region[0];
@@ -995,8 +995,8 @@ SHMEM_API int ubsmem_shmem_list_lookup(const char *prefix, ubsmem_shmem_desc_t *
 
 uint32_t ubsmem_shmem_lookup_impl(const char *name, ubsmem_shmem_info_t *shm_info)
 {
-    if (name == nullptr) {
-        DBG_LOGERROR("name is nullptr.");
+    if (name == nullptr || shm_info == nullptr) {
+        DBG_LOGERROR("name or shm_info is nullptr.");
         return MXM_ERR_PARAM_INVALID;
     }
     auto len = strnlen(name, MAX_SHM_NAME_LENGTH + 1);

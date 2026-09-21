@@ -34,11 +34,6 @@ int32_t MLSRepository::UpdateMemRecordState(const std::string &name, const ock::
     return ock::ubsm::RecordStore::GetInstance().UpdateMemLeaseRecordState(name, state);
 }
 
-int32_t MLSRepository::AddMemRecord(const MemLeaseInfo &info)
-{
-    return RecordStore::GetInstance().AddMemLeaseRecord(info);
-}
-
 int32_t MLSRepository::UpdateMemRecord(const std::string &name, const AppContext &context, uint64_t size)
 {
     return RecordStore::GetInstance().UpdateMemLeaseRecord(name, context, size);

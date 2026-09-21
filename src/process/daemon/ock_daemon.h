@@ -15,6 +15,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <csignal>
 #include <memory>
 #include <mutex>
 #include "log.h"
@@ -77,6 +78,7 @@ private:
     std::atomic<KeepAliveStatus> keepAliveStatus{KEEP_ALIVE_IDLE};
 
     static ock::common::Ref<OckDaemon> mDaemon;
+    static volatile std::sig_atomic_t stopRequested;
 
     HRESULT GetConfPath(std::string &confPath);
     HRESULT LoadDaemonConf();

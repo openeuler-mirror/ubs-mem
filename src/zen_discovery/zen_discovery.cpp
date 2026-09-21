@@ -285,6 +285,7 @@ NodeState ZenDiscovery::GetCurrentState() const
 
 std::string ZenDiscovery::GetCurrentMaster() const
 {
+    std::lock_guard<std::mutex> lock(nodesMutex_);
     return electedMaster_;
 }
 
@@ -305,7 +306,10 @@ void ZenDiscovery::BecomeTempMaster(const std::vector<std::string> &candidates)
         return;
     }
     state_ = NodeState::TEMP_MASTER;
-    electedMaster_ = nodeId_;
+    {
+        std::lock_guard<std::mutex> lock(nodesMutex_);
+        electedMaster_ = nodeId_;
+    }
     tempNodeList_ = candidates;
     DBG_LOGDEBUG("Node " << nodeId_ << " becomes temporary master");
 }
@@ -319,9 +323,8 @@ void ZenDiscovery::SetMasterToJoin(const std::string &master)
 void ZenDiscovery::StepDownAsMaster()
 {
     state_ = NodeState::MASTER_CANDIDATE;
-    electedMaster_.clear();
-
     std::lock_guard<std::mutex> lock(nodesMutex_);
+    electedMaster_.clear();
     for (auto &entry : nodes_) {
         entry.second.isMaster = false;
     }
@@ -504,6 +507,7 @@ void ZenDiscovery::HandleAllJoined()
 
 void ZenDiscovery::ModifyNodeList()
 {
+    const auto joinsReceived = electionModule_->GetJoinsReceived();
     std::lock_guard<std::mutex> lock(nodesMutex_);
     for (auto &nodePair : nodes_) {
         auto &nodeId = nodePair.first;
@@ -514,7 +518,7 @@ void ZenDiscovery::ModifyNodeList()
             node.isMaster = true;
             continue;
         }
-        node.isActive = (electionModule_->GetJoinsReceived().find(nodeId) != electionModule_->GetJoinsReceived().end());
+        node.isActive = joinsReceived.find(nodeId) != joinsReceived.end();
         node.isMaster = false;
     }
 }
@@ -566,22 +570,13 @@ void ZenDiscovery::MaintainAsMaster()
         lock.unlock();
     }
     lock.lock();
-    for (const auto &entry : nodes_) {
-        if (entry.second.isActive) {
-            activeCount++;
-        }
-        if (entry.second.type == ock::rpc::NodeType::VOTING_ONLY_NODE) {
-            voteOnlyNode = entry.second.id;
-            hasVoteOnlyNode = true;
-        }
-    }
-    for (const auto &pair : nodes_) {
+    const auto nodesSnapshot = nodes_;
+    lock.unlock();
+    for (const auto &pair : nodesSnapshot) {
         const std::string &nodeId = pair.first;
         const ock::rpc::ClusterNode &node = pair.second;
         if (nodeId != nodeId_ && node.isActive) {
-            lock.unlock();
-            SendBroadcastRequest(nodes_, nodeId);
-            lock.lock();
+            SendBroadcastRequest(nodesSnapshot, nodeId);
         }
     }
 }
@@ -595,7 +590,12 @@ void ZenDiscovery::MaintainAsClusterMember()
         DBG_LOGINFO("Current node maintain as ClusterMember, nodeId = " << nodeId_);
         printClusterCnt = 0;
     }
-    if (electedMaster_.empty()) {
+    std::string electedMaster;
+    {
+        std::lock_guard<std::mutex> lock(nodesMutex_);
+        electedMaster = electedMaster_;
+    }
+    if (electedMaster.empty()) {
         DBG_LOGDEBUG("MaintainAsClusterMember electedMaster_ is empty");
         state_ = NodeState::INITIAL;
         return;
@@ -603,7 +603,7 @@ void ZenDiscovery::MaintainAsClusterMember()
     bool masterActive = false;
     {
         std::lock_guard<std::mutex> lock(nodesMutex_);
-        auto it = nodes_.find(electedMaster_);
+        auto it = nodes_.find(electedMaster);
         if (it != nodes_.end() && it->second.isActive) {
             masterActive = true;
         }
@@ -613,6 +613,7 @@ void ZenDiscovery::MaintainAsClusterMember()
     if (!masterActive) {
         // 当节点状态为MASTER_CANDIDATE时，electionLoop()线程会发起选举
         state_ = NodeState::INITIAL;
+        std::lock_guard<std::mutex> lock(nodesMutex_);
         electedMaster_.clear();
     }
 }
@@ -684,7 +685,7 @@ int ZenDiscovery::SendPingRequest(const std::string &nodeId)
 
 int ZenDiscovery::PingDLock(const std::string &nodeId)
 {
-    if (nodeId != electedMaster_) {
+    if (nodeId != GetCurrentMaster()) {
         return 0;
     }
     int32_t ret = dlock::DLOCK_SUCCESS;
@@ -813,7 +814,7 @@ int ZenDiscovery::SendBroadcastRequest(const std::map<std::string, ock::rpc::Clu
     std::shared_ptr<BroadcastRequest> rpcReq;
     std::shared_ptr<RpcQueryInfoResponse> rpcRsp;
     try {
-        rpcReq = std::make_shared<BroadcastRequest>(electedMaster_, nodes,
+        rpcReq = std::make_shared<BroadcastRequest>(GetCurrentMaster(), nodes,
                                                     dlock_utils::UbsmLock::Instance().IsUbsmLockInit());
         rpcRsp = std::make_shared<RpcQueryInfoResponse>();
     } catch (...) {
