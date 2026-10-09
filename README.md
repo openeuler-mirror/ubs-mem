@@ -10,7 +10,7 @@ UBS Memory（Unified Bus Service Core Memory）在超节点上基于UB硬件能�
 
 ## 环境要求
 
-**操作系统**：推荐 openEuler 24.03 LTS SP3或更高版本
+**操作系统**：推荐 openEuler 24.03 LTS SP3或更高版本。
 
 **架构**：项目代码不限制编译架构，支持使用目标操作系统提供的 x86_64 或 aarch64 工具链构建。aarch64
 环境下，单元测试脚本会自动为 mockcpp 应用指令跳转和缓存刷新补丁。
@@ -128,18 +128,18 @@ sh run_dt.sh --jobs 8
 
 - **安装部署**
 
-    安装部署相关内容请参见 [安装部署](docs/zh/installation_deployment.md)。
+    安装部署相关内容请参见 [安装部署](docs/zh/ubsm_installation_deployment.md)。
     
 - **API接口**
    
-    API相关内容请参见 [接口说明](docs/zh/api_description.md)。
+    API相关内容请参见 [接口说明](docs/zh/ubsm_api_description.md)。
     文档中的共享内存和内存借用样例依赖 UB 硬件、UBS Engine 及已部署的 ubsmd 服务，不是脱离物理环境的独立样例。
 
 - **共享内存样例**
     
     `UBSM_FLAG_CACHE` 模式下创建、映射、读写和释放 128MB 共享内存的完整样例请参见[example/README.md](example/README.md)。
 
-ubs-mem 采用 Mulan V2 License.
+ubs-mem 采用 Mulan V2 License。
 
 ## 贡献指南
 
