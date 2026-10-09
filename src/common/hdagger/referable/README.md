@@ -1,6 +1,8 @@
-### Examples
-#### dg_ref.h
-```
+# Examples
+
+## dg_ref.h
+
+```bash
 Ref is easy and high performance smart pointer compare to C++ shared_ptr. How use? 
 
 # Step 1: declare a class is referable, there are two options:
@@ -28,5 +30,4 @@ ObjPtr o = new (std::nothrow) Obj();
 if (o == nullptr) {
     // log error
 }
-
 ```
