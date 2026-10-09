@@ -76,16 +76,16 @@ sh run_dt.sh
 ## 使用说明
 
 - **安装部署**
-    
+
     安装部署相关内容请参见 [安装部署](docs/zh/ubsm_installation_deployment.md)。
 
 - **API接口**
-    
+
     API相关内容请参见 [接口说明](docs/zh/ubsm_api_description.md)。
 
 ## License
 
-ubs-mem 采用 Mulan V2 License.
+ubs-mem 采用 Mulan V2 License。
 
 ## 贡献指南
 
