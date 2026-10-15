@@ -1,3 +1,9 @@
+---
+description: 介绍 UBS Memory 在 openEuler 上的安装、配置、启动及卸载等操作。
+keywords: [UBS Memory, 安装配置, openEuler, 共享内存, 卸载指南]
+changefreq: monthly
+---
+
 # 安装部署
 
 ## 安装前准备
