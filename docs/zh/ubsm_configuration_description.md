@@ -1,3 +1,9 @@
+---
+description: 介绍 UBS Memory 守护进程ubsmd的配置文件ubsmd.conf中所有参数的说明。
+keywords: [UBS Memory, ubsmd.conf, 配置参数]
+changefreq: monthly
+---
+
 # 配置参数说明
 
 **表 1 <a id="table003"></a>**  ubsmd.conf配置文件参数说明
