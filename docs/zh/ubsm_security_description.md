@@ -1,3 +1,9 @@
+---
+description: 介绍 UBS Memory 的安全信任模型、日常安全管理规范及操作系统层面的安全加固措施。
+keywords: [UBS Memory, 安全管理, 安全加固, TSL认证, 操作系统加固]
+changefreq: monthly
+---
+
 # 安全管理与加固
 
 ## 安全管理

@@ -1,3 +1,9 @@
+---
+description: 介绍 UBS Memory 对外提供的各种接口。
+keywords: [初始化, 共享域, 内存共享, 内存借用]
+changefreq: monthly
+---
+
 # API接口
 
 ## 说明
