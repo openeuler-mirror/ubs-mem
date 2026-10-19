@@ -31,13 +31,13 @@ cd ${PROJ_DIR}
 SPEC_FILE=$PROJ_DIR/ubs-mem.spec
 RPM_VERSION=$(grep -E '^Version:' $SPEC_FILE | awk '{print $2}')
 RPM_NAME=$(grep -E '^Name:' $SPEC_FILE | awk '{print $2}')
-PACKAGE_VERSION=${RPM_VERSION:-1.0.0}
+PACKAGE_VERSION=${RPM_VERSION:-1.1.0}
 TARBALL="${RPM_NAME}-${PACKAGE_VERSION}.tar.gz"
 
 echo "start to package RPM..."
 
 cd $PROJ_DIR
-git archive -o /tmp/$TARBALL --format=tar.gz HEAD || {
+git archive -o /tmp/$TARBALL --format=tar.gz --prefix="${RPM_NAME}-${PACKAGE_VERSION}/" HEAD || {
     echo "Failed to create source tarball!"
     exit 1
 }
