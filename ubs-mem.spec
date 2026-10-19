@@ -1,11 +1,11 @@
 # -*- rpm-spec -*-
 Summary:        UBS-MEM Package
 Name:           ubs-mem
-Version:        1.0.0
+Version:        1.1.0
 Release:        1%{?dist}
 License:        MulanPSL-2.0
 Group:          System Environment/Daemons
-# generate tarball: git archive -o ubs-mem-1.0.0.tar.gz --format=tar.gz HEAD
+# generate tarball: git archive -o ubs-mem-1.1.0.tar.gz --format=tar.gz --prefix=ubs-mem-1.1.0/ HEAD
 Source:        ubs-mem-%{version}.tar.gz
 BuildRequires:  rpm-build, make, cmake, gcc, gcc-c++, ninja-build
 BuildRequires:  libboundscheck, ubs-comm-devel, numactl-devel, systemd-devel
@@ -22,7 +22,12 @@ Group:          System Environment/Daemons
 Requires:       glibc libgcc libstdc++ libboundscheck ubs-comm-lib openssl-libs
 Requires:       ubs-engine
 Requires:       ubs-engine-client-libs
-Requires(pre):  shadow-utils
+Requires:       libobmm
+Suggests:       umdk-dlock-lib
+Requires(pre):  glibc-common shadow-utils
+Requires(post): coreutils glibc systemd
+Requires(preun): systemd
+Requires(postun): coreutils gawk glibc systemd util-linux
 Provides:       ubs-mem-kshmem = %{version}-%{release}
 Obsoletes:      ubs-mem-kshmem < %{version}-%{release}
 
@@ -30,22 +35,24 @@ Obsoletes:      ubs-mem-kshmem < %{version}-%{release}
 This package contains the shared memory components for ubs-mem.
 
 %prep
-%autosetup -c -n %{name}-%{version}
+%autosetup -n %{name}-%{version}
 
 %build
 export CI_BUILD=ON
-bash build.sh -t relwithdebinfo
+sh build.sh -t relwithdebinfo
 
 %install
 rm -rf %{buildroot}
 mkdir -p %{buildroot}%{_bindir} %{buildroot}%{_libdir} %{buildroot}%{_prefix}/lib/ubs_mem
-mkdir -p %{buildroot}%{_includedir} %{buildroot}%{_sysconfdir}/ubs_mem
-install -m 550 %{_builddir}/%{name}-%{version}/build/relwithdebinfo/output/lib/libubsm_sdk.so %{buildroot}%{_libdir}/
-install -m 550 %{_builddir}/%{name}-%{version}/build/relwithdebinfo/output/lib/libubsmd.so %{buildroot}%{_prefix}/lib/ubs_mem/
+mkdir -p %{buildroot}%{_includedir}/ubs_mem %{buildroot}%{_sysconfdir}/ubs_mem
+install -m 440 %{_builddir}/%{name}-%{version}/build/relwithdebinfo/output/lib/libubsm_sdk.so.%{version} %{buildroot}%{_libdir}/
+ln -s libubsm_sdk.so.%{version} %{buildroot}%{_libdir}/libubsm_sdk.so.1
+ln -s libubsm_sdk.so.1 %{buildroot}%{_libdir}/libubsm_sdk.so
+install -m 440 %{_builddir}/%{name}-%{version}/build/relwithdebinfo/output/lib/libubsmd.so %{buildroot}%{_prefix}/lib/ubs_mem/
 install -m 550 %{_builddir}/%{name}-%{version}/build/relwithdebinfo/output/bin/ubsmd %{buildroot}%{_bindir}/
 install -m 640 %{_builddir}/%{name}-%{version}/build/relwithdebinfo/output/config/ubsmd.conf %{buildroot}%{_sysconfdir}/ubs_mem/
-install -m 640 %{_builddir}/%{name}-%{version}/build/relwithdebinfo/output/include/ubs_mem.h %{buildroot}%{_includedir}/
-install -m 640 %{_builddir}/%{name}-%{version}/build/relwithdebinfo/output/include/ubs_mem_def.h %{buildroot}%{_includedir}/
+install -m 644 %{_builddir}/%{name}-%{version}/build/relwithdebinfo/output/include/ubs_mem.h %{buildroot}%{_includedir}/ubs_mem/
+install -m 644 %{_builddir}/%{name}-%{version}/build/relwithdebinfo/output/include/ubs_mem_def.h %{buildroot}%{_includedir}/ubs_mem/
 install -Dm 644 %{_builddir}/%{name}-%{version}/build/relwithdebinfo/output/script/ubsmd.service %{buildroot}/usr/lib/systemd/system/ubsmd.service
 
 %clean
@@ -61,7 +68,11 @@ create_user_and_group() {
         useradd --system -g ubsmd --no-create-home --shell /sbin/nologin ubsmd
     fi
 
-    usermod -a -G ubse ubsmd
+    if getent group ubse > /dev/null 2>&1; then
+        usermod -a -G ubse ubsmd
+    else
+        echo "[WARN] ubse group does not exist, skip adding ubsmd to ubse"
+    fi
 }
 
 create_user_and_group
@@ -81,6 +92,9 @@ enable_service() {
 create_log_directory
 enable_service "$1"
 /sbin/ldconfig > /dev/null 2>&1 || :
+if [ "$1" -gt 1 ]; then
+    systemctl try-restart ubsmd.service > /dev/null 2>&1 || :
+fi
 
 %preun shmem
 if [ "$1" -eq 0 ]; then
@@ -120,18 +134,21 @@ remove_runtime_files
 delete_semaphore
 
 %files shmem
-%defattr(550,ubsmd,ubsmd,550)
+%defattr(-,root,root,-)
 %attr(550,ubsmd,ubsmd) %{_bindir}/ubsmd
 
-%attr(550,ubsmd,ubsmd) %{_libdir}/libubsm_sdk.so
+%attr(440,ubsmd,ubsmd) %{_libdir}/libubsm_sdk.so.%{version}
+%attr(-,ubsmd,ubsmd) %{_libdir}/libubsm_sdk.so.1
+%attr(-,ubsmd,ubsmd) %{_libdir}/libubsm_sdk.so
 %dir %attr(550,ubsmd,ubsmd) %{_prefix}/lib/ubs_mem
-%attr(550,ubsmd,ubsmd) %{_prefix}/lib/ubs_mem/libubsmd.so
+%attr(440,ubsmd,ubsmd) %{_prefix}/lib/ubs_mem/libubsmd.so
 
 %dir %attr(750,ubsmd,ubsmd) %{_sysconfdir}/ubs_mem
 %config(noreplace) %attr(640,ubsmd,ubsmd) %{_sysconfdir}/ubs_mem/ubsmd.conf
 
-%attr(640,ubsmd,ubsmd) %{_includedir}/ubs_mem.h
-%attr(640,ubsmd,ubsmd) %{_includedir}/ubs_mem_def.h
+%dir %attr(755,root,root) %{_includedir}/ubs_mem
+%attr(644,root,root) %{_includedir}/ubs_mem/ubs_mem.h
+%attr(644,root,root) %{_includedir}/ubs_mem/ubs_mem_def.h
 
 %attr(644,root,root) /usr/lib/systemd/system/ubsmd.service
 

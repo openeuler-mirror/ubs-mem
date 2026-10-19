@@ -17,7 +17,11 @@ target_compile_definitions(ubs_mem_sdk_object PRIVATE UBS_MEM_SDK_OBJECT)
 add_library(ubsm_sdk_shared SHARED)
 target_link_libraries(ubsm_sdk_shared PUBLIC ubs_mem_sdk_object ubs_mem_comm_sdk_object)
 target_link_libraries(ubsm_sdk_shared PUBLIC ubs_mem_common_object)
-set_target_properties(ubsm_sdk_shared PROPERTIES OUTPUT_NAME "ubsm_sdk")
+set_target_properties(ubsm_sdk_shared PROPERTIES
+    OUTPUT_NAME "ubsm_sdk"
+    VERSION ${PROJECT_VERSION}
+    SOVERSION 1
+)
 
 # 明确指定 libnuma 的库路径
 find_library(NUMA_LIB numa PATHS /usr/lib64 /usr/local/lib/)
