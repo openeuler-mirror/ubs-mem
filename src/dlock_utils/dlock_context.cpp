@@ -32,18 +32,23 @@ int32_t DLockContext::InitDlockClient()
             if (ret == dlock::DLOCK_SERVER_NO_RESOURCE) {
                 DBG_LOGERROR("Client_init dlock no resource, ret " << ret);
             }
+            UnInitDlockClient();
             return ret;
         }
-        index2ClientId.push_back(clientId);
         auto clientDesc = new (std::nothrow) ClientDesc(clientId);
         if (clientDesc == nullptr) {
-            ret = DLockExecutor::GetInstance().DLockClientDeInitFunc(clientId);
-            if (ret != dlock::DLOCK_SUCCESS) {
-                DBG_LOGERROR("Failed to DLockClientDeInitFunc clientId: " << i << " ret: " << ret);
+            auto deinit = DLockExecutor::GetInstance().DLockClientDeInitFunc;
+            if (deinit != nullptr) {
+                ret = deinit(clientId);
+                if (ret != dlock::DLOCK_SUCCESS) {
+                    DBG_LOGERROR("Failed to DLockClientDeInitFunc clientId: " << i << " ret: " << ret);
+                }
             }
             DBG_LOGERROR("DlockClient memory application failed");
+            UnInitDlockClient();
             return MXM_ERR_MALLOC_FAIL;
         }
+        index2ClientId.push_back(clientId);
         dlockClients.push_back(clientDesc);
         DBG_LOGDEBUG("Init dlock client success, index:" << i << " serverIp:" << serverIp << " ret: " << ret);
     }
@@ -66,6 +71,17 @@ void DLockContext::UnInitDlockClient()
             continue;
         }
         DBG_LOGINFO("Successfully to deinit dlock client, index: " << i);
+    }
+    for (auto *client : dlockClients) {
+        delete client;
+    }
+    index2ClientId.clear();
+    dlockClients.clear();
+    clientIndex.store(0, std::memory_order_relaxed);
+    {
+        std::lock_guard<std::mutex> guard(metaMutex);
+        metaMap.clear();
+        refCount.clear();
     }
     DBG_LOGINFO("DLock clients uninitialization completed");
 }

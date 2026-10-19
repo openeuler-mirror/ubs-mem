@@ -693,6 +693,7 @@ int32_t UbseMemAdapter::PopulateHostNameMap(SHMRegions &regions)
     TP_TRACE_END(TP_UBSM_GET_NODE_LIST, ret);
     if (ret != UBS_SUCCESS) {
         DBG_LOGERROR("pUbseNodeList failed, ret=" << ret);
+        free(nodeList);
         return MXM_ERR_UBSE_INNER;
     }
     DBG_LOGINFO("Ubse NodeList get success, node cnt=" << nodeCnt);
@@ -787,10 +788,12 @@ int32_t UbseMemAdapter::InitializeRegionList(SHMRegions &regions)
     res = pUbseTopLinkList(&linkPtr, &cpuLinkCnt);
     if (res != 0 || linkPtr == nullptr) {
         DBG_LOGERROR("Failed to call UbseTopLinkList, ret=" << res);
+        free(linkPtr);
         return MXM_ERR_UBSE_INNER;
     }
     if (cpuLinkCnt > UBS_TOPO_MAX_CPU_LINK_NUM) {
         DBG_LOGERROR("pUbseTopLinkList cpuLinkCnt is invalid, cnt=" << cpuLinkCnt);
+        free(linkPtr);
         return MXM_ERR_UBSE_INNER;
     }
     DBG_LOGINFO("pUbseTopLinkList success, cpuLinkCnt=" << cpuLinkCnt);
@@ -821,9 +824,14 @@ int32_t UbseMemAdapter::InitializeRegionList(SHMRegions &regions)
             neiBorNode[linkPtr[i].peer_slot_id].insert(linkPtr[i].slot_id);
         }
     }
+    free(linkPtr);
+    linkPtr = nullptr;
     if (neiBorNode.find(localNode.slot_id) == neiBorNode.end()) {
         DBG_LOGERROR("local not in topo.");
-        free(linkPtr);
+        return MXM_ERR_REGION_PARAM_INVALID;
+    }
+    if (neiBorNode[localNode.slot_id].empty()) {
+        DBG_LOGERROR("local node has no topology neighbor.");
         return MXM_ERR_REGION_PARAM_INVALID;
     }
     uint32_t firstNeiBorNode = *neiBorNode[localNode.slot_id].begin();
@@ -844,7 +852,6 @@ int32_t UbseMemAdapter::InitializeRegionList(SHMRegions &regions)
         auto ret = FillRegionDesc(regionDesc, intersection1);
         if (ret != 0) {
             DBG_LOGERROR("Failed to fill region desc, ret=" << ret);
-            free(linkPtr);
             return ret;
         }
         regions.region[regions.num] = regionDesc;
@@ -855,7 +862,6 @@ int32_t UbseMemAdapter::InitializeRegionList(SHMRegions &regions)
         auto ret = FillRegionDesc(regionDesc, intersection2);
         if (ret != 0) {
             DBG_LOGERROR("Failed to fill region desc, ret=" << ret);
-            free(linkPtr);
             return ret;
         }
         regions.region[regions.num] = regionDesc;
@@ -863,7 +869,6 @@ int32_t UbseMemAdapter::InitializeRegionList(SHMRegions &regions)
     }
     if (regions.num == 0) {
         DBG_LOGERROR("Failed to get region, Regions number=0");
-        free(linkPtr);
         return MXM_ERR_REGION_PARAM_INVALID;
     }
     for (int i = 0; i < regions.num; i++) {
@@ -873,7 +878,6 @@ int32_t UbseMemAdapter::InitializeRegionList(SHMRegions &regions)
                                        << ", hostname=" << regions.region[i].hostName[j]);
         }
     }
-    free(linkPtr);
     return UBSM_OK;
 }
 
@@ -973,6 +977,7 @@ int UbseMemAdapter::LookUpClusterStatistic(ubsmemClusterInfo &clusterInfo)
     auto ret = pUbseNodeList(&nodeList, &nodeCnt);
     if (ret != UBS_SUCCESS) {
         DBG_LOGERROR("pUbseNodeList failed, ret: " << ret);
+        free(nodeList);
         return MXM_ERR_UBSE_INNER;
     }
     if (nodeList == nullptr || nodeCnt == 0 || (nodeCnt > UBS_MEM_MAX_SLOT_NUM)) {
@@ -1032,10 +1037,7 @@ int UbseMemAdapter::LookUpClusterStatistic(ubsmemClusterInfo &clusterInfo)
         clusterInfo.host_num++;
         free(numaMems);
     }
-
-    if (nodeList != nullptr) {
-        free(nodeList);
-    }
+    free(nodeList);
     return UBSM_OK;
 }
 
@@ -1290,6 +1292,7 @@ int UbseMemAdapter::GetSlotIdFromHostName(const std::string &hostName, uint32_t 
     TP_TRACE_END(TP_UBSM_GET_NODE_LIST, ret);
     if (ret != UBS_SUCCESS) {
         DBG_LOGERROR("pUbseNodeList failed, ret=" << ret);
+        free(nodeList);
         return MXM_ERR_UBSE_INNER;
     }
     DBG_LOGINFO("Ubse nodeList get success, nodeCnt=" << nodeCnt << ", hostName=" << hostName);
@@ -1306,15 +1309,15 @@ int UbseMemAdapter::GetSlotIdFromHostName(const std::string &hostName, uint32_t 
                                                << ", hostname=" << nodeList[i].host_name);
         hostToSlotId[nodeList[i].host_name] = nodeList[i].slot_id;
     }
+    free(nodeList);
+    nodeList = nullptr;
 
     auto it = hostToSlotId.find(hostName);
     if (it == hostToSlotId.end()) {
         DBG_LOGERROR("HostName= " << hostName << " not found from ubs engine cluster.");
-        free(nodeList);
         return MXM_ERR_SHM_NOT_FOUND;
     }
     *slotId = it->second;
-    free(nodeList);
     return MXM_OK;
 }
 
@@ -1462,12 +1465,15 @@ int UbseMemAdapter::ShmGetUserData(const std::string &name, ubse_user_info_t &ub
     if (ret != UBS_SUCCESS) {
         DBG_LOGERROR("pUbseMemShmGet failed, ret=" << ret << ", name=" << name);
         if (ret == UBS_ENGINE_ERR_NOT_EXIST) {
+            free(desc);
             return MXM_ERR_SHM_NOT_EXIST;
         }
+        free(desc);
         return MXM_ERR_UBSE_INNER;
     }
     if (desc == nullptr) {
         DBG_LOGERROR("pUbseMemShmGet desc is nullptr, name=" << name);
+        free(desc);
         return MXM_ERR_UBSE_INNER;
     }
 
@@ -1476,21 +1482,13 @@ int UbseMemAdapter::ShmGetUserData(const std::string &name, ubse_user_info_t &ub
     ret = memcpy_s(&ubsUserInfo, sizeof(ubsUserInfo), desc->usr_info, sizeof(ubsUserInfo));
     if (ret != 0) {
         DBG_LOGERROR("memcpy_s failed when restoring userinfo, ret:" << ret);
-        FreeShmDesc(desc);
+        free(desc);
         return MXM_ERR_MALLOC_FAIL;
     }
-    FreeShmDesc(desc);
+    free(desc);
     return MXM_OK;
 }
 
-void UbseMemAdapter::FreeShmDesc(ubs_mem_shm_desc_t *shmDes)
-{
-    if (!shmDes) {
-        return;
-    }
-    free(shmDes);
-    shmDes = nullptr;
-}
 uint64_t GetSeqNoFromUbseUsrInfo(uint8_t userInfo[UBS_MEM_MAX_USR_INFO_LEN])
 {
     ubse_user_info_t ubsUserInfo;
@@ -1510,16 +1508,20 @@ int UbseMemAdapter::GetTimeOutShmTaskStatus(const std::string &name, ubs_mem_sta
     if (ret != UBS_SUCCESS) {
         DBG_LOGERROR("pUbseMemShmGet failed, ret=" << ret << ", name=" << name.c_str());
         if (ret == UBS_ENGINE_ERR_NOT_EXIST) { // 可以删除，其他错误码需要重试
+            free(desc);
             return MXM_ERR_SHM_NOT_EXIST;
         }
+        free(desc);
         return MXM_ERR_UBSE_INNER;
     }
     if (desc == nullptr) {
         DBG_LOGERROR("pUbseMemShmGet desc is nullptr, name=" << name);
+        free(desc);
         return MXM_ERR_UBSE_INNER;
     }
     if (desc->import_desc_cnt > UBS_TOPO_MAX_NODE_NUM) {
         DBG_LOGERROR("pUbseMemShmGet desc import_desc_cnt is invalid, cnt=" << desc->import_desc_cnt);
+        free(desc);
         return MXM_ERR_UBSE_INNER;
     }
     DBG_LOGINFO("pUbseMemShmGet name=" << name << ", import descCnt=" << desc->import_desc_cnt);
@@ -1527,21 +1529,25 @@ int UbseMemAdapter::GetTimeOutShmTaskStatus(const std::string &name, ubs_mem_sta
     ret = pUbseNodeLocalGet(&localNode);
     if (ret != UBS_SUCCESS) {
         DBG_LOGERROR("pUbseNodeLocalGet failed, ret: " << ret << " name: " << name.c_str());
+        free(desc);
         return MXM_ERR_UBSE_INNER;
     }
     if (!isAttach) { // create
         if (desc->import_desc_cnt != 0) {
             DBG_LOGINFO("Shred memory is in using. Name=" << name << ", import_desc_cnt=" << desc->import_desc_cnt);
+            free(desc);
             return MXM_ERR_SHM_IN_USING; // 如果In using, 则认为用户已经知道创建成功且正在使用，无需再回滚。
         }
         status = desc->mem_stage;
         seqNo = GetSeqNoFromUbseUsrInfo(desc->usr_info);
         DBG_LOGINFO("Name=" << name << ", mem stage=" << status);
+        free(desc);
         return MXM_OK;
     }
     // attach
     if (desc->import_desc_cnt == 0) {
         DBG_LOGINFO("Name=" << name << ", import_desc_cnt=" << desc->import_desc_cnt);
+        free(desc);
         return MXM_ERR_SHM_NOT_EXIST;
     }
     bool exist = false;
@@ -1556,9 +1562,11 @@ int UbseMemAdapter::GetTimeOutShmTaskStatus(const std::string &name, ubs_mem_sta
     if (!exist) {
         DBG_LOGINFO("Shared memory not attached on current node. name=" << name << ", import_desc_cnt="
                                                                         << desc->import_desc_cnt);
+        free(desc);
         return MXM_ERR_SHM_NOT_EXIST;
     }
 
+    free(desc);
     return MXM_OK;
 }
 
@@ -1626,18 +1634,22 @@ int UbseMemAdapter::ShmAttach(const std::string &name, const ubse_user_info_t &u
                                                           << ", expires time=" << removedKey.expiresTime);
         removedKey.isAttach = true;
         UBSMemMonitor::GetInstance().AddDelayRemoveRecord(removedKey);
+        free(shmDes);
         return UBS_ERR_TIMED_OUT;
     }
     if (ret != UBS_SUCCESS && ret != UBS_ENGINE_ERR_EXISTED) {
         DBG_LOGERROR("pUbseMemShmAttach failed, ret: " << ret);
         if (ret == UBS_ERR_NOT_SUPPORTED) {
             DBG_LOGERROR("pUbseMemShmAttach not support.");
+            free(shmDes);
             return MXM_ERR_UBSE_NOT_SUPPORTED;
         }
+        free(shmDes);
         return MXM_ERR_UBSE_INNER;
     }
     if (shmDes == nullptr) {
         DBG_LOGERROR("pUbseMemShmAttach desc is nullptr.");
+        free(shmDes);
         return MXM_ERR_UBSE_INNER;
     }
 
@@ -1645,7 +1657,7 @@ int UbseMemAdapter::ShmAttach(const std::string &name, const ubse_user_info_t &u
 
     if (shmDes->import_desc_cnt != 1) {
         DBG_LOGERROR("pUbseMemShmAttach import_desc_cnt=" << shmDes->import_desc_cnt);
-        FreeShmDesc(shmDes);
+        free(shmDes);
         return MXM_ERR_UBSE_INNER;
     }
 
@@ -1663,7 +1675,7 @@ int UbseMemAdapter::ShmAttach(const std::string &name, const ubse_user_info_t &u
         (shmDes->export_node.slot_id == shmDes->import_desc[0].import_node.slot_id)) {
         result.flag &= ~UBSM_FLAG_ONLY_IMPORT_NONCACHE;
     }
-    FreeShmDesc(shmDes);
+    free(shmDes);
     return MXM_OK;
 }
 
@@ -1710,19 +1722,22 @@ int UbseMemAdapter::ShmListLookup(const std::string &prefix, std::vector<ubsmem_
         DBG_LOGERROR("Ubsm is not initialized");
         return MXM_ERR_UBSE_LIB;
     }
-    ubs_mem_shm_desc_t *descs;
-    uint32_t desc_cnt;
+    ubs_mem_shm_desc_t *descs = nullptr;
+    uint32_t desc_cnt = 0;
     DBG_LOGINFO("pUbseMemShmList start, prefix=" << prefix);
     ret = pUbseMemShmList(&descs, &desc_cnt);
     if (ret != UBS_SUCCESS) {
         DBG_LOGERROR("pUbseMemShmList failed, ret: " << ret);
         if (ret == UBS_ENGINE_ERR_NOT_EXIST) {
+            free(descs);
             return MXM_ERR_SHM_NOT_FOUND;
         }
         if (ret == UBS_ERR_NOT_SUPPORTED) {
             DBG_LOGERROR("pUbseMemShmList not support.");
+            free(descs);
             return MXM_ERR_UBSE_NOT_SUPPORTED;
         }
+        free(descs);
         return MXM_ERR_UBSE_INNER;
     }
     DBG_LOGINFO("pUbseMemShmList success, shm prefix=" << prefix << ", descCnt=" << desc_cnt);
@@ -1771,17 +1786,21 @@ int UbseMemAdapter::ShmLookup(const std::string &name, ubsmem_shmem_info_t &shmI
     if (ret != UBS_SUCCESS) {
         DBG_LOGERROR("pUbseMemShmGet failed, ret: " << ret << " name: " << name.c_str());
         if (ret == UBS_ENGINE_ERR_NOT_EXIST) {
+            free(desc);
             return MXM_ERR_SHM_NOT_FOUND;
         }
         if (ret == UBS_ERR_NOT_SUPPORTED) {
             DBG_LOGERROR("pUbseMemShmGet not support.");
+            free(desc);
             return MXM_ERR_UBSE_NOT_SUPPORTED;
         }
+        free(desc);
         return MXM_ERR_UBSE_INNER;
     }
 
     if (desc == nullptr) {
         DBG_LOGERROR("pUbseMemShmGet desc is nullptr.");
+        free(desc);
         return MXM_ERR_UBSE_INNER;
     }
 
@@ -1792,7 +1811,7 @@ int UbseMemAdapter::ShmLookup(const std::string &name, ubsmem_shmem_info_t &shmI
             ret = strcpy_s(shmInfo.name, MAX_SHM_NAME_LENGTH + 1, desc->name);
             if (ret != EOK) {
                 DBG_LOGERROR("name copy error, ret=" << ret);
-                FreeShmDesc(desc);
+                free(desc);
                 return MXM_ERR_MEMORY;
             }
 
@@ -1805,12 +1824,12 @@ int UbseMemAdapter::ShmLookup(const std::string &name, ubsmem_shmem_info_t &shmI
                 shmInfo.mem_id_list[j] = desc->import_desc[i].memids[j];
                 DBG_LOGDEBUG("  mem id= " << shmInfo.mem_id_list[j]);
             }
-            FreeShmDesc(desc);
+            free(desc);
             return MXM_OK;
         }
     }
-    FreeShmDesc(desc);
     DBG_LOGERROR("ShmLookup failed, cannot find shm name=" << name << " in local node=" << localNode.slot_id);
+    free(desc);
     return MXM_ERR_SHM_NOT_FOUND;
 }
 
@@ -1961,19 +1980,22 @@ int UbseMemAdapter::GetShareMemoryStage(const std::string &name, ubs_mem_stage &
     ret = pUbseMemShmGet(name.c_str(), &desc);
     if (ret == UBS_ENGINE_ERR_NOT_EXIST) {
         DBG_LOGINFO("Share memory not exist. name=" << name);
+        free(desc);
         return MXM_ERR_SHM_NOT_EXIST;
     }
     if (ret != 0) {
         DBG_LOGERROR("pUbseMemShmGet failed. ret=" << ret << " name=" << name);
+        free(desc);
         return MXM_ERR_UBSE_INNER;
     }
     if (desc == nullptr) {
         DBG_LOGERROR("pUbseMemShmGet desc is nullptr.");
+        free(desc);
         return MXM_ERR_UBSE_INNER;
     }
     if (desc->import_desc_cnt == 0) {
         DBG_LOGINFO("Share memory not attached. The import nodes are empty. name=" << name);
-        FreeShmDesc(desc);
+        free(desc);
         return MXM_ERR_SHM_NOT_EXIST;
     }
     bool localAttached = false;
@@ -1988,7 +2010,7 @@ int UbseMemAdapter::GetShareMemoryStage(const std::string &name, ubs_mem_stage &
         DBG_LOGINFO("Share memory not attached. name=" << name);
         state = UBSE_NOT_EXIST;
     }
-    FreeShmDesc(desc);
+    free(desc);
     return MXM_OK;
 }
 int UbseMemAdapter::GetLocalNodeId(uint32_t &nid)

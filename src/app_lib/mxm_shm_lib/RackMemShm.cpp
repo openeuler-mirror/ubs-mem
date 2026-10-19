@@ -326,11 +326,17 @@ int RackMemShm::UbsMemShmMmap(void *start, size_t mapSize, int prot, int flags, 
     if (returnShmSize == 0 || mapSize != returnShmSize) {
         DBG_LOGERROR("Size error, mapSize=" << mapSize << ", ShmSize=" << returnShmSize);
         ShmIpcCommand::IpcCallShmUnMap(name);
-        return ret;
+        return MXM_ERR_PARAM_INVALID;
+    }
+    if (unitSize == 0) {
+        DBG_LOGERROR("Unit size is zero, name=" << name);
+        ShmIpcCommand::IpcCallShmUnMap(name);
+        return MXM_ERR_CHECK_RESOURCE;
     }
     static uint64_t alignment = GetHugeTlbPmdSize();
     if ((createFlags & UBSM_FLAG_MMAP_HUGETLB_PMD) == UBSM_FLAG_MMAP_HUGETLB_PMD && mapSize % alignment != 0) {
         DBG_LOGERROR("The mapSize is not aligned to " << alignment << ", mapSize=" << mapSize);
+        ShmIpcCommand::IpcCallShmUnMap(name);
         return MXM_ERR_PARAM_INVALID;
     }
 
@@ -375,19 +381,6 @@ int RackMemShm::UbsMemShmMmap(void *start, size_t mapSize, int prot, int flags, 
     return UBSM_OK;
 }
 
-void RackMemShm::RollBackUnmapFail(ShmAppMetaData &metaData, void *mmapAddr)
-{
-    uint64_t mmapCount{};
-    uint64_t totalSize{};
-    RackMemFdMap::GetInstance().GetActualMapSize(metaData.mapSize, metaData.unitSize, totalSize, mmapCount);
-    auto ret = RackMemShmMmapByMemID(mmapAddr, metaData.unitSize, mmapCount, metaData.memIds, metaData, metaData.flag,
-                                     metaData.oflag, PROT_NONE, MAP_SHARED | MAP_FIXED);
-    if (BresultFail(ret)) {
-        DBG_LOGWARN("RackMemShmMmapByMemID failed, name=" << metaData.name);
-    }
-    ShmMetaDataMgr::GetInstance().AddMetaData(metaData.name, mmapAddr, metaData);
-}
-
 uint32_t RackMemShm::UbsMemShmUnmmap(void *start, size_t size)
 {
     uint32_t ret = UBSM_OK;
@@ -395,11 +388,28 @@ uint32_t RackMemShm::UbsMemShmUnmmap(void *start, size_t size)
         DBG_LOGERROR("Param start is nullptr.");
         return MXM_ERR_PARAM_INVALID;
     }
-    ShmAppMetaData metaData;
-    ret = ShmMetaDataMgr::GetInstance().CheckNameExistAndGet(start, size, metaData);
+    std::string name;
+    ret = ShmMetaDataMgr::GetInstance().GetNameByAddr(start, name);
     if (ret != UBSM_OK) {
-        DBG_LOGERROR("CheckNameExistAndGet error, size=" << size << ", ret=" << ret);
+        DBG_LOGERROR("GetNameByAddr error, ret=" << ret);
         return ret;
+    }
+
+    auto metaLockGuard = ShmMetaDataMgr::GetInstance().LockMeta(name);
+    // The first lookup only selects the operation lock. Revalidate after waiting for it.
+    ShmAppMetaData metaData;
+    ret = ShmMetaDataMgr::GetInstance().GetShmMetaFromName(name, metaData);
+    if (ret != UBSM_OK) {
+        DBG_LOGERROR("GetShmMetaFromName failed during unmap, name=" << name << ", ret=" << ret);
+        return ret;
+    }
+    if (metaData.addr != start) {
+        DBG_LOGERROR("Mapping changed while waiting for unmap lock, name=" << name);
+        return MXM_ERR_SHM_NOT_FOUND;
+    }
+    if (metaData.mapSize != size) {
+        DBG_LOGERROR("Map size not match, name=" << name << ", size=" << size << ", mapSize=" << metaData.mapSize);
+        return MXM_ERR_PARAM_INVALID;
     }
 
     DBG_LOGINFO("Unmmapping shared memory, name=" << metaData.name << ", memIds=" << MemToStr(metaData.memIds));
@@ -427,7 +437,6 @@ uint32_t RackMemShm::UbsMemShmUnmmap(void *start, size_t size)
     TP_TRACE_END(TP_UBSM_SHM_UNMAP_IPC_UNMMAP, ret);
     if (ret != UBSM_OK) {
         DBG_LOGERROR("ShmIpcCommand::IpcCallShmUnMap Unmmap, ret=" << ret);
-        RollBackUnmapFail(metaData, start);
         return ret;
     }
     ret = ShmMetaDataMgr::GetInstance().RemoveMetaData(start, metaData.name);
@@ -625,6 +634,7 @@ uint32_t RackMemShm::RackMemDestroyResourceRegion(const std::string &regionName)
 
 int32_t RackMemShm::UbsMemShmWriteLock(const std::string &name)
 {
+    auto metaLockGuard = ShmMetaDataMgr::GetInstance().LockMeta(name);
     ShmAppMetaData meta;
     auto result = ShmMetaDataMgr::GetInstance().GetShmMetaFromName(name, meta);
     if (BresultFail(result)) {
@@ -667,10 +677,15 @@ int32_t RackMemShm::UbsMemShmWriteLock(const std::string &name)
     }
 
     meta.isLocked++; // 对应name的shm 加锁
+    meta.lockedStatus = READWRITE;
 
     result = ShmMetaDataMgr::GetInstance().UpdateMetaData(name, meta);
     if (BresultFail(result)) {
         DBG_LOGERROR("Update shm meta by name failed, ret: " << result);
+        auto ownershipRet = UbsMemShmSetOwnerShipOpt(meta, meta.addr, meta.mapSize, UNACCESS, meta.unitSize, indexs);
+        if (BresultFail(ownershipRet)) {
+            DBG_LOGERROR("Rollback write ownership failed, ret: " << ownershipRet);
+        }
         auto unlockRet = ShmIpcCommand::IpcShmemUnLock(name);
         if (BresultFail(unlockRet)) {
             DBG_LOGERROR("Rollback write lock failed, ret: " << unlockRet);
@@ -684,6 +699,7 @@ int32_t RackMemShm::UbsMemShmWriteLock(const std::string &name)
 
 int32_t RackMemShm::UbsMemShmReadLock(const std::string &name)
 {
+    auto metaLockGuard = ShmMetaDataMgr::GetInstance().LockMeta(name);
     ShmAppMetaData meta;
     auto result = ShmMetaDataMgr::GetInstance().GetShmMetaFromName(name, meta);
     if (BresultFail(result)) {
@@ -725,9 +741,14 @@ int32_t RackMemShm::UbsMemShmReadLock(const std::string &name)
     }
 
     meta.isLocked++; // 对应name的shm 加锁
+    meta.lockedStatus = READ;
     result = ShmMetaDataMgr::GetInstance().UpdateMetaData(name, meta);
     if (BresultFail(result)) {
         DBG_LOGERROR("Update shm meta by name failed, ret: " << result);
+        auto ownershipRet = UbsMemShmSetOwnerShipOpt(meta, meta.addr, meta.mapSize, UNACCESS, meta.unitSize, indexs);
+        if (BresultFail(ownershipRet)) {
+            DBG_LOGERROR("Rollback read ownership failed, ret: " << ownershipRet);
+        }
         auto unlockRet = ShmIpcCommand::IpcShmemUnLock(name);
         if (BresultFail(unlockRet)) {
             DBG_LOGERROR("Rollback read lock failed, ret: " << unlockRet);
@@ -741,6 +762,7 @@ int32_t RackMemShm::UbsMemShmReadLock(const std::string &name)
 
 int32_t RackMemShm::UbsMemShmUnLock(const std::string &name)
 {
+    auto metaLockGuard = ShmMetaDataMgr::GetInstance().LockMeta(name);
     ShmAppMetaData meta;
 
     auto result = ShmMetaDataMgr::GetInstance().GetShmMetaFromName(name, meta);
@@ -766,6 +788,7 @@ int32_t RackMemShm::UbsMemShmUnLock(const std::string &name)
         DBG_LOGERROR("shm name(" << name << ") is not locked. ");
         return MXM_ERR_LOCK_NOT_FOUND;
     }
+    const auto previousLockStatus = meta.lockedStatus;
 
     std::vector<int> indexs{};
     for (int i = 0; i < meta.addrs.size(); ++i) {
@@ -781,19 +804,26 @@ int32_t RackMemShm::UbsMemShmUnLock(const std::string &name)
         return ret;
     }
 
-    meta.isLocked--; // 对应name的shm 解锁
-    result = ShmMetaDataMgr::GetInstance().UpdateMetaData(name, meta);
-    if (BresultFail(result)) {
-        DBG_LOGERROR("Update shm meta by name failed, ret: " << result);
-        return result;
-    }
-    DBG_LOGINFO("Ipc Shm UnLock name=" << name);
     TP_TRACE_BEGIN(TP_UBSM_UNLOCK_IPC_REQUEST);
     ret = ShmIpcCommand::IpcShmemUnLock(name);
     TP_TRACE_END(TP_UBSM_UNLOCK_IPC_REQUEST, ret);
     if (ret != UBSM_OK) {
         DBG_LOGERROR("IpcShmemUnLock failed, ret is:" << ret);
+        auto ownershipRet =
+            UbsMemShmSetOwnerShipOpt(meta, meta.addr, meta.mapSize, previousLockStatus, meta.unitSize, indexs);
+        if (BresultFail(ownershipRet)) {
+            DBG_LOGERROR("Rollback unlock ownership failed, ret: " << ownershipRet);
+        }
         return ret;
+    }
+    meta.isLocked--; // 对应name的shm 解锁
+    if (meta.isLocked == 0) {
+        meta.lockedStatus = UNACCESS;
+    }
+    result = ShmMetaDataMgr::GetInstance().UpdateMetaData(name, meta);
+    if (UNLIKELY(result != 0)) {
+        DBG_LOGERROR("Update shm meta by name failed, ret: " << result);
+        return result;
     }
     DBG_LOGINFO("Ipc Shm UnLock success, name=" << name);
 

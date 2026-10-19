@@ -502,7 +502,7 @@ uint32_t ShmIpcCommand::IpcCallRpcQuery(std::string &name)
 
 uint32_t ShmIpcCommand::IpcCallShmAttach(const std::string &name)
 {
-    auto request = std::make_shared<ShmAttachRequest>();
+    auto request = std::make_shared<ShmAttachRequest>("default", name);
     if (request == nullptr) {
         DBG_LOGERROR("request is nullptr.");
         return MXM_ERR_MALLOC_FAIL;
@@ -532,7 +532,7 @@ uint32_t ShmIpcCommand::IpcCallShmAttach(const std::string &name)
 
 uint32_t ShmIpcCommand::IpcCallShmDetach(const std::string &name)
 {
-    auto request = std::make_shared<ShmDetachRequest>();
+    auto request = std::make_shared<ShmDetachRequest>("default", name);
     if (request == nullptr) {
         DBG_LOGERROR("request is nullptr.");
         return MXM_ERR_MALLOC_FAIL;

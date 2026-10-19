@@ -71,6 +71,10 @@ int32_t MLSManager::RecoverFromRecord()
             }
             DBG_LOGINFO("Rollback pre delete record successfully. name=" << record.first.name);
         }
+        if (state == RecordState::DELETED) {
+            MLSRepository::GetInstance().DeleteMemRecord(record.first.name);
+            continue;
+        }
         MLSMemInfo info;
         info.name = record.first.name;
         info.appContext = record.first.appContext;

@@ -38,6 +38,7 @@ bool RegionManager::RecoverFromRamFS()
         return false;
     }
 
+    std::lock_guard<std::mutex> lock(mapMutex);
     for (const auto &elem : regions) {
         if (mRegionMap.find(elem.name) != mRegionMap.end()) {
             DBG_LOGERROR("The region has already recoverd!" << elem.name);

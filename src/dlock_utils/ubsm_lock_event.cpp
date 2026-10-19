@@ -138,14 +138,24 @@ void UbsmLockEvent::OnDLockDemoted()
 
     if (cfg.isDlockServer) {
         DBG_LOGINFO("Process master demotion, serverIP=" << cfg.serverIp << ", clientIP=" << cfg.clientIp);
-        DLockExecutor::GetInstance().DLockSeverLibDeInitFunc();
+        auto deinit = DLockExecutor::GetInstance().DLockSeverLibDeInitFunc;
+        if (deinit != nullptr) {
+            deinit();
+        } else {
+            DBG_LOGERROR("DLockSeverLibDeInitFunc is nullptr, skip server library deinitialization.");
+        }
         ctx.SetServerDeinitFlag(false);
         cfg.isDlockServer = false;
         cfg.recoveryClientNum = 0;
     }
     if (cfg.isDlockClient) {
         DBG_LOGINFO("Process client demotion, serverIP=" << cfg.serverIp << ", clientIP=" << cfg.clientIp);
-        DLockExecutor::GetInstance().DLockClientLibDeInitFunc();
+        auto deinit = DLockExecutor::GetInstance().DLockClientLibDeInitFunc;
+        if (deinit != nullptr) {
+            deinit();
+        } else {
+            DBG_LOGERROR("DLockClientLibDeInitFunc is nullptr, skip client library deinitialization.");
+        }
         cfg.isDlockClient = false;
     }
     DBG_LOGERROR("Change lock flag to false in OnDLockDemoted.");

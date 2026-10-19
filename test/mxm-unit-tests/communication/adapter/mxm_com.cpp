@@ -15,6 +15,70 @@
 namespace UT {
 using namespace ock::com;
 
+void FirstMessageHandler(MxmComMessageCtx &) {}
+
+void SecondMessageHandler(MxmComMessageCtx &) {}
+
+TEST_F(MxmComTestSuite, TestMessageHandlerLookupDoesNotMutateMapAndReturnsCopy)
+{
+    MxmComEngineInfo info;
+    MxmComLinkStateNotify notify = [](const MxmComEngineInfo &, const std::string &, uint64_t, MxmLinkState) {
+    };
+    MxmComEngine engine(info, nullptr, notify);
+
+    EXPECT_EQ(engine.GetMessageHandler(1, 1).handler, nullptr);
+    EXPECT_TRUE(engine.handlerMap.empty());
+
+    MxmComMsgHandler first{1, 1, FirstMessageHandler};
+    ASSERT_EQ(engine.RegMxmComMsgHandler(first), HOK);
+    auto savedHandler = engine.GetMessageHandler(1, 1);
+
+    MxmComMsgHandler second{1, 1, SecondMessageHandler};
+    ASSERT_EQ(engine.RegMxmComMsgHandler(second), HOK);
+    EXPECT_EQ(savedHandler.handler, FirstMessageHandler);
+    EXPECT_EQ(engine.GetMessageHandler(1, 1).handler, SecondMessageHandler);
+}
+
+TEST_F(MxmComTestSuite, TestRemoveChannelByChannelIdRemovesBothIndexes)
+{
+    MxmComLinkManager manager;
+    MxmComChannelConnectInfo connectInfo;
+    connectInfo.SetRemoteNodeId("remote");
+    MxmComChannelInfo channelInfo;
+    channelInfo.SetConnectInfo(connectInfo);
+    channelInfo.SetChannelType(MxmChannelType::NORMAL);
+    manager.nodeChannelMap["remote"][MxmChannelType::NORMAL] = channelInfo;
+    manager.channelIdMap[42] = channelInfo;
+
+    manager.RemoveChannelByChannelId(42, nullptr);
+
+    EXPECT_TRUE(manager.nodeChannelMap.empty());
+    EXPECT_TRUE(manager.channelIdMap.empty());
+}
+
+TEST_F(MxmComTestSuite, TestChannelQueriesAllowConcurrentReaders)
+{
+    MxmComLinkManager manager;
+    MxmComChannelConnectInfo connectInfo;
+    connectInfo.SetRemoteNodeId("remote");
+    MxmComChannelInfo channelInfo;
+    channelInfo.SetConnectInfo(connectInfo);
+    channelInfo.SetChannelType(MxmChannelType::NORMAL);
+    manager.nodeChannelMap["remote"][MxmChannelType::NORMAL] = channelInfo;
+    manager.channelIdMap[42] = channelInfo;
+
+    ReadLocker<ReadWriteLock> channelLockGuard(&manager.channelLock_);
+    bool queriesSucceeded = false;
+    std::thread reader([&]() {
+        MxmComChannelInfo result;
+        queriesSucceeded = manager.GetChannelByChannelId(42, result) == HOK &&
+                           manager.GetChannelByRemoteNodeId("remote", MxmChannelType::NORMAL, result) == HOK &&
+                           manager.IsChannelExists("remote", MxmChannelType::NORMAL) && !manager.IsStopped();
+    });
+    reader.join();
+    EXPECT_TRUE(queriesSucceeded);
+}
+
 TEST_F(MxmComTestSuite, TestRemoveHandler)
 {
     auto opCode = 11;     // 11

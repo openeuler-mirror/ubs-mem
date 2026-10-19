@@ -86,13 +86,6 @@ public:
     std::vector<CreateRegionInput> ListRegionRecord() const noexcept;
 
     /**
-     * @brief 向缓存及共享内存持久化中同时增加一个内存借用信息
-     * @param info 内存借用信息
-     * @return 0表示成功，非0表示失败
-     */
-    int AddMemLeaseRecord(const MemLeaseInfo &info) noexcept;
-
-    /**
      * @brief 通过名称从缓存及共享内存持久化中同时删除一条内存借用信息记录
      * @param name 内存借用信息名称，每个内存借用信息名称全局唯一
      * @return 0表示借用内存存入缓存中，1表示从缓存以及持久化中删除成功，非0表示失败
@@ -114,14 +107,6 @@ public:
     int UpdateMemLeaseRecord(const std::string &name, const AppContext &context, uint64_t size) noexcept;
 
     /**
-     * @brief 向缓存及共享内存持久化中同时增加一个导入的内存共享信息，在使用共享内存节点调用，同一个共享内存对象在同一个节点只能导入
-     *        一次，如果本节点多次使用同一个共享内存对象，一次导入后，多次引用，参见 AddShmRefRecord
-     * @param info 导入的共享内存信息
-     * @return 0表示成功，非0表示失败
-     */
-    int AddShmImportRecord(const ShareMemImportInfo &info) noexcept;
-
-    /**
      * @brief 通过名称从缓存及共享内存持久化中同时删除一条已导入的内存共享信息，删除导入共享内存记录前题是引用数为0，否则失败
      * @param name 导入的共享内存名称
      * @return 0表示成功，非0表示失败
@@ -139,7 +124,7 @@ public:
     std::vector<ShareMemImportInfo> ListShmImportRecord() const noexcept;
 
     /**
-     * @brief 向缓存及共享内存持久化中同时增加一个内存共享引用信息，传入的名称必须是已导入的，参见 AddShmImportRecord
+     * @brief 向缓存及共享内存持久化中同时增加一个内存共享引用信息，传入的名称必须是已导入的，参见 AddShmImportInput 和 AddShmImportResult
      * @param pid 使用此引用的应用进程pid
      * @param name 引用的共享内存名称
      * @return 0表示成功，非0表示失败

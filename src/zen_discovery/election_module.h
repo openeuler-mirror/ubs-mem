@@ -44,7 +44,7 @@ public:
 
     bool IsElectionInProgress() const;
     int GetCurrentTerm() const;
-    const std::string &GetElectedMaster() const;
+    std::string GetElectedMaster() const;
     void AddJoinsReceived(const std::string &nodeId);
     void RecordVote(const std::string &nodeId);
     void SetCurrentTerm(int term);
@@ -91,11 +91,13 @@ private:
     std::atomic<bool> electionInProgress_{false};
     std::atomic<int> currentTerm_{0};
     std::string electedMaster_;
+    mutable std::mutex electedMasterMutex_;
 
     // 投票状态
     mutable std::mutex votingMutex_;
     std::set<std::string> votesReceived_;
     std::set<std::string> joinsReceived_;
+    mutable std::mutex joinsMutex_;
 
     // 时间管理
     std::chrono::steady_clock::time_point electionStartTime_;

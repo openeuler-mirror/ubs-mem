@@ -215,7 +215,6 @@ private:
     static void ResetLibUbseDl();
     static int32_t PopulateHostNameMap(SHMRegions &regions);
     static int32_t InitializeRegionList(SHMRegions &regions);
-    static void FreeShmDesc(ubs_mem_shm_desc_t *shmDes);
     static uint32_t GetSocketIdWithNumaNode(int numaNode, uint32_t *socketId);
     static int ShmCreateWithAffinity(const CreateShmParam &param, const ubs_mem_nodes_t &region,
                                      const uint64_t ubseFlags, const uint8_t *usrInfo, uint64_t createSeqNo);

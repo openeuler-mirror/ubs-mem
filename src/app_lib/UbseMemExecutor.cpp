@@ -46,6 +46,7 @@ uint32_t UbseMemExecutor::Initialize()
     if (UbseFaultEventRegisterFunc == nullptr) {
         DBG_LOGERROR("Failed to call dlsym to load ubs_mem_shm_fault_register, error is " << dlerror());
         SystemAdapter::DlClose(handle);
+        handle = nullptr;
         return MXM_ERR_UBSE_LIB;
     }
     initialized_ = true;

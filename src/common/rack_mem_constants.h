@@ -48,5 +48,6 @@ constexpr int16_t NO_1000 = 1000;
 constexpr int16_t NO_1024 = 1024;
 constexpr int16_t NO_2048 = 2048;
 constexpr int32_t NO_60000 = 60000;
+constexpr uint32_t MAX_NUMA_NODE = 256 + 1;
 } // namespace ock::mxmd
 #endif

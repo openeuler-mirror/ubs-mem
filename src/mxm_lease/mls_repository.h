@@ -30,7 +30,6 @@ public:
     int32_t PreAddMemRecord(const ock::ubsm::LeaseMallocInput &input);
     int32_t UpdateMemResultRecord(const std::string &name, const ock::ubsm::LeaseMallocResult &result);
     int32_t UpdateMemRecordState(const std::string &name, const ock::ubsm::RecordState &state);
-    int32_t AddMemRecord(const ock::ubsm::MemLeaseInfo &info);
     int32_t UpdateMemRecord(const std::string &name, const ock::ubsm::AppContext &context, uint64_t size);
     int32_t DeleteMemRecord(const std::string &name);
     std::vector<ock::ubsm::MemLeaseInfo> RecoverMemRecord();

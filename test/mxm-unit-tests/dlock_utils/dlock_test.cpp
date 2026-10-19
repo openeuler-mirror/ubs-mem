@@ -4,7 +4,12 @@
 
 #include "dlock_test.h"
 #include <dlfcn.h>
+#include <atomic>
+#include <chrono>
+#include <thread>
+#define private public
 #include "dlock_utils/ubsm_lock.h"
+#undef private
 #include "system_adapter.h"
 
 using namespace ock::dlock_utils;
@@ -43,6 +48,17 @@ void TestDefaultConfig()
     ctx.GetConfig().dlockDevName = DEV_MOCK;
     ctx.GetConfig().dlockDevEid = EID_MOCK;
     ctx.GetConfig().dlockClientNum = 1;
+}
+
+void AddVotingNode()
+{
+    ock::rpc::NetRpcConfig::GetInstance().SetLocalNode(std::make_pair("1.2.3.4", 1234));
+    ock::zendiscovery::ZenDiscovery::GetInstance()->nodes_.insert_or_assign(
+        "1.2.3.4:1234", ock::rpc::ClusterNode{.id = "1.2.3.4:1234",
+                                              .ip = "1.2.3.4",
+                                              .port = 1234,
+                                              .isActive = true,
+                                              .type = ock::rpc::NodeType::VOTING_ONLY_NODE});
 }
 
 TEST_F(DlockTestSuite, TestDLockInitSuccess)
@@ -95,10 +111,12 @@ TEST_F(DlockTestSuite, TestDLockInitFail2)
     MOCKER(SystemAdapter::DlOpen).stubs().will(returnValue(static_cast<void *>(&mockHandle)));
     MockDlsym("dserver_lib_init");
     TestDefaultConfig();
+    UbsmLock::Instance().UbsmLockInitSet(true);
     // when
     auto ret = UbsmLock::Instance().Init();
     // then
     ASSERT_NE(ret, dlock::DLOCK_SUCCESS);
+    ASSERT_FALSE(UbsmLock::Instance().IsUbsmLockInit());
 }
 
 TEST_F(DlockTestSuite, TestDLockInitFail3)
@@ -193,13 +211,7 @@ TEST_F(DlockTestSuite, TestDLockLockSuccess)
                                                        void *result) -> int {
         return dlock::DLOCK_SUCCESS;
     };
-    ock::rpc::NetRpcConfig::GetInstance().SetLocalNode(std::make_pair("1.2.3.4", 1234));
-    ock::zendiscovery::ZenDiscovery::GetInstance()->nodes_.emplace(
-        "1.2.3.4:1234", ock::rpc::ClusterNode{.id = "1.2.3.4:1234",
-                                              .ip = "1.2.3.4",
-                                              .port = 1234,
-                                              .isActive = true,
-                                              .type = ock::rpc::NodeType::VOTING_ONLY_NODE});
+    AddVotingNode();
 
     ock::dlock_utils::LockUdsInfo info;
     info.pid = 0;
@@ -209,6 +221,99 @@ TEST_F(DlockTestSuite, TestDLockLockSuccess)
     ret = UbsmLock::Instance().Lock(name, true, info);
     // then
     ASSERT_EQ(ret, UBSM_OK);
+}
+
+namespace {
+int g_clientInitCalls = 0;
+int g_clientDeinitCalls = 0;
+
+int InitOneClientThenFail(int *clientId, const char *serverIp)
+{
+    (void)serverIp;
+    if (g_clientInitCalls++ == 0) {
+        *clientId = 7;
+        return dlock::DLOCK_SUCCESS;
+    }
+    return dlock::DLOCK_FAIL;
+}
+
+int CountClientDeinit(int clientId)
+{
+    EXPECT_EQ(clientId, 7);
+    ++g_clientDeinitCalls;
+    return dlock::DLOCK_SUCCESS;
+}
+} // namespace
+
+TEST_F(DlockTestSuite, TestInitDlockClientFailureClearsCreatedClients)
+{
+    auto &ctx = DLockContext::Instance();
+    auto &exec = DLockExecutor::GetInstance();
+    const auto oldClientInit = exec.DLockClientInitFunc;
+    const auto oldClientDeinit = exec.DLockClientDeInitFunc;
+    const auto oldClientNum = ctx.GetConfig().dlockClientNum;
+    exec.DLockClientDeInitFunc = [](int clientId) -> int {
+        return dlock::DLOCK_SUCCESS;
+    };
+    ctx.UnInitDlockClient();
+    ctx.GetConfig().serverIp = IP_MOCK;
+    ctx.GetConfig().dlockClientNum = 2;
+    g_clientInitCalls = 0;
+    g_clientDeinitCalls = 0;
+    exec.DLockClientInitFunc = InitOneClientThenFail;
+    exec.DLockClientDeInitFunc = CountClientDeinit;
+
+    EXPECT_NE(ctx.InitDlockClient(), UBSM_OK);
+    EXPECT_EQ(g_clientDeinitCalls, 1);
+    EXPECT_TRUE(ctx.GetDlockClientList().empty());
+    exec.DLockClientInitFunc = oldClientInit;
+    exec.DLockClientDeInitFunc = oldClientDeinit;
+    ctx.GetConfig().dlockClientNum = oldClientNum;
+}
+
+TEST_F(DlockTestSuite, TestCleanupThreadWaitsWhileLockServiceIsNotReady)
+{
+    std::atomic_bool exited{false};
+    const bool wasInitialized = UbsmLock::Instance().IsUbsmLockInit();
+    UbsmLock::isCleanupThreadRunning.store(false);
+    if (UbsmLock::cleanupThread.joinable()) {
+        UbsmLock::cleanupThread.join();
+    }
+    UbsmLock::Instance().UbsmLockInitSet(false);
+    UbsmLock::isCleanupThreadRunning.store(true);
+    std::thread cleanup([&exited] {
+        UbsmLock::CleanupExpiredLocksThread();
+        exited.store(true);
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1200));
+    EXPECT_FALSE(exited.load());
+    UbsmLock::isCleanupThreadRunning.store(false);
+    cleanup.join();
+    UbsmLock::Instance().UbsmLockInitSet(wasInitialized);
+}
+
+TEST_F(DlockTestSuite, TestTryLockUses64BitExpiryArithmetic)
+{
+    auto &ctx = DLockContext::Instance();
+    const auto oldExpireTime = ctx.GetConfig().lockExpireTime;
+    const auto oldTryLock = DLockExecutor::GetInstance().DLockTryLockFunc;
+    ctx.GetConfig().lockExpireTime = 5000;
+    ClientDesc client(1);
+    client.SetLockId("lock", 2);
+    DLockExecutor::GetInstance().DLockTryLockFunc = [](int clientId, const dlock::lock_request *req,
+                                                       void *result) -> int {
+        (void)clientId;
+        (void)req;
+        (void)result;
+        return dlock::DLOCK_SUCCESS;
+    };
+    LockUdsInfo info{1, 2, 3, 0};
+
+    ASSERT_EQ(UbsmLock::Instance().TryLock("lock", &client, false, info), MXM_OK);
+    EXPECT_GT(info.validTime, ock::dagger::Monotonic::TimeUs() + 4000000000ULL);
+    DLockExecutor::GetInstance().DLockTryLockFunc = oldTryLock;
+    ctx.GetConfig().lockExpireTime = oldExpireTime;
 }
 
 TEST_F(DlockTestSuite, TestDLockLockFail)
@@ -221,6 +326,7 @@ TEST_F(DlockTestSuite, TestDLockLockFail)
     TestDefaultConfig();
     auto ret = UbsmLock::Instance().Init();
     ASSERT_EQ(UBSM_OK, ret);
+    AddVotingNode();
     std::string name = "lock1";
     DLockExecutor::GetInstance().DLockClientGetLockFunc = [](int clientId, const struct dlock::lock_desc *desc,
                                                              int *lockId) -> int {
@@ -246,6 +352,7 @@ TEST_F(DlockTestSuite, TestDLockUnLockSuccess)
     TestDefaultConfig();
     auto ret = UbsmLock::Instance().Init();
     ASSERT_EQ(UBSM_OK, ret);
+    AddVotingNode();
     std::string name = "lock2";
     DLockExecutor::GetInstance().DLockClientGetLockFunc = [](int clientId, const struct dlock::lock_desc *desc,
                                                              int *lockId) -> int {
@@ -281,6 +388,7 @@ TEST_F(DlockTestSuite, TestDLockUnLockFail)
     TestDefaultConfig();
     auto ret = UbsmLock::Instance().Init();
     ASSERT_EQ(UBSM_OK, ret);
+    AddVotingNode();
     std::string name = "lock3";
     DLockExecutor::GetInstance().DLockClientGetLockFunc = [](int clientId, const struct dlock::lock_desc *desc,
                                                              int *lockId) -> int {

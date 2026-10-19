@@ -879,6 +879,11 @@ TEST_F(UbsmemSecuritiesTest, TestUbsmemLocalNidQueryNull)
     EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_local_nid_query(nid));
 }
 
+TEST_F(UbsmemSecuritiesTest, ShmemLookupRejectsNullOutput)
+{
+    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_lookup("name", nullptr));
+}
+
 TEST_F(UbsmemSecuritiesTest, TestUbsmemLocalNidQueryNull01)
 {
     MOCKER(ShmIpcCommand::AppGetLocalSlotId).stubs().will(returnValue(1000));

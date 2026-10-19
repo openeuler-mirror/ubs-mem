@@ -33,6 +33,7 @@ std::mutex UbsmLock::cleanupMutex;
 std::mutex UbsmLock::initMutex;
 int32_t UbsmLock::Init()
 {
+    UbsmLockInitSet(false);
     auto &ctx = DLockContext::Instance();
     auto &cfg = ctx.GetConfig();
     // 链接DLock库
@@ -59,6 +60,7 @@ int32_t UbsmLock::Init()
         ret = DlockServerInit(sslConfig);
         if (ret != UBSM_OK) {
             DBG_LOGERROR("DlockServerInit failed, ret: " << ret);
+            DeInit();
             return ret;
         }
         ctx.SetServerDeinitFlag(true);
@@ -67,8 +69,8 @@ int32_t UbsmLock::Init()
         DBG_LOGINFO("Initialize DLock client library (ServerID=" << cfg.serverId << "), serverIp=" << cfg.serverIp);
         ret = DlockClientLibInit(sslConfig);
         if (ret != UBSM_OK) {
-            DLockExecutor::GetInstance().DLockClientLibDeInitFunc();
             DBG_LOGERROR("DlockClientLibInit failed, ret: " << ret);
+            DeInit();
             return ret;
         }
 
@@ -76,6 +78,7 @@ int32_t UbsmLock::Init()
         ret = ctx.InitDlockClient();
         if (ret != UBSM_OK) {
             DBG_LOGERROR("InitDlockClient failed, ret: " << ret);
+            DeInit();
             return ret;
         }
     }
@@ -346,14 +349,13 @@ void UbsmLock::CleanUpExpiredLocksForName(const std::string &name, ClientDesc *c
 
 void UbsmLock::CleanupExpiredLocksThread()
 {
-    if (!UbsmLock::Instance().IsUbsmLockInit() || UbsmLock::Instance().IsUbsmLockInElection()) {
-        DBG_LOGINFO("In CleanupExpiredLocksThread, UbsmLock is not ready.");
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        return;
-    }
     auto &instance = UbsmLock::Instance();
     while (instance.isCleanupThreadRunning.load()) {
         std::this_thread::sleep_for(std::chrono::seconds(1)); // 定期清理
+        if (!instance.IsUbsmLockInit() || instance.IsUbsmLockInElection()) {
+            DBG_LOGINFO("In CleanupExpiredLocksThread, UbsmLock is not ready.");
+            continue;
+        }
 
         auto &ctx = DLockContext::Instance();
         auto allName = ctx.GetAllShmLockName();
@@ -478,7 +480,7 @@ int32_t UbsmLock::TryLock(const std::string &name, ClientDesc *clientDesc, bool 
                                                                   << ", lock id: " << lockId);
             return MXM_ERR_DLOCK_INNER;
         } else if (ret == dlock::DLOCK_SUCCESS || ret == dlock::DLOCK_ALREADY_LOCKED) { // 重复加锁，时间延期
-            auto validTime = ock::dagger::Monotonic::TimeUs() + (lockExpireTime * 1000000);
+            auto validTime = ock::dagger::Monotonic::TimeUs() + static_cast<uint64_t>(lockExpireTime) * 1000000ULL;
             udsInfo.validTime = validTime;
             // 更新udsInfo
             clientDesc->SetLockUdsInfo(name, udsInfo);

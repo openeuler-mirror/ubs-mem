@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "rpc_server_engine.h"
+#include <exception>
 #include "log.h"
 
 using namespace ock::common;
@@ -21,8 +22,13 @@ uint32_t RpcServerEngine::RegisterOpcode(MxmComEndpoint opcode, const HcomServic
 {
     opcode.moduleId = 1;
     auto ret = MxmRegRpcService(opcode, [opcode, handle](const MsgBase *req, MsgBase *resp) -> void {
-        handle.func(req, resp);
-        return;
+        try {
+            handle.func(req, resp);
+        } catch (const std::exception &e) {
+            DBG_LOGERROR("RPC callback failed, serviceId=" << opcode.serviceId << ", error=" << e.what());
+        } catch (...) {
+            DBG_LOGERROR("RPC callback failed, serviceId=" << opcode.serviceId << ", unknown exception");
+        }
     });
     if (ret != 0) {
         return MXM_ERR_REGISTER_OP_CODE;

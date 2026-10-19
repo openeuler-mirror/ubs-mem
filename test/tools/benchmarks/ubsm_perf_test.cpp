@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <thread>
 #include <vector>
 #include "ubs_mem.h"
@@ -47,11 +48,10 @@ bool ubsmem_lookup_cluster_statistic_test()
 
 bool ubsmem_create_region_test()
 {
-    ubsmem_regions_t *regions = new ubsmem_regions_t();
-    ubsmem_lookup_regions(regions);
+    auto regions = std::make_unique<ubsmem_regions_t>();
+    ubsmem_lookup_regions(regions.get());
     if (regions->num <= 0) {
         printf("ubsmem_lookup_regions failed \n");
-        delete regions;
         return false;
     }
     for (int i = 0; i < regions->region[0].host_num; ++i) {
@@ -60,17 +60,15 @@ bool ubsmem_create_region_test()
     auto code = ubsmem_create_region(g_regionName.c_str(), 0, &regions->region[0]);
     if (code != 0) {
         printf("ubsmem_create_region failed \n");
-        delete regions;
         return false;
     }
-    delete regions;
     return true;
 }
 
 int mem_test(size_t threadId, size_t iteration)
 {
     if (!ubsmem_lookup_cluster_statistic_test()) {
-        g_failedNum.store(g_failedNum.load() + 1);
+        g_failedNum.fetch_add(1);
         return -1;
     }
     std::string name = std::to_string(threadId) + std::to_string(iteration);
@@ -92,7 +90,7 @@ int mem_test(size_t threadId, size_t iteration)
     }
     result += ubsmem_shmem_deallocate(name.c_str());
     if (result != 0) {
-        g_failedNum.store(g_failedNum.load() + 1);
+        g_failedNum.fetch_add(1);
     }
     return result;
 }
@@ -144,8 +142,15 @@ int main(int argc, char *argv[])
         std::cerr << "Example: " << argv[0] << " 4 10000\n";
         return 1;
     }
-    size_t num_threads = std::stoul(argv[1]);
-    size_t iterations_per_thread = std::stoul(argv[2]);
+    size_t num_threads = 0;
+    size_t iterations_per_thread = 0;
+    try {
+        num_threads = std::stoull(argv[1]);
+        iterations_per_thread = std::stoull(argv[2]);
+    } catch (const std::exception &) {
+        std::cerr << "threads and iterations must be valid integers\n";
+        return 1;
+    }
     if (CheckParam(num_threads, iterations_per_thread) != 0) {
         return 1;
     }
@@ -170,5 +175,5 @@ int main(int argc, char *argv[])
     } else {
         std::cout << "mem_test successful." << std::endl;
     }
-    return 0;
+    return g_failedNum == 0 ? 0 : 1;
 }

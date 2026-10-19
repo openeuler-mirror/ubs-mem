@@ -17,14 +17,15 @@
 constexpr auto SHARE_MEMORY_NAME = "ubsm_race_test";
 constexpr auto SYS_MEMORY_NAME = "sys_race_test";
 
-int g_iterations = 0;
+size_t g_iterations = 0;
 size_t g_shareMemoryLength = 0;
-size_t g_shareMemoryCreateFlags = 0;
+uint64_t g_shareMemoryCreateFlags = 0;
 int g_logLevel = 0;
 
 std::atomic<bool> g_shareMemoryThreadRunning(true);
+std::atomic<int> g_testResult(0);
 
-constexpr char MAGIC = 0xac;
+constexpr unsigned char MAGIC = 0xac;
 
 int UbsMemShareMemoryMapper(const std::string &name)
 {
@@ -39,16 +40,18 @@ int UbsMemShareMemoryMapper(const std::string &name)
     ret = memset_s(result, g_shareMemoryLength, MAGIC, g_shareMemoryLength);
     if (ret != 0) {
         std::cerr << "Failed to write share memory" << name << ", ret=" << ret << std::endl;
+        ubsmem_shmem_unmap(result, g_shareMemoryLength);
         return ret;
     }
 
-    volatile auto arr = static_cast<char *>(result);
-    for (int i = 0; i < g_shareMemoryLength; i++) {
+    auto *arr = static_cast<volatile unsigned char *>(result);
+    for (size_t i = 0; i < g_shareMemoryLength; i++) {
         if (arr[i] != MAGIC) {
             std::cerr << "Failed to read share memory " << name << std::endl;
             std::cerr << "index: " << i << std::endl;
             std::cerr << "expect: 0x" << std::hex << MAGIC << std::dec << std::endl;
             std::cerr << "actual: 0x" << std::hex << arr[i] << std::dec << std::endl;
+            ubsmem_shmem_unmap(result, g_shareMemoryLength);
             return 1;
         }
     }
@@ -59,21 +62,24 @@ int UbsMemShareMemoryMapper(const std::string &name)
         return ret;
     }
 
-    return 0;
+    return g_testResult.load();
 }
 
 int UbsMemShareMemoryMapFrequently(const std::string &name)
 {
-    for (int i = 0; i < g_iterations; ++i) {
+    for (size_t i = 0; i < g_iterations; ++i) {
         auto ret = UbsMemShareMemoryMapper(name);
         if (ret != 0) {
             std::cerr << "Failed to use " << name << ", index=" << i << ", ret=" << ret << std::endl;
-            return ret;
+            g_testResult.store(ret);
+            break;
         }
     }
-    std::cout << "Share memory stress test successfully. name=" << name << std::endl;
     g_shareMemoryThreadRunning.store(false);
-    return 0;
+    if (g_testResult.load() == 0) {
+        std::cout << "Share memory stress test successfully. name=" << name << std::endl;
+    }
+    return g_testResult.load();
 }
 
 int SystemMemoryMapper(const std::string &name)
@@ -86,27 +92,33 @@ int SystemMemoryMapper(const std::string &name)
     auto ret = ftruncate(fd, static_cast<off_t>(g_shareMemoryLength));
     if (ret != 0) {
         std::cerr << "ftruncate failed. errno=" << errno << std::endl;
+        close(fd);
         return ret;
     }
     void *address = mmap(nullptr, g_shareMemoryLength, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (address == MAP_FAILED) {
         std::cerr << "mmap failed. errno=" << errno << std::endl;
+        close(fd);
         return errno;
     }
 
     ret = memset_s(address, g_shareMemoryLength, MAGIC, g_shareMemoryLength);
     if (ret != 0) {
         std::cerr << "Failed to write fd memory " << fd << ", ret=" << ret << std::endl;
+        munmap(address, g_shareMemoryLength);
+        close(fd);
         return ret;
     }
 
-    volatile auto arr = static_cast<char *>(address);
-    for (int i = 0; i < g_shareMemoryLength; i++) {
+    auto *arr = static_cast<volatile unsigned char *>(address);
+    for (size_t i = 0; i < g_shareMemoryLength; i++) {
         if (arr[i] != MAGIC) {
             std::cerr << "Failed to read fd memory " << fd << std::endl;
             std::cerr << "index: " << i << std::endl;
             std::cerr << "expect: 0x" << std::hex << MAGIC << std::dec << std::endl;
             std::cerr << "actual: 0x" << std::hex << arr[i] << std::dec << std::endl;
+            munmap(address, g_shareMemoryLength);
+            close(fd);
             return 1;
         }
     }
@@ -114,6 +126,7 @@ int SystemMemoryMapper(const std::string &name)
     ret = munmap(address, g_shareMemoryLength);
     if (ret != 0) {
         std::cerr << "munmap failed. errno=" << errno << std::endl;
+        close(fd);
         return errno;
     }
     close(fd);
@@ -122,12 +135,14 @@ int SystemMemoryMapper(const std::string &name)
 
 int SystemMemoryMapFrequently(const std::string &name)
 {
-    int i = 0;
-    while (g_shareMemoryThreadRunning) {
+    size_t i = 0;
+    while (g_shareMemoryThreadRunning.load()) {
         auto tmp = name + "_" + std::to_string(i);
         auto ret = SystemMemoryMapper(tmp);
         if (ret != 0) {
             std::cerr << "SystemMemoryMapper failed. errno=" << errno << " name=" << tmp << std::endl;
+            g_testResult.store(ret);
+            g_shareMemoryThreadRunning.store(false);
             return ret;
         }
         ++i;
@@ -166,7 +181,7 @@ int ParseParameters(int argc, char *argv[])
         return 1;
     }
     try {
-        g_iterations = std::stoi(argv[1]);
+        g_iterations = std::stoull(argv[1]);
         g_shareMemoryLength = std::stoull(argv[2]);
         g_shareMemoryCreateFlags = std::stoull(argv[3]);
         g_logLevel = std::stoi(argv[4]);
@@ -174,8 +189,12 @@ int ParseParameters(int argc, char *argv[])
         std::cerr << "Please enter integer value." << std::endl;
         return 1;
     }
+    if (g_iterations == 0 || g_shareMemoryLength == 0) {
+        std::cerr << "iterations and length must be greater than zero." << std::endl;
+        return 1;
+    }
     std::cout << "Parse parameters successfully." << std::endl;
-    return 0;
+    return g_testResult.load();
 }
 
 int InitializeUbsMem()
@@ -208,7 +227,7 @@ int RunTestCase()
     shmMapperThread.join();
     sysMapperThread.join();
 
-    return 0;
+    return g_testResult.load();
 }
 
 int main(int argc, char *argv[])

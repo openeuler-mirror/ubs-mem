@@ -55,7 +55,6 @@ static int32_t DoVerify(void)
 
 static void *CertVerifyScheduleTask(void *arg)
 {
-    g_verifyThreadRunning.store(true);
     while (g_verifyThreadRunning.load()) {
         int32_t ret = DoVerify();
         if (ret != 0) {
@@ -66,7 +65,9 @@ static void *CertVerifyScheduleTask(void *arg)
         ts.tv_sec += CERT_VERIFY_PERIOD_SECONDS;
 
         pthread_mutex_lock(&g_verifyMutex);
-        pthread_cond_timedwait(&g_verifyCond, &g_verifyMutex, &ts);
+        if (g_verifyThreadRunning.load()) {
+            pthread_cond_timedwait(&g_verifyCond, &g_verifyMutex, &ts);
+        }
         pthread_mutex_unlock(&g_verifyMutex);
     }
     return nullptr;
@@ -89,11 +90,13 @@ int UbsCertifyHandler::StartScheduledCertVerify()
     }
     pthread_mutex_init(&g_verifyMutex, nullptr);
     pthread_cond_init(&g_verifyCond, nullptr);
+    g_verifyThreadRunning.store(true);
     ret = pthread_create(&g_verifyTaskId, nullptr, CertVerifyScheduleTask, nullptr);
     if (ret != 0) {
         DBG_LOGERROR("Failed to init schedule task, pthread_create failed, ret: " << ret);
         pthread_cond_destroy(&g_verifyCond);
         pthread_mutex_destroy(&g_verifyMutex);
+        g_verifyThreadRunning.store(false);
         return ret;
     }
     pthread_setname_np(g_verifyTaskId, VERIFY_TASK_NAME);
@@ -106,13 +109,14 @@ void UbsCertifyHandler::StopScheduledCertVerify()
     if (!g_verifyThreadRunning.load()) {
         return;
     }
-    g_verifyThreadRunning.store(false);
     pthread_mutex_lock(&g_verifyMutex);
+    g_verifyThreadRunning.store(false);
     pthread_cond_signal(&g_verifyCond);
     pthread_mutex_unlock(&g_verifyMutex);
 
     if (g_verifyTaskId != 0) {
         pthread_join(g_verifyTaskId, nullptr);
+        g_verifyTaskId = 0;
     }
     pthread_mutex_destroy(&g_verifyMutex);
     pthread_cond_destroy(&g_verifyCond);

@@ -30,7 +30,7 @@ struct LockUdsInfo {
     uint32_t pid;
     uint32_t uid;
     uint32_t gid;
-    unsigned long validTime;
+    uint64_t validTime;
 
     // 重载 < 运算符，用于 std::set 的唯一性校验
     bool operator<(const LockUdsInfo &other) const
@@ -105,7 +105,9 @@ public:
     inline void SetLockUdsInfo(const std::string &name, const LockUdsInfo &udsInfo)
     {
         std::lock_guard<std::mutex> guard(dataMutex);
-        name2UdsInfo[name].insert(udsInfo);
+        auto &udsSet = name2UdsInfo[name];
+        udsSet.erase(udsInfo);
+        udsSet.insert(udsInfo);
     }
 
     inline void RemoveLockUdsInfoByName(const std::string &name, const LockUdsInfo &udsInfo)

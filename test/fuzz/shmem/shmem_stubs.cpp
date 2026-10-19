@@ -256,7 +256,7 @@ int RegionLookupRegionStub(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo
         return MXM_ERR_NULLPTR;
     }
     auto response = dynamic_cast<ShmLookupRegionResponse *>(rsp);
-    SHMRegionDesc region;
+    SHMRegionDesc region{};
     region.num = 1;
     response->errCode_ = 0;
     response->region_ = region;

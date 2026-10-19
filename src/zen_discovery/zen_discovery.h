@@ -89,11 +89,6 @@ public:
     {
         return electionTimeoutMs_;
     }
-    std::mutex &GetNodesMutex()
-    {
-        return nodesMutex_;
-    }
-
     // 状态设置
     void BecomeTempMaster(const std::vector<std::string> &nodesId);
     void SetMasterToJoin(const std::string &master);

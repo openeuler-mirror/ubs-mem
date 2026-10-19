@@ -303,6 +303,10 @@ public:
         response->Deserialize(unpacker);
         MxmComMessage::FreeMessage(msg);
         SafeFree(retData.data);
+        if (!unpacker.IsValid()) {
+            DBG_LOGERROR("node " << nodeId << " returned an invalid response");
+            return HFAIL;
+        }
         return ret;
     }
 
@@ -372,6 +376,12 @@ private:
         std::string reqStr = std::string(reinterpret_cast<char *>(ucMsg->GetMessageBody()), ucMsg->GetMessageBodyLen());
         NetMsgUnpacker unpacker(reqStr);
         reqPtr->Deserialize(unpacker);
+        if (!unpacker.IsValid()) {
+            DBG_LOGERROR("module " << moduleCode << " opCode " << opCode << " invalid request body");
+            delete reqPtr;
+            delete respPtr;
+            return;
+        }
         SubmitHandlerTask(crc, handler, message, reqPtr, respPtr);
         DBG_LOGDEBUG("module " << moduleCode << " , opCode " << opCode << " request end");
         delete reqPtr;

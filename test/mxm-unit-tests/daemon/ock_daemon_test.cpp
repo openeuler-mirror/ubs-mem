@@ -6,6 +6,7 @@
 #include <iostream>
 #include <mockcpp/mockcpp.hpp>
 #include "daemon_test_common.h"
+#include "mxm_rpc_server_interface.h"
 #include "ubs_certify_handler.h"
 
 #define private public
@@ -213,6 +214,9 @@ TEST_F(OckDaemonTest, TestInitializeUbsmLock)
     EXPECT_EQ(hr, HOK);
     hr = daemon->InitUbsmLock();
     ASSERT_EQ(HOK, hr);
+    MOCKER_CPP(&ock::com::rpc::MxmComStartRpcServer, int (*)()).stubs().will(returnValue(HFAIL));
+    // Lock RPC initialization failure must not prevent daemon startup.
+    EXPECT_EQ(HOK, daemon->InitUbsmLock());
     DaemonTestCommon::DeleteConf();
 }
 
@@ -260,6 +264,8 @@ TEST_F(OckDaemonTest, TestInitializeUbsmTlsShouldFailed)
     ASSERT_EQ(HFAIL, hr);
     hr = daemon->InitLockTlsConfig();
     ASSERT_EQ(HFAIL, hr);
+    // TLS initialization still fails, but lock initialization is nonfatal to daemon startup.
+    ASSERT_EQ(HOK, daemon->InitUbsmLock());
     DaemonTestCommon::DeleteConf();
 }
 
@@ -325,8 +331,23 @@ TEST_F(OckDaemonTest, TestockDaemonStoppingKeepAlive)
 TEST_F(OckDaemonTest, TestockDaemonHandleSignal)
 {
     ock::daemon::OckDaemon ockDaemon;
+    OckDaemon::stopRequested = 0;
+    ockDaemon.mStatus = OckDaemon::ServerStatus::WAITING;
     int sigNum = 6;
     ock::daemon::OckDaemon::HandleSignal(sigNum);
+    EXPECT_EQ(OckDaemon::stopRequested, 1);
+    EXPECT_EQ(ockDaemon.mStatus, OckDaemon::ServerStatus::WAITING);
+    OckDaemon::stopRequested = 0;
+}
+
+TEST_F(OckDaemonTest, TestOckServicePointersAreInitialized)
+{
+    OckService service;
+
+    EXPECT_EQ(service.serviceHandler, nullptr);
+    EXPECT_EQ(service.ockServiceAgentP, nullptr);
+    EXPECT_EQ(service.agentCreateP, nullptr);
+    EXPECT_EQ(service.agentDestroyP, nullptr);
 }
 
 TEST_F(OckDaemonTest, TestockDaemonHandleSigpipe)

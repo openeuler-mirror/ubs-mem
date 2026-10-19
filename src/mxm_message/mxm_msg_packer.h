@@ -16,6 +16,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <vector>
 #include "rpc_config.h"
@@ -130,6 +131,16 @@ public:
      */
     explicit NetMsgUnpacker(const std::string &value) : inStream_(value) {}
 
+    bool IsValid() const noexcept
+    {
+        return valid_;
+    }
+
+    size_t Remaining() const noexcept
+    {
+        return static_cast<size_t>(inStream_.rdbuf()->in_avail());
+    }
+
     /**
      * @brief Take data and deserialize to POD data
      *
@@ -139,7 +150,10 @@ public:
     template <typename T>
     void Deserialize(T &val, typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0)
     {
-        inStream_.read(reinterpret_cast<char *>(&val), sizeof(T));
+        if (!valid_ || !inStream_.read(reinterpret_cast<char *>(&val), sizeof(T))) {
+            valid_ = false;
+            val = T{};
+        }
     }
 
     /**
@@ -150,13 +164,18 @@ public:
     void Deserialize(std::string &val)
     {
         uint32_t size = 0;
-        inStream_.read(reinterpret_cast<char *>(&size), sizeof(size));
-        if (size > MAX_ALLOWED_SIZE) {
-            DBG_LOGERROR("size(" << size << ") is over limited MAX_ALLOWED_SIZE(" << MAX_ALLOWED_SIZE << ").");
-            return; // 超出范围，直接返回
+        Deserialize(size);
+        if (!valid_ || size > MAX_ALLOWED_SIZE || size > Remaining()) {
+            DBG_LOGERROR("Invalid serialized string size=" << size << ", remaining=" << Remaining());
+            valid_ = false;
+            val.clear();
+            return;
         }
         val.resize(size);
-        inStream_.read(&val[0], size);
+        if (size != 0 && !inStream_.read(val.data(), size)) {
+            valid_ = false;
+            val.clear();
+        }
     }
 
     void Deserialize(rpc::ClusterNode &val)
@@ -177,13 +196,15 @@ public:
         Deserialize(isActive);
         Deserialize(nodetype);
 
-        val.id = id;
-        val.ip = ip;
-        val.port = port;
-        val.isMaster = isMaster;
-        val.lastSeen = lastSeen;
-        val.isActive = isActive;
-        val.type = nodetype;
+        if (valid_) {
+            val.id = std::move(id);
+            val.ip = std::move(ip);
+            val.port = port;
+            val.isMaster = isMaster;
+            val.lastSeen = lastSeen;
+            val.isActive = isActive;
+            val.type = nodetype;
+        }
     }
 
     /**
@@ -196,16 +217,21 @@ public:
     void Deserialize(std::vector<V> &container)
     {
         size_t size = 0;
-        inStream_.read(reinterpret_cast<char *>(&size), sizeof(size));
-        if (size > MAX_ALLOWED_SIZE) {
-            DBG_LOGERROR("size(" << size << ") is over limited MAX_ALLOWED_SIZE(" << MAX_ALLOWED_SIZE << ").");
-            return; // 超出范围，直接返回
+        Deserialize(size);
+        if (!valid_ || size > MAX_ALLOWED_SIZE || size > Remaining()) {
+            DBG_LOGERROR("Invalid serialized vector size=" << size << ", remaining=" << Remaining());
+            valid_ = false;
+            container.clear();
+            return;
         }
         container.clear();
-        container.reserve(size);
         for (size_t i = 0; i < size; ++i) {
-            V item;
+            V item{};
             Deserialize(item);
+            if (!valid_) {
+                container.clear();
+                return;
+            }
             container.emplace_back(std::move(item));
         }
     }
@@ -221,23 +247,30 @@ public:
     void Deserialize(std::map<K, V> &container)
     {
         size_t size = 0;
-        inStream_.read(reinterpret_cast<char *>(&size), sizeof(size));
-        if (size > MAX_ALLOWED_SIZE) {
-            DBG_LOGERROR("size(" << size << ") is over limited MAX_ALLOWED_SIZE(" << MAX_ALLOWED_SIZE << ").");
-            return; // 超出范围，直接返回
+        Deserialize(size);
+        if (!valid_ || size > MAX_ALLOWED_SIZE || size > Remaining() / 2) {
+            DBG_LOGERROR("Invalid serialized map size=" << size << ", remaining=" << Remaining());
+            valid_ = false;
+            container.clear();
+            return;
         }
         container.clear();
         for (size_t i = 0; i < size; ++i) {
-            K key;
-            V value;
+            K key{};
+            V value{};
             Deserialize(key);
             Deserialize(value);
+            if (!valid_) {
+                container.clear();
+                return;
+            }
             container.emplace(std::move(key), std::move(value));
         }
     }
 
 private:
     std::istringstream inStream_;
+    bool valid_{true};
 };
 } // namespace mxmd
 } // namespace ock
