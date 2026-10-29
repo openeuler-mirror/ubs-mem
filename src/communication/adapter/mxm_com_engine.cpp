@@ -680,6 +680,73 @@ void MxmComEngine::RegisterEngineHandlers()
     hcomNetService->RegisterOneSideHandler(oneSideDoneRequest);
 }
 
+static void EraseCapiKeypass(char *addr, int len)
+{
+    UbsCryptorHandler::GetInstance().EraseDecryptData(addr, len);
+    DBG_LOGINFO("TLS erase key pass finished.");
+}
+
+static int GetCapiCa(const char *name, char **caPath, char **crlPath, ubs_hcom_peer_cert_verify_type *verifyType,
+                     ubs_hcom_tls_cert_verify *verify)
+{
+    if (caPath == nullptr || crlPath == nullptr || verifyType == nullptr || verify == nullptr) {
+        return -1;
+    }
+    try {
+        auto &config = UbsCommonConfig::GetInstance();
+        *caPath = const_cast<char *>(config.GetCaPath().c_str());
+        *crlPath = config.GetCrlPath().empty() ? nullptr : const_cast<char *>(config.GetCrlPath().c_str());
+        *verifyType = C_VERIFY_BY_DEFAULT;
+        *verify = nullptr;
+        DBG_LOGINFO("TLS get ca path finished, peer name: " << (name == nullptr ? "" : name));
+        return 0;
+    } catch (...) {
+        return -1;
+    }
+}
+
+static int GetCapiCert(const char *name, char **certPath)
+{
+    if (certPath == nullptr) {
+        return -1;
+    }
+    try {
+        *certPath = const_cast<char *>(UbsCommonConfig::GetInstance().GetCertPath().c_str());
+        DBG_LOGINFO("TLS get cert path finished, peer name: " << (name == nullptr ? "" : name));
+        return 0;
+    } catch (...) {
+        return -1;
+    }
+}
+
+static int GetCapiPrivateKey(const char *name, char **path, char **pw, int *length, ubs_hcom_tls_keypass_erase *erase)
+{
+    if (path == nullptr || pw == nullptr || length == nullptr || erase == nullptr) {
+        return -1;
+    }
+    *path = nullptr;
+    *pw = nullptr;
+    *length = 0;
+    *erase = nullptr;
+    try {
+        auto &config = UbsCommonConfig::GetInstance();
+        std::pair<char *, int> pwPair;
+        auto ret = UbsCryptorHandler::GetInstance().Decrypt(0, config.GetKeypassPath(), pwPair);
+        if (ret != 0) {
+            DBG_LOGERROR("Decrypt failed, ret: " << ret << ", peer name: " << (name == nullptr ? "" : name));
+            return ret;
+        }
+        *path = const_cast<char *>(config.GetKeyPath().c_str());
+        *pw = pwPair.first;
+        *length = pwPair.second;
+        *erase = EraseCapiKeypass;
+        DBG_LOGINFO("TLS get private key path finished, peer name: " << (name == nullptr ? "" : name));
+        return 0;
+    } catch (...) {
+        return -1;
+    }
+}
+
 HRESULT MxmComEngine::RegisterTlsCallback()
 {
     if (!engineInfo.GetEnableTls()) {
@@ -722,48 +789,45 @@ HRESULT MxmComEngine::RegisterTlsCallback()
 bool MxmComEngine::TlsCaCallBack(const std::string &name, std::string &capath, std::string &crlPath,
                                  UBSHcomPeerCertVerifyType &verifyPeerCert, UBSHcomTLSCertVerifyCallback &cb)
 {
-    capath = UbsCommonConfig::GetInstance().GetCaPath();
-    if (!UbsCommonConfig::GetInstance().GetCrlPath().empty()) {
-        crlPath = UbsCommonConfig::GetInstance().GetCrlPath();
+    char *ca = nullptr;
+    char *crl = nullptr;
+    ubs_hcom_peer_cert_verify_type verifyType = C_VERIFY_BY_DEFAULT;
+    ubs_hcom_tls_cert_verify verify = nullptr;
+    if (GetCapiCa(name.c_str(), &ca, &crl, &verifyType, &verify) != 0) {
+        return false;
     }
-    verifyPeerCert = UBSHcomPeerCertVerifyType::VERIFY_BY_DEFAULT;
-    cb = nullptr;
-    DBG_LOGINFO("TLS get ca path finished, peer name: " << name);
+    capath = ca;
+    if (crl != nullptr) {
+        crlPath = crl;
+    }
+    verifyPeerCert = static_cast<UBSHcomPeerCertVerifyType>(verifyType);
+    cb = verify;
     return true;
 }
 
 bool MxmComEngine::TlsPrivateKeyCallback(const std::string &name, std::string &path, void *&pw, int &length,
                                          UBSHcomTLSEraseKeypass &erase)
 {
-    path = UbsCommonConfig::GetInstance().GetKeyPath();
-    std::pair<char *, int> pwPair;
-    auto ret = UbsCryptorHandler::GetInstance().Decrypt(0, UbsCommonConfig::GetInstance().GetKeypassPath(), pwPair);
-    if (ret != 0) {
-        DBG_LOGERROR("Decrypt failed, ret: " << ret << ", peer name: " << name);
+    char *pathOut = nullptr;
+    char *pwOut = nullptr;
+    ubs_hcom_tls_keypass_erase eraseOut = nullptr;
+    if (GetCapiPrivateKey(name.c_str(), &pathOut, &pwOut, &length, &eraseOut) != 0) {
         return false;
     }
-    pw = static_cast<void *>(pwPair.first);
-    length = pwPair.second;
-
-    UBSHcomTLSEraseKeypass eraseFunc = [this](void *addr, int len) -> void {
-        TlsEraseKeypass(addr, len);
-    };
-    erase = eraseFunc;
-    DBG_LOGINFO("TLS get private key path finished, peer name: " << name);
+    path = pathOut;
+    pw = pwOut;
+    erase = [eraseOut](void *addr, int len) { eraseOut(static_cast<char *>(addr), len); };
     return true;
 }
 
 bool MxmComEngine::TlsCertificationCallback(const std::string &name, std::string &path)
 {
-    path = UbsCommonConfig::GetInstance().GetCertPath();
-    DBG_LOGINFO("TLS get cert path finished, peer name: " << name);
+    char *pathOut = nullptr;
+    if (GetCapiCert(name.c_str(), &pathOut) != 0) {
+        return false;
+    }
+    path = pathOut;
     return true;
-}
-
-void MxmComEngine::TlsEraseKeypass(void *addr, int len)
-{
-    UbsCryptorHandler::GetInstance().EraseDecryptData(static_cast<char *>(addr), len);
-    DBG_LOGINFO("TLS erase key pass finished.");
 }
 
 HRESULT MxmComEngine::NewChannel(const std::string &ipPort, const UBSHcomChannelPtr &ch, const std::string &payload)

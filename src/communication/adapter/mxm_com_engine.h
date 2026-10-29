@@ -209,8 +209,6 @@ protected:
 
     bool TlsCertificationCallback(const std::string &name, std::string &path);
 
-    void TlsEraseKeypass(void *addr, int len);
-
     /* *
    * @brief 新连接建立消息处理函数
    * @param[in] ipPort: 远端ip，端口信息
