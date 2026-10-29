@@ -7,7 +7,6 @@
 #include <cstdlib>
 #include <cstring>
 #include "defines.h"
-#include "hcom_service.h"
 #include "mxm_com_def.h"
 #include "mxm_com_engine.h"
 #include "mxm_rpc_server.h"

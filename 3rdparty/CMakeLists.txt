@@ -6,18 +6,15 @@ cmake_minimum_required(VERSION 3.14.1)
 ######################################################################
 SET(HCOM_LIBS_DIR /usr/lib64 PARENT_SCOPE)
 SET(HCOM_C_INCLUDE_DIR /usr/include/hcom/capi PARENT_SCOPE)
-SET(HCOM_INCLUDE_DIR /usr/include/hcom PARENT_SCOPE)
 
 MACRO(TARGET_HCOM target)
     TARGET_INCLUDE_DIRECTORIES(${target} SYSTEM PUBLIC ${HCOM_C_INCLUDE_DIR})
-    TARGET_INCLUDE_DIRECTORIES(${target} SYSTEM PUBLIC ${HCOM_INCLUDE_DIR})
     TARGET_LINK_DIRECTORIES(${target} PUBLIC ${HCOM_LIBS_DIR})
     TARGET_LINK_LIBRARIES(${target} PUBLIC hcom)
 ENDMACRO()
 
 MACRO(TARGET_HCOM_HEADER_ONLY target)
     TARGET_INCLUDE_DIRECTORIES(${target} SYSTEM PUBLIC ${HCOM_C_INCLUDE_DIR})
-    TARGET_INCLUDE_DIRECTORIES(${target} SYSTEM PUBLIC ${HCOM_INCLUDE_DIR})
 ENDMACRO()
 
 ######################################################################
