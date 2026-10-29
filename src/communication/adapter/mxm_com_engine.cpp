@@ -174,7 +174,7 @@ void MxmComLinkManager::InsertChannel(MxmComChannelInfo &channelInfo)
 
 void MxmComLinkManager::RemoveChannelByChannelId(uint64_t id, UBSHcomService *hcomNetService)
 {
-    UBSHcomChannelPtr chPtr;
+    MxmComChannelInfo channelInfo;
     {
         WriteLocker<ReadWriteLock> channelLockGuard(&channelLock_);
         auto iter = channelIdMap.find(id);
@@ -182,43 +182,47 @@ void MxmComLinkManager::RemoveChannelByChannelId(uint64_t id, UBSHcomService *hc
             DBG_LOGERROR("No channel " << id << " ,can't remove");
             return;
         }
-        chPtr = iter->second.GetChannel();
+        channelInfo = iter->second;
         auto remoteId = iter->second.GetConnectInfo().GetRemoteNodeId();
         auto chType = iter->second.GetChannelType();
         auto nodeIter = nodeChannelMap.find(remoteId);
         if (nodeIter != nodeChannelMap.end()) {
-            nodeIter->second.erase(chType);
+            auto channelIter = nodeIter->second.find(chType);
+            if (channelIter != nodeIter->second.end() &&
+                (channelIter->second.GetChannel() == nullptr || channelIter->second.GetChannelId() == id)) {
+                nodeIter->second.erase(channelIter);
+            }
             if (nodeIter->second.empty()) {
                 nodeChannelMap.erase(nodeIter);
             }
         }
         channelIdMap.erase(iter);
     }
-    if (chPtr == nullptr) {
+    if (channelInfo.GetChannel() == nullptr) {
         DBG_LOGERROR("Channel " << id << " hcom NetChannelPtr is nullptr");
         return;
     }
     if (hcomNetService != nullptr) {
-        hcomNetService->Disconnect(chPtr);
+        hcomNetService->Disconnect(channelInfo.GetChannel());
     }
 }
 
 void MxmComLinkManager::RemoveAllChannel(UBSHcomService *hcomNetService)
 {
-    std::vector<UBSHcomChannelPtr> channels;
+    std::vector<MxmComChannelInfo> channels;
     {
         WriteLocker<ReadWriteLock> channelLockGuard(&channelLock_);
         for (const auto &entry : channelIdMap) {
-            if (entry.second.GetChannel() != nullptr) {
-                channels.push_back(entry.second.GetChannel());
-            }
+            channels.push_back(entry.second);
         }
         nodeChannelMap.clear();
         channelIdMap.clear();
     }
     if (hcomNetService != nullptr) {
         for (const auto &channel : channels) {
-            hcomNetService->Disconnect(channel);
+            if (channel.GetChannel() != nullptr) {
+                hcomNetService->Disconnect(channel.GetChannel());
+            }
         }
     }
 }
