@@ -236,6 +236,8 @@ public:
 
     const UBSHcomChannelPtr &GetChannel() const;
 
+    uint64_t GetChannelId() const;
+
     void SetChannel(const UBSHcomChannelPtr &channel);
 
     const MxmComChannelConnectInfo &GetConnectInfo() const;

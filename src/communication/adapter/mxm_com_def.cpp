@@ -258,6 +258,11 @@ const UBSHcomChannelPtr &MxmComChannelInfo::GetChannel() const
     return channel;
 }
 
+uint64_t MxmComChannelInfo::GetChannelId() const
+{
+    return channel->GetId();
+}
+
 void MxmComChannelInfo::SetUDSInfo(UBSHcomNetUdsIdInfo &uds)
 {
     MxmComChannelInfo::uds = uds;

@@ -138,7 +138,7 @@ void MxmComLinkManager::InsertChannel(MxmComChannelInfo &channelInfo)
             DBG_LOGERROR("Cannot insert a null channel.");
             return;
         }
-        auto channelId = channel->GetId();
+        auto channelId = channelInfo.GetChannelId();
         channelIdMap.emplace(channelId, channelInfo);
         DBG_LOGINFO("Insert channel id: " << channelId << ", cur node id" << channelInfo.GetConnectInfo().GetCurNodeId()
                                           << ", remote node id" << channelInfo.GetConnectInfo().GetRemoteNodeId());
@@ -154,7 +154,7 @@ void MxmComLinkManager::InsertChannel(MxmComChannelInfo &channelInfo)
                               << ", remote node is " << nodeId);
         const auto &oldChannel = oldChannelIter->second.GetChannel();
         if (oldChannel != nullptr) {
-            channelIdMap.erase(oldChannel->GetId());
+            channelIdMap.erase(oldChannelIter->second.GetChannelId());
         }
         nodeIter->second.erase(oldChannelIter);
     }
@@ -166,7 +166,7 @@ void MxmComLinkManager::InsertChannel(MxmComChannelInfo &channelInfo)
     } else {
         iter->second.emplace(chType, channelInfo);
     }
-    auto channelId = channelInfo.GetChannel()->GetId();
+    auto channelId = channelInfo.GetChannelId();
     channelIdMap.emplace(channelId, channelInfo);
     DBG_LOGINFO("Insert channel id: " << channelId << ", cur node id" << channelInfo.GetConnectInfo().GetCurNodeId()
                                       << ", remote node id" << channelInfo.GetConnectInfo().GetRemoteNodeId());
@@ -409,7 +409,7 @@ void MxmComEngine::RemoveChannel(std::string remoteNodeId, MxmChannelType type)
         DBG_LOGERROR("Failed to get channel info, error code is," << ret);
         return;
     }
-    linkManager.RemoveChannelByChannelId(channelInfo.GetChannel()->GetId(), hcomNetService);
+    linkManager.RemoveChannelByChannelId(channelInfo.GetChannelId(), hcomNetService);
 }
 
 HRESULT MxmComEngine::PrepareMem()
