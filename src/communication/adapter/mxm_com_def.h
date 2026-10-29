@@ -38,8 +38,10 @@ namespace ock::com {
 using namespace ock::hcom;
 using namespace ock::mxmd;
 using namespace ock::rpc;
-// 消息回复钩子函数
-using ReplyFuncHook = std::function<HRESULT(const UBSHcomRequest &msg, const Callback *done)>;
+struct MxmComDataDesc;
+struct MxmComCallback;
+// 消息回复钩子函数；异步完成时需自行复制 callback。
+using ReplyFuncHook = std::function<HRESULT(const MxmComDataDesc &data, const MxmComCallback &callback)>;
 
 enum class MxmEngineType { CLIENT = 0, SERVER };
 

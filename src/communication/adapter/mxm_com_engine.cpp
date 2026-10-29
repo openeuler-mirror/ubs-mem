@@ -1224,18 +1224,16 @@ void MxmCommunication::MxmComMsgReply(MxmComMessageCtx &message, const MxmComDat
                      usrCb.cb(usrCb.cbCtx, nullptr, 0, MXM_COM_ERROR_CHANNEL_NULL));
         return;
     }
-    UBSHcomRequest reqMsg{(data.data), data.len, 0};
-    UBSHcomReplyContext replyCtx(rspCtx, 0);
-
-    Callback *done = nullptr;
-    if (CreateCallBack(usrCb, done) != HOK) {
-        return;
-    }
-
     auto replyHook = message.GetReplyFuncHook();
     if (replyHook != nullptr) {
-        res = replyHook(reqMsg, done);
+        res = replyHook(data, usrCb);
     } else {
+        UBSHcomRequest reqMsg{(data.data), data.len, 0};
+        UBSHcomReplyContext replyCtx(rspCtx, 0);
+        Callback *done = nullptr;
+        if (CreateCallBack(usrCb, done) != HOK) {
+            return;
+        }
         res = channel->Reply(replyCtx, reqMsg, done);
     }
     if (res != 0) {
