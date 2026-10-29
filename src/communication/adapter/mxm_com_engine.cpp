@@ -377,7 +377,7 @@ HRESULT MxmComEngine::CreateChannel(MxmComChannelConnectInfo &info, MxmChannelTy
     if (engineInfo.GetProtocol() == MxmProtocol::UDS && engineInfo.IsServerSide()) {
         UBSHcomNetUdsIdInfo uds;
         channelPtr->GetRemoteUdsIdInfo(uds);
-        chInfo.SetUDSInfo(uds);
+        chInfo.SetUDSInfo({uds.pid, uds.uid, uds.gid});
     }
     linkManager.InsertChannel(chInfo);
     linkStateNotify(engineInfo, remoteNodeId, channelPtr->GetId(), MxmLinkState::LINK_UP);
@@ -757,7 +757,7 @@ HRESULT MxmComEngine::NewChannel(const std::string &ipPort, const UBSHcomChannel
     if (engineInfo.GetProtocol() == MxmProtocol::UDS && engineInfo.IsServerSide()) {
         UBSHcomNetUdsIdInfo uds;
         ch->GetRemoteUdsIdInfo(uds);
-        chInfo.SetUDSInfo(uds);
+        chInfo.SetUDSInfo({uds.pid, uds.uid, uds.gid});
     }
     linkManager.InsertChannel(chInfo);
     DBG_LOGINFO("Insert channel " << channelId << " from [" << ipPort << "," << payload << "] success");
@@ -786,7 +786,7 @@ void MxmComEngine::BrokenChannel(const UBSHcomChannelPtr &ch)
         DBG_LOGWARN("Channel : " << ch->GetId() << " not found in MxmTransLinkManager.");
         return;
     }
-    UBSHcomNetUdsIdInfo uds = channelInfo.GetUDSInfo();
+    MxmUdsIdInfo uds = channelInfo.GetUDSInfo();
     linkManager.RemoveChannelByChannelId(channelId, hcomNetService);
     linkStateNotify(engineInfo, channelInfo.GetConnectInfo().GetRemoteNodeId(), uds.pid, MxmLinkState::LINK_DOWN);
     auto isReconnectHook = engineInfo.GetReConnectHook();

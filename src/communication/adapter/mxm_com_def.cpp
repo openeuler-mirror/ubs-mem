@@ -264,11 +264,11 @@ uint64_t MxmComChannelInfo::GetChannelId() const
     return GetChannel()->GetId();
 }
 
-void MxmComChannelInfo::SetUDSInfo(UBSHcomNetUdsIdInfo &uds)
+void MxmComChannelInfo::SetUDSInfo(const MxmUdsIdInfo &uds)
 {
     MxmComChannelInfo::uds = uds;
 }
-UBSHcomNetUdsIdInfo MxmComChannelInfo::GetUDSInfo() const
+MxmUdsIdInfo MxmComChannelInfo::GetUDSInfo() const
 {
     return uds;
 }

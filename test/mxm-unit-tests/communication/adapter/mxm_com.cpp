@@ -177,7 +177,7 @@ TEST_F(MxmComTestSuite, TestMxmComBaseInterface4)
 {
     MxmComChannelInfo info{};
     info.SetIsServer(true);
-    UBSHcomNetUdsIdInfo uds{};
+    MxmUdsIdInfo uds{};
     info.SetUDSInfo(uds);
     UBSHcomChannelPtr channelPtr;
     info.SetChannel(channelPtr);

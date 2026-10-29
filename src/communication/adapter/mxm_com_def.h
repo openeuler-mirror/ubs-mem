@@ -214,6 +214,12 @@ private:
     uint16_t linkNum{1};      // 通道的链路数
 };
 
+struct MxmUdsIdInfo {
+    uint32_t pid = 0; // process id
+    uint32_t uid = 0; // user id
+    uint32_t gid = 0; // group id
+};
+
 class MxmComChannelInfo {
 public:
     MxmComChannelInfo() = default;
@@ -244,9 +250,9 @@ public:
 
     void SetChannelType(MxmChannelType chType);
 
-    void SetUDSInfo(UBSHcomNetUdsIdInfo &uds);
+    void SetUDSInfo(const MxmUdsIdInfo &uds);
 
-    UBSHcomNetUdsIdInfo GetUDSInfo() const;
+    MxmUdsIdInfo GetUDSInfo() const;
 
     const std::string &GetEngineName() const;
 
@@ -259,7 +265,7 @@ private:
     MxmChannelType channelType{MxmChannelType::NORMAL}; // 通道类型
     std::string engineName;                             // 引擎名
     std::shared_ptr<UBSHcomChannelPtr> channel;          // 两个索引和查询副本共享同一份 Channel 引用
-    UBSHcomNetUdsIdInfo uds;
+    MxmUdsIdInfo uds;
     MxmComChannelConnectInfo connectInfo; // 连接信息
 };
 
@@ -321,12 +327,6 @@ public:
 private:
     MxmComMessageHead head; // 消息头
     uint8_t body[0];        // 消息体
-};
-
-struct MxmUdsIdInfo {
-    uint32_t pid = 0; // process id
-    uint32_t uid = 0; // user id
-    uint32_t gid = 0; // group id
 };
 
 class MxmComMessageCtx {
