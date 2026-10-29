@@ -15,6 +15,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -222,13 +223,8 @@ public:
         : isServer(isServer),
           channelType(channelType),
           engineName(std::move(engineName)),
-          channel(std::move(channel)),
+          channel(std::make_shared<UBSHcomChannelPtr>(std::move(channel))),
           connectInfo(std::move(connectInfo)) {};
-
-    ~MxmComChannelInfo()
-    {
-        channel = nullptr;
-    }
 
     bool IsServerSide() const;
 
@@ -262,7 +258,7 @@ private:
     bool isServer{true};                                // 是否是server端
     MxmChannelType channelType{MxmChannelType::NORMAL}; // 通道类型
     std::string engineName;                             // 引擎名
-    UBSHcomChannelPtr channel = nullptr;                // channel指针
+    std::shared_ptr<UBSHcomChannelPtr> channel;          // 两个索引和查询副本共享同一份 Channel 引用
     UBSHcomNetUdsIdInfo uds;
     MxmComChannelConnectInfo connectInfo; // 连接信息
 };

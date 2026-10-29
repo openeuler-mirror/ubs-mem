@@ -255,12 +255,13 @@ void MxmComChannelInfo::SetIsServer(bool isServerSide)
 
 const UBSHcomChannelPtr &MxmComChannelInfo::GetChannel() const
 {
-    return channel;
+    static const UBSHcomChannelPtr emptyChannel;
+    return channel == nullptr ? emptyChannel : *channel;
 }
 
 uint64_t MxmComChannelInfo::GetChannelId() const
 {
-    return channel->GetId();
+    return GetChannel()->GetId();
 }
 
 void MxmComChannelInfo::SetUDSInfo(UBSHcomNetUdsIdInfo &uds)
@@ -274,7 +275,7 @@ UBSHcomNetUdsIdInfo MxmComChannelInfo::GetUDSInfo() const
 
 void MxmComChannelInfo::SetChannel(const UBSHcomChannelPtr &ch)
 {
-    MxmComChannelInfo::channel = ch;
+    channel = ch == nullptr ? nullptr : std::make_shared<UBSHcomChannelPtr>(ch);
 }
 
 const MxmComChannelConnectInfo &MxmComChannelInfo::GetConnectInfo() const
@@ -311,7 +312,8 @@ std::string MxmComChannelInfo::ConvertMxmComChannelInfoToString()
     std::string infoStr = "engine Name: " + engineName + "; ";
     infoStr = infoStr + "channel type: " + std::to_string(static_cast<int>(channelType)) + "; ";
     infoStr = infoStr +
-              "channel id: " + (channel == nullptr ? std::string("invalid") : std::to_string(channel->GetId())) + "; ";
+              "channel id: " +
+              (GetChannel() == nullptr ? std::string("invalid") : std::to_string(GetChannelId())) + "; ";
     infoStr = infoStr + "cur node id: " + connectInfo.GetCurNodeId() + "; ";
     infoStr = infoStr + "remote node id: " + connectInfo.GetRemoteNodeId() + "; ";
     return infoStr;
