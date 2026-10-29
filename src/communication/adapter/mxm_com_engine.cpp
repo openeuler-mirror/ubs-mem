@@ -273,6 +273,13 @@ MxmComEngine::MxmComEngine(MxmComEngineInfo engineInfo, UBSHcomService *hcomNetS
 {
 }
 
+MxmComEngine::~MxmComEngine()
+{
+    if (memPtr != 0) {
+        ubs_hcom_mem_allocator_destroy(memPtr);
+    }
+}
+
 const MxmComEngineInfo &MxmComEngine::GetEngineInfo() const
 {
     return engineInfo;
@@ -452,7 +459,7 @@ HRESULT MxmComEngine::PrepareMem()
         return HFAIL;
     }
 
-    UBSHcomNetMemoryAllocatorOptions options;
+    ubs_hcom_memory_allocator_options options{};
     options.address = reinterpret_cast<uintptr_t>(address);
     options.size = engineInfo.GetMaxSendReceiveSize() * SEND_RECEIVE_SIZE;
     options.minBlockSize = MIN_BLOCK_SIZE;
@@ -460,8 +467,8 @@ HRESULT MxmComEngine::PrepareMem()
     options.cacheTierCount = CACHE_TIER_COUNT;
     options.cacheBlockCountPerTier = CACHE_BLOCK_COUNT_PER_TIER;
     options.bucketCount = BUCKET_COUNT;
-    options.cacheTierPolicy = TIER_POWER;
-    auto result = UBSHcomNetMemoryAllocator::Create(ock::hcom::DYNAMIC_SIZE_WITH_CACHE, options, memPtr);
+    options.cacheTierPolicy = C_TIER_POWER;
+    auto result = ubs_hcom_mem_allocator_create(C_DYNAMIC_SIZE_WITH_CACHE, &options, &memPtr);
     if (result != 0) {
         DBG_LOGERROR("Failed to create mem allocator, " << result);
     }
@@ -571,7 +578,11 @@ HRESULT MxmComEngine::Start()
         }
         UBSHcomMemoryKey key{};
         mr.GetMemoryKey(key);
-        memPtr->MrKey(key.keys[0]);
+        result = ubs_hcom_mem_allocator_set_mr_key(memPtr, key.keys[0]);
+        if (result != 0) {
+            DBG_LOGERROR("Failed to set memory allocator MR key, " << result);
+            return result;
+        }
     }
     return HOK;
 }
@@ -607,6 +618,10 @@ HRESULT MxmComEngine::Stop()
         }
         if (hcomNetService != nullptr) {
             hcomNetService->DestroyMemoryRegion(mr);
+        }
+        if (memPtr != 0) {
+            ubs_hcom_mem_allocator_destroy(memPtr);
+            memPtr = 0;
         }
         stopPrepared = true;
     }
@@ -963,7 +978,7 @@ HRESULT MxmComEngineManager::CreateEngine(const MxmComEngineInfo &engineInfo, co
         DBG_LOGINFO("Engine " << engineName << " has already been created");
         return HOK;
     }
-    NetLogger::Instance()->SetExternalLogFunction(engineInfo.GetLogFunc());
+    ubs_hcom_set_log_handler(engineInfo.GetLogFunc());
     MxmProtocol hcomProtocol = engineInfo.GetProtocol();
     UBSHcomServiceOptions options{};
     AssignServiceOptions(engineInfo, options);

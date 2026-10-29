@@ -100,6 +100,7 @@ private:
 class MxmComEngine {
 public:
     MxmComEngine(MxmComEngineInfo engineInfo, UBSHcomService *hcomNetService, MxmComLinkStateNotify linkStateNotify);
+    ~MxmComEngine();
 
     /* *
    * @brief 获取引擎信息
@@ -268,7 +269,7 @@ protected:
     EngineHandlerWorker handlerWork;
     ReadWriteLock rwLock;                          // 读写锁
     void *address = nullptr;                       // 预分配内存地址
-    UBSHcomNetMemoryAllocatorPtr memPtr = nullptr; // 内存指针
+    ubs_hcom_memory_allocator memPtr = 0; // 内存分配器句柄
     UBSHcomRegMemoryRegion mr;
     std::mutex reconnectMutex;
     std::vector<std::thread> reconnectTasks;
