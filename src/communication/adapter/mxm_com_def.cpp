@@ -611,40 +611,4 @@ std::pair<std::string, MxmChannelType> SplitPayload(const std::string &payload)
     return std::make_pair(payloadPair[0], StringToChannelType(payloadPair[1]));
 }
 
-MxmComMessage *GetMessageFromNetServiceContext(const UBSHcomServiceContext &context)
-{
-    return static_cast<MxmComMessage *>(context.MessageData());
-}
-
-MxmComMessage *GetMessageFromNetServiceMessage(UBSHcomRequest &msg)
-{
-    return static_cast<MxmComMessage *>(msg.address);
-}
-
-bool CheckMessageBodyLen(UBSHcomServiceContext &context, MxmComMessage &msg)
-{
-    return context.MessageDataLen() == (sizeof(MxmComMessage) + msg.GetMessageBodyLen());
-}
-
-bool CheckMessageBodyLen(UBSHcomRequest &netServiceMessage, MxmComMessage &msg)
-{
-    return netServiceMessage.size == (sizeof(MxmComMessage) + msg.GetMessageBodyLen());
-}
-
-uint64_t GetChannelIdFromNetServiceContext(const UBSHcomServiceContext &context)
-{
-    return context.Channel()->GetId();
-}
-
-void GetUdsInfoFromNetServiceContext(const UBSHcomServiceContext &context, MxmUdsIdInfo &udsIdInfo)
-{
-    UBSHcomNetUdsIdInfo uds;
-    auto ret = context.Channel()->GetRemoteUdsIdInfo(uds);
-    if (ret == 0) {
-        DBG_LOGDEBUG("Uds info is " << uds.pid << "," << uds.uid << "," << uds.gid);
-        udsIdInfo.pid = uds.pid;
-        udsIdInfo.uid = uds.uid;
-        udsIdInfo.gid = uds.gid;
-    }
-}
 } // namespace ock::com

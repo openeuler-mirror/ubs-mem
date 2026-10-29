@@ -220,7 +220,6 @@ TEST_F(MxmComTestSuite, TestMxmComBaseInterface5)
     auto dstId = ctx.GetDstId();
     EXPECT_EQ(dstId, "3");
 
-    UBSHcomServiceContext context{};
     MxmUdsIdInfo udsIdInfo{};
     EXPECT_EQ(MxmComMessage::AllocMessage(std::numeric_limits<uint32_t>::max()), nullptr);
     delete[] messagePtr;

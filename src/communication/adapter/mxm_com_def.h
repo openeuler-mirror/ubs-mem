@@ -23,7 +23,6 @@
 #include "common_def.h"
 #include "hcom_service.h"
 #include "hcom_service_channel.h"
-#include "hcom_service_context.h"
 #include "mxm_com_error.h"
 #include "mxm_msg.h"
 #include "mxm_msg_base.h"
@@ -421,18 +420,6 @@ MxmComMessagePtr TransRequestMsg(const NetMsgPacker &packer, uint16_t opCode, ui
 std::pair<std::string, MxmChannelType> SplitPayload(const std::string &payload);
 
 bool GetIpPortByChannel(const UBSHcomChannelPtr &ch, std::string &ip, uint16_t &port);
-
-MxmComMessage *GetMessageFromNetServiceContext(const UBSHcomServiceContext &context);
-
-MxmComMessage *GetMessageFromNetServiceMessage(UBSHcomRequest &msg);
-
-void GetUdsInfoFromNetServiceContext(const UBSHcomServiceContext &context, MxmUdsIdInfo &udsIdInfo);
-
-bool CheckMessageBodyLen(UBSHcomServiceContext &context, MxmComMessage &msg);
-
-bool CheckMessageBodyLen(UBSHcomRequest &netServiceMessage, MxmComMessage &msg);
-
-uint64_t GetChannelIdFromNetServiceContext(const UBSHcomServiceContext &context);
 
 MxmChannelType StringToChannelType(const std::string &type);
 

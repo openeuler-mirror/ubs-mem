@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "crc/dg_crc.h"
+#include "hcom_service_context.h"
 #include "log.h"
 #include "ptracer.h"
 #include "ubs_common_config.h"
@@ -24,6 +25,33 @@
 namespace ock::com {
 using namespace ock::common;
 using namespace ock::ubsm;
+
+static MxmComMessage *GetMessageFromNetServiceContext(const UBSHcomServiceContext &context)
+{
+    return static_cast<MxmComMessage *>(context.MessageData());
+}
+
+static bool CheckMessageBodyLen(UBSHcomServiceContext &context, MxmComMessage &msg)
+{
+    return context.MessageDataLen() == (sizeof(MxmComMessage) + msg.GetMessageBodyLen());
+}
+
+static uint64_t GetChannelIdFromNetServiceContext(const UBSHcomServiceContext &context)
+{
+    return context.Channel()->GetId();
+}
+
+static void GetUdsInfoFromNetServiceContext(const UBSHcomServiceContext &context, MxmUdsIdInfo &udsIdInfo)
+{
+    UBSHcomNetUdsIdInfo uds;
+    auto ret = context.Channel()->GetRemoteUdsIdInfo(uds);
+    if (ret == 0) {
+        DBG_LOGDEBUG("Uds info is " << uds.pid << "," << uds.uid << "," << uds.gid);
+        udsIdInfo.pid = uds.pid;
+        udsIdInfo.uid = uds.uid;
+        udsIdInfo.gid = uds.gid;
+    }
+}
 
 static std::string GetUdsPath(const std::string &udsName)
 {
