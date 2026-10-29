@@ -22,6 +22,7 @@
 #include <securec.h>
 #include "common_def.h"
 #include "hcom_service.h"
+#include "hcom_service_c.h"
 #include "hcom_service_channel.h"
 #include "mxm_com_error.h"
 #include "mxm_msg.h"
@@ -142,9 +143,9 @@ public:
 
     void SetEnableTls(const bool &isEnable);
 
-    const UBSHcomNetCipherSuite &GetCipherSuite() const;
+    const ubs_hcom_service_cipher_suite &GetCipherSuite() const;
 
-    void SetCipherSuite(const UBSHcomNetCipherSuite &suite);
+    void SetCipherSuite(const ubs_hcom_service_cipher_suite &suite);
 
     uint32_t GetMaxHcomConnectNum() const;
 
@@ -165,7 +166,7 @@ private:
         // 大数据场景下，单次最大发送数据量大小，单位MB
     bool enableTls = false; // 是否采用tls认证
     uint32_t sendReceiveSegCount = DEFAULT_SEND_RECEIVE_SEG_COUNT;
-    UBSHcomNetCipherSuite cipherSuite = AES_GCM_128; // 加密套算法
+    ubs_hcom_service_cipher_suite cipherSuite = C_SERVICE_AES_GCM_128; // 加密套算法
     uint32_t maxHcomConnectNum{CONNECT_NUM};         // 默认256
 };
 

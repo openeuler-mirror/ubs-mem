@@ -697,7 +697,7 @@ HRESULT MxmComEngine::RegisterTlsCallback()
     tlsOptions.caCb = caCb;
     tlsOptions.cfCb = cfCb;
     tlsOptions.pkCb = pkCb;
-    tlsOptions.netCipherSuite = engineInfo.GetCipherSuite();
+    tlsOptions.netCipherSuite = static_cast<UBSHcomNetCipherSuite>(engineInfo.GetCipherSuite());
     tlsOptions.enableTls = true;
     hcomNetService->SetTlsOptions(tlsOptions);
     DBG_LOGINFO("Register tls callback finished.");

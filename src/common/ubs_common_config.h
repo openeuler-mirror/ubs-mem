@@ -15,7 +15,7 @@
 
 #include <unistd.h>
 #include <string>
-#include "hcom.h"
+#include "hcom_service_c.h"
 
 namespace ock::ubsm {
 
@@ -55,20 +55,20 @@ public:
     void SetCipherSuit(const std::string &cipher)
     {
         if (cipher == CIPHER_STR_AES_GCM_128) {
-            cipherSuit_ = ock::hcom::UBSHcomNetCipherSuite::AES_GCM_128;
+            cipherSuit_ = C_SERVICE_AES_GCM_128;
         } else if (cipher == CIPHER_STR_AES_GCM_256) {
-            cipherSuit_ = ock::hcom::UBSHcomNetCipherSuite::AES_GCM_256;
+            cipherSuit_ = C_SERVICE_AES_GCM_256;
         } else if (cipher == CIPHER_STR_AES_CCM_128) {
-            cipherSuit_ = ock::hcom::UBSHcomNetCipherSuite::AES_CCM_128;
+            cipherSuit_ = C_SERVICE_AES_CCM_128;
         } else if (cipher == CIPHER_STR_CHACHA20_POLY1305) {
-            cipherSuit_ = ock::hcom::UBSHcomNetCipherSuite::CHACHA20_POLY1305;
+            cipherSuit_ = C_SERVICE_CHACHA20_POLY1305;
         } else {
-            cipherSuit_ = ock::hcom::UBSHcomNetCipherSuite::AES_GCM_128;
+            cipherSuit_ = C_SERVICE_AES_GCM_128;
         }
         return;
     }
 
-    ock::hcom::UBSHcomNetCipherSuite GetCipherSuit() const
+    ubs_hcom_service_cipher_suite GetCipherSuit() const
     {
         return cipherSuit_;
     }
@@ -219,7 +219,7 @@ private:
 
     bool enableLeaseCache_{true};
     bool enableTls_{false};
-    ock::hcom::UBSHcomNetCipherSuite cipherSuit_{ock::hcom::UBSHcomNetCipherSuite::AES_GCM_128};
+    ubs_hcom_service_cipher_suite cipherSuit_{C_SERVICE_AES_GCM_128};
     std::string caPath_;
     std::string crlPath_;
     std::string certPath_;

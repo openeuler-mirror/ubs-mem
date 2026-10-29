@@ -173,12 +173,12 @@ void MxmComEngineInfo::SetEnableTls(const bool &isEnable)
     enableTls = isEnable;
 }
 
-const UBSHcomNetCipherSuite &MxmComEngineInfo::GetCipherSuite() const
+const ubs_hcom_service_cipher_suite &MxmComEngineInfo::GetCipherSuite() const
 {
     return cipherSuite;
 }
 
-void MxmComEngineInfo::SetCipherSuite(const UBSHcomNetCipherSuite &suite)
+void MxmComEngineInfo::SetCipherSuite(const ubs_hcom_service_cipher_suite &suite)
 {
     cipherSuite = suite;
 }
