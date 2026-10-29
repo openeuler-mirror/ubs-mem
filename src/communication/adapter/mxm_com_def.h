@@ -21,9 +21,8 @@
 
 #include <securec.h>
 #include "common_def.h"
-#include "hcom_service.h"
 #include "hcom_service_c.h"
-#include "hcom_service_channel.h"
+#include "mxm_com_channel_state.h"
 #include "mxm_com_error.h"
 #include "mxm_msg.h"
 #include "mxm_msg_base.h"
@@ -35,7 +34,6 @@
 #include "util/defines.h"
 
 namespace ock::com {
-using namespace ock::hcom;
 using namespace ock::mxmd;
 using namespace ock::rpc;
 struct MxmComDataDesc;
@@ -226,23 +224,23 @@ class MxmComChannelInfo {
 public:
     MxmComChannelInfo() = default;
 
-    MxmComChannelInfo(bool isServer, MxmChannelType channelType, std::string engineName, UBSHcomChannelPtr channel,
+    MxmComChannelInfo(bool isServer, MxmChannelType channelType, std::string engineName, MxmComChannelStatePtr channel,
                       MxmComChannelConnectInfo connectInfo)
         : isServer(isServer),
           channelType(channelType),
           engineName(std::move(engineName)),
-          channel(std::make_shared<UBSHcomChannelPtr>(std::move(channel))),
+          channel(std::move(channel)),
           connectInfo(std::move(connectInfo)) {};
 
     bool IsServerSide() const;
 
     void SetIsServer(bool isServerSide);
 
-    const UBSHcomChannelPtr &GetChannel() const;
+    const MxmComChannelStatePtr &GetChannel() const;
 
     uint64_t GetChannelId() const;
 
-    void SetChannel(const UBSHcomChannelPtr &channel);
+    void SetChannel(const MxmComChannelStatePtr &channel);
 
     const MxmComChannelConnectInfo &GetConnectInfo() const;
 
@@ -266,7 +264,7 @@ private:
     bool isServer{true};                                // 是否是server端
     MxmChannelType channelType{MxmChannelType::NORMAL}; // 通道类型
     std::string engineName;                             // 引擎名
-    std::shared_ptr<UBSHcomChannelPtr> channel;          // 两个索引和查询副本共享同一份 Channel 引用
+    MxmComChannelStatePtr channel;                       // 两个索引和查询副本共享同一份 Channel 引用
     MxmUdsIdInfo uds;
     MxmComChannelConnectInfo connectInfo; // 连接信息
 };
@@ -421,8 +419,6 @@ struct MxmComMsgHandler {
 MxmComMessagePtr TransRequestMsg(const NetMsgPacker &packer, uint16_t opCode, uint16_t moduleCode);
 
 std::pair<std::string, MxmChannelType> SplitPayload(const std::string &payload);
-
-bool GetIpPortByChannel(const UBSHcomChannelPtr &ch, std::string &ip, uint16_t &port);
 
 MxmChannelType StringToChannelType(const std::string &type);
 

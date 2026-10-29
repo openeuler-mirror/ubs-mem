@@ -37,7 +37,8 @@ MxmComChannelState::Reference &MxmComChannelState::Reference::operator=(Referenc
 
 MxmComChannelState::MxmComChannelState(ubs_hcom_service service, ubs_hcom_channel channel)
     : service_(service),
-      channel_(channel)
+      channel_(channel),
+      id_(ubs_hcom_channel_get_id(channel))
 {
 }
 

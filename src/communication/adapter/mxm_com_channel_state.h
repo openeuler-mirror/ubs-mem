@@ -54,6 +54,7 @@ public:
 
     // Acquire a temporary reference for an operation that may overlap Close.
     Reference Acquire() const;
+    uint64_t GetId() const { return id_; }
     // Consume the owned reference exactly once. The Service must still be alive.
     void Close();
 
@@ -61,6 +62,7 @@ private:
     mutable std::mutex mutex_;
     ubs_hcom_service service_{0};
     ubs_hcom_channel channel_{0};
+    uint64_t id_{0};
 };
 
 using MxmComChannelStatePtr = std::shared_ptr<MxmComChannelState>;

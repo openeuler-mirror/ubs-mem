@@ -12,10 +12,12 @@
 #include "mxm_com_engine.h"
 #include <fcntl.h>
 #include <grp.h>
+#include <malloc.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <cstring>
 #include "crc/dg_crc.h"
-#include "hcom_service_context.h"
+#include "mxm_com_callback_slots.h"
 #include "log.h"
 #include "ptracer.h"
 #include "ubs_common_config.h"
@@ -26,25 +28,32 @@ namespace ock::com {
 using namespace ock::common;
 using namespace ock::ubsm;
 
-static MxmComMessage *GetMessageFromNetServiceContext(const UBSHcomServiceContext &context)
+static void ReapReplies(ubs_hcom_service service);
+
+static MxmComMessage *GetMessageFromNetServiceContext(ubs_hcom_service_context context)
 {
-    return static_cast<MxmComMessage *>(context.MessageData());
+    return static_cast<MxmComMessage *>(ubs_hcom_context_get_data(context));
 }
 
-static bool CheckMessageBodyLen(UBSHcomServiceContext &context, MxmComMessage &msg)
+static bool CheckMessageBodyLen(ubs_hcom_service_context context, MxmComMessage &msg)
 {
-    return context.MessageDataLen() == (sizeof(MxmComMessage) + msg.GetMessageBodyLen());
+    return ubs_hcom_context_get_datalen(context) == (sizeof(MxmComMessage) + msg.GetMessageBodyLen());
 }
 
-static uint64_t GetChannelIdFromNetServiceContext(const UBSHcomServiceContext &context)
+static uint64_t GetChannelIdFromNetServiceContext(ubs_hcom_service_context context)
 {
-    return context.Channel()->GetId();
+    ubs_hcom_channel channel = 0;
+    return ubs_hcom_context_get_channel(context, &channel) == HOK ? ubs_hcom_channel_get_id(channel) : 0;
 }
 
-static void GetUdsInfoFromNetServiceContext(const UBSHcomServiceContext &context, MxmUdsIdInfo &udsIdInfo)
+static void GetUdsInfoFromNetServiceContext(ubs_hcom_service_context context, MxmUdsIdInfo &udsIdInfo)
 {
-    UBSHcomNetUdsIdInfo uds;
-    auto ret = context.Channel()->GetRemoteUdsIdInfo(uds);
+    ubs_hcom_channel channel = 0;
+    if (ubs_hcom_context_get_channel(context, &channel) != HOK) {
+        return;
+    }
+    ubs_hcom_uds_id_info uds{};
+    auto ret = ubs_hcom_channel_get_remote_uds_id_info(channel, &uds);
     if (ret == 0) {
         DBG_LOGDEBUG("Uds info is " << uds.pid << "," << uds.uid << "," << uds.gid);
         udsIdInfo.pid = uds.pid;
@@ -158,49 +167,56 @@ bool MxmComLinkManager::IsStopped()
 
 void MxmComLinkManager::InsertChannel(MxmComChannelInfo &channelInfo)
 {
-    WriteLocker<ReadWriteLock> channelLockGuard(&channelLock_);
-    auto chType = channelInfo.GetChannelType();
-    if (chType == MxmChannelType::SINGLE_SIDE && channelInfo.IsServerSide()) {
-        const auto &channel = channelInfo.GetChannel();
-        if (channel == nullptr) {
-            DBG_LOGERROR("Cannot insert a null channel.");
+    MxmComChannelStatePtr oldState;
+    {
+        WriteLocker<ReadWriteLock> channelLockGuard(&channelLock_);
+        auto chType = channelInfo.GetChannelType();
+        if (chType == MxmChannelType::SINGLE_SIDE && channelInfo.IsServerSide()) {
+            const auto &channel = channelInfo.GetChannel();
+            if (channel == nullptr) {
+                DBG_LOGERROR("Cannot insert a null channel.");
+                return;
+            }
+            auto channelId = channelInfo.GetChannelId();
+            channelIdMap.emplace(channelId, channelInfo);
+            DBG_LOGINFO("Insert channel id: " << channelId << ", cur node id" << channelInfo.GetConnectInfo().GetCurNodeId()
+                                              << ", remote node id" << channelInfo.GetConnectInfo().GetRemoteNodeId());
             return;
+        }
+        const auto &nodeId = channelInfo.GetConnectInfo().GetRemoteNodeId();
+        auto engineName = channelInfo.GetEngineName();
+        auto nodeIter = nodeChannelMap.find(nodeId);
+        auto oldChannelIter = nodeIter == nodeChannelMap.end() ? std::map<MxmChannelType, MxmComChannelInfo>::iterator{} :
+                                                                 nodeIter->second.find(chType);
+        if (nodeIter != nodeChannelMap.end() && oldChannelIter != nodeIter->second.end()) {
+            DBG_LOGINFO("Engine " << engineName << " channel already exists, type is " << static_cast<uint16_t>(chType)
+                                  << ", remote node is " << nodeId);
+            const auto &oldChannel = oldChannelIter->second.GetChannel();
+            if (oldChannel != nullptr) {
+                oldState = oldChannel;
+                channelIdMap.erase(oldChannelIter->second.GetChannelId());
+            }
+            nodeIter->second.erase(oldChannelIter);
+        }
+        auto iter = nodeChannelMap.find(nodeId);
+        if (iter == nodeChannelMap.end()) {
+            std::map<MxmChannelType, MxmComChannelInfo> map;
+            map.emplace(chType, channelInfo);
+            nodeChannelMap.emplace(nodeId, map);
+        } else {
+            iter->second.emplace(chType, channelInfo);
         }
         auto channelId = channelInfo.GetChannelId();
         channelIdMap.emplace(channelId, channelInfo);
         DBG_LOGINFO("Insert channel id: " << channelId << ", cur node id" << channelInfo.GetConnectInfo().GetCurNodeId()
                                           << ", remote node id" << channelInfo.GetConnectInfo().GetRemoteNodeId());
-        return;
     }
-    const auto &nodeId = channelInfo.GetConnectInfo().GetRemoteNodeId();
-    auto engineName = channelInfo.GetEngineName();
-    auto nodeIter = nodeChannelMap.find(nodeId);
-    auto oldChannelIter = nodeIter == nodeChannelMap.end() ? std::map<MxmChannelType, MxmComChannelInfo>::iterator{} :
-                                                             nodeIter->second.find(chType);
-    if (nodeIter != nodeChannelMap.end() && oldChannelIter != nodeIter->second.end()) {
-        DBG_LOGINFO("Engine " << engineName << " channel already exists, type is " << static_cast<uint16_t>(chType)
-                              << ", remote node is " << nodeId);
-        const auto &oldChannel = oldChannelIter->second.GetChannel();
-        if (oldChannel != nullptr) {
-            channelIdMap.erase(oldChannelIter->second.GetChannelId());
-        }
-        nodeIter->second.erase(oldChannelIter);
+    if (oldState != nullptr) {
+        oldState->Close();
     }
-    auto iter = nodeChannelMap.find(nodeId);
-    if (iter == nodeChannelMap.end()) {
-        std::map<MxmChannelType, MxmComChannelInfo> map;
-        map.emplace(chType, channelInfo);
-        nodeChannelMap.emplace(nodeId, map);
-    } else {
-        iter->second.emplace(chType, channelInfo);
-    }
-    auto channelId = channelInfo.GetChannelId();
-    channelIdMap.emplace(channelId, channelInfo);
-    DBG_LOGINFO("Insert channel id: " << channelId << ", cur node id" << channelInfo.GetConnectInfo().GetCurNodeId()
-                                      << ", remote node id" << channelInfo.GetConnectInfo().GetRemoteNodeId());
 }
 
-void MxmComLinkManager::RemoveChannelByChannelId(uint64_t id, UBSHcomService *hcomNetService)
+void MxmComLinkManager::RemoveChannelByChannelId(uint64_t id)
 {
     MxmComChannelInfo channelInfo;
     {
@@ -230,12 +246,10 @@ void MxmComLinkManager::RemoveChannelByChannelId(uint64_t id, UBSHcomService *hc
         DBG_LOGERROR("Channel " << id << " hcom NetChannelPtr is nullptr");
         return;
     }
-    if (hcomNetService != nullptr) {
-        hcomNetService->Disconnect(channelInfo.GetChannel());
-    }
+    channelInfo.GetChannel()->Close();
 }
 
-void MxmComLinkManager::RemoveAllChannel(UBSHcomService *hcomNetService)
+void MxmComLinkManager::RemoveAllChannel()
 {
     std::vector<MxmComChannelInfo> channels;
     {
@@ -246,11 +260,9 @@ void MxmComLinkManager::RemoveAllChannel(UBSHcomService *hcomNetService)
         nodeChannelMap.clear();
         channelIdMap.clear();
     }
-    if (hcomNetService != nullptr) {
-        for (const auto &channel : channels) {
-            if (channel.GetChannel() != nullptr) {
-                hcomNetService->Disconnect(channel.GetChannel());
-            }
+    for (const auto &channel : channels) {
+        if (channel.GetChannel() != nullptr) {
+            channel.GetChannel()->Close();
         }
     }
 }
@@ -265,7 +277,7 @@ static void HandlerWorkDefault(void (*handler)(MxmComMessageCtx &messageCtx), Mx
     }
 }
 
-MxmComEngine::MxmComEngine(MxmComEngineInfo engineInfo, UBSHcomService *hcomNetService,
+MxmComEngine::MxmComEngine(MxmComEngineInfo engineInfo, ubs_hcom_service hcomNetService,
                            MxmComLinkStateNotify linkStateNotify)
     : engineInfo(std::move(engineInfo)),
       hcomNetService(hcomNetService),
@@ -318,28 +330,26 @@ const std::string DEFAULT_WORKER_GROUP = "8";
 constexpr int WORKER_THREAD_PRIORITY = -20;
 constexpr uint16_t WORKER_THREAD_COUNT = 6;
 
-static void AssignServiceOptions(const MxmComEngineInfo &engineInfo, UBSHcomServiceOptions &options)
+static void AssignServiceOptions(const MxmComEngineInfo &engineInfo, ubs_hcom_service_options &options)
 {
     if (engineInfo.IsUds() && engineInfo.GetEngineType() == MxmEngineType::CLIENT) {
-        options.enableMemPoolThreadCache = false;
+        options.disableMemPoolThreadCache = 1;
     }
-    options.workerGroupMode = static_cast<UBSHcomWorkerMode>(engineInfo.GetWorkerMode());
+    options.workerGroupMode = static_cast<ubs_hcom_service_worker_mode>(engineInfo.GetWorkerMode());
     options.workerGroupThreadCount = WORKER_THREAD_COUNT;
     options.maxSendRecvDataSize = engineInfo.GetMaxSendReceiveSize() * SEND_RECEIVE_SIZE;
 }
 
-static void AssignHcomServiceOptions(const MxmComEngineInfo &engineInfo, UBSHcomService *hcomNetService)
+static void AssignHcomServiceOptions(const MxmComEngineInfo &engineInfo, ubs_hcom_service hcomNetService)
 {
-    hcomNetService->SetConnectLBPolicy(NET_ROUND_ROBIN);
-    hcomNetService->SetSendQueueSize(SEND_QUEUE_SIZE);
-    hcomNetService->SetRecvQueueSize(QUEUE_SIZE);
-    hcomNetService->SetQueuePrePostSize(POST_RECEIVE_SIZE);
-    hcomNetService->SetCtxStoreCapacity(CTX_STORE_CAP);
-    hcomNetService->SetMaxConnectionCount(engineInfo.GetMaxHcomConnectNum());
-    hcomNetService->SetMaxSendRecvDataCount(MAX_SEND_RECV_DATA_COUNT);
-    UBSHcomHeartBeatOptions opt;
-    opt.heartBeatIdleSec = HB_IDLE_TIME;
-    hcomNetService->SetHeartBeatOptions(opt);
+    ubs_hcom_service_set_lbpolicy(hcomNetService, SERVICE_ROUND_ROBIN);
+    ubs_hcom_service_set_sq_size(hcomNetService, SEND_QUEUE_SIZE);
+    ubs_hcom_service_set_rq_size(hcomNetService, QUEUE_SIZE);
+    ubs_hcom_service_set_prepost_size(hcomNetService, POST_RECEIVE_SIZE);
+    ubs_hcom_service_set_ctx_store_capacity(hcomNetService, CTX_STORE_CAP);
+    ubs_hcom_service_set_max_connection_cnt(hcomNetService, engineInfo.GetMaxHcomConnectNum());
+    ubs_hcom_service_set_max_send_recv_data_cnt(hcomNetService, MAX_SEND_RECV_DATA_COUNT);
+    ubs_hcom_service_set_heartbeat_opt(hcomNetService, HB_IDLE_TIME, 7, 2);
 
     std::vector<std::string> ipMasks;
     if ((engineInfo.GetEngineType() == MxmEngineType::SERVER) &&
@@ -349,7 +359,7 @@ static void AssignHcomServiceOptions(const MxmComEngineInfo &engineInfo, UBSHcom
     } else {
         ipMasks.push_back(DEFAULT_DEVICE_IP_MASK);
     }
-    hcomNetService->SetDeviceIpMask(ipMasks);
+    ubs_hcom_service_set_ipmask(hcomNetService, ipMasks.front().c_str());
 }
 
 const int16_t DEFAULT_REQUEST_TIMEOUT = 60;
@@ -371,10 +381,10 @@ static int16_t GetIPCTimeOutFromEnv()
 HRESULT MxmComEngine::CreateChannel(MxmComChannelConnectInfo &info, MxmChannelType chType)
 {
     DBG_LOGDEBUG("Start to create channel, remote node id=" << info.GetRemoteNodeId());
-    UBSHcomConnectOptions options{};
+    ubs_hcom_service_connect_options options{};
     options.linkCount = info.GetLinkNum();
     auto engineName = engineInfo.GetName();
-    if (hcomNetService == nullptr) {
+    if (hcomNetService == 0) {
         DBG_LOGERROR("Failed to create channel, engine " << engineName << "has not been initilized.");
         return MXM_COM_ERROR_ENGINE_NOT_INIT;
     }
@@ -384,38 +394,47 @@ HRESULT MxmComEngine::CreateChannel(MxmComChannelConnectInfo &info, MxmChannelTy
                                       << " has been already existed, type=" << static_cast<uint16_t>(chType));
         return HOK;
     }
-    UBSHcomChannelPtr channelPtr;
-    options.payload = ChannelTypeToPayload(info.GetCurNodeId(), chType);
-    HRESULT ret;
-    if (engineInfo.GetProtocol() == MxmProtocol::UDS) {
-        ret = hcomNetService->Connect("uds://" + info.GetIp(), channelPtr, options);
-    } else {
-        ret = hcomNetService->Connect("tcp://" + info.GetRemoteNodeId(), channelPtr, options);
+    auto payload = ChannelTypeToPayload(info.GetCurNodeId(), chType);
+    if (payload.size() >= sizeof(options.payLoad)) {
+        return MXM_COM_ERROR_CONNECT_TO_PEER_FAIL;
     }
+    std::memcpy(options.payLoad, payload.c_str(), payload.size() + 1);
+    ubs_hcom_channel channel = 0;
+    auto url = engineInfo.GetProtocol() == MxmProtocol::UDS ? "uds://" + info.GetIp() :
+                                                            "tcp://" + info.GetRemoteNodeId();
+    auto ret = ubs_hcom_service_connect(hcomNetService, url.c_str(), &channel, options);
     if (ret != 0) {
         DBG_LOGERROR("Failed to connect remote, peer node=" << info.GetIp() << ":" << info.GetPort()
                                                             << ", ret=" << ret);
         return MXM_COM_ERROR_CONNECT_TO_PEER_FAIL;
     }
-    if (channelPtr == nullptr) {
+    if (channel == 0) {
         DBG_LOGERROR("Failed to create channel, pointer of channel is null");
         return HFAIL;
     }
-    DBG_LOGINFO("Create channel successfully, engine=" << engineName << ", channel id=" << channelPtr->GetId());
+    auto channelId = ubs_hcom_channel_get_id(channel);
+    DBG_LOGINFO("Create channel successfully, engine=" << engineName << ", channel id=" << channelId);
     if (chType == MxmChannelType::HEARTBEAT) {
-        channelPtr->SetChannelTimeOut(DEFAULT_HEARTBEAT_REQUEST_TIMEOUT, DEFAULT_HEARTBEAT_REQUEST_TIMEOUT);
+        ubs_hcom_channel_set_timeout(channel, DEFAULT_HEARTBEAT_REQUEST_TIMEOUT, DEFAULT_HEARTBEAT_REQUEST_TIMEOUT);
     } else {
-        channelPtr->SetChannelTimeOut(GetIPCTimeOutFromEnv(), GetIPCTimeOutFromEnv());
+        ubs_hcom_channel_set_timeout(channel, GetIPCTimeOutFromEnv(), GetIPCTimeOutFromEnv());
     }
-    MxmComChannelInfo chInfo(false, chType, engineName, channelPtr, info);
+    MxmComChannelStatePtr state;
+    try {
+        state = std::make_shared<MxmComChannelState>(hcomNetService, channel);
+    } catch (...) {
+        ubs_hcom_service_disconnect(hcomNetService, channel);
+        return MXM_COM_ERROR_CONNECT_TO_PEER_FAIL;
+    }
+    MxmComChannelInfo chInfo(false, chType, engineName, state, info);
 
     if (engineInfo.GetProtocol() == MxmProtocol::UDS && engineInfo.IsServerSide()) {
-        UBSHcomNetUdsIdInfo uds;
-        channelPtr->GetRemoteUdsIdInfo(uds);
+        ubs_hcom_uds_id_info uds{};
+        ubs_hcom_channel_get_remote_uds_id_info(channel, &uds);
         chInfo.SetUDSInfo({uds.pid, uds.uid, uds.gid});
     }
     linkManager.InsertChannel(chInfo);
-    linkStateNotify(engineInfo, remoteNodeId, channelPtr->GetId(), MxmLinkState::LINK_UP);
+    linkStateNotify(engineInfo, remoteNodeId, channelId, MxmLinkState::LINK_UP);
     return HOK;
 }
 
@@ -448,12 +467,12 @@ void MxmComEngine::RemoveChannel(std::string remoteNodeId, MxmChannelType type)
         DBG_LOGERROR("Failed to get channel info, error code is," << ret);
         return;
     }
-    linkManager.RemoveChannelByChannelId(channelInfo.GetChannelId(), hcomNetService);
+    linkManager.RemoveChannelByChannelId(channelInfo.GetChannelId());
 }
 
 HRESULT MxmComEngine::PrepareMem()
 {
-    address = memalign(NN_NO4096, engineInfo.GetMaxSendReceiveSize() * SEND_RECEIVE_SIZE);
+    address = memalign(MIN_BLOCK_SIZE, engineInfo.GetMaxSendReceiveSize() * SEND_RECEIVE_SIZE);
     if (address == nullptr) {
         DBG_LOGERROR("Failed to alloc memory, maybe lack of spare memory in system.");
         return HFAIL;
@@ -532,7 +551,10 @@ HRESULT MxmComEngine::Start()
     HRESULT ret = HOK;
     auto engineName = engineInfo.GetName();
     AssignHcomServiceOptions(engineInfo, hcomNetService);
-    RegisterEngineHandlers();
+    ret = RegisterEngineHandlers();
+    if (ret != HOK) {
+        return ret;
+    }
     ret = RegisterTlsCallback();
     if (ret != HOK) {
         DBG_LOGERROR("Failed to register tls callback, " << ret);
@@ -543,10 +565,9 @@ HRESULT MxmComEngine::Start()
         DBG_LOGERROR("Fail to create uds path. path: " << MXM_IPC_UDS_PATH_PREFIX_DEFAULT);
         return ret;
     }
-    ret = hcomNetService->Start();
+    ret = ubs_hcom_service_start(hcomNetService);
     if (ret != 0) {
         DBG_LOGERROR("Create engine " << engineName << " failed, start service fail");
-        hcomNetService->Destroy(engineName);
         return MXM_COM_ERROR_ENGINE_START_FAIL;
     }
 
@@ -570,15 +591,19 @@ HRESULT MxmComEngine::Start()
             DBG_LOGERROR("Failed to prepare rndv mem, " << retCode);
             return retCode;
         }
-        auto result = hcomNetService->RegisterMemoryRegion(reinterpret_cast<uintptr_t>(address),
-                                                           engineInfo.GetMaxSendReceiveSize() * SEND_RECEIVE_SIZE, mr);
+        auto result = ubs_hcom_service_register_assign_memory_region(
+            hcomNetService, reinterpret_cast<uintptr_t>(address),
+            engineInfo.GetMaxSendReceiveSize() * SEND_RECEIVE_SIZE, &mr);
         if (result != 0) {
             DBG_LOGERROR("Failed to register mem region, " << result);
             return result;
         }
-        UBSHcomMemoryKey key{};
-        mr.GetMemoryKey(key);
-        result = ubs_hcom_mem_allocator_set_mr_key(memPtr, key.keys[0]);
+        ubs_hcom_mr_info mrInfo{};
+        result = ubs_hcom_service_get_memory_region_info(mr, &mrInfo);
+        if (result != 0) {
+            return result;
+        }
+        result = ubs_hcom_mem_allocator_set_mr_key(memPtr, mrInfo.lKey.keys[0]);
         if (result != 0) {
             DBG_LOGERROR("Failed to set memory allocator MR key, " << result);
             return result;
@@ -599,12 +624,17 @@ int MxmComEngine::RegisterHandlerWork(const EngineHandlerWorker &handlerWorker)
 
 HRESULT MxmComEngine::Stop()
 {
-    std::lock_guard<std::mutex> stopGuard(stopMutex);
+    std::unique_lock<std::mutex> stopGuard(stopMutex);
     auto engineName = engineInfo.GetName();
+    auto serviceToReap = hcomNetService;
     if (!stopPrepared) {
         deleted.store(true);
         linkManager.SetStop();
-        linkManager.RemoveAllChannel(hcomNetService);
+        if (callbackSlot != MxmComCallbackSlots::INVALID_SLOT) {
+            MxmComCallbackSlots::Instance().BeginClose(callbackSlot);
+            MxmComCallbackSlots::Instance().WaitCallbacks(callbackSlot);
+        }
+        linkManager.RemoveAllChannel();
 
         std::vector<std::thread> tasks;
         {
@@ -616,8 +646,9 @@ HRESULT MxmComEngine::Stop()
                 task.join();
             }
         }
-        if (hcomNetService != nullptr) {
-            hcomNetService->DestroyMemoryRegion(mr);
+        if (mr != 0) {
+            ubs_hcom_service_destroy_memory_region(hcomNetService, mr);
+            mr = 0;
         }
         if (memPtr != 0) {
             ubs_hcom_mem_allocator_destroy(memPtr);
@@ -626,58 +657,101 @@ HRESULT MxmComEngine::Stop()
         stopPrepared = true;
     }
 
-    if (hcomNetService != nullptr) {
-        auto ret = hcomNetService->Destroy(engineName);
+    if (hcomNetService != 0) {
+        auto ret = ubs_hcom_service_destroy(hcomNetService, engineName.c_str());
         DBG_LOGINFO("Destroy hcom instance=" << engineName << " finish, ret=" << ret);
         if (ret != HOK) {
             return ret;
         }
-        hcomNetService = nullptr;
+        hcomNetService = 0;
+    }
+    if (callbackSlot != MxmComCallbackSlots::INVALID_SLOT) {
+        MxmComCallbackSlots::Instance().ReleaseAfterServiceStopped(callbackSlot);
+        callbackSlot = MxmComCallbackSlots::INVALID_SLOT;
     }
     if (address != nullptr) {
         free(address);
         address = nullptr;
     }
+    stopGuard.unlock();
+    if (serviceToReap != 0) {
+        ReapReplies(serviceToReap);
+    }
     return HOK;
 }
 
-void MxmComEngine::RegisterEngineHandlers()
+int MxmComEngine::NewChannelThunk(void *engine, ubs_hcom_channel channel, const char *ipPort, const char *payload)
 {
+    return static_cast<MxmComEngine *>(engine)->NewChannel(ipPort == nullptr ? "" : ipPort, channel,
+                                                           payload == nullptr ? "" : payload);
+}
+
+int MxmComEngine::BrokenThunk(ubs_hcom_channel channel, const char *, uint64_t usrCtx, const char *payload)
+{
+    try {
+        auto *engine = reinterpret_cast<MxmComEngine *>(static_cast<uintptr_t>(usrCtx));
+        engine->BrokenChannel(channel, payload);
+        return HOK;
+    } catch (...) {
+        return HFAIL;
+    }
+}
+
+int MxmComEngine::ReceivedThunk(ubs_hcom_service_context context, uint64_t usrCtx)
+{
+    try {
+        return reinterpret_cast<MxmComEngine *>(static_cast<uintptr_t>(usrCtx))->ReceivedRequest(context);
+    } catch (...) {
+        return HFAIL;
+    }
+}
+
+int MxmComEngine::SentThunk(ubs_hcom_service_context context, uint64_t usrCtx)
+{
+    try {
+        return reinterpret_cast<MxmComEngine *>(static_cast<uintptr_t>(usrCtx))->SendRequest(context);
+    } catch (...) {
+        return HFAIL;
+    }
+}
+
+int MxmComEngine::OneSideThunk(ubs_hcom_service_context context, uint64_t usrCtx)
+{
+    try {
+        return reinterpret_cast<MxmComEngine *>(static_cast<uintptr_t>(usrCtx))->OneSideDoneRequest(context);
+    } catch (...) {
+        return HFAIL;
+    }
+}
+
+HRESULT MxmComEngine::RegisterEngineHandlers()
+{
+    auto usrCtx = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(this));
     bool isOobSvr = engineInfo.GetEngineType() != MxmEngineType::CLIENT;
     if (isOobSvr) {
-        UBSHcomServiceNewChannelHandler newChannelHandler = [this](const std::string &addr, const UBSHcomChannelPtr &ch,
-                                                                   const std::string &payload) -> HRESULT {
-            if (UNLIKELY(ch == nullptr)) {
-                return MXM_COM_ERROR_CHANNEL_NULL;
-            }
-            return NewChannel(addr, ch, payload);
-        };
+        callbackSlot = MxmComCallbackSlots::Instance().Acquire(this, NewChannelThunk);
+        if (callbackSlot == MxmComCallbackSlots::INVALID_SLOT || !MxmComCallbackSlots::Instance().Activate(callbackSlot)) {
+            DBG_LOGERROR("No callback slot available for engine " << engineInfo.GetName());
+            return MXM_COM_ERROR_ENGINE_CREATE_FAIL;
+        }
+        std::string url;
         if (engineInfo.IsUds()) {
-            hcomNetService->Bind("uds://" + GetUdsPath(engineInfo.GetUdsInfo().first) + ":" +
-                                     std::to_string(engineInfo.GetUdsInfo().second),
-                                 newChannelHandler);
+            url = "uds://" + GetUdsPath(engineInfo.GetUdsInfo().first) + ":" +
+                  std::to_string(engineInfo.GetUdsInfo().second);
         } else {
-            hcomNetService->Bind(
-                "tcp://" + engineInfo.GetIpInfo().ip + ":" + std::to_string(engineInfo.GetIpInfo().port),
-                newChannelHandler);
+            url = "tcp://" + engineInfo.GetIpInfo().ip + ":" + std::to_string(engineInfo.GetIpInfo().port);
+        }
+        auto ret = ubs_hcom_service_bind(hcomNetService, url.c_str(),
+                                         MxmComCallbackSlots::Instance().GetCallback(callbackSlot));
+        if (ret != HOK) {
+            return ret;
         }
     }
-    UBSHcomServiceChannelBrokenHandler channelBrokenHandler = [this](const UBSHcomChannelPtr &ch) {
-        BrokenChannel(ch);
-    };
-    hcomNetService->RegisterChannelBrokenHandler(channelBrokenHandler, UBSHcomChannelBrokenPolicy::BROKEN_ALL);
-    UBSHcomServiceRecvHandler receivedHandler = [this](UBSHcomServiceContext &context) -> HRESULT {
-        return ReceivedRequest(context);
-    };
-    hcomNetService->RegisterRecvHandler(receivedHandler);
-    UBSHcomServiceSendHandler serviceSendHandler = [this](const UBSHcomServiceContext &context) -> HRESULT {
-        return SendRequest(context);
-    };
-    hcomNetService->RegisterSendHandler(serviceSendHandler);
-    UBSHcomServiceOneSideDoneHandler oneSideDoneRequest = [this](const UBSHcomServiceContext &context) -> HRESULT {
-        return OneSideDoneRequest(context);
-    };
-    hcomNetService->RegisterOneSideHandler(oneSideDoneRequest);
+    ubs_hcom_service_register_broken_handler(hcomNetService, BrokenThunk, C_CHANNEL_BROKEN_ALL, usrCtx);
+    ubs_hcom_service_register_handler(hcomNetService, C_SERVICE_REQUEST_RECEIVED, ReceivedThunk, usrCtx);
+    ubs_hcom_service_register_handler(hcomNetService, C_SERVICE_REQUEST_POSTED, SentThunk, usrCtx);
+    ubs_hcom_service_register_handler(hcomNetService, C_SERVICE_READWRITE_DONE, OneSideThunk, usrCtx);
+    return HOK;
 }
 
 static void EraseCapiKeypass(char *addr, int len)
@@ -750,9 +824,8 @@ static int GetCapiPrivateKey(const char *name, char **path, char **pw, int *leng
 HRESULT MxmComEngine::RegisterTlsCallback()
 {
     if (!engineInfo.GetEnableTls()) {
-        UBSHcomTlsOptions tlsOptions;
-        tlsOptions.enableTls = false;
-        hcomNetService->SetTlsOptions(tlsOptions);
+        ubs_hcom_service_set_tls_opt(hcomNetService, false, C_SERVICE_TLS_1_3, engineInfo.GetCipherSuite(), nullptr,
+                                     nullptr, nullptr, nullptr, nullptr);
         return 0;
     }
 
@@ -762,75 +835,13 @@ HRESULT MxmComEngine::RegisterTlsCallback()
         return ret;
     }
 
-    UBSHcomTLSCaCallback caCb = [this](const std::string &name, std::string &capath, std::string &crlPath,
-                                       UBSHcomPeerCertVerifyType &verifyPeerCert,
-                                       UBSHcomTLSCertVerifyCallback &cb) -> bool {
-        return TlsCaCallBack(name, capath, crlPath, verifyPeerCert, cb);
-    };
-    UBSHcomTLSCertificationCallback cfCb = [this](const std::string &name, std::string &path) -> bool {
-        return TlsCertificationCallback(name, path);
-    };
-    UBSHcomTLSPrivateKeyCallback pkCb = [this](const std::string &name, std::string &path, void *&password, int &length,
-                                               UBSHcomTLSEraseKeypass &erase) -> bool {
-        return TlsPrivateKeyCallback(name, path, password, length, erase);
-    };
-
-    UBSHcomTlsOptions tlsOptions;
-    tlsOptions.caCb = caCb;
-    tlsOptions.cfCb = cfCb;
-    tlsOptions.pkCb = pkCb;
-    tlsOptions.netCipherSuite = static_cast<UBSHcomNetCipherSuite>(engineInfo.GetCipherSuite());
-    tlsOptions.enableTls = true;
-    hcomNetService->SetTlsOptions(tlsOptions);
+    ubs_hcom_service_set_tls_opt(hcomNetService, true, C_SERVICE_TLS_1_3, engineInfo.GetCipherSuite(), GetCapiCert,
+                                 GetCapiPrivateKey, GetCapiCa, nullptr, nullptr);
     DBG_LOGINFO("Register tls callback finished.");
     return 0;
 }
 
-bool MxmComEngine::TlsCaCallBack(const std::string &name, std::string &capath, std::string &crlPath,
-                                 UBSHcomPeerCertVerifyType &verifyPeerCert, UBSHcomTLSCertVerifyCallback &cb)
-{
-    char *ca = nullptr;
-    char *crl = nullptr;
-    ubs_hcom_peer_cert_verify_type verifyType = C_VERIFY_BY_DEFAULT;
-    ubs_hcom_tls_cert_verify verify = nullptr;
-    if (GetCapiCa(name.c_str(), &ca, &crl, &verifyType, &verify) != 0) {
-        return false;
-    }
-    capath = ca;
-    if (crl != nullptr) {
-        crlPath = crl;
-    }
-    verifyPeerCert = static_cast<UBSHcomPeerCertVerifyType>(verifyType);
-    cb = verify;
-    return true;
-}
-
-bool MxmComEngine::TlsPrivateKeyCallback(const std::string &name, std::string &path, void *&pw, int &length,
-                                         UBSHcomTLSEraseKeypass &erase)
-{
-    char *pathOut = nullptr;
-    char *pwOut = nullptr;
-    ubs_hcom_tls_keypass_erase eraseOut = nullptr;
-    if (GetCapiPrivateKey(name.c_str(), &pathOut, &pwOut, &length, &eraseOut) != 0) {
-        return false;
-    }
-    path = pathOut;
-    pw = pwOut;
-    erase = [eraseOut](void *addr, int len) { eraseOut(static_cast<char *>(addr), len); };
-    return true;
-}
-
-bool MxmComEngine::TlsCertificationCallback(const std::string &name, std::string &path)
-{
-    char *pathOut = nullptr;
-    if (GetCapiCert(name.c_str(), &pathOut) != 0) {
-        return false;
-    }
-    path = pathOut;
-    return true;
-}
-
-HRESULT MxmComEngine::NewChannel(const std::string &ipPort, const UBSHcomChannelPtr &ch, const std::string &payload)
+HRESULT MxmComEngine::NewChannel(const std::string &ipPort, ubs_hcom_channel ch, const std::string &payload)
 {
     if (linkManager.IsStopped()) {
         DBG_LOGERROR("linkManager is stopping, cannot new channel.");
@@ -839,7 +850,7 @@ HRESULT MxmComEngine::NewChannel(const std::string &ipPort, const UBSHcomChannel
     const auto &engineName = engineInfo.GetName();
     bool isUds = engineInfo.IsUds();
     DBG_LOGINFO("Engine " << engineName << " get new channel");
-    if (ch == nullptr) {
+    if (ch == 0) {
         DBG_LOGERROR("NetChannelPtr of NewChannel is nullptr ipPort is: " << ipPort << " payload is: " << payload);
         return MXM_COM_ERROR_CHANNEL_NULL;
     }
@@ -848,7 +859,7 @@ HRESULT MxmComEngine::NewChannel(const std::string &ipPort, const UBSHcomChannel
         DBG_LOGERROR("Empty payLoad pair name is: " << payload);
         return MXM_COM_ERROR_INVALID_CHANNEL_TYPE;
     }
-    auto channelId = ch.Get()->GetId();
+    auto channelId = ubs_hcom_channel_get_id(ch);
     DBG_LOGINFO("New channel " << channelId << " from: " << ipPort << ", payload is: " << payload);
     MxmComChannelConnectInfo connectInfo;
     connectInfo.SetCurNodeId(engineInfo.GetNodeId());
@@ -856,45 +867,59 @@ HRESULT MxmComEngine::NewChannel(const std::string &ipPort, const UBSHcomChannel
     connectInfo.SetIsUds(isUds);
 
     if (payLoadPair.second == MxmChannelType::HEARTBEAT) {
-        ch->SetChannelTimeOut(DEFAULT_HEARTBEAT_REQUEST_TIMEOUT, DEFAULT_HEARTBEAT_REQUEST_TIMEOUT);
+        ubs_hcom_channel_set_timeout(ch, DEFAULT_HEARTBEAT_REQUEST_TIMEOUT, DEFAULT_HEARTBEAT_REQUEST_TIMEOUT);
     } else {
-        ch->SetChannelTimeOut(GetIPCTimeOutFromEnv(), GetIPCTimeOutFromEnv());
+        ubs_hcom_channel_set_timeout(ch, GetIPCTimeOutFromEnv(), GetIPCTimeOutFromEnv());
     }
-    MxmComChannelInfo chInfo(true, payLoadPair.second, engineName, ch, connectInfo);
-    if (engineInfo.GetProtocol() == MxmProtocol::UDS && engineInfo.IsServerSide()) {
-        UBSHcomNetUdsIdInfo uds;
-        ch->GetRemoteUdsIdInfo(uds);
-        chInfo.SetUDSInfo({uds.pid, uds.uid, uds.gid});
+    // Keep a separate reference for the published state until the callback's reference is returned.
+    ubs_hcom_channel_refer(ch);
+    MxmComChannelStatePtr state;
+    try {
+        state = std::make_shared<MxmComChannelState>(hcomNetService, ch);
+        MxmComChannelInfo chInfo(true, payLoadPair.second, engineName, state, connectInfo);
+        if (engineInfo.GetProtocol() == MxmProtocol::UDS && engineInfo.IsServerSide()) {
+            ubs_hcom_uds_id_info uds{};
+            ubs_hcom_channel_get_remote_uds_id_info(ch, &uds);
+            chInfo.SetUDSInfo({uds.pid, uds.uid, uds.gid});
+        }
+        linkManager.InsertChannel(chInfo);
+        DBG_LOGINFO("Insert channel " << channelId << " from [" << ipPort << "," << payload << "] success");
+        if (payLoadPair.second != MxmChannelType::SINGLE_SIDE) {
+            linkStateNotify(engineInfo, payLoadPair.first, channelId, MxmLinkState::LINK_UP);
+        }
+    } catch (...) {
+        if (state != nullptr) {
+            linkManager.RemoveChannelByChannelId(channelId);
+            state->Close();
+        } else {
+            ubs_hcom_channel_derefer(ch);
+        }
+        throw;
     }
-    linkManager.InsertChannel(chInfo);
-    DBG_LOGINFO("Insert channel " << channelId << " from [" << ipPort << "," << payload << "] success");
-    if (payLoadPair.second == MxmChannelType::SINGLE_SIDE) {
-        return HOK;
-    }
-    linkStateNotify(engineInfo, payLoadPair.first, channelId, MxmLinkState::LINK_UP);
+    ubs_hcom_channel_derefer(ch);
     return HOK;
 }
 
-void MxmComEngine::BrokenChannel(const UBSHcomChannelPtr &ch)
+void MxmComEngine::BrokenChannel(ubs_hcom_channel ch, const char *payload)
 {
     const auto &engineName = engineInfo.GetName();
     DBG_LOGINFO("Engine " << engineName << " channel broken");
-    if (ch == nullptr) {
+    if (ch == 0) {
         DBG_LOGERROR("Engine " << engineName << " channel broken, and channel is nullptr");
         return;
     }
-    auto channelId = ch->GetId();
-    DBG_LOGINFO("Engine " << engineName << " channel broken, id: " << ch->GetId());
-    std::pair<std::string, MxmChannelType> payLoadPair = SplitPayload(ch->GetPeerConnectPayload());
+    auto channelId = ubs_hcom_channel_get_id(ch);
+    DBG_LOGINFO("Engine " << engineName << " channel broken, id: " << channelId);
+    std::pair<std::string, MxmChannelType> payLoadPair = SplitPayload(payload == nullptr ? "" : payload);
     MxmComChannelInfo channelInfo;
 
     auto ret = linkManager.GetChannelByChannelId(channelId, channelInfo);
     if (ret != 0) {
-        DBG_LOGWARN("Channel : " << ch->GetId() << " not found in MxmTransLinkManager.");
+        DBG_LOGWARN("Channel : " << channelId << " not found in MxmTransLinkManager.");
         return;
     }
     MxmUdsIdInfo uds = channelInfo.GetUDSInfo();
-    linkManager.RemoveChannelByChannelId(channelId, hcomNetService);
+    linkManager.RemoveChannelByChannelId(channelId);
     linkStateNotify(engineInfo, channelInfo.GetConnectInfo().GetRemoteNodeId(), uds.pid, MxmLinkState::LINK_DOWN);
     auto isReconnectHook = engineInfo.GetReConnectHook();
     // 配置是否重连回调且回调返回false，则不进行重连；未配置重连回调，或者回调返回true则默认重连
@@ -908,8 +933,12 @@ void MxmComEngine::BrokenChannel(const UBSHcomChannelPtr &ch)
     }
 }
 
-int MxmComEngine::ConvertContextToMessageCtx(const UBSHcomServiceContext &context, MxmComMessageCtx &msgCtx)
+int MxmComEngine::ConvertContextToMessageCtx(ubs_hcom_service_context context, MxmComMessageCtx &msgCtx)
 {
+    ubs_hcom_channel_reply_context replyCtx{};
+    if (ubs_hcom_context_get_rspctx(context, &replyCtx) != HOK) {
+        return -1;
+    }
     MxmUdsIdInfo udsIdInfo{0, 0, 0};
     if (engineInfo.IsUds()) {
         GetUdsInfoFromNetServiceContext(context, udsIdInfo);
@@ -920,16 +949,16 @@ int MxmComEngine::ConvertContextToMessageCtx(const UBSHcomServiceContext &contex
     auto msgPtr = static_cast<MxmComMessagePtr>(static_cast<void *>(msg));
     msgCtx.SetEngineName(engineInfo.GetName());
     msgCtx.SetChannelId(GetChannelIdFromNetServiceContext(context));
-    auto ret = msgCtx.SetMessage(msgPtr, context.MessageDataLen());
+    auto ret = msgCtx.SetMessage(msgPtr, ubs_hcom_context_get_datalen(context));
     if (ret != 0) {
         DBG_LOGERROR("SetMessage failed. ret=" << ret);
         return -1;
     }
-    msgCtx.SetRspCtx(context.RspCtx());
+    msgCtx.SetRspCtx(reinterpret_cast<uintptr_t>(replyCtx.rspCtx));
     return 0;
 }
 
-HRESULT MxmComEngine::ReceivedRequest(UBSHcomServiceContext &context)
+HRESULT MxmComEngine::ReceivedRequest(ubs_hcom_service_context context)
 {
     TP_TRACE_BEGIN(TP_UBSM_GET_HANDLER);
     auto engineName = engineInfo.GetName();
@@ -986,16 +1015,18 @@ HRESULT MxmComEngine::GetChannelById(uint64_t channelId, MxmComChannelInfo &chan
     return ret;
 }
 
-HRESULT MxmComEngine::SendRequest(const UBSHcomServiceContext &context)
+HRESULT MxmComEngine::SendRequest(ubs_hcom_service_context context)
 {
-    int32_t ret = context.Result();
+    int ret = 0;
+    ubs_hcom_context_get_result(context, &ret);
     DBG_LOGINFO("Send request finish, result is " << ret);
     return HOK;
 }
 
-HRESULT MxmComEngine::OneSideDoneRequest(const UBSHcomServiceContext &context)
+HRESULT MxmComEngine::OneSideDoneRequest(ubs_hcom_service_context context)
 {
-    int32_t ret = context.Result();
+    int ret = 0;
+    ubs_hcom_context_get_result(context, &ret);
     DBG_LOGINFO("One side done finish, result is " << ret);
     return HOK;
 }
@@ -1044,17 +1075,26 @@ HRESULT MxmComEngineManager::CreateEngine(const MxmComEngineInfo &engineInfo, co
     }
     ubs_hcom_set_log_handler(engineInfo.GetLogFunc());
     MxmProtocol hcomProtocol = engineInfo.GetProtocol();
-    UBSHcomServiceOptions options{};
+    ubs_hcom_service_options options{};
     AssignServiceOptions(engineInfo, options);
-    auto service = UBSHcomService::Create(static_cast<UBSHcomServiceProtocol>(hcomProtocol), engineName, options);
-    if (UNLIKELY(service == nullptr)) {
+    ubs_hcom_service_type serviceType = C_SERVICE_TCP;
+    if (hcomProtocol == MxmProtocol::UDS) {
+        serviceType = C_SERVICE_UDS;
+    } else if (hcomProtocol == MxmProtocol::HCCS) {
+        serviceType = C_SERVICE_SHM;
+    } else if (hcomProtocol == MxmProtocol::UB) {
+        serviceType = C_SERVICE_UBC;
+    }
+    ubs_hcom_service service = 0;
+    auto createRet = ubs_hcom_service_create(serviceType, engineName.c_str(), options, &service);
+    if (UNLIKELY(createRet != HOK || service == 0)) {
         DBG_LOGERROR("Failed to create engine, name=" << engineName << "error=no memory");
         return MXM_COM_ERROR_ENGINE_CREATE_FAIL;
     }
     auto engine = new (std::nothrow) MxmComEngine(engineInfo, service, notify);
     if (engine == nullptr) {
         DBG_LOGERROR("Failed to create engine, error=no memory");
-        service->Destroy(engineName);
+        ubs_hcom_service_destroy(service, engineName.c_str());
         return MXM_COM_ERROR_ENGINE_CREATE_FAIL;
     }
 
@@ -1066,8 +1106,12 @@ HRESULT MxmComEngineManager::CreateEngine(const MxmComEngineInfo &engineInfo, co
     auto ret = engine->Start();
     if (ret != 0) {
         DBG_LOGERROR("Failed to start engine, ret=" << ret);
+        auto stopRet = engine->Stop();
+        if (stopRet != HOK) {
+            G_ENGINE_MAP.emplace(engineName, engine);
+            return ret;
+        }
         delete engine;
-        service->Destroy(engineName);
         return ret;
     }
     G_ENGINE_MAP.emplace(engineName, engine);
@@ -1104,16 +1148,18 @@ HRESULT MxmComEngineManager::DeleteEngine(const std::string &name)
 
 void MxmComEngineManager::DeleteAllEngine()
 {
-    std::lock_guard<std::mutex> locker(G_MUTEX);
-    std::vector<std::string> keys;
-    for (const auto &kv : G_ENGINE_MAP) {
-        keys.push_back(kv.first);
+    std::map<std::string, MxmComEngine *> engines;
+    {
+        std::lock_guard<std::mutex> locker(G_MUTEX);
+        engines.swap(G_ENGINE_MAP);
     }
-    for (const auto &key : keys) {
-        auto iter = G_ENGINE_MAP.find(key);
-        iter->second->Stop();
-        delete iter->second;
-        G_ENGINE_MAP.erase(key);
+    for (const auto &entry : engines) {
+        if (entry.second->Stop() == HOK) {
+            delete entry.second;
+        } else {
+            std::lock_guard<std::mutex> locker(G_MUTEX);
+            G_ENGINE_MAP.emplace(entry.first, entry.second);
+        }
     }
 }
 
@@ -1150,30 +1196,65 @@ HRESULT CreateChannel(bool isUds, const std::string &engineName, const std::pair
     return engine->CreateChannel(connectInfo, chType);
 }
 
-HRESULT CreateCallBack(const MxmComCallback &usrCb, Callback *&done)
+struct PendingReply {
+    PendingReply(ubs_hcom_service owner, const MxmComCallback &cb) : service(owner), callback(cb) {}
+    ubs_hcom_service service;
+    MxmComCallback callback;
+    std::atomic<bool> notified{false};
+};
+
+static std::mutex G_REPLY_MUTEX;
+static std::atomic<uintptr_t> G_REPLY_TOKEN{1};
+static std::map<uintptr_t, std::shared_ptr<PendingReply>> G_PENDING_REPLIES;
+
+static void NotifyReply(const std::shared_ptr<PendingReply> &state, void *data, uint32_t size, int result)
 {
-    if (usrCb.cb == nullptr) {
-        DBG_LOGERROR("User callback is nullptr.");
-        return MXM_COM_ERROR_NEW_NET_CALLBACK_FAIL;
+    if (!state->notified.exchange(true)) {
+        try {
+            state->callback.cb(state->callback.cbCtx, data, size, result);
+        } catch (...) {
+            DBG_LOGERROR("Reply completion callback failed");
+        }
     }
-    done = UBSHcomNewCallback(
-        [usrCb](UBSHcomServiceContext &context) {
-            if (context.Result() != 0) {
-                DBG_LOGERROR("callback return failed," << context.Result());
-            }
-            usrCb.cb(usrCb.cbCtx, context.MessageData(), context.MessageDataLen(), context.Result());
-            return;
-        },
-        std::placeholders::_1);
-    if (done == nullptr) {
-        DBG_LOGERROR("New net callback failed.");
-        usrCb.cb(usrCb.cbCtx, nullptr, 0, MXM_COM_ERROR_NEW_NET_CALLBACK_FAIL);
-        return MXM_COM_ERROR_NEW_NET_CALLBACK_FAIL;
-    }
-    return HOK;
 }
 
-HRESULT GetChannel(const std::string &engineName, MxmComMessageCtx &message, UBSHcomChannelPtr &channel,
+static void ReplyDone(void *arg, ubs_hcom_service_context context)
+{
+    std::shared_ptr<PendingReply> state;
+    {
+        std::lock_guard<std::mutex> guard(G_REPLY_MUTEX);
+        auto iter = G_PENDING_REPLIES.find(reinterpret_cast<uintptr_t>(arg));
+        if (iter == G_PENDING_REPLIES.end()) {
+            return;
+        }
+        state = iter->second;
+        G_PENDING_REPLIES.erase(iter);
+    }
+    int result = HFAIL;
+    ubs_hcom_context_get_result(context, &result);
+    NotifyReply(state, ubs_hcom_context_get_data(context), ubs_hcom_context_get_datalen(context), result);
+}
+
+static void ReapReplies(ubs_hcom_service service)
+{
+    std::vector<std::shared_ptr<PendingReply>> abandoned;
+    {
+        std::lock_guard<std::mutex> guard(G_REPLY_MUTEX);
+        for (auto iter = G_PENDING_REPLIES.begin(); iter != G_PENDING_REPLIES.end();) {
+            if (iter->second->service == service) {
+                abandoned.push_back(iter->second);
+                iter = G_PENDING_REPLIES.erase(iter);
+            } else {
+                ++iter;
+            }
+        }
+    }
+    for (const auto &state : abandoned) {
+        NotifyReply(state, nullptr, 0, MXM_COM_ERROR_REPLY_FAIL);
+    }
+}
+
+HRESULT GetChannel(const std::string &engineName, MxmComMessageCtx &message, MxmComChannelState::Reference &channel,
                    uint32_t &sendLen)
 {
     auto *transMsg = static_cast<MxmComMessage *>(static_cast<void *>(message.GetMessage()));
@@ -1193,8 +1274,8 @@ HRESULT GetChannel(const std::string &engineName, MxmComMessageCtx &message, UBS
         DBG_LOGERROR("Channel info is abnormal, nodeId: " << nodeId);
         return MXM_COM_ERROR_CHANNEL_NOT_FOUND;
     }
-    channel = channelInfo.GetChannel();
-    if (channel == nullptr) {
+    channel = channelInfo.GetChannel() == nullptr ? MxmComChannelState::Reference{} : channelInfo.GetChannel()->Acquire();
+    if (!channel) {
         DBG_LOGERROR("Channel is nullptr, nodeId: " << nodeId);
         return MXM_COM_ERROR_CHANNEL_NULL;
     }
@@ -1257,18 +1338,19 @@ HRESULT MxmCommunication::RegMxmComMsgHandler(const std::string &engineName, con
 HRESULT MxmCommunication::MxmComMsgSend(const std::string &engineName, MxmComMessageCtx &message,
                                         MxmComDataDesc &retData)
 {
-    UBSHcomChannelPtr channel;
+    MxmComChannelState::Reference channel;
     uint32_t sendLen;
     HRESULT channelRes = GetChannel(engineName, message, channel, sendLen);
     if (channelRes != HOK) {
         return channelRes;
     }
-    MxmComDataDesc sendData = {message.GetMessage(), sendLen};
-    UBSHcomRequest reqMsg{(sendData.data), sendData.len, 0};
-    UBSHcomResponse rspMsg;
+    ubs_hcom_channel_request reqMsg{};
+    reqMsg.address = message.GetMessage();
+    reqMsg.size = sendLen;
+    ubs_hcom_channel_response rspMsg{};
 
     TP_TRACE_BEGIN(TP_UBSM_HCOM_CALL);
-    auto ret = channel->Call(reqMsg, rspMsg);
+    auto ret = ubs_hcom_channel_call(channel.Get(), reqMsg, &rspMsg, nullptr);
     TP_TRACE_END(TP_UBSM_HCOM_CALL, ret);
     if (ret != 0) {
         DBG_LOGERROR("Channel syncCallRaw failed, ret," << ret);
@@ -1297,8 +1379,9 @@ void MxmCommunication::MxmComMsgReply(MxmComMessageCtx &message, const MxmComDat
         DBG_LOGERROR("Channel info is abnormal, channel id: " << message.GetChannelId());
         return;
     }
-    const UBSHcomChannelPtr &channel = channelInfo.GetChannel();
-    if (channel == nullptr) {
+    auto channel = channelInfo.GetChannel() == nullptr ? MxmComChannelState::Reference{} :
+                                                        channelInfo.GetChannel()->Acquire();
+    if (!channel) {
         DBG_LOGERROR("Channel is nullptr, nodeId: " << nodeId;
                      usrCb.cb(usrCb.cbCtx, nullptr, 0, MXM_COM_ERROR_CHANNEL_NULL));
         return;
@@ -1307,13 +1390,45 @@ void MxmCommunication::MxmComMsgReply(MxmComMessageCtx &message, const MxmComDat
     if (replyHook != nullptr) {
         res = replyHook(data, usrCb);
     } else {
-        UBSHcomRequest reqMsg{(data.data), data.len, 0};
-        UBSHcomReplyContext replyCtx(rspCtx, 0);
-        Callback *done = nullptr;
-        if (CreateCallBack(usrCb, done) != HOK) {
+        if (usrCb.cb == nullptr) {
             return;
         }
-        res = channel->Reply(replyCtx, reqMsg, done);
+        std::shared_ptr<PendingReply> pending;
+        uintptr_t token = 0;
+        bool atCapacity = false;
+        try {
+            pending = std::make_shared<PendingReply>(engine->GetService(), usrCb);
+            {
+                std::lock_guard<std::mutex> guard(G_REPLY_MUTEX);
+                atCapacity = G_PENDING_REPLIES.size() >= 4 * CTX_STORE_CAP;
+                if (!atCapacity) {
+                    token = G_REPLY_TOKEN.fetch_add(1);
+                    G_PENDING_REPLIES.emplace(token, pending);
+                }
+            }
+        } catch (...) {
+            usrCb.cb(usrCb.cbCtx, nullptr, 0, MXM_COM_ERROR_NEW_NET_CALLBACK_FAIL);
+            return;
+        }
+        if (atCapacity) {
+            usrCb.cb(usrCb.cbCtx, nullptr, 0, MXM_COM_ERROR_REPLY_FAIL);
+            return;
+        }
+        ubs_hcom_channel_request reqMsg{};
+        reqMsg.address = data.data;
+        reqMsg.size = data.len;
+        ubs_hcom_channel_reply_context replyCtx{};
+        replyCtx.rspCtx = reinterpret_cast<void *>(rspCtx);
+        ubs_hcom_channel_callback callback{ReplyDone, reinterpret_cast<void *>(token)};
+        res = ubs_hcom_channel_reply(channel.Get(), reqMsg, replyCtx, &callback);
+        if (res != HOK) {
+            {
+                std::lock_guard<std::mutex> guard(G_REPLY_MUTEX);
+                G_PENDING_REPLIES.erase(token);
+            }
+            NotifyReply(pending, nullptr, 0, MXM_COM_ERROR_REPLY_FAIL);
+        }
+        return;
     }
     if (res != 0) {
         DBG_LOGERROR("Channel sendRaw failed, res: " << res << " nodeId: " << nodeId);

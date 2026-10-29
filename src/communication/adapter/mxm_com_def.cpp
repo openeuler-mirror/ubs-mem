@@ -253,15 +253,14 @@ void MxmComChannelInfo::SetIsServer(bool isServerSide)
     MxmComChannelInfo::isServer = isServerSide;
 }
 
-const UBSHcomChannelPtr &MxmComChannelInfo::GetChannel() const
+const MxmComChannelStatePtr &MxmComChannelInfo::GetChannel() const
 {
-    static const UBSHcomChannelPtr emptyChannel;
-    return channel == nullptr ? emptyChannel : *channel;
+    return channel;
 }
 
 uint64_t MxmComChannelInfo::GetChannelId() const
 {
-    return GetChannel()->GetId();
+    return channel == nullptr ? 0 : channel->GetId();
 }
 
 void MxmComChannelInfo::SetUDSInfo(const MxmUdsIdInfo &uds)
@@ -273,9 +272,9 @@ MxmUdsIdInfo MxmComChannelInfo::GetUDSInfo() const
     return uds;
 }
 
-void MxmComChannelInfo::SetChannel(const UBSHcomChannelPtr &ch)
+void MxmComChannelInfo::SetChannel(const MxmComChannelStatePtr &ch)
 {
-    channel = ch == nullptr ? nullptr : std::make_shared<UBSHcomChannelPtr>(ch);
+    channel = ch;
 }
 
 const MxmComChannelConnectInfo &MxmComChannelInfo::GetConnectInfo() const

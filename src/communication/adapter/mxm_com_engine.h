@@ -14,14 +14,13 @@
 
 #include <thread>
 #include <vector>
-#include "hcom_service.h"
+#include "hcom_service_c.h"
 #include "lock/dg_lock.h"
 #include "mxm_com_def.h"
 #include "ubs_cryptor_handler.h"
 #include "util/defines.h"
 
 namespace ock::com {
-using namespace ock::hcom;
 using namespace ock::dagger;
 using namespace ock::ubsm;
 
@@ -76,13 +75,13 @@ public:
    *
    * @param[in] id: channel 的标识
    */
-    void RemoveChannelByChannelId(uint64_t id, UBSHcomService *hcomNetService);
+    void RemoveChannelByChannelId(uint64_t id);
 
     /* *
    * @brief 移除所有channel
    *
    */
-    void RemoveAllChannel(UBSHcomService *hcomNetService);
+    void RemoveAllChannel();
 
     void SetStop();
 
@@ -99,7 +98,7 @@ private:
 
 class MxmComEngine {
 public:
-    MxmComEngine(MxmComEngineInfo engineInfo, UBSHcomService *hcomNetService, MxmComLinkStateNotify linkStateNotify);
+    MxmComEngine(MxmComEngineInfo engineInfo, ubs_hcom_service hcomNetService, MxmComLinkStateNotify linkStateNotify);
     ~MxmComEngine();
 
     /* *
@@ -108,6 +107,7 @@ public:
    * @return MxmComEngineInfo引用
    */
     const MxmComEngineInfo &GetEngineInfo() const;
+    ubs_hcom_service GetService() const { return hcomNetService; }
 
     /* *
    * @brief 注册消息处理函数
@@ -186,7 +186,7 @@ public:
         return this->postReconnectHandler;
     }
 
-    int ConvertContextToMessageCtx(const UBSHcomServiceContext &context, MxmComMessageCtx &msgCtx);
+    int ConvertContextToMessageCtx(ubs_hcom_service_context context, MxmComMessageCtx &msgCtx);
 
 protected:
     /**
@@ -197,17 +197,15 @@ protected:
     /* *
    * @brief 注册引擎消息处理函数
    */
-    void RegisterEngineHandlers();
+    HRESULT RegisterEngineHandlers();
 
     HRESULT RegisterTlsCallback();
 
-    bool TlsCaCallBack(const std::string &name, std::string &capath, std::string &crlPath,
-                       UBSHcomPeerCertVerifyType &verifyPeerCert, UBSHcomTLSCertVerifyCallback &cb);
-
-    bool TlsPrivateKeyCallback(const std::string &name, std::string &path, void *&pw, int &length,
-                               UBSHcomTLSEraseKeypass &erase);
-
-    bool TlsCertificationCallback(const std::string &name, std::string &path);
+    static int NewChannelThunk(void *engine, ubs_hcom_channel channel, const char *ipPort, const char *payload);
+    static int BrokenThunk(ubs_hcom_channel channel, const char *ipPort, uint64_t usrCtx, const char *payload);
+    static int ReceivedThunk(ubs_hcom_service_context context, uint64_t usrCtx);
+    static int SentThunk(ubs_hcom_service_context context, uint64_t usrCtx);
+    static int OneSideThunk(ubs_hcom_service_context context, uint64_t usrCtx);
 
     /* *
    * @brief 新连接建立消息处理函数
@@ -216,34 +214,34 @@ protected:
    * @param[in] payload: 远端标识
    * @return HRESULT, 成功返回0, 失败返回非0
    */
-    HRESULT NewChannel(const std::string &ipPort, const UBSHcomChannelPtr &ch, const std::string &payload);
+    HRESULT NewChannel(const std::string &ipPort, ubs_hcom_channel ch, const std::string &payload);
 
     /* *
    * @brief 通道断开消息处理函数
    * @param[in] ch: 通道指针
    */
-    void BrokenChannel(const UBSHcomChannelPtr &ch);
+    void BrokenChannel(ubs_hcom_channel ch, const char *payload);
 
     /* *
    * @brief 通信消息处理函数
    * @param[in] context: 消息上下文
    * @return HRESULT, 成功返回0, 失败返回非0
    */
-    HRESULT ReceivedRequest(UBSHcomServiceContext &context);
+    HRESULT ReceivedRequest(ubs_hcom_service_context context);
 
     /* *
    * @brief 通信消息发送完成处理函数
    * @param[in] context: 消息上下文
    * @return HRESULT, 成功返回0, 失败返回非0
    */
-    HRESULT SendRequest(const UBSHcomServiceContext &context);
+    HRESULT SendRequest(ubs_hcom_service_context context);
 
     /* *
    * @brief 单边消息发送完成处理函数
    * @param[in] context: 消息上下文
    * @return HRESULT, 成功返回0, 失败返回非0
    */
-    HRESULT OneSideDoneRequest(const UBSHcomServiceContext &context);
+    HRESULT OneSideDoneRequest(ubs_hcom_service_context context);
 
     /* *
    * @brief 通道重连
@@ -258,7 +256,8 @@ protected:
 
 protected:
     MxmComEngineInfo engineInfo;              // 引擎信息
-    UBSHcomService *hcomNetService = nullptr; // hcom service实例
+    ubs_hcom_service hcomNetService = 0; // hcom service实例
+    int callbackSlot = -1;
     MxmComLinkStateNotify linkStateNotify;    // 通道状态变更回调函数
     MxmComPostReconnectHandler postReconnectHandler = DefaultPostReconnectHandler;
     std::atomic<bool> deleted{false}; // 引擎是否销毁
@@ -268,7 +267,7 @@ protected:
     ReadWriteLock rwLock;                          // 读写锁
     void *address = nullptr;                       // 预分配内存地址
     ubs_hcom_memory_allocator memPtr = 0; // 内存分配器句柄
-    UBSHcomRegMemoryRegion mr;
+    ubs_hcom_memory_region mr{0};
     std::mutex reconnectMutex;
     std::vector<std::thread> reconnectTasks;
     std::mutex stopMutex;

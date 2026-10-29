@@ -24,7 +24,7 @@ TEST_F(MxmComTestSuite, TestMessageHandlerLookupDoesNotMutateMapAndReturnsCopy)
     MxmComEngineInfo info;
     MxmComLinkStateNotify notify = [](const MxmComEngineInfo &, const std::string &, uint64_t, MxmLinkState) {
     };
-    MxmComEngine engine(info, nullptr, notify);
+    MxmComEngine engine(info, 0, notify);
 
     EXPECT_EQ(engine.GetMessageHandler(1, 1).handler, nullptr);
     EXPECT_TRUE(engine.handlerMap.empty());
@@ -50,7 +50,7 @@ TEST_F(MxmComTestSuite, TestRemoveChannelByChannelIdRemovesBothIndexes)
     manager.nodeChannelMap["remote"][MxmChannelType::NORMAL] = channelInfo;
     manager.channelIdMap[42] = channelInfo;
 
-    manager.RemoveChannelByChannelId(42, nullptr);
+    manager.RemoveChannelByChannelId(42);
 
     EXPECT_TRUE(manager.nodeChannelMap.empty());
     EXPECT_TRUE(manager.channelIdMap.empty());
@@ -179,7 +179,7 @@ TEST_F(MxmComTestSuite, TestMxmComBaseInterface4)
     info.SetIsServer(true);
     MxmUdsIdInfo uds{};
     info.SetUDSInfo(uds);
-    UBSHcomChannelPtr channelPtr;
+    MxmComChannelStatePtr channelPtr;
     info.SetChannel(channelPtr);
     MxmComChannelConnectInfo connectInfo{};
     info.SetConnectInfo(connectInfo);
