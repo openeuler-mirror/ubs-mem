@@ -1,0 +1,352 @@
+name: UBS-MEM-Validation
+
+on:
+  workflow_call:
+    inputs:
+      pr_id:
+        description: Pull request number
+        required: true
+        type: string
+      target_branch:
+        description: Pull request target branch
+        required: true
+        type: string
+      merge_commit_sha:
+        description: Pull request merge commit
+        required: true
+        type: string
+
+env:
+  PR_ID: ${{ inputs.pr_id }}
+  TARGET_BRANCH: ${{ inputs.target_branch }}
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  repository: read
+  pr: none
+  issue: none
+  note: none
+  project: none
+
+stages:
+  checks_stage:
+    name: Checks
+    fail_fast: false
+    jobs:
+      pre_commit:
+        name: pre-commit
+        if: ${{ inputs.target_branch == 'master' }}
+        runs-on: [self-hosted, openeuler, arm, cpu=8]
+        timeout-minutes: 30
+        container:
+          image: swr.cn-north-4.myhuaweicloud.com/ubscore/soe:latest
+
+        steps:
+          - name: Checkout PR merge code
+            uses: checkout
+            with:
+              ref: ${{ inputs.merge_commit_sha }}
+              allow-unsafe-pr-checkout: true
+
+          - name: Install pre-commit dependencies
+            run: |
+              set -euxo pipefail
+
+              sudo dnf install -y \
+                clang-tools-extra \
+                git \
+                python3 \
+                python3-pip
+
+              clang-format --version
+
+          - name: Prepare clang-format check
+            run: |
+              set -euxo pipefail
+
+              # 与 Jenkins 保持一致。当前 ubs-mem 配置已经使用
+              # --dry-run --Werror，因此该 sed 通常不会修改内容。
+              sed -i 's/, -i/, -n, --Werror/g' .pre-commit-config.yaml
+
+          - name: Run pre-commit
+            uses: openlibing/pre-commit-action@v1.0.1
+            env:
+              SKIP: run-build,run-build-test,clang-tidy,clang-tidy-test
+            with:
+              extra_args: --all-files
+
+          - name: Save result
+            if: ${{ always() }}
+            env:
+              CURRENT_JOB_STATUS: ${{ job.status }}
+            run: |
+              mkdir -p .ci-results
+              if [[ "${CURRENT_JOB_STATUS}" == "success" ]]; then
+                echo "SUCCESS" > .ci-results/pre-commit
+              else
+                echo "FAILED" > .ci-results/pre-commit
+              fi
+
+              echo "pre-commit: ${CURRENT_JOB_STATUS}" >> "${ATOMGIT_STEP_SUMMARY}"
+
+          - name: Upload result
+            if: ${{ always() }}
+            uses: upload-artifact
+            with:
+              name: ci-result-pre-commit
+              path: .ci-results/pre-commit
+
+      build_x86_64:
+        name: build-x86-64
+        runs-on: [self-hosted, openeuler, x86, cpu=8]
+        timeout-minutes: 5
+
+        steps:
+          - name: Checkout PR merge code
+            uses: checkout
+            with:
+              ref: ${{ inputs.merge_commit_sha }}
+              allow-unsafe-pr-checkout: true
+
+          - name: Preserve legacy x86_64 status
+            run: |
+              set -euxo pipefail
+              echo "上游 ubs-mem x86_64 Jenkins Job 仅执行 PR clone/fetch/merge。"
+              echo "当前迁移保留历史占位检查，不执行实际 x86_64 编译。"
+              echo "x86_64=LEGACY_PLACEHOLDER" >> "${ATOMGIT_STEP_SUMMARY}"
+
+          - name: Save result
+            if: ${{ always() }}
+            env:
+              CURRENT_JOB_STATUS: ${{ job.status }}
+            run: |
+              mkdir -p .ci-results
+              if [[ "${CURRENT_JOB_STATUS}" == "success" ]]; then
+                echo "SUCCESS" > .ci-results/x86_64
+              else
+                echo "FAILED" > .ci-results/x86_64
+              fi
+
+          - name: Upload result
+            if: ${{ always() }}
+            uses: upload-artifact
+            with:
+              name: ci-result-x86-64
+              path: .ci-results/x86_64
+
+      build_aarch64:
+        name: build-aarch64
+        runs-on: [self-hosted, openeuler, arm, cpu=8]
+        timeout-minutes: 90
+        container:
+          image: swr.cn-north-4.myhuaweicloud.com/hw-ascend/openeuler-24.03-lts-sp3_ci_build:V1
+
+        steps:
+          - name: Checkout PR merge code
+            uses: checkout
+            with:
+              ref: ${{ inputs.merge_commit_sha }}
+              allow-unsafe-pr-checkout: true
+
+          - name: Install build dependencies
+            run: |
+              set -euxo pipefail
+
+              sudo dnf install -y \
+                gcc \
+                gcc-c++ \
+                dos2unix \
+                cmake \
+                make \
+                openssl \
+                openssl-devel \
+                numactl-devel \
+                systemd-devel \
+                libboundscheck \
+                rdma-core-devel \
+                rpm-build \
+                tree \
+                wget \
+                libasan \
+                ninja-build \
+                spdlog-devel \
+                git
+
+          - name: Install ubs-comm development packages
+            run: |
+              set -euxo pipefail
+
+              if sudo dnf install -y ubs-comm-lib ubs-comm-devel; then
+                echo "Installed ubs-comm packages from configured repositories."
+              else
+                echo "Repository installation failed; falling back to pinned Jenkins RPMs."
+
+                curl -fLo ubs-comm-devel.rpm \
+                  "https://eulermaker.openeuler.openatom.cn/api/ems1/repositories/gitcode:openEuler-24.03-LTS-SP3:aarch64:ubs-comm:57/openEuler:24.03-LTS-SP3/aarch64/history/077b568a-1f8a-11f1-beaa-fa163e474168/steps/upload/cbs.A40314174202073Q6ZMQE98D/ubs-comm-devel-1.0.0-14.oe2403sp3.aarch64.rpm"
+
+                curl -fLo ubs-comm-lib.rpm \
+                  "https://eulermaker.openeuler.openatom.cn/api/ems1/repositories/gitcode:openEuler-24.03-LTS-SP3:aarch64:ubs-comm:57/openEuler:24.03-LTS-SP3/aarch64/history/077b568a-1f8a-11f1-beaa-fa163e474168/steps/upload/cbs.A40314174202073Q6ZMQE98D/ubs-comm-lib-1.0.0-14.oe2403sp3.aarch64.rpm"
+
+                sudo rpm -e ubs-comm-devel || true
+                sudo rpm -e ubs-comm-lib || true
+                sudo rpm -ivh --force ubs-comm-lib.rpm ubs-comm-devel.rpm
+              fi
+
+              rpm -q ubs-comm-lib ubs-comm-devel
+              test -f /usr/include/hcom/hcom_service.h
+              ldconfig -p | grep libhcom
+
+          - name: Build ubs-mem
+            run: |
+              set -euxo pipefail
+
+              cmake --version
+              ninja --version
+              gcc --version
+              g++ --version
+
+              # 原 Jenkins 未指定 -t，build.sh 默认构建 Debug。
+              bash build.sh
+
+              test -d build/debug/output
+              tree -L 3 build/debug/output
+
+          - name: Upload build output
+            uses: upload-artifact
+            with:
+              name: ubs-mem-build-aarch64
+              path: build/debug/output/
+
+          - name: Save result
+            if: ${{ always() }}
+            env:
+              CURRENT_JOB_STATUS: ${{ job.status }}
+            run: |
+              mkdir -p .ci-results
+              if [[ "${CURRENT_JOB_STATUS}" == "success" ]]; then
+                echo "SUCCESS" > .ci-results/aarch64
+              else
+                echo "FAILED" > .ci-results/aarch64
+              fi
+
+              echo "aarch64: ${CURRENT_JOB_STATUS}" >> "${ATOMGIT_STEP_SUMMARY}"
+
+          - name: Upload result
+            if: ${{ always() }}
+            uses: upload-artifact
+            with:
+              name: ci-result-aarch64
+              path: .ci-results/aarch64
+
+      dt:
+        name: DT
+        runs-on: [self-hosted, openeuler, arm, cpu=8]
+        timeout-minutes: 120
+        container:
+          image: swr.cn-north-4.myhuaweicloud.com/ubscore/openeuler-24.03-lts-sp3_ci_build:latest
+
+        steps:
+          - name: Checkout PR merge code
+            uses: checkout
+            with:
+              ref: ${{ inputs.merge_commit_sha }}
+              allow-unsafe-pr-checkout: true
+
+          - name: Install build dependencies
+            run: |
+              set -euxo pipefail
+
+              sudo dnf install -y \
+                gcc \
+                gcc-c++ \
+                dos2unix \
+                cmake \
+                make \
+                openssl \
+                openssl-devel \
+                numactl-devel \
+                systemd-devel \
+                libboundscheck \
+                rdma-core-devel \
+                rpm-build \
+                tree \
+                wget \
+                libasan \
+                ninja-build \
+                spdlog-devel \
+                git \
+                patch
+
+          - name: Install ubs-comm development packages
+            run: |
+              set -euxo pipefail
+
+              if sudo dnf install -y ubs-comm-lib ubs-comm-devel; then
+                echo "Installed ubs-comm packages from configured repositories."
+              else
+                echo "Repository installation failed; falling back to pinned Jenkins RPMs."
+
+                curl -fLo ubs-comm-devel.rpm \
+                  "https://eulermaker.openeuler.openatom.cn/api/ems1/repositories/gitcode:openEuler-24.03-LTS-SP3:aarch64:ubs-comm:57/openEuler:24.03-LTS-SP3/aarch64/history/077b568a-1f8a-11f1-beaa-fa163e474168/steps/upload/cbs.A40314174202073Q6ZMQE98D/ubs-comm-devel-1.0.0-14.oe2403sp3.aarch64.rpm"
+
+                curl -fLo ubs-comm-lib.rpm \
+                  "https://eulermaker.openeuler.openatom.cn/api/ems1/repositories/gitcode:openEuler-24.03-LTS-SP3:aarch64:ubs-comm:57/openEuler:24.03-LTS-SP3/aarch64/history/077b568a-1f8a-11f1-beaa-fa163e474168/steps/upload/cbs.A40314174202073Q6ZMQE98D/ubs-comm-lib-1.0.0-14.oe2403sp3.aarch64.rpm"
+
+                sudo rpm -e ubs-comm-devel || true
+                sudo rpm -e ubs-comm-lib || true
+                sudo rpm -ivh --force ubs-comm-lib.rpm ubs-comm-devel.rpm
+              fi
+
+              rpm -q ubs-comm-lib ubs-comm-devel
+              test -f /usr/include/hcom/hcom_service.h
+              ldconfig -p | grep libhcom
+
+          - name: Prepare DT dependencies
+            run: |
+              set -euxo pipefail
+
+              git clone --depth=1 \
+                https://gitcode.com/GitHub_Trending/sp/spdlog.git \
+                3rdparty/spdlog
+
+          - name: Run ubs-mem DT
+            run: |
+              set -euxo pipefail
+
+              cd test
+              bash run_dt.sh
+
+              test -f build/gcover_report/test_detail.xml
+
+          - name: Upload DT reports
+            if: ${{ always() }}
+            uses: upload-artifact
+            with:
+              name: ubs-mem-dt
+              path: |
+                test/build/gcover_report/test_detail.xml
+                test/build/gcover_report/
+
+          - name: Save result
+            if: ${{ always() }}
+            env:
+              CURRENT_JOB_STATUS: ${{ job.status }}
+            run: |
+              mkdir -p .ci-results
+              if [[ "${CURRENT_JOB_STATUS}" == "success" ]]; then
+                echo "SUCCESS" > .ci-results/DT
+              else
+                echo "FAILED" > .ci-results/DT
+              fi
+
+              echo "DT: ${CURRENT_JOB_STATUS}" >> "${ATOMGIT_STEP_SUMMARY}"
+
+          - name: Upload result
+            if: ${{ always() }}
+            uses: upload-artifact
+            with:
+              name: ci-result-dt
+              path: .ci-results/DT
