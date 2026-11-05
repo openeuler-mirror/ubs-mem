@@ -167,7 +167,7 @@ private:
     bool enableTls = false; // 是否采用tls认证
     uint32_t sendReceiveSegCount = DEFAULT_SEND_RECEIVE_SEG_COUNT;
     ubs_hcom_service_cipher_suite cipherSuite = C_SERVICE_AES_GCM_128; // 加密套算法
-    uint32_t maxHcomConnectNum{CONNECT_NUM};         // 默认256
+    uint32_t maxHcomConnectNum{CONNECT_NUM};                           // 默认256
 };
 
 class MxmComChannelConnectInfo {
@@ -264,7 +264,7 @@ private:
     bool isServer{true};                                // 是否是server端
     MxmChannelType channelType{MxmChannelType::NORMAL}; // 通道类型
     std::string engineName;                             // 引擎名
-    MxmComChannelStatePtr channel;                       // 两个索引和查询副本共享同一份 Channel 引用
+    MxmComChannelStatePtr channel;                      // 两个索引和查询副本共享同一份 Channel 引用
     MxmUdsIdInfo uds;
     MxmComChannelConnectInfo connectInfo; // 连接信息
 };

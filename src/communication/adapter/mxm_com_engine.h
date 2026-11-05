@@ -107,7 +107,10 @@ public:
    * @return MxmComEngineInfo引用
    */
     const MxmComEngineInfo &GetEngineInfo() const;
-    ubs_hcom_service GetService() const { return hcomNetService; }
+    ubs_hcom_service GetService() const
+    {
+        return hcomNetService;
+    }
 
     /* *
    * @brief 注册消息处理函数
@@ -255,17 +258,17 @@ protected:
     void AddListenOptions();
 
 protected:
-    MxmComEngineInfo engineInfo;              // 引擎信息
+    MxmComEngineInfo engineInfo;         // 引擎信息
     ubs_hcom_service hcomNetService = 0; // hcom service实例
     int callbackSlot = -1;
-    MxmComLinkStateNotify linkStateNotify;    // 通道状态变更回调函数
+    MxmComLinkStateNotify linkStateNotify; // 通道状态变更回调函数
     MxmComPostReconnectHandler postReconnectHandler = DefaultPostReconnectHandler;
     std::atomic<bool> deleted{false}; // 引擎是否销毁
     MxmComLinkManager linkManager;    // 连接通道管理器
     HandlerMap handlerMap{};          // 操作函数映射表，一个引擎一个表
     EngineHandlerWorker handlerWork;
-    ReadWriteLock rwLock;                          // 读写锁
-    void *address = nullptr;                       // 预分配内存地址
+    ReadWriteLock rwLock;                 // 读写锁
+    void *address = nullptr;              // 预分配内存地址
     ubs_hcom_memory_allocator memPtr = 0; // 内存分配器句柄
     ubs_hcom_memory_region mr{0};
     std::mutex reconnectMutex;

@@ -17,8 +17,8 @@
 #include <unistd.h>
 #include <cstring>
 #include "crc/dg_crc.h"
-#include "mxm_com_callback_slots.h"
 #include "log.h"
+#include "mxm_com_callback_slots.h"
 #include "ptracer.h"
 #include "ubs_common_config.h"
 #include "ubsm_com_constants.h"
@@ -179,15 +179,17 @@ void MxmComLinkManager::InsertChannel(MxmComChannelInfo &channelInfo)
             }
             auto channelId = channelInfo.GetChannelId();
             channelIdMap.emplace(channelId, channelInfo);
-            DBG_LOGINFO("Insert channel id: " << channelId << ", cur node id" << channelInfo.GetConnectInfo().GetCurNodeId()
-                                              << ", remote node id" << channelInfo.GetConnectInfo().GetRemoteNodeId());
+            DBG_LOGINFO("Insert channel id: " << channelId << ", cur node id"
+                                              << channelInfo.GetConnectInfo().GetCurNodeId() << ", remote node id"
+                                              << channelInfo.GetConnectInfo().GetRemoteNodeId());
             return;
         }
         const auto &nodeId = channelInfo.GetConnectInfo().GetRemoteNodeId();
         auto engineName = channelInfo.GetEngineName();
         auto nodeIter = nodeChannelMap.find(nodeId);
-        auto oldChannelIter = nodeIter == nodeChannelMap.end() ? std::map<MxmChannelType, MxmComChannelInfo>::iterator{} :
-                                                                 nodeIter->second.find(chType);
+        auto oldChannelIter = nodeIter == nodeChannelMap.end() ?
+                                  std::map<MxmChannelType, MxmComChannelInfo>::iterator{} :
+                                  nodeIter->second.find(chType);
         if (nodeIter != nodeChannelMap.end() && oldChannelIter != nodeIter->second.end()) {
             DBG_LOGINFO("Engine " << engineName << " channel already exists, type is " << static_cast<uint16_t>(chType)
                                   << ", remote node is " << nodeId);
@@ -398,10 +400,13 @@ HRESULT MxmComEngine::CreateChannel(MxmComChannelConnectInfo &info, MxmChannelTy
     if (payload.size() >= sizeof(options.payLoad)) {
         return MXM_COM_ERROR_CONNECT_TO_PEER_FAIL;
     }
-    std::memcpy(options.payLoad, payload.c_str(), payload.size() + 1);
+    if (memcpy_s(options.payLoad, sizeof(options.payLoad), payload.c_str(), payload.size() + 1) != 0) {
+        DBG_LOGERROR("Failed to copy channel payload");
+        return MXM_COM_ERROR_CONNECT_TO_PEER_FAIL;
+    }
     ubs_hcom_channel channel = 0;
     auto url = engineInfo.GetProtocol() == MxmProtocol::UDS ? "uds://" + info.GetIp() :
-                                                            "tcp://" + info.GetRemoteNodeId();
+                                                              "tcp://" + info.GetRemoteNodeId();
     auto ret = ubs_hcom_service_connect(hcomNetService, url.c_str(), &channel, options);
     if (ret != 0) {
         DBG_LOGERROR("Failed to connect remote, peer node=" << info.GetIp() << ":" << info.GetPort()
@@ -591,9 +596,9 @@ HRESULT MxmComEngine::Start()
             DBG_LOGERROR("Failed to prepare rndv mem, " << retCode);
             return retCode;
         }
-        auto result = ubs_hcom_service_register_assign_memory_region(
-            hcomNetService, reinterpret_cast<uintptr_t>(address),
-            engineInfo.GetMaxSendReceiveSize() * SEND_RECEIVE_SIZE, &mr);
+        auto result =
+            ubs_hcom_service_register_assign_memory_region(hcomNetService, reinterpret_cast<uintptr_t>(address),
+                                                           engineInfo.GetMaxSendReceiveSize() * SEND_RECEIVE_SIZE, &mr);
         if (result != 0) {
             DBG_LOGERROR("Failed to register mem region, " << result);
             return result;
@@ -730,7 +735,8 @@ HRESULT MxmComEngine::RegisterEngineHandlers()
     bool isOobSvr = engineInfo.GetEngineType() != MxmEngineType::CLIENT;
     if (isOobSvr) {
         callbackSlot = MxmComCallbackSlots::Instance().Acquire(this, NewChannelThunk);
-        if (callbackSlot == MxmComCallbackSlots::INVALID_SLOT || !MxmComCallbackSlots::Instance().Activate(callbackSlot)) {
+        if (callbackSlot == MxmComCallbackSlots::INVALID_SLOT ||
+            !MxmComCallbackSlots::Instance().Activate(callbackSlot)) {
             DBG_LOGERROR("No callback slot available for engine " << engineInfo.GetName());
             return MXM_COM_ERROR_ENGINE_CREATE_FAIL;
         }
@@ -1274,7 +1280,8 @@ HRESULT GetChannel(const std::string &engineName, MxmComMessageCtx &message, Mxm
         DBG_LOGERROR("Channel info is abnormal, nodeId: " << nodeId);
         return MXM_COM_ERROR_CHANNEL_NOT_FOUND;
     }
-    channel = channelInfo.GetChannel() == nullptr ? MxmComChannelState::Reference{} : channelInfo.GetChannel()->Acquire();
+    channel = channelInfo.GetChannel() == nullptr ? MxmComChannelState::Reference{} :
+                                                    channelInfo.GetChannel()->Acquire();
     if (!channel) {
         DBG_LOGERROR("Channel is nullptr, nodeId: " << nodeId);
         return MXM_COM_ERROR_CHANNEL_NULL;
@@ -1380,7 +1387,7 @@ void MxmCommunication::MxmComMsgReply(MxmComMessageCtx &message, const MxmComDat
         return;
     }
     auto channel = channelInfo.GetChannel() == nullptr ? MxmComChannelState::Reference{} :
-                                                        channelInfo.GetChannel()->Acquire();
+                                                         channelInfo.GetChannel()->Acquire();
     if (!channel) {
         DBG_LOGERROR("Channel is nullptr, nodeId: " << nodeId;
                      usrCb.cb(usrCb.cbCtx, nullptr, 0, MXM_COM_ERROR_CHANNEL_NULL));

@@ -54,7 +54,10 @@ public:
 
     // Acquire a temporary reference for an operation that may overlap Close.
     Reference Acquire() const;
-    uint64_t GetId() const { return id_; }
+    uint64_t GetId() const
+    {
+        return id_;
+    }
     // Consume the owned reference exactly once. The Service must still be alive.
     void Close();
 

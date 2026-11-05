@@ -14,8 +14,8 @@
 | ubs-comm | `master` | `a21719dea9f50f3df273e8a37b0cbfb9f8df5c85` |
 
 主要参考：同级 ubs-comm 仓库的
-[HCOM-CAPI-CPP-Mapping.ch.md](../../../ubs-comm/docs/hcom/HCOM-CAPI-CPP-Mapping.ch.md)，
-以及 `src/hcom/api/capi_v2/` 的头文件和实现。跨仓库链接要求两个仓库按当前同级目录布局检出。
+[HCOM C 接口 / C++ 接口对照文档](https://atomgit.com/openeuler/ubs-comm/blob/master/docs/hcom/HCOM-CAPI-CPP-Mapping.ch.md)，
+以及 `src/hcom/api/capi_v2/` 的头文件和实现。
 
 已确定的约束与方案：
 
