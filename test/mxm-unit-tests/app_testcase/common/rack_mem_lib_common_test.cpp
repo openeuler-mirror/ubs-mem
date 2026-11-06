@@ -218,10 +218,8 @@ TEST_F(RackMemLibCommonTestSuite, ShmMetaDataMgrCppInvalid)
     ASSERT_EQ(ShmMetaDataMgr::GetInstance().Init(), 0);
     ShmAppMetaData meta("name", {1u}, reinterpret_cast<void *>(1u), 128ULL * 1024 * 1024, ShmOwnStatus::UNACCESS, 0);
     ShmMetaDataMgr::GetInstance().UpdateMetaData("name", meta);
-    ShmMetaDataMgr::GetInstance().GetMetaIsLockAddress("name");
-    ShmMetaDataMgr::GetInstance().GetMetaHasUnmapped("name");
-    ShmMetaDataMgr::GetInstance().SetMetaHasUnmapped("name", true);
-    ShmMetaDataMgr::GetInstance().SetMetaIsLockAddress("name", true);
+    ShmMetaDataMgr::GetInstance().IsMetaMappingRevoked("name");
+    ShmMetaDataMgr::GetInstance().SetMetaMappingRevoked("name", true);
     ShmMetaDataMgr::GetInstance().GetShmMetaFromName("name", meta);
     ShmMetaDataMgr::GetInstance().CheckAddr("name", reinterpret_cast<void *>(1u), 128ULL * 1024 * 1024, meta, usedFirst,
                                             indices);
@@ -278,17 +276,11 @@ TEST_F(RackMemLibCommonTestSuite, ShmMetaDataMgrCppOk)
     ret = ShmMetaDataMgr::GetInstance().GetShmMetaFromName("name", meta);
     ASSERT_EQ(ret, 0);
 
-    ret = ShmMetaDataMgr::GetInstance().SetMetaHasUnmapped("name", true);
+    ret = ShmMetaDataMgr::GetInstance().SetMetaMappingRevoked("name", true);
     ASSERT_EQ(ret, 0);
 
-    auto hasUnmapped = ShmMetaDataMgr::GetInstance().GetMetaHasUnmapped("name");
-    ASSERT_EQ(hasUnmapped, true);
-
-    ret = ShmMetaDataMgr::GetInstance().SetMetaIsLockAddress("name", true);
-    ASSERT_EQ(ret, 0);
-
-    auto isLock = ShmMetaDataMgr::GetInstance().GetMetaIsLockAddress("name");
-    ASSERT_EQ(isLock, true);
+    auto mappingRevoked = ShmMetaDataMgr::GetInstance().IsMetaMappingRevoked("name");
+    ASSERT_EQ(mappingRevoked, true);
 
     std::vector<std::string> names;
     ret = ShmMetaDataMgr::GetInstance().GetAllUsedMemoryNames(names);

@@ -18,6 +18,7 @@ class RackMemShmTest : public testing::Test {
 protected:
     void SetUp() override
     {
+        MOCKER_CPP(madvise, int (*)(void *, size_t, int)).stubs().will(returnValue(0));
         validAddr = malloc(4);
     }
 
@@ -150,12 +151,12 @@ TEST_F(RackMemShmTest, TestUnMapWhenErrorCallsCleanupFunctions)
         .will(returnValue(static_cast<uint32_t>(MXM_ERR_MALLOC_FAIL)));
 
     shmMetaData.AddAddr(validAddr, validSize);
-    shmMetaData.AddFds(123);
+    shmMetaData.slices.push_back({1, validAddr, validSize, 0, 0, O_RDWR});
 
     UnMapWhenError(validAddr, validSize, validName, shmMetaData);
 
     EXPECT_TRUE(shmMetaData.addr == nullptr);
-    EXPECT_TRUE(shmMetaData.fd == -1);
+    EXPECT_EQ(shmMetaData.slices.size(), 1U);
 }
 
 TEST_F(RackMemShmTest, TestParameterCheckNameAlreadyMapped)
@@ -210,6 +211,7 @@ TEST_F(RackMemShmTest, TestMmapByMemIDOpenFailure)
 
 TEST_F(RackMemShmTest, TestMmapByMemIDMapFailure)
 {
+    MOCKER(SystemAdapter::Close).stubs().will(returnValue(0));
     MOCKER(ObmmOpenInternal).stubs().with(any(), any(), any()).will(returnValue(123));
 
     MOCKER_CPP(&RackMemFdMap::MapForEachFd, uint32_t(*)(void *, size_t, int, int, int, off_t))
@@ -223,6 +225,7 @@ TEST_F(RackMemShmTest, TestMmapByMemIDMapFailure)
 
 TEST_F(RackMemShmTest, TestMmapByMemIDLeavesAddressCleanupToCaller)
 {
+    MOCKER(SystemAdapter::Close).stubs().will(returnValue(0));
     shmMetaData.mapSize = validSize * memIds.size();
     MOCKER(ObmmOpenInternal).stubs().with(any(), any(), any()).will(returnValue(123));
     MOCKER_CPP(&RackMemFdMap::MapForEachFd, uint32_t(*)(void *, size_t, int, int, int, off_t))
@@ -238,6 +241,7 @@ TEST_F(RackMemShmTest, TestMmapByMemIDLeavesAddressCleanupToCaller)
 
 TEST_F(RackMemShmTest, TestMmapByMemIDSuccess)
 {
+    MOCKER(SystemAdapter::Close).stubs().will(returnValue(0));
     MOCKER(ObmmOpenInternal).stubs().with(any(), any(), any()).will(returnValue(123));
 
     MOCKER_CPP(&RackMemFdMap::MapForEachFd, uint32_t(*)(void *, size_t, int, int, int, off_t))
@@ -256,6 +260,26 @@ TEST_F(RackMemShmTest, TestGetOwnStatusAllCases)
     EXPECT_EQ(GetOwnStatus(PROT_WRITE), ShmOwnStatus::WRITE);
     EXPECT_EQ(GetOwnStatus(PROT_READ | PROT_WRITE), ShmOwnStatus::READWRITE);
     EXPECT_EQ(GetOwnStatus(PROT_EXEC), OWNBUFF);
+}
+
+TEST_F(RackMemShmTest, UnsupportedResourceFlagsNeverReachDeviceMapping)
+{
+    const size_t size = 4096;
+    const size_t unit = 4096;
+    const uint64_t unsupported = UINT64_C(1) << 63;
+    const int oflag = O_RDWR;
+    MOCKER(RackMemShmMmapParameterCheck).stubs().will(returnValue(static_cast<uint32_t>(UBSM_OK)));
+    MOCKER(ShmIpcCommand::IpcCallShmMap)
+        .stubs()
+        .with(any(), any(), outBound(memIds), outBound(size), outBound(unit), outBound(unsupported), outBound(oflag),
+              any(), any())
+        .will(returnValue(static_cast<uint32_t>(UBSM_OK)));
+    MOCKER(ShmIpcCommand::IpcCallShmUnMap).expects(once()).will(returnValue(static_cast<uint32_t>(UBSM_OK)));
+    MOCKER(SystemAdapter::MemoryMap).expects(never());
+    void *address = nullptr;
+    EXPECT_EQ(RackMemShm::GetInstance().UbsMemShmMmap(nullptr, size, PROT_READ, MAP_SHARED, validName, 0, &address),
+              MXM_ERR_UBSE_NOT_SUPPORTED);
+    EXPECT_EQ(address, nullptr);
 }
 
 TEST_F(RackMemShmTest, TestConvertToFileModeAllCases)

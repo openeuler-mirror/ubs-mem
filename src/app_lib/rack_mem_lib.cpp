@@ -11,6 +11,7 @@
  */
 
 #include "rack_mem_lib.h"
+#include "fork_coordinator.h"
 
 #include <algorithm>
 #include <iostream>
@@ -18,6 +19,7 @@
 #include "ubs_mem.h"
 #include "RmLibObmmExecutor.h"
 #include "ShmMetaDataMgr.h"
+#include "UbseMemExecutor.h"
 #include "ipc_proxy.h"
 #include "log.h"
 #include "mx_def.h"
@@ -80,6 +82,7 @@ uint32_t RackMemLib::Initialize()
     }
     DBG_LOGINFO("SDK of ubsm has been initialized");
     inited = true;
+    ForkCoordinator::Instance().SetInitialized(true);
     return UBSM_OK;
 }
 
@@ -92,6 +95,7 @@ uint32_t RackMemLib::Destroy()
         return UBSM_OK;
     }
     uint32_t result = UBSM_OK;
+    UbseMemExecutor::GetInstance().Exit();
     if (inited) {
         auto ret = IpcProxy::Resume();
         if (ret != UBSM_OK) {
@@ -114,6 +118,7 @@ uint32_t RackMemLib::Destroy()
         desc.isInitialized = false;
     }
     inited = false;
+    ForkCoordinator::Instance().SetInitialized(false);
     ubsmem::log::UbsmemLoggerManager::Destroy();
     return result;
 }
@@ -134,16 +139,18 @@ uint32_t RackMemLib::InitHtrace() const
     if (envValue == nullptr || strlen(envValue) == 0) {
         return HOK;
     }
-    return tracer::UbsmPtracer::Init();
+    const auto ret = tracer::UbsmPtracer::Init();
+    tracerStarted_.store(ret == UBSM_OK);
+    return ret;
 }
 
 uint32_t RackMemLib::ExitHtrace() const
 {
-    auto envValue = std::getenv(UBSM_SDK_TRACE_ENABLE);
-    if (envValue == nullptr || strlen(envValue) == 0) {
+    if (!tracerStarted_.load()) {
         return HOK;
     }
     tracer::UbsmPtracer::UnInit();
+    tracerStarted_.store(false);
     return UBSM_OK;
 }
 
@@ -172,6 +179,7 @@ extern "C" {
 
 int ubsmem_init_attributes(ubsmem_options_t *ubsm_shmem_opts)
 {
+    UBSMEM_API_GUARD();
     if (ubsm_shmem_opts == NULL) {
         DBG_LOGERROR("param is null.");
         return UBSM_ERR_PARAM_INVALID;
@@ -181,6 +189,11 @@ int ubsmem_init_attributes(ubsmem_options_t *ubsm_shmem_opts)
 
 int ubsmem_initialize(const ubsmem_options_t *ubsm_shmem_opts)
 {
+    UBSMEM_API_GUARD();
+    if (ock::mxmd::forkCallbackDepth != 0) {
+        DBG_LOGERROR("SDK initialization rejected during a callback, callbackDepth=" << ock::mxmd::forkCallbackDepth);
+        return UBSM_ERR_BUSY;
+    }
     if (ubsm_shmem_opts == NULL) {
         DBG_LOGERROR("param is null.");
         return UBSM_ERR_PARAM_INVALID;
@@ -191,12 +204,18 @@ int ubsmem_initialize(const ubsmem_options_t *ubsm_shmem_opts)
 
 int ubsmem_finalize(void)
 {
+    UBSMEM_API_GUARD();
+    if (ock::mxmd::forkCallbackDepth != 0) {
+        DBG_LOGERROR("SDK finalization rejected during a callback, callbackDepth=" << ock::mxmd::forkCallbackDepth);
+        return UBSM_ERR_BUSY;
+    }
     ock::mxmd::RackMemLib::GetInstance().Destroy();
     return UBSM_OK;
 }
 
 int ubsmem_set_logger_level(int level)
 {
+    UBSMEM_API_GUARD();
     if (level < static_cast<int>(ubsmem::log::UbsmemLogLevel::DEBUG) ||
         level >= static_cast<int>(ubsmem::log::UbsmemLogLevel::COUNT)) {
         DBG_LOGERROR("Level error, level=" << level);
@@ -209,6 +228,7 @@ int ubsmem_set_logger_level(int level)
 
 int ubsmem_set_extern_logger(void (*func)(int level, const char *msg))
 {
+    UBSMEM_API_GUARD();
     if (func == nullptr) {
         DBG_LOGERROR("The function is empty");
         return UBSM_ERR_PARAM_INVALID;

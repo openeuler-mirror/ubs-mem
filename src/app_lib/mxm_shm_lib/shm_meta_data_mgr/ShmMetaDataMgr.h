@@ -18,6 +18,7 @@
 #include <ostream>
 #include <unordered_map>
 #include <utility>
+#include "fork_resources.h"
 #include "mx_shm.h"
 #include "rack_mem_err.h"
 #include "rack_mem_lib_common.h"
@@ -29,13 +30,12 @@ namespace ock::mxmd {
 using namespace ock::ubsm;
 struct ShmAppMetaData {
     std::string name{};
-    int fd{INVALID_MEM_FD};
     mem_id memId{INVALID_MEM_ID};
     void *addr{nullptr};
     size_t mapSize{0}; // unmap的时候需要检查和map的大小
     size_t unitSize{0};
     std::vector<mem_id> memIds{};
-    std::vector<int> fds{};
+    std::vector<MappingSlice> slices{};
     std::vector<std::pair<void *, size_t>> addrs{};
     ShmOwnStatus ownStatuss; // 共享内存读写权限
     uint64_t flag{};
@@ -55,22 +55,14 @@ struct ShmAppMetaData {
     {
     }
 
-    [[nodiscard]] bool GetHasUnmapped() const
+    [[nodiscard]] bool IsMappingRevoked() const
     {
-        return hasUnmapped_;
+        return mappingRevoked_;
     }
 
-    [[nodiscard]] bool GetisLockAddress() const
+    void SetMappingRevoked(bool val)
     {
-        return isLockAddress_;
-    }
-    void SetisLockAddress(bool val)
-    {
-        isLockAddress_ = val;
-    }
-    void SetHasUnmapped(bool val)
-    {
-        hasUnmapped_ = val;
+        mappingRevoked_ = val;
     }
     void SetUnitSize(size_t unitSizeIn)
     {
@@ -80,10 +72,6 @@ struct ShmAppMetaData {
     {
         oflag = oflagPar;
     }
-    void AddFds(const int fdIn)
-    {
-        fds.push_back(fdIn);
-    };
     void AddAddr(void *addrIn, size_t length)
     {
         addrs.push_back({addrIn, length});
@@ -97,33 +85,19 @@ struct ShmAppMetaData {
             }
         }
     }
-    inline void CloseAllFd()
-    {
-        for (auto &item : fds) {
-            if (item == -1) {
-                continue;
-            }
-            if (ubsm::SystemAdapter::Close(item) == -1) {
-                DBG_LOGWARN("Close fd " << item << " failed, error=" << strerror(errno));
-            } else {
-                item = -1;
-            };
-        }
-    }
-
     friend std::ostream &operator<<(std::ostream &os, const ShmAppMetaData &obj)
     {
-        return os << "name: " << obj.name << " fd: " << obj.fd << " memId: " << obj.memId
-                  << " unitSize:" << obj.unitSize;
+        return os << "name: " << obj.name << " memId: " << obj.memId << " unitSize:" << obj.unitSize;
     }
 
 private:
-    bool hasUnmapped_{false};
-    bool isLockAddress_{false};
+    bool mappingRevoked_{false};
 };
 
 class ShmMetaDataMgr {
 public:
+    // Only after successful prepare, in the single-threaded child; preserves manager locks.
+    void ForkChildResetNoLock();
     uint32_t Init();
     uint32_t Destroy();
     // Acquire before accessing metadata; operation locks are separate from internal container locks.
@@ -155,10 +129,8 @@ public:
         return ptrHash(const_cast<void *>(ptr)) % SEGMENT_COUNT;
     }
 
-    int32_t SetMetaHasUnmapped(const std::string &name, bool val);
-    int32_t SetMetaIsLockAddress(const std::string &name, bool val);
-    bool GetMetaHasUnmapped(const std::string &name);
-    bool GetMetaIsLockAddress(const std::string &name);
+    int32_t SetMetaMappingRevoked(const std::string &name, bool val);
+    bool IsMetaMappingRevoked(const std::string &name);
 
     uint32_t GetAllUsedMemoryNames(std::vector<std::string> &names);
 

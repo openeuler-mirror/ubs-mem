@@ -826,6 +826,130 @@ int ubsmem_lease_free(void *local_ptr);
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
+### fork 生命周期
+
+SDK支持在满足本节所列条件和约束的前提下执行fork。应用须先调用prepare，成功后由当前线程执行一次fork；随后，父进程调用parent恢复原会话，子进程调用child建立独立会话。
+
+**支持条件与使用限制**
+
+- 适用于aarch64架构的openEuler/Linux运行环境，通过HCOM UDS直连本机ubsmd。代理访问模式不在支持范围内。部署时应验证内核、glibc、OBMM驱动、UBS Comm和UBSE的版本组合。
+- 应用必须在普通业务线程中调用三个接口，并同步其他线程对SDK映射内存的直接访问。不得从SDK回调、日志回调或信号处理器中执行fork生命周期操作；不支持vfork、自动pthread_atfork及绕过prepare的fork操作。
+- API准入控制仅覆盖SDK调用。应用应自行协调第三方库、分配器和应用锁的状态；本功能不提供任意多线程程序在fork后继续运行的通用可移植保证。
+- prepare的30秒超时仅用于等待在途SDK调用结束，不包含通信停止或重建时间。恢复失败时不得继续普通SDK操作，应由原线程重试对应恢复接口；无法恢复时退出进程。
+
+**资源与会话语义**
+
+|资源或状态|父进程|子进程|
+|--|--|--|
+|共享内存映射|保留原地址和映射，parent成功后可继续使用。|不继承SDK映射，旧指针自fork后即失效；需要时由用户在child成功后自行按名称重新map。|
+|借用内存|保留原映射和lease，parent成功后可继续使用，并由父进程负责释放。|不继承借用内存映射，旧指针自fork后即失效；需要时由用户在child成功后自行重新申请。|
+|共享内存锁|保留已持有的锁，parent成功后可继续操作。|不继承父进程的锁归属，不得代父进程解锁。|
+|故障订阅|parent成功后恢复原订阅。|child清除继承的订阅；需要时由用户在恢复成功后自行重新注册。|
+|外部日志回调|保留原回调。|child清除继承的回调；需要时由用户在恢复成功后自行重新注册。|
+|通信会话|parent恢复原会话，不等待子进程恢复或退出。|child以子进程PID建立独立连接。|
+
+#### ubsmem\_fork\_prepare
+
+**接口功能**
+
+为已初始化SDK的应用准备执行fork。接口成功后，当前线程可以执行一次fork；恢复完成前，普通SDK接口调用返回UBSM_ERR_BUSY。接口失败时不得执行fork。
+
+**接口格式**
+
+```C++
+int ubsmem_fork_prepare(void);
+```
+
+**参数说明**
+
+无
+
+>[!NOTE]说明
+>
+>- 必须先完成SDK初始化，由普通业务线程调用。不得从SDK回调、日志回调或信号处理器中调用本接口。
+>- 调用前，用户须暂停其他线程对SDK映射内存的直接访问；在对应的parent或child接口成功前，不得恢复这些访问。
+>- 等待其他SDK调用结束的最长时间为30秒，超时返回UBSM_ERR_MEMLIB。该限制不代表本接口整体执行时间的上限。
+>- 本接口执行期间及成功后、恢复完成前，其他普通SDK接口调用返回UBSM_ERR_BUSY；被拒绝的调用不触发日志回调。启用SDK性能追踪时不支持执行fork。
+>- 返回失败时不得执行fork。返回UBSM_ERR_BUSY时，不得代替其他线程调用恢复接口；其他错误由调用prepare的原线程调用ubsmem_fork_parent恢复SDK使用。恢复仍失败时，由原线程重试parent或退出进程。
+>- 返回成功后，应由当前线程执行一次fork。父进程调用ubsmem_fork_parent，子进程调用ubsmem_fork_child；取消fork或fork系统调用失败时，原线程仍须调用ubsmem_fork_parent。
+
+**返回值**
+
+|返回值|描述|
+|--|--|
+|0|准备成功。当前线程可以执行一次fork，或调用ubsmem_fork_parent取消准备。|
+|UBSM_ERR_BUSY|其他prepare或恢复操作占用执行资格，或从SDK回调上下文调用。不得执行fork，也不得代替其他执行线程恢复。|
+|UBSM_ERR_MEMLIB|SDK未初始化、等待其他SDK调用结束超时或准备失败。不得执行fork，由原线程调用ubsmem_fork_parent恢复SDK使用。|
+|UBSM_ERR_NOT_SUPPORTED|当前SDK或依赖组件不支持执行fork，例如启用SDK性能追踪。|
+|其他非0|准备失败。具体错误码参考[错误码](#错误码)，由原线程调用ubsmem_fork_parent确认或恢复。|
+
+#### ubsmem\_fork\_parent
+
+**接口功能**
+
+用于在fork完成、fork调用失败、取消fork准备或prepare返回非UBSM_ERR_BUSY错误后，恢复父进程的SDK运行状态。接口成功返回后，父进程可继续调用普通SDK接口，原有内存映射、借用内存、已持有的共享内存锁及回调配置保持有效。父进程的恢复过程不依赖子进程的恢复或退出。
+
+**接口格式**
+
+```C++
+int ubsmem_fork_parent(void);
+```
+
+**参数说明**
+
+无
+
+>[!NOTE]说明
+>
+>- 需要执行恢复操作时，必须在原父进程中，由执行prepare的原线程调用。子进程不得调用本接口代替父进程恢复。
+>- SDK已初始化且正常运行时，普通线程重复调用本接口返回成功；SDK未初始化或已finalize时返回UBSM_ERR_MEMLIB。
+>- fork的执行结果与本接口的恢复结果应分别检查。fork失败时，应用应在调用本接口前保存errno。
+>- 本接口不等待子进程恢复、退出或执行exec。需要等待子进程时，由应用自行调用waitpid。
+>- 返回失败时，不得继续普通SDK操作；由原prepare线程重试本接口，或退出进程。不得通过再次调用prepare代替恢复。
+
+**返回值**
+
+|返回值|描述|
+|--|--|
+|0|父进程恢复成功，或当前SDK已正常运行且无需恢复。|
+|UBSM_ERR_BUSY|生命周期操作正在执行，或从SDK回调上下文调用。|
+|UBSM_ERR_PARAM_INVALID|调用进程、线程或当前阶段不具备父恢复资格。|
+|UBSM_ERR_MEMLIB|SDK未初始化、已finalize或组件恢复状态异常。|
+|其他非0|父恢复失败。具体错误码参考[错误码](#错误码)，由原线程重试恢复或退出。|
+
+#### ubsmem\_fork\_child
+
+**接口功能**
+
+在prepare成功后fork产生的子进程中启用独立的SDK会话。接口成功后，子进程可以调用普通SDK接口；需要的共享内存映射、借用内存、故障订阅和外部日志回调由用户自行重新建立或注册。子进程不得继续使用父进程遗留的SDK内存指针。
+
+**接口格式**
+
+```C++
+int ubsmem_fork_child(void);
+```
+
+**参数说明**
+
+无
+
+>[!NOTE]说明
+>
+>- 仅由成功prepare后fork产生的子进程中的原调用线程执行；父进程不得调用本接口。
+>- 父进程的SDK内存指针在子进程中自fork后即失效，调用本接口也不会使旧指针恢复有效；不得继续访问旧地址、释放父进程的lease或代父进程解锁。
+>- 需要共享内存、借用内存、故障订阅或外部日志回调时，用户须在本接口成功后自行重新映射、申请或注册。
+>- 返回成功前，不得启动其他SDK调用线程或执行普通SDK操作。返回失败时，由当前线程重试本接口，或调用_exit退出。
+>- 返回成功后再次调用本接口，返回UBSM_ERR_PARAM_INVALID。需要继续fork时，用户应重新调用prepare，并遵循相同的父子恢复流程。
+
+**返回值**
+
+|返回值|描述|
+|--|--|
+|0|子进程恢复成功，可以使用独立SDK会话。|
+|UBSM_ERR_BUSY|生命周期操作正在执行，或从SDK回调上下文调用。|
+|UBSM_ERR_PARAM_INVALID|未经过成功prepare和fork、在父进程调用、调用线程不匹配或当前阶段不允许子恢复。|
+|其他非0|子恢复失败。具体错误码参考[错误码](#错误码)，由当前线程重试恢复或_exit退出。|
+
 ## 使用示例
 
 典型代码示例如下所示：
@@ -999,6 +1123,46 @@ int ubs_mem_share_memory_map_demo()
         return -1;
     }
     return 0;
+}
+```
+
+### fork及父子进程恢复
+
+以下示例展示SDK的fork调用流程，执行前须完成SDK初始化，并同步其他线程的直接内存访问。fork执行结果及子进程管理由应用自行处理；SDK恢复失败时，由原线程重试对应恢复接口或退出进程。
+
+```C++
+#include <cstdlib>
+#include <unistd.h>
+#include "ubs_mem.h"
+
+int ubs_mem_fork_demo()
+{
+    int ret = ubsmem_fork_prepare();
+    if (ret != UBSM_OK) {
+        if (ret != UBSM_ERR_BUSY) {
+            const int recovery = ubsmem_fork_parent();
+            if (recovery != UBSM_OK) {
+                return recovery; // SDK仍不可用，由原线程重试parent或退出。
+            }
+        }
+        return ret; // prepare失败，不执行fork。
+    }
+
+    const pid_t pid = fork();
+    if (pid == 0) {
+        if (ubsmem_fork_child() != UBSM_OK) {
+            _exit(EXIT_FAILURE);
+        }
+        // 按名称重新map，需要时显式注册子进程自己的回调。
+        // 不再使用父进程遗留的SDK映射指针。
+        if (ubsmem_finalize() != UBSM_OK) {
+            _exit(EXIT_FAILURE);
+        }
+        _exit(EXIT_SUCCESS);
+    }
+
+    // fork成功或失败后，原线程均须恢复父进程的SDK运行状态。
+    return ubsmem_fork_parent();
 }
 ```
 

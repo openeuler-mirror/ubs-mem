@@ -13,6 +13,7 @@
 #include <sys/mman.h>
 #include <memory>
 #include "ipc_proxy.h"
+#include "log.h"
 #include "message_op.h"
 #include "rack_mem_functions.h"
 #include "rack_mem_lib_common.h"

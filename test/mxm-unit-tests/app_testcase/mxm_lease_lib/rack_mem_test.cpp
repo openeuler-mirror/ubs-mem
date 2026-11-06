@@ -16,12 +16,20 @@ using namespace ock::mxmd;
 constexpr uint64_t MOCK_FILE_LEN = 4096;
 
 class RackMemTestSuite : public testing::Test {
-    void SetUp() override {}
+    void SetUp() override
+    {
+        MOCKER_CPP(madvise, int (*)(void *, size_t, int)).stubs().will(returnValue(0));
+    }
 
     void TearDown() override
     {
         mockcpp::GlobalMockObject::verify();
         mockcpp::GlobalMockObject::reset();
+        AppBorrowMetaDesc retained;
+        const auto address = reinterpret_cast<void *>(0x12345678);
+        if (BorrowAppMetaMgr::GetInstance().GetMeta(address, retained) == UBSM_OK) {
+            BorrowAppMetaMgr::GetInstance().RemoveMeta(address);
+        }
     }
 };
 
@@ -166,6 +174,7 @@ TEST_F(RackMemTestSuite, TestMemoryIDUsedByFdMapForEachFdFailed)
 
 TEST_F(RackMemTestSuite, TestMemoryIDUsedByFdAddMetaFailed)
 {
+    MOCKER(SystemAdapter::Close).expects(once()).will(returnValue(0));
     AppBorrowMetaDesc desc{4};
     std::vector<uint64_t> memIds = {1, 2, 3};
     size_t unitSize = 8;
@@ -193,6 +202,7 @@ TEST_F(RackMemTestSuite, TestMemoryIDUsedByFdAddMetaFailed)
 
 TEST_F(RackMemTestSuite, TestMemoryIDUsedByFdSuccess)
 {
+    MOCKER(SystemAdapter::Close).expects(once()).will(returnValue(0));
     AppBorrowMetaDesc desc{4};
     std::vector<uint64_t> memIds = {1, 2, 3};
     size_t unitSize = 8;
@@ -408,23 +418,15 @@ TEST_F(RackMemTestSuite, TestUbsMemFreeNonNumaNotUnmapped)
     ASSERT_EQ(result, 0);
 }
 
-TEST_F(RackMemTestSuite, TestUbsMemFreeNonNumaMunmapFailed)
+TEST_F(RackMemTestSuite, TestUbsMemFreeNonNumaRemapFailurePreservesDaemonResource)
 {
     void *ptr = reinterpret_cast<void *>(0x12345678);
-
     AppBorrowMetaDesc desc(0);
     desc.UpdateBorrowMetaDesc(std::vector<uint64_t>{}, MOCK_FILE_LEN, false, "testName");
-
     BorrowAppMetaMgr::GetInstance().AddMeta(ptr, desc);
-
-    MOCKER_CPP(&BorrowAppMetaMgr::GetMetaHasUnmapped, bool (*)(const void *addr)).stubs().will(returnValue(false));
-
-    MOCKER(SystemAdapter::MemoryUnMap).stubs().will(returnValue(-1));
-
-    MOCKER(IpcCommand::AppFreeMemory).stubs().will(returnValue(0));
-
-    uint32_t result = RackMem::GetInstance().UbsMemFree(ptr);
-    ASSERT_EQ(result, 0);
+    MOCKER(SystemAdapter::MemoryMap).expects(once()).will(returnValue(MAP_FAILED));
+    MOCKER(IpcCommand::AppFreeMemory).expects(never());
+    EXPECT_EQ(RackMem::GetInstance().UbsMemFree(ptr), MXM_ERR_MMAP_VA_FAILED);
 }
 
 TEST_F(RackMemTestSuite, TestUbsMemFreeNumaSuccess)

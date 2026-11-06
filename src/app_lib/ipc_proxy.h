@@ -45,6 +45,9 @@ public:
     static uint32_t Initialize();
 
     static uint32_t Suspend();
+    static uint32_t PrepareFork();
+    static uint32_t SuspendForFork();
+    static uint32_t ForkChildInitialize();
 
     static uint32_t Resume();
 
@@ -111,6 +114,7 @@ public:
 
     DAGGER_DEFINE_REF_COUNT_FUNCTIONS
 private:
+    static uint32_t SuspendInternal(bool forFork);
     static uint32_t GetOperationStateError();
     static uint32_t EnterResumingState(IpcSuspendState &stateBeforeResume);
     static uint32_t EnsureResumeClientReady(IpcSuspendState stateBeforeResume);

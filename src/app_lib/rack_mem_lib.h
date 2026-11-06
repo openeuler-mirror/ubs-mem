@@ -72,6 +72,11 @@ public:
         return 0;
     }
 
+    bool ForkSupported() const
+    {
+        return !tracerStarted_.load();
+    }
+
     bool GetIsInitilized()
     {
         return inited;
@@ -101,6 +106,7 @@ private:
     std::vector<RackMemModule> pModules{};
     std::mutex lock{};
     std::atomic_bool inited{false};
+    mutable std::atomic_bool tracerStarted_{false};
     RackMemLib() = default;
 };
 } // namespace ock::mxmd

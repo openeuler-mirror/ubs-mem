@@ -12,12 +12,22 @@
 #include "UbseMemExecutor.h"
 #include "defines.h"
 #include "dlfcn.h"
+#include "fork_callback_context.h"
+#include "log.h"
 #include "rack_mem_err.h"
 #include "system_adapter.h"
 namespace ock::mxmd {
 using namespace ock::common;
 using namespace ock::ubsm;
-ShmFaultFuncPtr UbseMemExecutor::ShmFaultFunc = nullptr;
+std::atomic<ShmFaultFuncPtr> UbseMemExecutor::ShmFaultFunc{nullptr};
+static void ForkAwareEngineLogger(uint32_t level, const char *message)
+{
+    ForkCallbackScope callback(true);
+    const auto logger = ubsmem::log::UbsmemLoggerManager::Instance()->GetExternLogCallback();
+    if (logger != nullptr) {
+        logger(static_cast<int>(level), message);
+    }
+}
 uint32_t UbseMemExecutor::Initialize()
 {
     if (initialized_) {
@@ -34,12 +44,7 @@ uint32_t UbseMemExecutor::Initialize()
     if (UbseLogCallBackRegisterFunc == nullptr) {
         DBG_LOGWARN("Symbol ubse_log_callback_register is not found , reason is" << dlerror());
     } else {
-        auto logFunc = ubsmem::log::UbsmemLoggerManager::Instance()->GetExternLogCallback();
-        if (logFunc == nullptr) {
-            DBG_LOGWARN("The user has not set an external log function");
-        } else {
-            UbseLogCallBackRegisterFunc(reinterpret_cast<ubs_engine_log_handler>(logFunc));
-        }
+        UbseLogCallBackRegisterFunc(ForkAwareEngineLogger);
     }
 
     UbseFaultEventRegisterFunc = (UbseFaultEventRegisterPtr)SystemAdapter::DlSym(handle, "ubs_mem_shm_fault_register");
@@ -49,6 +54,9 @@ uint32_t UbseMemExecutor::Initialize()
         handle = nullptr;
         return MXM_ERR_UBSE_LIB;
     }
+    clientInitialize_ =
+        reinterpret_cast<int32_t (*)(const char *)>(SystemAdapter::DlSym(handle, "ubs_engine_client_initialize"));
+    clientFinalize_ = reinterpret_cast<void (*)()>(SystemAdapter::DlSym(handle, "ubs_engine_client_finalize"));
     initialized_ = true;
     return HOK;
 }
@@ -56,21 +64,31 @@ uint32_t UbseMemExecutor::Initialize()
 uint32_t UbseMemExecutor::Exit()
 {
     if (handle != nullptr) {
+        if (clientFinalize_ != nullptr && (!restartAfterFork_ || clientRestarted_)) {
+            clientFinalize_();
+        }
         SystemAdapter::DlClose(handle);
         handle = nullptr;
         UbseFaultEventRegisterFunc = nullptr;
+        clientInitialize_ = nullptr;
+        clientFinalize_ = nullptr;
     }
     initialized_ = false;
+    restartAfterFork_ = false;
+    clientRestarted_ = false;
+    ShmFaultFunc = nullptr;
     return HOK;
 }
 
 int32_t UbseMemExecutor::UbseShmFaultHandlerFunc(const char *name, uint64_t memid, ubs_mem_fault_type_t type)
 {
-    if (name == nullptr || ShmFaultFunc == nullptr) {
+    const auto handler = ShmFaultFunc.load();
+    if (name == nullptr || handler == nullptr) {
         DBG_LOGERROR("name or registerFunc is nullptr");
         return MXM_ERR_PARAM_INVALID;
     }
-    return ShmFaultFunc(name, static_cast<ubsmem_fault_type_t>(type));
+    ForkCallbackScope callback;
+    return handler(name, static_cast<ubsmem_fault_type_t>(type));
 }
 
 int32_t UbseMemExecutor::RegisterShmFaultEvent(ShmFaultFuncPtr registerFunc)
@@ -86,5 +104,58 @@ int32_t UbseMemExecutor::RegisterShmFaultEvent(ShmFaultFuncPtr registerFunc)
         return MXM_ERR_UBSE_INNER;
     }
     return HOK;
+}
+int UbseMemExecutor::ForkPrepare()
+{
+    if (!initialized_) {
+        return UBSM_OK;
+    }
+    if (clientInitialize_ == nullptr || clientFinalize_ == nullptr) {
+        DBG_LOGERROR("UBSE fork lifecycle symbols are unavailable, hasInitialize="
+                     << (clientInitialize_ != nullptr) << ", hasFinalize=" << (clientFinalize_ != nullptr));
+        return UBSM_ERR_NOT_SUPPORTED;
+    }
+    if (!restartAfterFork_) {
+        // Finalize returns after the UBSE client has stopped.
+        clientFinalize_();
+        restartAfterFork_ = true;
+        clientRestarted_ = false;
+    }
+    return UBSM_OK;
+}
+
+void UbseMemExecutor::ForkChildReset()
+{
+    ShmFaultFunc.store(nullptr);
+    // Do not carry a parent subscription into child restart, reconnect, or a later fork.
+    clientRestarted_ = false;
+}
+
+int UbseMemExecutor::ForkResume()
+{
+    if (!restartAfterFork_) {
+        return UBSM_OK;
+    }
+    if (!clientRestarted_) {
+        const auto initializeRet = clientInitialize_(nullptr);
+        if (initializeRet != UBS_SUCCESS) {
+            clientFinalize_();
+            DBG_LOGERROR("Failed to restart UBSE client after fork, error=" << initializeRet);
+            return UBSM_ERR_UBSE;
+        }
+        clientRestarted_ = true;
+        if (UbseLogCallBackRegisterFunc != nullptr) {
+            UbseLogCallBackRegisterFunc(ForkAwareEngineLogger);
+        }
+    }
+    if (ShmFaultFunc != nullptr) {
+        const auto registerRet = UbseFaultEventRegisterFunc(UbseShmFaultHandlerFunc);
+        if (registerRet != UBS_SUCCESS) {
+            DBG_LOGERROR("Failed to restore UBSE fault subscription after fork, error=" << registerRet);
+            return UBSM_ERR_UBSE;
+        }
+    }
+    restartAfterFork_ = false;
+    return UBSM_OK;
 }
 } // namespace ock::mxmd

@@ -66,6 +66,9 @@ int MxmComStopIpcClient(void);
 int MxmComIpcClientSend(uint16_t opCode, ock::mxmd::MsgBase *request, ock::mxmd::MsgBase *response);
 /* 与Server端重新建链后的处理函数 */
 int MxmSetPostReconnectHandler(int (*handler)());
+// Fork requires sole ownership and no active sends.
+bool MxmComIpcClientExclusive();
+int MxmComStopIpcClientForFork();
 #ifdef __cplusplus
 }
 #endif

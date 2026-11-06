@@ -44,7 +44,7 @@ inline bool CheckRackMemSize(const size_t shmSize)
  * @param id 要打开的内存ID。
  * @return 成功时返回文件描述符，失败时返回负值。
  */
-inline int ObmmOpenInternal(const mem_id id, int flags, int oflag)
+inline int ObmmOpenInternal(const mem_id id, uint64_t flags, int oflag)
 {
     DBG_LOGINFO("ObmmOpenInternal oflag:" << oflag << ", openflag " << flags);
     int openFlag = 0;

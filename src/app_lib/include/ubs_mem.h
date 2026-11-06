@@ -12,6 +12,7 @@
 #ifndef __UBSM_SHMEM_H__
 #define __UBSM_SHMEM_H__
 
+#include <sys/types.h>
 #include <ubs_mem_def.h>
 
 #ifdef __cplusplus
@@ -332,6 +333,34 @@ SHMEM_API int ubsmem_shmem_ipc_suspend(void);
  * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_shmem_ipc_resume(void);
+
+/**
+ * Close API admission, drain in-flight operations, suspend IPC and then stop UBSE before fork().
+ * Call only from an ordinary thread after initialization. Success is required before fork().
+ * Callback contexts and concurrent prepare return UBSM_ERR_BUSY; qualified drain/backend failures do not.
+ * An initialized UBSE client is stopped by finalize(), whose return marks completion.
+ * Unsupported runtimes or missing lifecycle symbols return UBSM_ERR_NOT_SUPPORTED.
+ * The application must also synchronize direct mapped-memory access.
+ */
+SHMEM_API int ubsmem_fork_prepare(void);
+
+/**
+ * Restore the preparing thread in the original process after fork, fork failure or cancellation.
+ * Never waits for the child. On failure ordinary APIs stay BUSY;
+ * the preparing thread may retry this function without arguments.
+ * When already RUNNING in this process, any ordinary thread may confirm success without IPC.
+ * Before initialization or after finalization returns UBSM_ERR_MEMLIB.
+ */
+SHMEM_API int ubsmem_fork_parent(void);
+
+/**
+ * Restore a new child session and discard inherited SDK metadata in place.
+ * Old mapping pointers are invalid even before this call. Remap shared memory by name.
+ * Does not release/unlock/resume any parent resource. On failure retry child() or _exit().
+ * The child must not start other SDK callers until recovery succeeds.
+ * Inherited fault subscriptions and external log callbacks are cleared. Register them explicitly again.
+ */
+SHMEM_API int ubsmem_fork_child(void);
 
 #ifdef __cplusplus
 } // end of extern "C"

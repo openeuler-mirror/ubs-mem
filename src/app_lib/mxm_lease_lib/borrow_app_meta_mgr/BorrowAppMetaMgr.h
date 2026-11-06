@@ -16,6 +16,7 @@
 #include <cstring>
 #include <mutex>
 #include <unordered_map>
+#include "fork_resources.h"
 #include "rack_mem_err.h"
 #include "rack_mem_lib_common.h"
 #include "rack_mem_libobmm.h"
@@ -106,42 +107,17 @@ public:
     {
         unitSize = unitSizeIn;
     }
-    void AddFd(const int fd)
+    void AddSlice(const MappingSlice &slice)
     {
-        fds.push_back(fd);
-    }
-    void AddAddr(void *addr)
-    {
-        addrs.push_back(addr);
-    }
-    void CloseAllFd()
-    {
-        for (auto &item : fds) {
-            if (item == -1) {
-                continue;
-            }
-            if (ubsm::SystemAdapter::Close(item) == -1) {
-                DBG_LOGWARN("Close fd " << item << " failed, error=" << strerror(errno));
-            } else {
-                item = -1;
-            };
-        }
+        slices.push_back(slice);
     }
     void SetName(const std::string &nameIn)
     {
         this->name = nameIn;
     }
-    [[nodiscard]] int FirstFd() const
-    {
-        if (fds.empty()) {
-            return -1;
-        }
-        return fds[0];
-    }
 
 private:
-    std::vector<int> fds{}; // numa模式下，该值不再使用
-    std::vector<void *> addrs{};
+    std::vector<MappingSlice> slices{};
     std::vector<mem_id> memIds{}; // numa模式下，该memId非obmm import返回的id，仅作为资源释放标识符
     uint64_t fileSize{INVALID_MEM_SIZE};
     uint64_t actualMapFileSize{INVALID_MEM_SIZE};
@@ -155,6 +131,7 @@ private:
 
 class BorrowAppMetaMgr {
 public:
+    void ForkChildResetNoLock();
     uint32_t AddMeta(const void *addr, const AppBorrowMetaDesc &desc);
 
     uint32_t RemoveMeta(const void *addr);

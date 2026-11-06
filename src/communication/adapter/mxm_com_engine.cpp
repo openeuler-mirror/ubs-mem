@@ -281,6 +281,9 @@ constexpr uint16_t WORKER_THREAD_COUNT = 6;
 
 static void AssignServiceOptions(const MxmComEngineInfo &engineInfo, UBSHcomServiceOptions &options)
 {
+    if (engineInfo.IsUds() && engineInfo.GetEngineType() == MxmEngineType::CLIENT) {
+        options.enableMemPoolThreadCache = false;
+    }
     options.workerGroupMode = static_cast<UBSHcomWorkerMode>(engineInfo.GetWorkerMode());
     options.workerGroupThreadCount = WORKER_THREAD_COUNT;
     options.maxSendRecvDataSize = engineInfo.GetMaxSendReceiveSize() * SEND_RECEIVE_SIZE;
