@@ -12,6 +12,7 @@
 
 #ifndef UBSEMEMEXECUTOR_H
 #define UBSEMEMEXECUTOR_H
+#include <atomic>
 #include <cstdint>
 #include "ubs_mem_def.h"
 #include "log.h"
@@ -28,6 +29,9 @@ class UbseMemExecutor {
 public:
     uint32_t Initialize();
     uint32_t Exit();
+    void ForkChildReset();
+    int ForkPrepare();
+    int ForkResume();
     int32_t RegisterShmFaultEvent(ShmFaultFuncPtr registerFunc);
     static UbseMemExecutor &GetInstance()
     {
@@ -51,10 +55,14 @@ private:
     static int32_t UbseShmFaultHandlerFunc(const char *name, uint64_t memid, ubs_mem_fault_type_t type);
     void *handle{nullptr};
     UbseMemExecutor() = default;
+    int32_t (*clientInitialize_)(const char *){nullptr};
+    void (*clientFinalize_)(){nullptr};
+    bool restartAfterFork_{false};
+    bool clientRestarted_{false};
     bool initialized_ = false;
     UbseFaultEventRegisterPtr UbseFaultEventRegisterFunc{};
     UbseLogCallBackRegisterPtr UbseLogCallBackRegisterFunc{};
-    static ShmFaultFuncPtr ShmFaultFunc;
+    static std::atomic<ShmFaultFuncPtr> ShmFaultFunc;
 };
 } // namespace ock::mxmd
 #endif // UBSEMEMEXECUTOR_H

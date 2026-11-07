@@ -12,6 +12,8 @@
  */
 
 #include "ubsmem_logger_manager.h"
+#include "fork_callback_context.h"
+#include "log.h"
 
 #include <sys/syslog.h>
 #include <chrono>
@@ -19,7 +21,6 @@
 #include <mutex>
 #include <sstream>
 
-#include "log.h"
 #include "ubsmem_logger_constants.h"
 #include "ubsmem_logger_ringbuffer.h"
 
@@ -57,6 +58,42 @@ int UbsmemLoggerManager::EnsureInited()
     opts.bufferMaxItem = DEFAULT_BUFFER_MAX_ITEM;
     syncMode_ = true;
     return Init(opts, writer);
+}
+
+int UbsmemLoggerManager::ForkChildReset()
+{
+    auto *logger = Instance();
+    if (logger == nullptr) {
+        DBG_LOGERROR("Cannot rebuild child logger because the logger instance is unavailable");
+        return -1;
+    }
+    const auto ret = logger->ResetAfterFork();
+    if (ret == 0) {
+        gInited_ = true;
+    }
+    return ret;
+}
+
+int UbsmemLoggerManager::ResetAfterFork()
+{
+    if (loggingThread_.joinable() || logBuffer_ != nullptr || auditConfigured_) {
+        DBG_LOGERROR("Cannot rebuild child logger with inherited asynchronous or audit state, threadJoinable="
+                     << loggingThread_.joinable() << ", hasBuffer=" << (logBuffer_ != nullptr)
+                     << ", auditConfigured=" << auditConfigured_);
+        return -2;
+    }
+    externLogCallback_ = nullptr;
+    writer_.reset();
+    syslogOpen_ = false;
+    syncMode_ = true;
+    // Recreate the standard project writer after clearing the inherited external callback.
+    try {
+        writer_ = std::make_shared<UbsmemLoggerDefaultWriter>();
+    } catch (const std::bad_alloc &) {
+        DBG_LOGERROR("Failed to allocate the default log writer for the child process");
+        return -1;
+    }
+    return 0;
 }
 
 void UbsmemLoggerManager::Destroy()
@@ -119,11 +156,12 @@ bool UbsmemLoggerManager::IsLog(UbsmemLogLevel level)
 
 void UbsmemLoggerManager::Push(UbsmemLoggerEntry &&loggerEntry)
 {
-    if (syncMode_) {
-        if (externLogCallback_ != nullptr) {
+    if (syncMode_ || ock::mxmd::logCallbackDepth != 0) {
+        if (externLogCallback_ != nullptr && ock::mxmd::logCallbackDepth == 0) {
             std::ostringstream oss;
             oss << "[UBS_SDK " << loggerEntry.GetFile() << ":" << loggerEntry.GetLine() << "] ";
             loggerEntry.DecodePayload(oss);
+            ock::mxmd::ForkCallbackScope callbackScope(true);
             externLogCallback_(static_cast<int>(loggerEntry.GetLogLevel()), oss.str().c_str());
         } else if (writer_ != nullptr) {
             writer_->Write(loggerEntry);
@@ -146,10 +184,11 @@ void UbsmemLoggerManager::Pop()
     while (threadRunning_.load()) {
         if (logBuffer_->Pop(loggerEntry)) {
             // SDK 外部回调：[UBS_SDK file:line] payload
-            if (externLogCallback_ != nullptr) {
+            if (externLogCallback_ != nullptr && ock::mxmd::logCallbackDepth == 0) {
                 std::ostringstream oss;
                 oss << "[UBS_SDK " << loggerEntry.GetFile() << ":" << loggerEntry.GetLine() << "] ";
                 loggerEntry.DecodePayload(oss);
+                ock::mxmd::ForkCallbackScope callbackScope(true);
                 externLogCallback_(static_cast<int>(loggerEntry.GetLogLevel()), oss.str().c_str());
             } else {
                 writer_->Write(loggerEntry);
@@ -164,10 +203,11 @@ void UbsmemLoggerManager::Pop()
     }
     while (logBuffer_->Pop(loggerEntry)) {
         // SDK 外部回调
-        if (externLogCallback_ != nullptr) {
+        if (externLogCallback_ != nullptr && ock::mxmd::logCallbackDepth == 0) {
             std::ostringstream oss;
             oss << "[UBS_SDK " << loggerEntry.GetFile() << ":" << loggerEntry.GetLine() << "] ";
             loggerEntry.DecodePayload(oss);
+            ock::mxmd::ForkCallbackScope callbackScope(true);
             externLogCallback_(static_cast<int>(loggerEntry.GetLogLevel()), oss.str().c_str());
         } else {
             writer_->Write(loggerEntry);

@@ -80,7 +80,53 @@ uint32_t IpcProxy::Initialize()
     return UBSM_OK;
 }
 
+uint32_t IpcProxy::PrepareFork()
+{
+    if (!MxmComIpcClientExclusive()) {
+        DBG_LOGERROR("Fork prepare requires an exclusive, idle IPC client");
+        return MXM_ERR_UBSE_NOT_SUPPORTED;
+    }
+    WriteLocker<ReadWriteLock> stateGuard(&stateLock_);
+    if (state_ != IpcSuspendState::RUNNING) {
+        DBG_LOGERROR("Fork prepare requires a running IPC client, state=" << static_cast<int>(state_));
+        return MXM_ERR_MEMLIB;
+    }
+    return UBSM_OK;
+}
+
+uint32_t IpcProxy::SuspendForFork()
+{
+    // The fork gate has drained callers. A shared client would survive a reference-only Stop.
+    if (!MxmComIpcClientExclusive()) {
+        DBG_LOGERROR("Cannot suspend IPC for fork because the client is shared, stopping or has active sends");
+        return MXM_ERR_MEMLIB;
+    }
+    const auto failureResult = SuspendInternal(true);
+    if (failureResult != 0) {
+        DBG_LOGERROR("Failed to suspend or stop IPC before fork, error=" << failureResult);
+    }
+    return failureResult;
+}
+
+uint32_t IpcProxy::ForkChildInitialize()
+{
+    // Successful prepare destroyed the client; child must never send a parent Resume request.
+    if (state_ == IpcSuspendState::SUSPENDED) {
+        state_ = IpcSuspendState::UNINITIALIZED;
+    }
+    const auto failureResult = Initialize();
+    if (failureResult != 0) {
+        DBG_LOGERROR("Failed to initialize the child IPC connection, error=" << failureResult);
+    }
+    return failureResult;
+}
+
 uint32_t IpcProxy::Suspend()
+{
+    return SuspendInternal(false);
+}
+
+uint32_t IpcProxy::SuspendInternal(bool forFork)
 {
     IpcSuspendState entryState;
     {
@@ -113,7 +159,7 @@ uint32_t IpcProxy::Suspend()
         }
     }
 
-    auto ret = MxmComStopIpcClient();
+    auto ret = forFork ? MxmComStopIpcClientForFork() : MxmComStopIpcClient();
     {
         WriteLocker<ReadWriteLock> stateGuard(&stateLock_);
         if (ret != UBSM_OK) {

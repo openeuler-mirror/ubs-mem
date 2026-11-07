@@ -16,6 +16,7 @@
 #include <sys/mman.h>
 #include "ubs_mem_def.h"
 #include "BorrowAppMetaMgr.h"
+#include "fork_resources.h"
 #include "ipc_command.h"
 #include "log.h"
 #include "rack_mem_fd_map.h"
@@ -47,6 +48,14 @@ void *RackMem::MemoryIDUsedByNuma(AppBorrowMetaDesc &desc, const std::vector<uin
         DBG_LOGERROR("mmap failed, size=" << desc.GetFileSize());
         return nullptr;
     }
+    if (!DontForkMapping(mappedMemory, desc.GetFileSize())) {
+        if (ubsm::SystemAdapter::MemoryUnMap(mappedMemory, desc.GetFileSize()) != 0) {
+            const int unmapErrno = errno;
+            DBG_LOGERROR("Failed to munmap, address=" << mappedMemory << ", length=" << desc.GetFileSize()
+                                                      << ", errno=" << unmapErrno);
+        }
+        return nullptr;
+    }
     int mode = MPOL_PREFERRED;
     unsigned long nodemask[1];
     nodemask[0] = 1UL << numaId;
@@ -64,6 +73,7 @@ void *RackMem::MemoryIDUsedByNuma(AppBorrowMetaDesc &desc, const std::vector<uin
     }
     // 存元数据
     desc.UpdateBorrowMetaDesc(memIds, desc.GetFileSize(), true, name);
+    desc.AddSlice({0, mappedMemory, desc.GetFileSize(), 0, 0, 0});
     auto ret = BorrowAppMetaMgr::GetInstance().AddMeta(mappedMemory, desc);
     DBG_LOGINFO("mem id=" << MemToStr(memIds) << ", numa id=" << numaId << ", ret=" << ret);
     if (BresultFail(ret)) {
@@ -84,7 +94,7 @@ void *RackMem::MemoryIDUsedByFd(AppBorrowMetaDesc &desc, const std::vector<uint6
     desc.SetUnitSize(unitSize);
     RackMemFdMap::GetInstance().GetActualMapSize(desc.GetFileSize(), unitSize, totalSize, mmapCount);
 
-    if (mmapCount > memIds.size()) {
+    if (totalSize == 0 || mmapCount == 0 || mmapCount > memIds.size()) {
         DBG_LOGERROR("mmapCount=" << mmapCount << " larger than memIds size=" << memIds.size()
                                   << ", name=" << desc.GetName() << ", unitSize=" << unitSize);
         return nullptr;
@@ -111,24 +121,24 @@ void *RackMem::MemoryIDUsedByFd(AppBorrowMetaDesc &desc, const std::vector<uint6
     TP_TRACE_BEGIN(TP_UBSM_MALLOC_FD_BIND);
     for (uint64_t i = 0; i < mmapCount; i++) {
         const int fd = ObmmOpenInternal(memIds[i], 0, O_RDWR);
+        TemporaryObmmFd fdGuard(fd);
         DBG_LOGINFO("It is " << i << "th mmap, mem id is " << memIds[i] << ", fd is " << fd);
         if (fd < 0) {
             DBG_LOGERROR("Obmm open error fd is " << fd);
             SystemAdapter::MemoryUnMap(mmapAddr, totalSize);
-            desc.CloseAllFd();
+
             return nullptr;
         }
-        desc.AddFd(fd);
         auto startAddr = reinterpret_cast<void *>(reinterpret_cast<uint64_t>(mmapAddr) + i * unitSize);
         ret = RackMemFdMap::GetInstance().MapForEachFd(startAddr, unitSize, fd, PROT_WRITE | PROT_READ,
                                                        MAP_SHARED | MAP_FIXED, offset);
         if (BresultFail(ret)) {
             DBG_LOGERROR("MapForEachFd failed, fd is " << fd << ", ret is " << ret);
             SystemAdapter::MemoryUnMap(mmapAddr, totalSize);
-            desc.CloseAllFd();
+
             return nullptr;
         }
-        desc.AddAddr(startAddr);
+        desc.AddSlice({memIds[i], startAddr, unitSize, offset, 0, O_RDWR});
     }
     TP_TRACE_END(TP_UBSM_MALLOC_FD_BIND, 0);
     // 存元数据
@@ -138,7 +148,7 @@ void *RackMem::MemoryIDUsedByFd(AppBorrowMetaDesc &desc, const std::vector<uint6
     if (BresultFail(ret)) {
         DBG_LOGERROR("Add meta data error code is " << ret);
         SystemAdapter::MemoryUnMap(mmapAddr, totalSize);
-        desc.CloseAllFd();
+
         return nullptr;
     }
     return mmapAddr;
@@ -257,10 +267,13 @@ uint32_t RackMem::UbsMemFree(void *ptr)
         if (SystemAdapter::MemoryMap(ptr, metaDesc.GetActualMapFileSize(), PROT_NONE,
                                      MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0L) != ptr) {
             DBG_LOGWARN("Failed to lock memory, error string=" << strerror(errno));
+            return MXM_ERR_MMAP_VA_FAILED;
+        }
+        if (!DontForkMapping(ptr, metaDesc.GetActualMapFileSize())) {
+            return MXM_ERR_MMAP_VA_FAILED;
         }
         TP_TRACE_END(TP_UBSM_FREE_FD_UNMMAP, 0UL);
         TP_TRACE_BEGIN(TP_UBSM_FREE_FD_CLOSE);
-        metaDesc.CloseAllFd();
         BorrowAppMetaMgr::GetInstance().UpdateMeta(ptr, metaDesc);
         TP_TRACE_END(TP_UBSM_FREE_FD_CLOSE, 0UL);
     }

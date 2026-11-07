@@ -11,6 +11,7 @@
  */
 
 #include "ubsm_check_resource.h"
+#include "fork_coordinator.h"
 
 #include "ipc_command.h"
 #include "shm_ipc_command.h"
@@ -19,6 +20,7 @@ namespace ock::ubsm {
 
 int UbsmCheckResource::UbsmCheckResourceHandler()
 {
+    UBSMEM_API_GUARD();
     auto leaseRes = mxmd::IpcCommand::AppCheckLeaseMemoryResource();
     if (leaseRes != 0) {
         DBG_LOGERROR("AppCheckLeaseMemoryResource failed. ret=" << leaseRes);

@@ -11,6 +11,7 @@
  */
 #include "rack_mem_fd_map.h"
 #include "ubs_mem_def.h"
+#include "fork_resources.h"
 #include "log.h"
 #include "system_adapter.h"
 
@@ -56,6 +57,9 @@ uint32_t RackMemFdMap::MapForEachFd(void *startAddr, size_t length, int fd, int 
         return MXM_ERR_MMAP_VA_FAILED;
     }
 
+    if (!DontForkMapping(virtualAddr, length)) {
+        return MXM_ERR_MMAP_VA_FAILED;
+    }
     if (virtualAddr != startAddr) {
         DBG_LOGERROR("Failed to mmap, fd=" << fd << ", length=" << length << ", prot=" << prot << ", flags=" << flags);
         return MXM_ERR_MMAP_VA_FAILED;

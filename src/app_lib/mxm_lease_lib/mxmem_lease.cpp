@@ -13,6 +13,7 @@
 #include <mutex>
 #include "ubs_mem.h"
 #include "RackMem.h"
+#include "fork_coordinator.h"
 #include "log.h"
 #include "rack_mem_lib.h"
 #include "ubsm_ptracer.h"
@@ -124,6 +125,7 @@ uint32_t ubsmem_lease_malloc_with_location_impl(const ubs_mem_location_t *src_lo
 SHMEM_API int ubsmem_lease_malloc(const char *region_name, size_t size, ubsmem_distance_t mem_distance, uint64_t flags,
                                   void **local_ptr)
 {
+    UBSMEM_API_GUARD();
     TP_TRACE_BEGIN(TP_UBSM_MALLOC);
     const auto ret = ubsmem_lease_malloc_impl(region_name, size, mem_distance, flags, local_ptr);
     TP_TRACE_END(TP_UBSM_MALLOC, ret);
@@ -133,6 +135,7 @@ SHMEM_API int ubsmem_lease_malloc(const char *region_name, size_t size, ubsmem_d
 SHMEM_API int ubsmem_lease_malloc_with_location(const ubs_mem_location_t *src_loc, size_t size, uint64_t flags,
                                                 void **local_ptr)
 {
+    UBSMEM_API_GUARD();
     TP_TRACE_BEGIN(TP_UBSM_MALLOC_LOC);
     const auto ret = ubsmem_lease_malloc_with_location_impl(src_loc, size, flags, local_ptr);
     TP_TRACE_END(TP_UBSM_MALLOC_LOC, ret);
@@ -150,6 +153,7 @@ uint32_t ubsmem_lease_free_impl(void *local_ptr)
 
 SHMEM_API int ubsmem_lease_free(void *local_ptr)
 {
+    UBSMEM_API_GUARD();
     TP_TRACE_BEGIN(TP_UBSM_FREE);
     uint32_t hr = ubsmem_lease_free_impl(local_ptr);
     TP_TRACE_END(TP_UBSM_FREE, hr);
@@ -168,5 +172,6 @@ int ubsmem_lookup_cluster_statistic_impl(ubsmem_cluster_info_t *info)
 
 SHMEM_API int ubsmem_lookup_cluster_statistic(ubsmem_cluster_info_t *info)
 {
+    UBSMEM_API_GUARD();
     return GetErrCode(ubsmem_lookup_cluster_statistic_impl(info));
 }

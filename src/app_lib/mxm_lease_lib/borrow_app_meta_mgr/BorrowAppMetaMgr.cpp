@@ -184,5 +184,12 @@ uint32_t BorrowAppMetaMgr::UpdateMeta(const void *addr, AppBorrowMetaDesc &desc)
     return UBSM_OK;
 }
 
+void BorrowAppMetaMgr::ForkChildResetNoLock()
+{
+    for (size_t i = 0; i < SEGMENT_COUNT; ++i) {
+        appBorrowInfoMap[i].clear();
+    }
+}
+
 } // namespace ock::mxmd
 // ock

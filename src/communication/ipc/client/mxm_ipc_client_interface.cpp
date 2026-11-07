@@ -75,10 +75,14 @@ int MxmComStartIpcClient()
     return HOK;
 }
 
-int MxmComStopIpcClient()
+static int StopIpcClient(bool exclusive)
 {
     std::unique_lock<std::mutex> lock(g_ipcClientMutex);
     g_ipcClientCv.wait(lock, [] { return !g_ipcClientStopInProgress; });
+    if (exclusive && g_ipcClientCount.load() != 1) {
+        DBG_LOGERROR("Exclusive IPC stop requires exactly one client reference, count=" << g_ipcClientCount.load());
+        return HFAIL;
+    }
     if (g_ipcClientCount.load() > 1) {
         g_ipcClientCount.fetch_sub(1);
         return HOK;
@@ -110,6 +114,16 @@ int MxmComStopIpcClient()
     delete client;
     g_ipcClientCv.notify_all();
     return ret;
+}
+
+int MxmComStopIpcClient()
+{
+    return StopIpcClient(false);
+}
+
+int MxmComStopIpcClientForFork()
+{
+    return StopIpcClient(true);
 }
 
 int MxmComIpcClientSend(uint16_t opCode, MsgBase *request, MsgBase *response)
@@ -145,4 +159,11 @@ int MxmSetPostReconnectHandler(int (*handler)())
     }
 
     return g_mxmIpcClient->SetPostReconnectHandler(handler);
+}
+
+bool MxmComIpcClientExclusive()
+{
+    std::lock_guard<std::mutex> lock(g_ipcClientMutex);
+    return g_ipcClientCount.load() == 1 && g_mxmIpcClient != nullptr && !g_ipcClientStopping &&
+           !g_ipcClientStopInProgress && g_activeIpcSends == 0;
 }

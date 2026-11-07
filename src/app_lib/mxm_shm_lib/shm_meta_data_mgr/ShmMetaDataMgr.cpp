@@ -195,64 +195,34 @@ int32_t ShmMetaDataMgr::GetShmMetaFromName(const std::string &name, ShmAppMetaDa
     return UBSM_OK;
 }
 
-int32_t ShmMetaDataMgr::SetMetaHasUnmapped(const std::string &name, bool val)
+int32_t ShmMetaDataMgr::SetMetaMappingRevoked(const std::string &name, bool val)
 {
     const auto key = StrToSegment(name);
     mNameLock[key].DoLock();
     const auto find = mAppShmInfoMap[key].find(name);
     if (find == mAppShmInfoMap[key].end()) {
         mNameLock[key].UnLock();
-        DBG_LOGERROR("SetMetaHasUnmapped error. Name not exist " << name);
+        DBG_LOGERROR("Cannot update mapping revocation state: shared memory metadata not found, name=" << name);
         return MXM_ERR_SHM_NOT_FOUND;
     }
-    find->second.SetHasUnmapped(val);
+    find->second.SetMappingRevoked(val);
     mNameLock[key].UnLock();
     return UBSM_OK;
 }
 
-int32_t ShmMetaDataMgr::SetMetaIsLockAddress(const std::string &name, bool val)
+bool ShmMetaDataMgr::IsMetaMappingRevoked(const std::string &name)
 {
     const auto key = StrToSegment(name);
     mNameLock[key].DoLock();
     const auto find = mAppShmInfoMap[key].find(name);
     if (find == mAppShmInfoMap[key].end()) {
         mNameLock[key].UnLock();
-        DBG_LOGERROR("SetMetaIsLockAddress error. Name not exist " << name);
-        return MXM_ERR_SHM_NOT_FOUND;
-    }
-    find->second.SetisLockAddress(val);
-    mNameLock[key].UnLock();
-    return UBSM_OK;
-}
-
-bool ShmMetaDataMgr::GetMetaHasUnmapped(const std::string &name)
-{
-    const auto key = StrToSegment(name);
-    mNameLock[key].DoLock();
-    const auto find = mAppShmInfoMap[key].find(name);
-    if (find == mAppShmInfoMap[key].end()) {
-        mNameLock[key].UnLock();
-        DBG_LOGERROR("GetMetaHasUnmapped error. Name not exist " << name);
+        DBG_LOGERROR("Cannot read mapping revocation state: shared memory metadata not found, name=" << name);
         return true;
     }
-    auto hasUnmap = find->second.GetHasUnmapped();
+    const auto mappingRevoked = find->second.IsMappingRevoked();
     mNameLock[key].UnLock();
-    return hasUnmap;
-}
-
-bool ShmMetaDataMgr::GetMetaIsLockAddress(const std::string &name)
-{
-    const auto key = StrToSegment(name);
-    mNameLock[key].DoLock();
-    const auto find = mAppShmInfoMap[key].find(name);
-    if (find == mAppShmInfoMap[key].end()) {
-        mNameLock[key].UnLock();
-        DBG_LOGWARN("GetMetaIsLockAddress not find name " << name);
-        return false;
-    }
-    auto isLock = find->second.GetisLockAddress();
-    mNameLock[key].UnLock();
-    return isLock;
+    return mappingRevoked;
 }
 
 uint32_t ShmMetaDataMgr::GetAllUsedMemoryNames(std::vector<std::string> &names)
@@ -412,6 +382,15 @@ int32_t ShmMetaDataMgr::UpdateMetaData(const std::string &name, const ShmAppMeta
     mNameLock[key].UnLock();
     DBG_LOGDEBUG("[UpdateMetaData SHM META] " << shmAppMetaData);
     return UBSM_OK;
+}
+
+void ShmMetaDataMgr::ForkChildResetNoLock()
+{
+    for (size_t i = 0; i < SEGMENT_COUNT; ++i) {
+        mAppShmInfoMap[i].clear();
+        mAddr2NameMap[i].clear();
+    }
+    mMappedMemoryAddress.clear();
 }
 
 } // namespace ock::mxmd

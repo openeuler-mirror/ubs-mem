@@ -15,6 +15,7 @@
 #include "ubs_mem_def.h"
 #include "ubs_mem.h"
 #include "ShmMetaDataMgr.h"
+#include "fork_resources.h"
 #include "log.h"
 #include "obmm.h"
 #include "rack_mem_fd_map.h"
@@ -68,7 +69,6 @@ uint32_t RackMemShm::UbsMemShmCreateWithProvider(const ubs_mem_provider_t *srcLo
 
 static void UnMapWhenError(void *startAddr, size_t totalSize, const std::string &name, ShmAppMetaData &shmAppMetaData)
 {
-    shmAppMetaData.CloseAllFd();
     if (startAddr == nullptr) {
         DBG_LOGERROR("startAddr is nullptr, name=" << name);
         return;
@@ -136,7 +136,7 @@ uint32_t RackMemShmMmapByMemID(void *mmapAddr, size_t unitSize, uint64_t mmapCou
         return MXM_ERR_PARAM_INVALID;
     }
     shmAppMetaData.addrs.clear();
-    shmAppMetaData.fds.clear();
+    shmAppMetaData.slices.clear();
     uint32_t ret;
     off_t offset = 0;
     if ((open_flag & UBSM_FLAG_MMAP_HUGETLB_PMD) == UBSM_FLAG_MMAP_HUGETLB_PMD) {
@@ -144,33 +144,31 @@ uint32_t RackMemShmMmapByMemID(void *mmapAddr, size_t unitSize, uint64_t mmapCou
     }
     for (uint64_t i = 0; i < mmapCount; i++) {
         const int fd = ObmmOpenInternal(memIds[i], open_flag, oflag);
+        TemporaryObmmFd fdGuard(fd);
         DBG_LOGINFO("It is " << i << "th mmap, mem id=" << memIds[i] << ", fd=" << fd << ", open_flag=" << open_flag);
         if (fd < 0) {
             DBG_LOGERROR("Obmm open error fd is " << fd);
-            shmAppMetaData.CloseAllFd();
             return MXM_ERR_SHM_OBMM_OPEN;
         }
-        shmAppMetaData.AddFds(fd);
-
         auto startAddr = reinterpret_cast<void *>(reinterpret_cast<uint64_t>(mmapAddr) + i * unitSize);
         if (i == mmapCount - 1) {
             size_t tmpLength = shmAppMetaData.mapSize - (mmapCount - 1) * unitSize;
             ret = RackMemFdMap::GetInstance().MapForEachFd(startAddr, tmpLength, fd, prot, flags, offset);
             if (BresultFail(ret)) {
                 DBG_LOGERROR("MapForEachFd failed: fd=" << fd << ", ret=" << ret);
-                shmAppMetaData.CloseAllFd();
                 return ret;
             }
             shmAppMetaData.AddAddr(startAddr, tmpLength);
+            shmAppMetaData.slices.push_back({memIds[i], startAddr, tmpLength, offset, open_flag, oflag});
             break;
         }
         ret = RackMemFdMap::GetInstance().MapForEachFd(startAddr, unitSize, fd, prot, flags, offset);
         if (BresultFail(ret)) {
             DBG_LOGERROR("MapForEachFd failed: fd=" << fd << ", ret=" << ret);
-            shmAppMetaData.CloseAllFd();
             return ret;
         }
         shmAppMetaData.AddAddr(startAddr, unitSize);
+        shmAppMetaData.slices.push_back({memIds[i], startAddr, unitSize, offset, open_flag, oflag});
     }
     return UBSM_OK;
 }
@@ -323,6 +321,16 @@ int RackMemShm::UbsMemShmMmap(void *start, size_t mapSize, int prot, int flags, 
         return ret;
     }
 
+    constexpr uint64_t supportedFlags = UBSM_FLAG_WITH_LOCK | UBSM_FLAG_NONCACHE | UBSM_FLAG_WR_DELAY_COMP |
+                                        UBSM_FLAG_ONLY_IMPORT_NONCACHE | UBSM_FLAG_MEM_ANONYMOUS |
+                                        UBSM_FLAG_MMAP_HUGETLB_PMD;
+    if ((createFlags & ~supportedFlags) != 0) {
+        ShmIpcCommand::IpcCallShmUnMap(name);
+        DBG_LOGERROR("Unsupported shared-memory creation flags, name=" << name << ", createFlags=" << createFlags
+                                                                       << ", supportedFlags=" << supportedFlags);
+        return MXM_ERR_UBSE_NOT_SUPPORTED;
+    }
+
     if (returnShmSize == 0 || mapSize != returnShmSize) {
         DBG_LOGERROR("Size error, mapSize=" << mapSize << ", ShmSize=" << returnShmSize);
         ShmIpcCommand::IpcCallShmUnMap(name);
@@ -425,10 +433,12 @@ uint32_t RackMemShm::UbsMemShmUnmmap(void *start, size_t size)
         DBG_LOGERROR("Failed to mmap memory with MAP_FIXED, " << strerror(errno));
         return MXM_ERR_MMAP_VA_FAILED;
     }
+    if (!DontForkMapping(address, metaData.mapSize)) {
+        return MXM_ERR_MMAP_VA_FAILED;
+    }
     TP_TRACE_END(TP_UBSM_UNMAP_ADDR, 0UL);
 
     TP_TRACE_BEGIN(TP_UBSM_CLOSE_FD);
-    metaData.CloseAllFd();
     TP_TRACE_END(TP_UBSM_CLOSE_FD, 0UL);
     ShmMetaDataMgr::GetInstance().UpdateMetaData(metaData.name, metaData);
 
@@ -522,7 +532,6 @@ int32_t RackMemShm::UbsMemShmSetOwnerShipOpt(ShmAppMetaData &meta, void *start, 
     auto fun = RmLibObmmExecutor::GetInstance().obmmOwnershipSwitch;
 
     for (int i = 0; i < indices.size(); ++i) {
-        auto localFd = meta.fds[indices[i]];
         auto offset = (i == 0) ? 0 : static_cast<size_t>(indices[i]) - static_cast<size_t>(indices[0]) - 1;
 
         if ((meta.unitSize == 0) || (offset > std::numeric_limits<size_t>::max() / meta.unitSize)) {
@@ -540,6 +549,15 @@ int32_t RackMemShm::UbsMemShmSetOwnerShipOpt(ShmAppMetaData &meta, void *start, 
         auto curLen = (i == 0) ? usedFirst : std::min((length - totalOffset - usedFirst), meta.unitSize);
         void *startAddr = (i == 0) ? start : meta.addrs[indices[i]].first;
         void *endAddr = static_cast<uint8_t *>(startAddr) + curLen;
+        const auto &slice = meta.slices[indices[i]];
+        const int localFd = ObmmOpenInternal(slice.memId, slice.openFlags, slice.accessFlags);
+        if (localFd < 0) {
+            DBG_LOGERROR("Failed to open OBMM device for ownership change, name="
+                         << meta.name << ", memId=" << slice.memId << ", openFlags=" << slice.openFlags
+                         << ", accessFlags=" << slice.accessFlags);
+            return MXM_ERR_SHM_OBMM_OPEN;
+        }
+        TemporaryObmmFd fdGuard(localFd);
         TP_TRACE_BEGIN(TP_USBM_OBMM_SET_OWERSHIP);
         auto ret = fun(localFd, startAddr, endAddr, prot);
         TP_TRACE_END(TP_USBM_OBMM_SET_OWERSHIP, ret);
@@ -575,8 +593,7 @@ int32_t RackMemShm::UbsMemShmSetOwnerShip(const std::string &name, void *start, 
                                                       << indices.size());
         return result;
     }
-    if (meta.addrs.size() != meta.fds.size()) {
-        DBG_LOGERROR("Meta addrs.size(" << meta.addrs.size() << ")is not equal to fds.size(" << meta.fds.size() << ")");
+    if (meta.addrs.size() != meta.slices.size()) {
         return MXM_ERR_SHM_NOT_FOUND;
     }
 
@@ -641,8 +658,7 @@ int32_t RackMemShm::UbsMemShmWriteLock(const std::string &name)
         DBG_LOGERROR("Find shm by addr failed, ret: " << result);
         return result;
     }
-    if (meta.addrs.size() != meta.fds.size()) {
-        DBG_LOGERROR("Meta addrs.size(" << meta.addrs.size() << ")is not equal to fds.size(" << meta.fds.size() << ")");
+    if (meta.addrs.size() != meta.slices.size()) {
         return MXM_ERR_SHM_NOT_FOUND;
     }
     if (meta.name != name) {
@@ -706,8 +722,7 @@ int32_t RackMemShm::UbsMemShmReadLock(const std::string &name)
         DBG_LOGERROR("Find shm by name failed, ret: " << result);
         return result;
     }
-    if (meta.addrs.size() != meta.fds.size()) {
-        DBG_LOGERROR("Meta addrs.size(" << meta.addrs.size() << ")is not equal to fds.size(" << meta.fds.size() << ")");
+    if (meta.addrs.size() != meta.slices.size()) {
         return MXM_ERR_SHM_NOT_FOUND;
     }
     if (meta.name != name) {
@@ -770,8 +785,7 @@ int32_t RackMemShm::UbsMemShmUnLock(const std::string &name)
         DBG_LOGERROR("Find shm by addr failed, ret: " << result);
         return result;
     }
-    if (meta.addrs.size() != meta.fds.size()) {
-        DBG_LOGERROR("Meta addrs.size(" << meta.addrs.size() << ")is not equal to fds.size(" << meta.fds.size() << ")");
+    if (meta.addrs.size() != meta.slices.size()) {
         return MXM_ERR_SHM_NOT_FOUND;
     }
     if (meta.name != name) {

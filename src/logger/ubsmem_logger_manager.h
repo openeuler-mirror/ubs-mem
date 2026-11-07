@@ -28,6 +28,8 @@ public:
     static UbsmemLoggerManager *Instance();
 
     static void Destroy();
+    static int ForkChildReset();
+    int ResetAfterFork();
 
     explicit UbsmemLoggerManager() = default;
 
