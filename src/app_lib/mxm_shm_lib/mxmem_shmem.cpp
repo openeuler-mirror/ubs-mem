@@ -11,7 +11,9 @@
  */
 
 #include <sys/mman.h>
+#include <limits>
 #include <new>
+#include <unordered_set>
 #include "ubs_mem.h"
 #include "RackMemShm.h"
 #include "UbseMemExecutor.h"
@@ -27,6 +29,13 @@
 using namespace ock::mxmd;
 using namespace ock::common;
 static const auto PAGE_SIZE = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+constexpr uint32_t MIN_MULTINODE_SHM_HOST_COUNT = 2;
+constexpr size_t MULTINODE_SHM_NAME_SUFFIX_LENGTH = 4;
+
+static bool UseCustomMultiNodeShmSizes(uint64_t flags)
+{
+    return (flags & UBSM_FLAG_MULTINODE_CUSTOM_SIZE) != 0;
+}
 
 static int find_region_desc(const char *region_name, SHMRegionDesc *region)
 {
@@ -1101,4 +1110,206 @@ SHMEM_API int ubsmem_shmem_ipc_resume(void)
     }
     DBG_LOGINFO("ubsmem_shmem_ipc_resume done.");
     return GetErrCode(UBSM_OK);
+}
+
+static int ValidateMultiNodeShmSizes(size_t size, uint64_t flags, const ubs_mem_providers_t &providers)
+{
+    if (!UseCustomMultiNodeShmSizes(flags)) {
+        if (size == 0 || size % providers.host_count != 0) {
+            DBG_LOGERROR("Shared memory size cannot be evenly distributed, size=" << size << ", hostCount="
+                                                                                  << providers.host_count);
+            return MXM_ERR_PARAM_INVALID;
+        }
+        const auto hostSize = size / providers.host_count;
+        DBG_LOGINFO("Validating evenly distributed host sizes, totalSize="
+                    << size << ", hostCount=" << providers.host_count << ", hostSize=" << hostSize);
+        if (hostSize % RACK_MEM_PAGE_SIZE != 0) {
+            DBG_LOGERROR("Evenly distributed host size is not aligned, hostSize=" << hostSize << ", alignment="
+                                                                                  << RACK_MEM_PAGE_SIZE);
+            return MXM_ERR_PARAM_INVALID;
+        }
+        return MXM_OK;
+    }
+    size_t totalSize = 0;
+    for (uint32_t i = 0; i < providers.host_count; ++i) {
+        const auto hostSize = providers.host_sizes[i];
+        DBG_LOGINFO("Validating custom host size, index=" << i << ", hostName=" << providers.host_names[i]
+                                                          << ", hostSize=" << hostSize);
+        if (hostSize == 0) {
+            DBG_LOGERROR("Custom host size is zero, index=" << i << ", hostName=" << providers.host_names[i]);
+            return MXM_ERR_PARAM_INVALID;
+        }
+        if (hostSize % RACK_MEM_PAGE_SIZE != 0) {
+            DBG_LOGERROR("Custom host size is not aligned, index=" << i << ", hostName=" << providers.host_names[i]
+                                                                   << ", hostSize=" << hostSize
+                                                                   << ", alignment=" << RACK_MEM_PAGE_SIZE);
+            return MXM_ERR_PARAM_INVALID;
+        }
+        if (hostSize > size - totalSize) {
+            DBG_LOGERROR("Custom host sizes exceed total size, index="
+                         << i << ", hostName=" << providers.host_names[i] << ", hostSize=" << hostSize
+                         << ", accumulatedSize=" << totalSize << ", totalSize=" << size);
+            return MXM_ERR_PARAM_INVALID;
+        }
+        totalSize += hostSize;
+    }
+    if (totalSize != size) {
+        DBG_LOGERROR("Custom host size sum mismatch, totalSize=" << totalSize << ", size=" << size);
+        return MXM_ERR_PARAM_INVALID;
+    }
+    return MXM_OK;
+}
+
+static int ValidateParameters(const char *name, size_t size, mode_t, uint64_t flags,
+                              const ubs_mem_providers_t *providers)
+{
+    if (providers == nullptr) {
+        DBG_LOGERROR("providers is nullptr.");
+        return MXM_ERR_PARAM_INVALID;
+    }
+    if (providers->socket_id == UINT32_MAX) {
+        DBG_LOGERROR("Multi-node shared memory requires an explicit socket plane, socketId=" << providers->socket_id);
+        return MXM_ERR_PARAM_INVALID;
+    }
+    if (name == nullptr) {
+        DBG_LOGERROR("name is nullptr.");
+        return MXM_ERR_PARAM_INVALID;
+    }
+    const size_t length = strnlen(name, MAX_SHM_NAME_LENGTH + 1);
+    if (length == 0 || length + MULTINODE_SHM_NAME_SUFFIX_LENGTH > MAX_SHM_NAME_LENGTH) {
+        DBG_LOGERROR("Invalid name length: name_len=" << length << ", max_length="
+                                                      << MAX_SHM_NAME_LENGTH - MULTINODE_SHM_NAME_SUFFIX_LENGTH);
+        return MXM_ERR_PARAM_INVALID;
+    }
+    if (providers->host_count < MIN_MULTINODE_SHM_HOST_COUNT || providers->host_count > MAX_MULTINODE_HOST_NUM) {
+        DBG_LOGERROR("Invalid host count: host_count=" << providers->host_count << ", expected range=[2, "
+                                                       << MAX_MULTINODE_HOST_NUM << "].");
+        return MXM_ERR_PARAM_INVALID;
+    }
+    std::unordered_set<std::string> hostNames;
+    for (uint32_t i = 0; i < providers->host_count; ++i) {
+        const char *host = providers->host_names[i];
+
+        if (host[0] == '\0') {
+            DBG_LOGERROR("Invalid host name: index=" << i << ", reason=empty host name.");
+            return MXM_ERR_PARAM_INVALID;
+        }
+
+        if (memchr(host, '\0', MAX_HOST_NAME_DESC_LENGTH) == nullptr) {
+            DBG_LOGERROR("Invalid host name: index=" << i << ", reason=not null-terminated.");
+            return MXM_ERR_PARAM_INVALID;
+        }
+        if (!hostNames.emplace(host).second) {
+            DBG_LOGERROR("Duplicate multi-node provider hostname, name=" << name << ", index=" << i
+                                                                         << ", hostName=" << host);
+            return MXM_ERR_PARAM_INVALID;
+        }
+    }
+    const auto sizeRet = ValidateMultiNodeShmSizes(size, flags, *providers);
+    if (sizeRet != MXM_OK) {
+        return sizeRet;
+    }
+    if ((flags & UBSM_FLAG_WITH_LOCK) != 0 || !ValidateFlag(flags & ~UBSM_FLAG_MULTINODE_CUSTOM_SIZE)) {
+        DBG_LOGERROR("Invalid flags: flags=" << flags);
+        return MXM_ERR_PARAM_INVALID;
+    }
+    return MXM_OK;
+}
+
+SHMEM_API int ubsmem_shmem_allocate_with_multi_provider(const char *name, size_t size, mode_t mode, uint64_t flags,
+                                                        const ubs_mem_providers_t *providers)
+{
+    UBSMEM_API_GUARD();
+    const auto ret = ValidateParameters(name, size, mode, flags, providers);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Invalid parameters, name= " << name << " ret=" << ret);
+        return GetErrCode(ret);
+    }
+    std::vector<std::string> hostNames;
+    std::vector<uint64_t> hostSizes;
+    hostNames.reserve(providers->host_count);
+    if (UseCustomMultiNodeShmSizes(flags)) {
+        hostSizes.reserve(providers->host_count);
+    }
+    for (uint32_t index = 0; index < providers->host_count; ++index) {
+        hostNames.emplace_back(providers->host_names[index]);
+        if (UseCustomMultiNodeShmSizes(flags)) {
+            hostSizes.emplace_back(providers->host_sizes[index]);
+        }
+    }
+    const auto createRet = RackMemShm::GetInstance().UbsMemShmCreateMultiNodePool(
+        name, static_cast<uint64_t>(size), mode, flags, providers->socket_id, hostNames, hostSizes);
+    if (createRet != UBSM_OK) {
+        DBG_LOGERROR("Multi-node shared memory pool allocation failed, name=" << name << ", ret=" << createRet);
+        return GetErrCode(createRet);
+    }
+    DBG_LOGINFO("Allocate multi-node shared memory pool successfully, name=" << name);
+    return GetErrCode(UBSM_OK);
+}
+
+SHMEM_API int ubsmem_shmem_deallocate_with_multi_provider(const char *name)
+{
+    UBSMEM_API_GUARD();
+    if (name == nullptr) {
+        DBG_LOGERROR("Multi-node shared memory pool name is nullptr.");
+        return GetErrCode(MXM_ERR_PARAM_INVALID);
+    }
+    const size_t length = strnlen(name, MAX_SHM_NAME_LENGTH + 1);
+    if (length == 0 || length + MULTINODE_SHM_NAME_SUFFIX_LENGTH > MAX_SHM_NAME_LENGTH) {
+        DBG_LOGERROR("Invalid multi-node shared memory pool name length=" << length);
+        return GetErrCode(MXM_ERR_PARAM_INVALID);
+    }
+    const auto ret = RackMemShm::GetInstance().UbsMemShmDeleteMultiNodePool(name);
+    if (ret != UBSM_OK) {
+        DBG_LOGERROR("Multi-node shared memory pool deallocation failed, name=" << name << ", ret=" << ret);
+        return GetErrCode(ret);
+    }
+    DBG_LOGINFO("Deallocate multi-node shared memory pool successfully, name=" << name);
+    return GetErrCode(UBSM_OK);
+}
+
+static int MapMultiProviderSharedMemory(void *addr, size_t length, int prot, int flags, const char *name, off_t offset,
+                                        void **local_ptr, size_t interleaveSize)
+{
+    if (name == nullptr || local_ptr == nullptr || length == 0 || offset != 0 ||
+        (addr != nullptr && reinterpret_cast<uintptr_t>(addr) % PAGE_SIZE != 0) || (flags & MAP_SHARED) == 0 ||
+        (flags & MAP_PRIVATE) != 0 || length > std::numeric_limits<size_t>::max() - (PAGE_SIZE - 1)) {
+        DBG_LOGERROR("Invalid multi-provider mapping parameters, length=" << length << ", offset=" << offset
+                                                                          << ", prot=" << prot << ", flags=" << flags);
+        return GetErrCode(MXM_ERR_PARAM_INVALID);
+    }
+    const auto nameLength = strnlen(name, MAX_SHM_NAME_LENGTH + 1);
+    if (nameLength == 0 || nameLength + MULTINODE_SHM_NAME_SUFFIX_LENGTH > MAX_SHM_NAME_LENGTH) {
+        DBG_LOGERROR("Invalid multi-provider mapping name length=" << nameLength);
+        return GetErrCode(MXM_ERR_PARAM_INVALID);
+    }
+    void *address = nullptr;
+    const auto ret = RackMemShm::GetInstance().UbsMemShmMapMultiNodePool(addr, ROUND_UP(length, PAGE_SIZE), prot, flags,
+                                                                         name, offset, &address, interleaveSize);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Mapping multi-provider shared memory failed, name=" << name << ", length=" << length
+                                                                          << ", ret=" << ret);
+        return GetErrCode(ret);
+    }
+    *local_ptr = address;
+    return UBSM_OK;
+}
+
+SHMEM_API int ubsmem_shmem_map_with_multi_provider(void *addr, size_t length, int prot, int flags, const char *name,
+                                                   off_t offset, void **local_ptr)
+{
+    UBSMEM_API_GUARD();
+    return MapMultiProviderSharedMemory(addr, length, prot, flags, name, offset, local_ptr, 0);
+}
+
+SHMEM_API int ubsmem_shmem_map_interleaved(void *addr, size_t length, int prot, int flags, const char *name,
+                                           size_t interleave_size, void **local_ptr)
+{
+    UBSMEM_API_GUARD();
+    if (interleave_size == 0 || interleave_size % PAGE_SIZE != 0 || length % interleave_size != 0) {
+        DBG_LOGERROR("Invalid interleaved mapping size, length=" << length << ", interleaveSize=" << interleave_size
+                                                                 << ", pageSize=" << PAGE_SIZE);
+        return GetErrCode(MXM_ERR_PARAM_INVALID);
+    }
+    return MapMultiProviderSharedMemory(addr, length, prot, flags, name, 0, local_ptr, interleave_size);
 }

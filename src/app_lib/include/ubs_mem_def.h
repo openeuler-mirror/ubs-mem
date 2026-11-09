@@ -27,6 +27,8 @@ extern "C" {
 
 /** Maximum number of hosts returned in cluster statistics. */
 #define MAX_HOST_NUM 16
+/** Maximum number of providers in a multi-node shared-memory pool. */
+#define MAX_MULTINODE_HOST_NUM 256
 /** Maximum number of NUMA nodes returned for one host. */
 #define MAX_NUMA_NUM 32
 /** Size of the reserved extension area in ubsmem_numa_mem_t. */
@@ -52,8 +54,9 @@ extern "C" {
 
 /**
  * ubs-mem operation flags. Shared-memory creation accepts UBSM_FLAG_CACHE through UBSM_FLAG_MMAP_HUGETLB_PMD;
- * lease allocation accepts UBSM_FLAG_MMAP_HUGETLB_PMD or UBSM_FLAG_MALLOC_WITH_NUMA. These values are not the
- * MAP_* flags accepted by ubsmem_shmem_map().
+ * multi-node pool allocation additionally accepts UBSM_FLAG_MULTINODE_CUSTOM_SIZE. Lease allocation accepts
+ * UBSM_FLAG_MMAP_HUGETLB_PMD or UBSM_FLAG_MALLOC_WITH_NUMA. These values are not the MAP_* flags accepted by
+ * ubsmem_shmem_map().
  */
 /** Cacheable access mode. This is the default mode because its value is 0. */
 #define UBSM_FLAG_CACHE 0x0UL
@@ -71,6 +74,8 @@ extern "C" {
 #define UBSM_FLAG_MMAP_HUGETLB_PMD 0x20UL
 /** Present leased memory as a remote NUMA node; valid only for lease allocation APIs. */
 #define UBSM_FLAG_MALLOC_WITH_NUMA 0x40UL
+/** Use host_sizes[] to specify each provider's size; valid only for multi-node pool allocation. */
+#define UBSM_FLAG_MULTINODE_CUSTOM_SIZE 0x80UL
 /** Constant representing 4 KB. */
 #define FOUR_KB 4096
 
@@ -108,6 +113,10 @@ typedef enum {
     UBSM_ERR_IN_USING = 6024,
     /** Operation or requested mode is not supported. */
     UBSM_ERR_NOT_SUPPORTED = 6025,
+    /** Required members of a multi-node shared-memory pool are missing. */
+    UBSM_ERR_SHM_POOL_INCOMPLETE = 6026,
+    /** Multi-node pool member layout or mapping metadata is inconsistent. */
+    UBSM_ERR_SHM_POOL_LAYOUT_CONFLICT = 6027,
 
     /** Network communication failed. */
     UBSM_ERR_NET = 6040,
@@ -289,6 +298,18 @@ typedef struct {
     /** Provider port ID, or UINT32_MAX when unspecified. */
     uint32_t port_id;
 } ubs_mem_provider_t;
+
+/** Provider set for a multi-node shared-memory pool. */
+typedef struct {
+    /** Required socket plane ID used on every provider. UINT32_MAX is not allowed. */
+    uint32_t socket_id;
+    /** Number of valid entries in host_names and host_sizes; valid range is [2, MAX_MULTINODE_HOST_NUM]. */
+    uint32_t host_count;
+    /** Null-terminated provider host names; only entries in [0, host_count) are used. */
+    char host_names[MAX_MULTINODE_HOST_NUM][MAX_HOST_NAME_DESC_LENGTH];
+    /** Per-provider sizes; used only when UBSM_FLAG_MULTINODE_CUSTOM_SIZE is specified. */
+    size_t host_sizes[MAX_MULTINODE_HOST_NUM];
+} ubs_mem_providers_t;
 
 #ifdef __cplusplus
 }

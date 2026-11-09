@@ -28,9 +28,9 @@ override_dh_auto_install:
 	install -Dm550 build/relwithdebinfo/output/bin/ubsmd \
 		debian/tmp/usr/bin/ubsmd
 	DEB_MULTIARCH=$$(dpkg-architecture -qDEB_HOST_MULTIARCH); \
-	install -Dm440 build/relwithdebinfo/output/lib/libubsm_sdk.so.1.1.0 \
-		debian/tmp/usr/lib/$$DEB_MULTIARCH/libubsm_sdk.so.1.1.0; \
-	ln -s libubsm_sdk.so.1.1.0 debian/tmp/usr/lib/$$DEB_MULTIARCH/libubsm_sdk.so.1; \
+	install -Dm440 build/relwithdebinfo/output/lib/libubsm_sdk.so.1.1.1 \
+		debian/tmp/usr/lib/$$DEB_MULTIARCH/libubsm_sdk.so.1.1.1; \
+	ln -s libubsm_sdk.so.1.1.1 debian/tmp/usr/lib/$$DEB_MULTIARCH/libubsm_sdk.so.1; \
 	ln -s libubsm_sdk.so.1 debian/tmp/usr/lib/$$DEB_MULTIARCH/libubsm_sdk.so
 	install -Dm440 build/relwithdebinfo/output/lib/libubsmd.so \
 		debian/tmp/usr/lib/ubs_mem/libubsmd.so

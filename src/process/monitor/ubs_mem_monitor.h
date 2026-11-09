@@ -40,6 +40,7 @@ struct DelayRemovedKey {
     bool timeOutScene;
     bool isAttach = false;
     uint64_t createSeqNo = 0;
+    uint64_t shmRollbackReferenceId{}; // Non-zero only for a failed multi-node map reference rollback.
     DelayRemovedKey(std::string nm, uint64_t delay, bool isLease, const AppContext &appCtx, bool changed,
                     bool isNumaLease, bool timeScene) noexcept;
     explicit DelayRemovedKey(const std::string &name) : name(name) {};

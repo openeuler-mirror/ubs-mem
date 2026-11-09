@@ -122,8 +122,24 @@ static std::unordered_map<int16_t, TEST_MsgBaseFunc> g_gTestRequestMap = {
      []() {
          return new (std::nothrow) IpcSuspendRequest();
      }},
-    {IPC_RESUME_CLIENT, []() {
+    {IPC_RESUME_CLIENT,
+     []() {
          return new (std::nothrow) IpcResumeRequest();
+     }},
+    {IPC_REQUEST_CREATE_MULTINODE_SHM,
+     []() {
+         return new (std::nothrow) MultiNodeShmCreateRequest();
+     }},
+    {IPC_REQUEST_DELETE_MULTINODE_SHM,
+     []() {
+         return new (std::nothrow) MultiNodeShmDeleteRequest();
+     }},
+    {IPC_REQUEST_MAP_MULTINODE_SHM,
+     []() {
+         return new (std::nothrow) MultiNodeShmMapRequest();
+     }},
+    {IPC_REQUEST_UNMAP_MULTINODE_SHM, []() {
+         return new (std::nothrow) MultiNodeShmUnmapRequest();
      }}};
 static std::unordered_map<int16_t, TEST_MsgBaseFunc> g_gTestResponseMap = {
     {MXM_MSG_SHM_ALLOCATE,
@@ -230,7 +246,23 @@ static std::unordered_map<int16_t, TEST_MsgBaseFunc> g_gTestResponseMap = {
      []() {
          return new (std::nothrow) CommonResponse();
      }},
-    {IPC_RESUME_CLIENT, []() {
+    {IPC_RESUME_CLIENT,
+     []() {
+         return new (std::nothrow) CommonResponse();
+     }},
+    {IPC_REQUEST_CREATE_MULTINODE_SHM,
+     []() {
+         return new (std::nothrow) CommonResponse();
+     }},
+    {IPC_REQUEST_DELETE_MULTINODE_SHM,
+     []() {
+         return new (std::nothrow) CommonResponse();
+     }},
+    {IPC_REQUEST_MAP_MULTINODE_SHM,
+     []() {
+         return new (std::nothrow) MultiNodeShmMapResponse();
+     }},
+    {IPC_REQUEST_UNMAP_MULTINODE_SHM, []() {
          return new (std::nothrow) CommonResponse();
      }}};
 
@@ -251,6 +283,10 @@ TEST_F(MxmMessageTest, TestIpcSuspendResumeOpcodeStable)
 {
     EXPECT_EQ(IPC_SUSPEND_CLIENT, 31);
     EXPECT_EQ(IPC_RESUME_CLIENT, 32);
+    EXPECT_EQ(IPC_REQUEST_CREATE_MULTINODE_SHM, 33);
+    EXPECT_EQ(IPC_REQUEST_DELETE_MULTINODE_SHM, 34);
+    EXPECT_EQ(IPC_REQUEST_MAP_MULTINODE_SHM, 35);
+    EXPECT_EQ(IPC_REQUEST_UNMAP_MULTINODE_SHM, 36);
 }
 
 template <typename TMsg>
@@ -276,6 +312,78 @@ TEST_F(MxmMessageTest, TestSerializeIpcSuspendResumeRequestSuccess)
 {
     EXPECT_TRUE(TestSerializeDeserialize<IpcSuspendRequest>());
     EXPECT_TRUE(TestSerializeDeserialize<IpcResumeRequest>());
+}
+
+TEST_F(MxmMessageTest, TestSerializeMultiNodeShmRequestSuccess)
+{
+    EXPECT_TRUE(TestSerializeDeserialize<MultiNodeShmCreateRequest>());
+    EXPECT_TRUE(TestSerializeDeserialize<MultiNodeShmDeleteRequest>());
+    EXPECT_TRUE(TestSerializeDeserialize<MultiNodeShmMapRequest>());
+    EXPECT_TRUE(TestSerializeDeserialize<MultiNodeShmUnmapRequest>());
+}
+
+TEST_F(MxmMessageTest, TestMultiNodeMessagesRejectTruncatedPayloads)
+{
+    MultiNodeShmCreateRequest create{"pool", 8UL * 1024 * 1024, 0600, 0, 0, {"node1", "node2"}, {}};
+    MultiNodeShmDeleteRequest remove{"pool"};
+    MultiNodeShmMapRequest map{"pool", 8UL * 1024 * 1024, 1};
+    MultiNodeShmUnmapRequest unmap{"pool"};
+    MultiNodeShmMapResponse response{
+        UBSM_OK, {{1}, {2}}, 4UL * 1024 * 1024, 8UL * 1024 * 1024, 0, 0, {4UL * 1024 * 1024, 4UL * 1024 * 1024},
+        {0, 0}};
+    for (auto *message : std::vector<MsgBase *>{&create, &remove, &map, &unmap, &response}) {
+        NetMsgPacker packer;
+        ASSERT_EQ(message->Serialize(packer), UBSM_OK);
+        const auto payload = packer.String();
+        for (const size_t length : {0UL, payload.size() - 1}) {
+            NetMsgUnpacker unpacker(payload.substr(0, length));
+            EXPECT_NE(message->Deserialize(unpacker), UBSM_OK);
+        }
+    }
+}
+
+TEST_F(MxmMessageTest, TestSerializeMultiNodeShmRequestWithValuesSuccess)
+{
+    MultiNodeShmCreateRequest createRequest("pool", 12UL * 1024 * 1024, 0600, UBSM_FLAG_MULTINODE_CUSTOM_SIZE, 2,
+                                            {"host1", "host2"}, {4UL * 1024 * 1024, 8UL * 1024 * 1024});
+    NetMsgPacker createPacker;
+    EXPECT_EQ(createRequest.Serialize(createPacker), UBSM_OK);
+    NetMsgUnpacker createUnpacker(createPacker.String());
+    MultiNodeShmCreateRequest unpackedCreateRequest;
+    EXPECT_EQ(unpackedCreateRequest.Deserialize(createUnpacker), UBSM_OK);
+    EXPECT_EQ(unpackedCreateRequest.name_, "pool");
+    EXPECT_EQ(unpackedCreateRequest.size_, 12UL * 1024 * 1024);
+    EXPECT_EQ(unpackedCreateRequest.mode_, 0600);
+    EXPECT_EQ(unpackedCreateRequest.flags_, UBSM_FLAG_MULTINODE_CUSTOM_SIZE);
+    EXPECT_EQ(unpackedCreateRequest.socketId_, 2);
+    EXPECT_EQ(unpackedCreateRequest.hostNames_, (std::vector<std::string>{"host1", "host2"}));
+    EXPECT_EQ(unpackedCreateRequest.hostSizes_, (std::vector<uint64_t>{4UL * 1024 * 1024, 8UL * 1024 * 1024}));
+
+    MultiNodeShmMapRequest mapRequest("pool", 4UL * 1024 * 1024, 3);
+    NetMsgPacker mapPacker;
+    EXPECT_EQ(mapRequest.Serialize(mapPacker), UBSM_OK);
+    NetMsgUnpacker mapUnpacker(mapPacker.String());
+    MultiNodeShmMapRequest unpackedMapRequest;
+    EXPECT_EQ(unpackedMapRequest.Deserialize(mapUnpacker), UBSM_OK);
+    EXPECT_EQ(unpackedMapRequest.name_, "pool");
+    EXPECT_EQ(unpackedMapRequest.size_, 4UL * 1024 * 1024);
+    EXPECT_EQ(unpackedMapRequest.prot_, 3);
+
+    MultiNodeShmMapResponse mapResponse(UBSM_OK, {{1, 2}, {3, 4}}, 2UL * 1024 * 1024, 12UL * 1024 * 1024, 5, 6,
+                                        {4UL * 1024 * 1024, 8UL * 1024 * 1024}, {5, 7});
+    NetMsgPacker responsePacker;
+    EXPECT_EQ(mapResponse.Serialize(responsePacker), UBSM_OK);
+    NetMsgUnpacker responseUnpacker(responsePacker.String());
+    MultiNodeShmMapResponse unpackedMapResponse;
+    EXPECT_EQ(unpackedMapResponse.Deserialize(responseUnpacker), UBSM_OK);
+    EXPECT_EQ(unpackedMapResponse.errCode_, UBSM_OK);
+    EXPECT_EQ(unpackedMapResponse.memIds_, (std::vector<std::vector<uint64_t>>{{1, 2}, {3, 4}}));
+    EXPECT_EQ(unpackedMapResponse.unitSize_, 2UL * 1024 * 1024);
+    EXPECT_EQ(unpackedMapResponse.createdSize_, 12UL * 1024 * 1024);
+    EXPECT_EQ(unpackedMapResponse.groupSizes_, (std::vector<uint64_t>{4UL * 1024 * 1024, 8UL * 1024 * 1024}));
+    EXPECT_EQ(unpackedMapResponse.flag_, 5);
+    EXPECT_EQ(unpackedMapResponse.groupFlags_, (std::vector<uint64_t>{5, 7}));
+    EXPECT_EQ(unpackedMapResponse.oflag_, 6);
 }
 
 TEST_F(MxmMessageTest, TestSerialize_ShmemAllocateRequest_Success)

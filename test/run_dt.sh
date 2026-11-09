@@ -35,13 +35,13 @@ apply_mockcpp_patch() {
     done < <(sed -n 's|^--- a/||p' "$patch_file")
 
     if patch --batch --silent --forward --dry-run --reverse -p1 -d "$mockcpp_src_dir" < "$patch_file"; then
-        echo "[STATUS] ARM64 patch already applied, skipping."
+        echo "[STATUS] mockcpp patch already applied, skipping."
         return 0
     fi
 
     # A dry run prevents patch from leaving the submodule partially modified.
     if ! patch --batch --silent --forward --dry-run -p1 -d "$mockcpp_src_dir" < "$patch_file"; then
-        echo "[ERROR] ARM64 patch does not apply cleanly."
+        echo "[ERROR] mockcpp patch does not apply cleanly."
         return 1
     fi
 

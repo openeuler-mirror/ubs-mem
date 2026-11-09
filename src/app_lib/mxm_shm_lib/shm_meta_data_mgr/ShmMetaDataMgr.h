@@ -36,9 +36,17 @@ struct ShmAppMetaData {
     size_t unitSize{0};
     std::vector<mem_id> memIds{};
     std::vector<MappingSlice> slices{};
+    // Non-empty for multi-node mappings; all group vectors follow provider order.
+    std::vector<std::vector<uint64_t>> groupMemIds{};
+    std::vector<uint64_t> groupSizes{};
+    std::vector<uint64_t> groupFlags{};
+    size_t interleaveSize{}; // Zero means consecutive provider mappings.
+    bool detachCompleted{};  // Server references released; retries skip IPC.
+    bool addressReleased{};  // Address released; metadata retries must not touch the address.
+    // Consecutive mappings only; interleaved segments are derived from groupSizes/unitSize/interleaveSize.
     std::vector<std::pair<void *, size_t>> addrs{};
     ShmOwnStatus ownStatuss; // 共享内存读写权限
-    uint64_t flag{};
+    uint64_t flag{};         // Original creation flags for multi-node pools; groupFlags holds effective open flags.
     uint64_t oflag{};
     int isLocked{0};
     ShmOwnStatus lockedStatus{ShmOwnStatus::UNACCESS};
@@ -91,7 +99,7 @@ struct ShmAppMetaData {
     }
 
 private:
-    bool mappingRevoked_{false};
+    bool mappingRevoked_{false}; // Device mapping replaced by an anonymous reservation; address still occupied.
 };
 
 class ShmMetaDataMgr {
@@ -133,6 +141,8 @@ public:
     bool IsMetaMappingRevoked(const std::string &name);
 
     uint32_t GetAllUsedMemoryNames(std::vector<std::string> &names);
+    uint32_t AddMappingInProgressNames(const std::vector<std::string> &names);
+    void RemoveMappingInProgressNames(const std::vector<std::string> &names);
 
     bool HasOverlapWithKnownVmas(uintptr_t start, uintptr_t end);
 
@@ -151,6 +161,8 @@ public:
     ShmMetaDataMgr &operator=(ShmMetaDataMgr &&other) noexcept = delete;
 
 private:
+    std::mutex mappingInProgressMutex_;
+    std::vector<std::string> mappingInProgressNames_;
     static constexpr int SEGMENT_COUNT{4};
     std::hash<std::string> strHash{};
     std::hash<void *> ptrHash{};

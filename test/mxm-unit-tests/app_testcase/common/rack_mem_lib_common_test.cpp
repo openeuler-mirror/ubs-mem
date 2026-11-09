@@ -259,7 +259,7 @@ TEST_F(RackMemLibCommonTestSuite, ShmMetaDataMgrCppOk)
     ASSERT_EQ(ret, 0);
     /* 重复添加 */
     ret = ShmMetaDataMgr::GetInstance().AddMetaData("name", reinterpret_cast<void *>(1u), meta);
-    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(ret, MXM_ERR_SHM_ALREADY_EXIST);
 
     void *addr = ShmMetaDataMgr::GetInstance().GetAddr("name");
     ASSERT_EQ(addr, reinterpret_cast<void *>(1u));
@@ -321,7 +321,7 @@ TEST_F(RackMemLibCommonTestSuite, ShmMetaDataMgrCheckAddrUnok)
     ASSERT_EQ(ret, MXM_ERR_PARAM_INVALID);
 
     meta.unitSize = 0;
-    ret = ShmMetaDataMgr::GetInstance().AddMetaData("name", reinterpret_cast<void *>(1u), meta);
+    ret = ShmMetaDataMgr::GetInstance().UpdateMetaData("name", meta);
     ASSERT_EQ(ret, 0);
 
     ret = ShmMetaDataMgr::GetInstance().CheckAddr("name", reinterpret_cast<void *>(1u), 1, meta, usedFirst, indices);

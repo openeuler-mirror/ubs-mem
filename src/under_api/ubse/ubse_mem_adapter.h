@@ -27,6 +27,8 @@
 #include "ubs_engine_mem.h"
 #include "ubs_engine_topo.h"
 
+#define UBSM_INNER_FLAG_MULTINODE (1UL << 63)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -35,6 +37,8 @@ namespace ock {
 namespace mxm {
 
 constexpr auto MIN_NODE_NUM = 2;
+constexpr size_t MULTINODE_MEMBER_SUFFIX_LENGTH = 4;
+constexpr size_t MIN_MULTINODE_MEMBER_COUNT = 2;
 
 #define UBS_FEATURE_BIT_CC_CACHEABLE (1ULL << 3)
 
@@ -128,6 +132,23 @@ struct AttachShmResult {
     int oflag{};
 };
 
+struct MultiNodeShmCreateParam {
+    std::string name;
+    uint64_t size{};
+    mode_t mode{};
+    uint64_t flags{};
+    uint32_t socketId{};
+    std::vector<std::string> hostNames;
+    std::vector<uint64_t> hostSizes;
+    ubsm::AppContext appContext{};
+};
+
+struct MultiNodeShmMember {
+    std::string name;
+    uint64_t size{};
+    ubse_user_info_t userInfo{};
+};
+
 /********** 控制面接口 ***********/
 using UbseClientInitializeFunc = int32_t (*)(const char *ubse_uds_path);
 using UbseClientFinalizeFunc = void (*)();
@@ -169,6 +190,8 @@ using UbseMemShmAttachFunc = int32_t (*)(const char *name, const ubs_mem_fd_owne
                                          ubs_mem_shm_desc_t **shm_desc);
 using UbseMemShmGetFunc = int32_t (*)(const char *name, ubs_mem_shm_desc_t **shm_desc);
 using UbseMemShmListFunc = int32_t (*)(ubs_mem_shm_desc_t **shm_descs, uint32_t *shm_desc_cnt);
+using UbseMemShmListWithPrefixFunc = int32_t (*)(const char *name_prefix, ubs_mem_shm_desc_t **shm_descs,
+                                                 uint32_t *shm_desc_cnt);
 using UbseMemShmDetachFunc = int32_t (*)(const char *name);
 using UbseMemShmDeleteFunc = int32_t (*)(const char *name);
 using UbseLogCallBackRegisterFunc = void (*)(ubs_engine_log_handler log_handler);
@@ -185,6 +208,7 @@ public:
     static int ShmCreate(const CreateShmParam &param);
     static int ShmCreateWithProvider(const CreateShmWithProviderParam &param);
     static int ShmDelete(const std::string &name, const ubsm::AppContext &appContext);
+    static int DeleteMultiNodeShmPool(const std::string &name, const ubsm::AppContext &appContext);
     static int FdPermissionChange(const std::string &name, const ubsm::AppContext &appContext, mode_t mode);
     static int32_t DlopenLibUbse(const std::string &controllerPath);
     static int LookUpClusterStatistic(ock::ubsm::ubsmemClusterInfo &clusterInfo);
@@ -210,6 +234,13 @@ public:
     static int EnsureGetLocalNodeId(uint32_t &nid);
     static uint64_t GenerateCreateSeqNo(uint32_t slotId);
 
+    static int CreateMultiNodeShmPool(const MultiNodeShmCreateParam &param);
+    // Querying only validates the member layout; callers check operation-specific permissions separately.
+    static int GetMultiNodeShmNames(const std::string &poolName, std::vector<std::string> &names,
+                                    bool requireComplete = false);
+    static int GetMultiNodeShmMembers(const std::string &poolName, std::vector<MultiNodeShmMember> &members,
+                                      bool requireComplete = false);
+
 private:
     UbseMemAdapter() = default;
     static void ResetLibUbseDl();
@@ -221,6 +252,35 @@ private:
     static void UseLog(uint32_t level, const char *str);
     static int32_t CheckAndCopyRegionStatus(SHMRegions &staticRegions, SHMRegions &activeRegion);
     static int GetSlotIdFromHostName(const std::string &hostName, uint32_t *slotId);
+    static bool ValidateMultiNodeShmParam(const MultiNodeShmCreateParam &param);
+    static bool ValidateMultiNodeShmSizes(const MultiNodeShmCreateParam &param);
+    static int GetMultiNodeShmNodeIds(const std::vector<std::string> &hostNames, std::vector<uint32_t> &nodeIds);
+    static int CreateMultiNodeShmMembers(const MultiNodeShmCreateParam &param, const std::vector<uint32_t> &nodeIds);
+    static std::string GenerateMultiNodeShmName(const std::string &name, uint8_t encodedNodeCount, uint8_t index);
+    static int CreateMultiNodeShmOnNode(const MultiNodeShmCreateParam &param, const std::string &name, uint64_t size,
+                                        uint32_t nodeId, uint64_t &seqNo);
+    static void RollbackMultiNodeShm(const std::vector<std::pair<std::string, uint64_t>> &members,
+                                     const ubsm::AppContext &context);
+    static bool ParseMultiNodeShmName(const std::string &poolName, const std::string &childName,
+                                      uint8_t &encodedNodeCount, uint8_t &index);
+    // On success, an empty member name indicates that the descriptor was skipped.
+    static int ReadMultiNodeShmMember(const std::string &poolName, const ubs_mem_shm_desc_t &desc, uint32_t listIndex,
+                                      MultiNodeShmMember &member, uint8_t &encodedNodeCount, uint8_t &index);
+    static int ValidateMultiNodeShmDeleteOwnership(const std::string &poolName,
+                                                   const std::vector<MultiNodeShmMember> &members,
+                                                   const ubsm::AppContext &appContext);
+    static int AppendMultiNodeShmName(const std::string &name, uint8_t encodedNodeCount, uint8_t index,
+                                      uint16_t &nodeCount, std::vector<std::string> &indexedNames);
+    static int CollectMultiNodeShmNames(const std::string &poolName, const ubs_mem_shm_desc_t *descs,
+                                        uint32_t descCount, std::vector<MultiNodeShmMember> &members,
+                                        bool requireComplete);
+    static int FinalizeMultiNodeShmNames(const std::string &poolName, bool hasBase,
+                                         std::vector<std::string> &indexedNames, std::vector<std::string> &names,
+                                         bool requireComplete);
+    static int OrderMultiNodeShmMembers(const std::string &poolName, bool hasBase,
+                                        std::vector<std::string> &indexedNames,
+                                        std::unordered_map<std::string, MultiNodeShmMember> &metadata,
+                                        std::vector<MultiNodeShmMember> &members, bool requireComplete);
     static int PrepareShmCreateWithProviderParams(const CreateShmWithProviderParam &param, uint8_t *usrInfo,
                                                   uint64_t *ubseFlags, uint32_t *slotId, uint64_t &seqNo);
     static int CheckFeatureCompatibility(uint64_t flags);
@@ -257,6 +317,7 @@ private:
     static UbseMemShmAttachFunc pUbseMemShmAttach;
     static UbseMemShmGetFunc pUbseMemShmGet;
     static UbseMemShmListFunc pUbseMemShmList;
+    static UbseMemShmListWithPrefixFunc pUbseMemShmListWithPrefix;
     static UbseMemShmDetachFunc pUbseMemShmDetach;
     static UbseMemShmDeleteFunc pUbseMemShmDelete;
     static UbseLogCallBackRegisterFunc pUbseLogCallBackRegister;

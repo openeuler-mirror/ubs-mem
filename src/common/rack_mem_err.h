@@ -96,6 +96,8 @@ typedef enum {
     MXM_ERR_SHM_OBMM_OPEN,
     MXM_ERR_SHM_INVALID_NUMA,
     MXM_ERR_SHM_NOT_EXIST,
+    MXM_ERR_SHM_POOL_INCOMPLETE,      // Required multi-node pool members are missing.
+    MXM_ERR_SHM_POOL_LAYOUT_CONFLICT, // Multi-node pool member layout or metadata is inconsistent.
 
     MXM_ERR_NAME_BUSY = 650, // this name is existed in DelayRemoveKey,include shm and lease
     // lease obj

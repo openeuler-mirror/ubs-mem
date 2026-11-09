@@ -5,6 +5,7 @@ Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
 #include "gtest/gtest.h"
 #include "mockcpp/mockcpp.hpp"
 #include "mxm_ipc_server_interface.h"
+#include "mxm_shm/ipc_handler.h"
 #include "ubs_common_config.h"
 #define private public
 #include "mls_manager.h"
@@ -36,6 +37,63 @@ void MXMSetLinkEventHandlerStub(const ock::com::MXMLinkEventHandler &handler)
 using namespace ock::lease::service;
 using namespace ock::mxm;
 using namespace ock::ubsm;
+
+static uint32_t rollbackRetryCalls{};
+
+static int RetryRollbackForMonitor(const std::string &name, const ock::com::MxmComUdsInfo &, uint64_t referenceId)
+{
+    EXPECT_EQ(name, "monitor_rollback");
+    EXPECT_TRUE(referenceId == 101 || referenceId == 102);
+    EXPECT_TRUE(UBSMemMonitor::GetInstance().GetDelayRemoveRecord(DelayRemovedKey{name}));
+    return ++rollbackRetryCalls == 1 ? ock::common::MXM_ERR_UBSE_INNER : 0;
+}
+
+TEST_F(UbseMemMonitorDlTest, RollbackTasksRetryIndependentlyAndKeepNameBusy)
+{
+    auto &monitor = UBSMemMonitor::GetInstance();
+    const auto previousKeys = monitor.delayedRemoveKeys;
+    const auto previousNames = monitor.delayedRemoveKeysByName;
+    const auto previousRunning = monitor.running;
+    monitor.delayedRemoveKeys.clear();
+    monitor.delayedRemoveKeysByName.clear();
+    monitor.running = true;
+    rollbackRetryCalls = 0;
+    DelayRemovedKey first{"monitor_rollback", 0, false, AppContext{1234, 1000, 1000}, false, false, false};
+    first.shmRollbackReferenceId = 101;
+    first.expiresTime = 0;
+    auto second = first;
+    second.shmRollbackReferenceId = 102;
+    second.appCtx.pid = 5678;
+    second.expiresTime += ONE_MINUTE_MS + std::chrono::duration_cast<std::chrono::milliseconds>(
+                                              std::chrono::steady_clock::now().time_since_epoch())
+                                              .count();
+    monitor.AddDelayRemoveRecord(first);
+    monitor.AddDelayRemoveRecord(second);
+    auto duplicate = first;
+    duplicate.expiresTime = second.expiresTime;
+    monitor.AddDelayRemoveRecord(duplicate);
+    EXPECT_EQ(monitor.delayedRemoveKeys.size(), 2);
+    MOCKER(ock::share::service::MxmServerMsgHandle::RollbackMultiNodeShmMember)
+        .expects(exactly(3))
+        .will(invoke(RetryRollbackForMonitor));
+    MOCKER_CPP(&UBSMemLeakCleaner::CleanShareMemoryLeakInner, int (*)()).expects(never());
+    monitor.RemoveDelayBorrows();
+    EXPECT_EQ(monitor.delayedRemoveKeys.size(), 2);
+    EXPECT_TRUE(monitor.GetDelayRemoveRecord(DelayRemovedKey{first.name}));
+    const auto pending = monitor.delayedRemoveKeys;
+    monitor.delayedRemoveKeys.clear();
+    for (auto key : pending) {
+        key.expiresTime = 0;
+        monitor.delayedRemoveKeys.insert(key);
+    }
+    monitor.RemoveDelayBorrows();
+    EXPECT_TRUE(monitor.delayedRemoveKeys.empty());
+    EXPECT_FALSE(monitor.GetDelayRemoveRecord(DelayRemovedKey{first.name}));
+    monitor.delayedRemoveKeys = previousKeys;
+    monitor.delayedRemoveKeysByName = previousNames;
+    monitor.running = previousRunning;
+    GlobalMockObject::verify();
+}
 
 TEST_F(UbseMemMonitorDlTest, UbseMemMonitorDlTest_Initialize)
 {

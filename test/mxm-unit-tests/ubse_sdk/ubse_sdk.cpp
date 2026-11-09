@@ -108,6 +108,36 @@ int32_t ubs_mem_shm_list(ubs_mem_shm_desc_t **shm_descs, uint32_t *shm_desc_cnt)
     return UBS_SUCCESS;
 }
 
+int32_t ubs_mem_shm_list_with_prefix(const char *name_prefix, ubs_mem_shm_desc_t **shm_descs, uint32_t *shm_desc_cnt)
+{
+    if (name_prefix == nullptr || shm_descs == nullptr || shm_desc_cnt == nullptr) {
+        return UBS_ERR_NULL_POINTER;
+    }
+    *shm_descs = nullptr;
+    *shm_desc_cnt = 0;
+    const auto prefixLength = strlen(name_prefix);
+    for (uint32_t index = 0; index < global_shm_desc_count; ++index) {
+        if (strncmp(global_shm_descs[index].name, name_prefix, prefixLength) == 0) {
+            ++(*shm_desc_cnt);
+        }
+    }
+    if (*shm_desc_cnt == 0) {
+        return UBS_ENGINE_ERR_NOT_EXIST;
+    }
+    *shm_descs = static_cast<ubs_mem_shm_desc_t *>(malloc(*shm_desc_cnt * sizeof(ubs_mem_shm_desc_t)));
+    if (*shm_descs == nullptr) {
+        *shm_desc_cnt = 0;
+        return UBS_ERR_NULL_POINTER;
+    }
+    uint32_t outputIndex = 0;
+    for (uint32_t index = 0; index < global_shm_desc_count; ++index) {
+        if (strncmp(global_shm_descs[index].name, name_prefix, prefixLength) == 0) {
+            (*shm_descs)[outputIndex++] = global_shm_descs[index].desc;
+        }
+    }
+    return UBS_SUCCESS;
+}
+
 int32_t ubs_engine_client_initialize(const char *ubse_uds_path)
 {
     if (ubse_uds_path != nullptr && strlen(ubse_uds_path) > MXE_SOCKET_PATH_LEN) {

@@ -12,6 +12,8 @@
 #include "ubse_mem_adapter.h"
 #include <dlfcn.h>
 #include <algorithm>
+#include <memory>
+#include <unordered_set>
 #include "ubs_mem_def.h"
 #include "log.h"
 #include "numa_cpu_utils.h"
@@ -32,15 +34,67 @@ using namespace ock::ubsm;
 using namespace ock::ubsm::tracer;
 
 namespace {
-bool ValidateNewMemoryNameCapacity(const std::string &name)
+constexpr uint64_t MULTINODE_SHM_PAGE_SIZE = 4UL * 1024 * 1024;
+
+bool ValidateNewMemoryNameCapacity(const std::string &name, size_t suffixLength = 0)
 {
-    if (name.size() > MAX_SHM_NAME_LENGTH) {
-        DBG_LOGERROR("Memory name exceeds limit, name=" << name << ", limit=" << MAX_SHM_NAME_LENGTH);
+    if (name.size() > MAX_SHM_NAME_LENGTH || suffixLength > MAX_SHM_NAME_LENGTH - name.size()) {
+        DBG_LOGERROR("Memory name exceeds capacity, name=" << name << ", capacity=" << MAX_SHM_NAME_LENGTH
+                                                           << ", suffixLength=" << suffixLength);
         return false;
     }
     return true;
 }
+
+bool ValidateEvenlyDistributedShmSizes(const MultiNodeShmCreateParam &param)
+{
+    const auto nodeCount = param.hostNames.size();
+    if (nodeCount == 0 || param.size == 0 || param.size % nodeCount != 0) {
+        DBG_LOGERROR("Multi-node shared memory size cannot be evenly distributed, name="
+                     << param.name << ", totalSize=" << param.size << ", hostCount=" << nodeCount);
+        return false;
+    }
+    const auto hostSize = param.size / nodeCount;
+    DBG_LOGINFO("Validating evenly distributed host sizes, name=" << param.name << ", totalSize=" << param.size
+                                                                  << ", hostCount=" << nodeCount
+                                                                  << ", hostSize=" << hostSize);
+    if (hostSize % MULTINODE_SHM_PAGE_SIZE != 0) {
+        DBG_LOGERROR("Evenly distributed host size is not aligned, name=" << param.name << ", hostSize=" << hostSize
+                                                                          << ", alignment=" << MULTINODE_SHM_PAGE_SIZE);
+        return false;
+    }
+    return true;
+}
+
+int HexDigitToValue(char value)
+{
+    if (value >= '0' && value <= '9') {
+        return value - '0';
+    }
+    if (value >= 'a' && value <= 'f') {
+        return value - 'a' + 10;
+    }
+    if (value >= 'A' && value <= 'F') {
+        return value - 'A' + 10;
+    }
+    return -1;
+}
+
+bool DecodeHexByte(const std::string &value, size_t offset, uint8_t &result)
+{
+    if (offset >= value.size() || value.size() - offset < 2) {
+        return false;
+    }
+    const auto high = HexDigitToValue(value[offset]);
+    const auto low = HexDigitToValue(value[offset + 1]);
+    if (high < 0 || low < 0) {
+        return false;
+    }
+    result = static_cast<uint8_t>((high << 4U) | low);
+    return true;
+}
 } // namespace
+
 bool UbseMemAdapter::initialized_{false};
 std::mutex UbseMemAdapter::gMutex;
 std::atomic<uint32_t> UbseMemAdapter::nodeId_{UINT32_MAX};
@@ -72,6 +126,7 @@ UbseMemShmCreateWithAffinityFunc UbseMemAdapter::pUbseMemShmCreateWithAffinity =
 UbseMemShmAttachFunc UbseMemAdapter::pUbseMemShmAttach = nullptr;
 UbseMemShmGetFunc UbseMemAdapter::pUbseMemShmGet = nullptr;
 UbseMemShmListFunc UbseMemAdapter::pUbseMemShmList = nullptr;
+UbseMemShmListWithPrefixFunc UbseMemAdapter::pUbseMemShmListWithPrefix = nullptr;
 UbseMemShmDetachFunc UbseMemAdapter::pUbseMemShmDetach = nullptr;
 UbseMemShmDeleteFunc UbseMemAdapter::pUbseMemShmDelete = nullptr;
 UbseLogCallBackRegisterFunc UbseMemAdapter::pUbseLogCallBackRegister = nullptr;
@@ -317,6 +372,15 @@ int32_t UbseMemAdapter::DlopenLibUbse(const std::string &controllerPath)
         return MXM_ERR_UBSE_LIB;
     }
 
+    pUbseMemShmListWithPrefix =
+        (UbseMemShmListWithPrefixFunc)SystemAdapter::DlSym(handle, "ubs_mem_shm_list_with_prefix");
+    if (pUbseMemShmListWithPrefix == nullptr) {
+        DBG_LOGERROR("Failed to load symbol ubs_mem_shm_list_with_prefix, error info=" << dlerror());
+        ResetLibUbseDl();
+        SystemAdapter::DlClose(handle);
+        return MXM_ERR_UBSE_LIB;
+    }
+
     pUbseMemShmDetach = (UbseMemShmDetachFunc)SystemAdapter::DlSym(handle, "ubs_mem_shm_detach");
     if (pUbseMemShmDetach == nullptr) {
         DBG_LOGERROR("Failed to load symbol ubs_mem_shm_detach, error info=" << dlerror());
@@ -369,6 +433,7 @@ void UbseMemAdapter::ResetLibUbseDl()
     pUbseMemShmAttach = nullptr;
     pUbseMemShmGet = nullptr;
     pUbseMemShmList = nullptr;
+    pUbseMemShmListWithPrefix = nullptr;
     pUbseMemShmDetach = nullptr;
     pUbseMemShmDelete = nullptr;
     pUbseLogCallBackRegister = nullptr;
@@ -1294,11 +1359,577 @@ int UbseMemAdapter::ShmCreate(const CreateShmParam &param)
     return MXM_OK;
 }
 
+bool UbseMemAdapter::ValidateMultiNodeShmParam(const MultiNodeShmCreateParam &param)
+{
+    if (param.socketId == UINT32_MAX) {
+        DBG_LOGERROR("Multi-node shared memory requires an explicit socket plane, name=" << param.name << ", socketId="
+                                                                                         << param.socketId);
+        return false;
+    }
+    if ((param.flags & UBSM_FLAG_WITH_LOCK) != 0) {
+        DBG_LOGERROR("Lock mode is not supported for multi-node pools, name=" << param.name
+                                                                              << ", flags=" << param.flags);
+        return false;
+    }
+    const auto nodeCount = param.hostNames.size();
+    if (nodeCount < MIN_MULTINODE_MEMBER_COUNT || nodeCount > MAX_MULTINODE_HOST_NUM) {
+        DBG_LOGERROR("Invalid multi-node host count, name=" << param.name << ", hostCount=" << nodeCount
+                                                            << ", min=" << MIN_MULTINODE_MEMBER_COUNT
+                                                            << ", max=" << MAX_MULTINODE_HOST_NUM);
+        return false;
+    }
+    if (param.name.empty()) {
+        DBG_LOGERROR("Multi-node shared memory pool name is empty.");
+        return false;
+    }
+    if (param.name.size() + MULTINODE_MEMBER_SUFFIX_LENGTH > MAX_SHM_NAME_LENGTH) {
+        DBG_LOGERROR("Multi-node shared memory pool name is too long, name="
+                     << param.name << ", nameLength=" << param.name.size()
+                     << ", maxLength=" << MAX_SHM_NAME_LENGTH - MULTINODE_MEMBER_SUFFIX_LENGTH);
+        return false;
+    }
+    const auto valid = ValidateMultiNodeShmSizes(param);
+    if (!valid) {
+        DBG_LOGERROR("Validating multi-node pool sizes failed, name=" << param.name << ", size=" << param.size
+                                                                      << ", hostCount=" << nodeCount);
+    }
+    return valid;
+}
+
+bool UbseMemAdapter::ValidateMultiNodeShmSizes(const MultiNodeShmCreateParam &param)
+{
+    const auto nodeCount = param.hostNames.size();
+    const auto hostSizeCount = param.hostSizes.size();
+    const bool useCustomSizes = (param.flags & UBSM_FLAG_MULTINODE_CUSTOM_SIZE) != 0;
+    if ((useCustomSizes && hostSizeCount != nodeCount) || (!useCustomSizes && hostSizeCount != 0)) {
+        DBG_LOGERROR("Multi-node provider count mismatch, name=" << param.name << ", hostCount=" << nodeCount
+                                                                 << ", hostSizeCount=" << hostSizeCount
+                                                                 << ", useCustomSizes=" << useCustomSizes);
+        return false;
+    }
+    if (!useCustomSizes) {
+        const auto valid = ValidateEvenlyDistributedShmSizes(param);
+        if (!valid) {
+            DBG_LOGERROR("Validating default multi-node size distribution failed, name="
+                         << param.name << ", size=" << param.size << ", hostCount=" << nodeCount);
+        }
+        return valid;
+    }
+    uint64_t totalSize = 0;
+    for (size_t index = 0; index < nodeCount; ++index) {
+        const auto hostSize = param.hostSizes[index];
+        DBG_LOGINFO("Validating multi-node host size, name=" << param.name << ", index=" << index << ", hostName="
+                                                             << param.hostNames[index] << ", hostSize=" << hostSize);
+        if (hostSize == 0) {
+            DBG_LOGERROR("Multi-node host size is zero, name=" << param.name << ", index=" << index
+                                                               << ", hostName=" << param.hostNames[index]);
+            return false;
+        }
+        if (hostSize % MULTINODE_SHM_PAGE_SIZE != 0) {
+            DBG_LOGERROR("Multi-node host size is not aligned, name="
+                         << param.name << ", index=" << index << ", hostName=" << param.hostNames[index]
+                         << ", hostSize=" << hostSize << ", alignment=" << MULTINODE_SHM_PAGE_SIZE);
+            return false;
+        }
+        if (hostSize > param.size - totalSize) {
+            DBG_LOGERROR("Multi-node host sizes exceed total size, name="
+                         << param.name << ", index=" << index << ", hostName=" << param.hostNames[index]
+                         << ", hostSize=" << hostSize << ", accumulatedSize=" << totalSize
+                         << ", totalSize=" << param.size);
+            return false;
+        }
+        totalSize += hostSize;
+    }
+    if (totalSize != param.size) {
+        DBG_LOGERROR("Multi-node host size sum mismatch, name=" << param.name << ", hostSizeSum=" << totalSize
+                                                                << ", totalSize=" << param.size);
+        return false;
+    }
+    return true;
+}
+
+int UbseMemAdapter::GetMultiNodeShmNodeIds(const std::vector<std::string> &hostNames, std::vector<uint32_t> &nodeIds)
+{
+    ubs_topo_node_t *nodeList = nullptr;
+    uint32_t nodeCount{};
+    const auto ret = pUbseNodeList(&nodeList, &nodeCount);
+    const std::unique_ptr<ubs_topo_node_t, decltype(&free)> nodes(nodeList, free);
+    if (ret != UBS_SUCCESS || nodeList == nullptr || nodeCount == 0 || nodeCount > MAX_MULTINODE_HOST_NUM) {
+        DBG_LOGERROR("Querying multi-node providers failed, ret=" << ret << ", nodeCount=" << nodeCount
+                                                                  << ", nodeListNull=" << (nodeList == nullptr));
+        return MXM_ERR_UBSE_INNER;
+    }
+    std::unordered_map<std::string, uint32_t> hostToNode;
+    for (uint32_t index = 0; index < nodeCount; ++index) {
+        const auto &node = nodeList[index];
+        const auto length = strnlen(node.host_name, sizeof(node.host_name));
+        if (length == 0 || length == sizeof(node.host_name)) {
+            DBG_LOGERROR("Invalid multi-node provider hostname returned by UBSE, index=" << index);
+            return MXM_ERR_UBSE_INNER;
+        }
+        hostToNode.emplace(std::string(node.host_name, length), node.slot_id);
+    }
+    std::unordered_set<uint32_t> selectedNodes;
+    nodeIds.reserve(hostNames.size());
+    for (const auto &hostName : hostNames) {
+        const auto node = hostToNode.find(hostName);
+        if (node == hostToNode.end()) {
+            DBG_LOGERROR("Multi-node provider hostname was not found, hostName=" << hostName);
+            return MXM_ERR_SHM_NOT_FOUND;
+        }
+        if (!selectedNodes.emplace(node->second).second) {
+            DBG_LOGERROR("Duplicate multi-node provider, index=" << nodeIds.size() << ", hostName=" << hostName
+                                                                 << ", nodeId=" << node->second);
+            return MXM_ERR_PARAM_INVALID;
+        }
+        nodeIds.emplace_back(node->second);
+    }
+    return MXM_OK;
+}
+
+std::string UbseMemAdapter::GenerateMultiNodeShmName(const std::string &name, uint8_t encodedNodeCount, uint8_t index)
+{
+    if (index == 0) {
+        return name;
+    }
+    constexpr char hexDigits[] = "0123456789abcdef";
+    std::string childName = name;
+    childName.push_back(hexDigits[(encodedNodeCount >> 4U) & 0x0FU]);
+    childName.push_back(hexDigits[encodedNodeCount & 0x0FU]);
+    childName.push_back(hexDigits[(index >> 4U) & 0x0FU]);
+    childName.push_back(hexDigits[index & 0x0FU]);
+    return childName;
+}
+
+void UbseMemAdapter::RollbackMultiNodeShm(const std::vector<std::pair<std::string, uint64_t>> &members,
+                                          const ubsm::AppContext &context)
+{
+    for (auto iter = members.rbegin(); iter != members.rend(); ++iter) {
+        const auto ret = pUbseMemShmDelete(iter->first.c_str());
+        if (ret != UBS_SUCCESS && ret != UBS_ENGINE_ERR_NOT_EXIST) {
+            DBG_LOGERROR("Rolling back multi-node member failed; scheduling cleanup, name=" << iter->first
+                                                                                            << ", ret=" << ret);
+            DelayRemovedKey key{iter->first, ONE_MINUTE_MS, false, context, false, false, true};
+            key.isAttach = false;
+            key.createSeqNo = iter->second;
+            UBSMemMonitor::GetInstance().AddDelayRemoveRecord(key);
+        }
+    }
+}
+
+int UbseMemAdapter::CreateMultiNodeShmOnNode(const MultiNodeShmCreateParam &param, const std::string &name,
+                                             uint64_t size, uint32_t nodeId, uint64_t &seqNo)
+{
+    ubse_user_info_t ubsUserInfo{};
+    auto ret = FillUserInfo(param.appContext, param.flags | UBSM_INNER_FLAG_MULTINODE, param.mode, ubsUserInfo, seqNo);
+    if (ret != HOK) {
+        DBG_LOGERROR("Preparing shared memory owner metadata failed, name=" << name << ", ret=" << ret);
+        return ret;
+    }
+
+    uint8_t usrInfo[UBS_MEM_MAX_USR_INFO_LEN] = {0};
+    uint64_t ubseFlags = 0;
+    ret = PrepareUserInfoAndFlags(ubsUserInfo, usrInfo, &ubseFlags);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Encoding shared memory user metadata failed, name=" << name << ", ret=" << ret);
+        return ret;
+    }
+
+    ubs_mem_lender_t lender{};
+    lender.slot_id = nodeId;
+    lender.socket_id = param.socketId;
+    lender.numa_id = UINT32_MAX;
+    lender.port_id = UINT32_MAX;
+    lender.lender_size = size;
+    ret = pUbseMemShmCreateWithLender(name.c_str(), usrInfo, ubseFlags, nullptr, &lender);
+    if (ret == UBS_SUCCESS) {
+        return MXM_OK;
+    }
+    DBG_LOGERROR("Create multi-node shared memory failed, name="
+                 << name << ", nodeId=" << nodeId << ", socketId=" << param.socketId << ", numaId=" << UINT32_MAX
+                 << ", portId=" << UINT32_MAX << ", size=" << size << ", ret=" << ret);
+    if (ret == UBS_ERR_TIMED_OUT) {
+        DelayRemovedKey removedKey{
+            name,  ONE_MINUTE_MS, false, {param.appContext.pid, param.appContext.uid, param.appContext.gid},
+            false, false,         true};
+        removedKey.isAttach = false;
+        removedKey.createSeqNo = seqNo;
+        UBSMemMonitor::GetInstance().AddDelayRemoveRecord(removedKey);
+        return UBS_ERR_TIMED_OUT;
+    }
+    if (ret == UBS_ENGINE_ERR_EXISTED) {
+        return MXM_ERR_SHM_ALREADY_EXIST;
+    }
+    if (ret == UBS_ERR_NOT_SUPPORTED) {
+        return MXM_ERR_UBSE_NOT_SUPPORTED;
+    }
+    return MXM_ERR_UBSE_INNER;
+}
+
+int UbseMemAdapter::CreateMultiNodeShmPool(const MultiNodeShmCreateParam &param)
+{
+    if (!ValidateNewMemoryNameCapacity(param.name, MULTINODE_MEMBER_SUFFIX_LENGTH)) {
+        return MXM_ERR_PARAM_INVALID;
+    }
+    if (!ValidateMultiNodeShmParam(param)) {
+        DBG_LOGERROR("Invalid multi-node shared memory parameters, name=" << param.name << ", size=" << param.size
+                                                                          << ", nodeCount=" << param.hostNames.size());
+        return MXM_ERR_PARAM_INVALID;
+    }
+    auto ret = Initialize();
+    if (ret != MXM_OK || pUbseMemShmCreateWithLender == nullptr || pUbseMemShmDelete == nullptr) {
+        DBG_LOGERROR("Multi-node shared memory backend initialization failed, name="
+                     << param.name << ", ret=" << ret << ", createFuncNull=" << (pUbseMemShmCreateWithLender == nullptr)
+                     << ", deleteFuncNull=" << (pUbseMemShmDelete == nullptr));
+        return ret != MXM_OK ? ret : MXM_ERR_UBSE_INNER;
+    }
+    ret = CheckFeatureCompatibility(param.flags);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Requested multi-node shared memory flags are not supported, name="
+                     << param.name << ", flags=" << param.flags << ", ret=" << ret);
+        return ret;
+    }
+    std::vector<uint32_t> nodeIds;
+    ret = GetMultiNodeShmNodeIds(param.hostNames, nodeIds);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Resolving multi-node shared memory provider IDs failed, name="
+                     << param.name << ", hostCount=" << param.hostNames.size() << ", ret=" << ret);
+        return ret;
+    }
+    ret = CreateMultiNodeShmMembers(param, nodeIds);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Creating multi-node pool members failed, name=" << param.name << ", ret=" << ret);
+        return ret;
+    }
+    DBG_LOGINFO("Created multi-node shared memory pool successfully, name="
+                << param.name << ", nodeCount=" << nodeIds.size() << ", size=" << param.size);
+    return MXM_OK;
+}
+
+int UbseMemAdapter::CreateMultiNodeShmMembers(const MultiNodeShmCreateParam &param,
+                                              const std::vector<uint32_t> &nodeIds)
+{
+    std::vector<std::pair<std::string, uint64_t>> createdNames;
+    try {
+        createdNames.reserve(nodeIds.size());
+        const auto encodedNodeCount = static_cast<uint8_t>(nodeIds.size() - 1);
+        for (size_t index = 0; index < nodeIds.size(); ++index) {
+            auto name = GenerateMultiNodeShmName(param.name, encodedNodeCount, static_cast<uint8_t>(index));
+            const auto size = param.hostSizes.empty() ? param.size / nodeIds.size() : param.hostSizes[index];
+            DBG_LOGINFO("Creating multi-node shared memory member, poolName="
+                        << param.name << ", name=" << name << ", index=" << index << ", hostName="
+                        << param.hostNames[index] << ", nodeId=" << nodeIds[index] << ", size=" << size);
+            uint64_t seqNo{};
+            const auto ret = CreateMultiNodeShmOnNode(param, name, size, nodeIds[index], seqNo);
+            if (ret != MXM_OK) {
+                DBG_LOGERROR("Creating multi-node pool member failed, poolName="
+                             << param.name << ", name=" << name << ", index=" << index
+                             << ", hostName=" << param.hostNames[index] << ", nodeId=" << nodeIds[index]
+                             << ", size=" << size << ", createdCount=" << createdNames.size() << ", ret=" << ret);
+                RollbackMultiNodeShm(createdNames, param.appContext);
+                return ret;
+            }
+            createdNames.emplace_back(std::move(name), seqNo);
+        }
+    } catch (const std::exception &e) {
+        DBG_LOGERROR("Allocating multi-node creation state failed, name=" << param.name << ", reason=" << e.what());
+        RollbackMultiNodeShm(createdNames, param.appContext);
+        return MXM_ERR_MALLOC_FAIL;
+    }
+    return MXM_OK;
+}
+
+bool UbseMemAdapter::ParseMultiNodeShmName(const std::string &poolName, const std::string &childName,
+                                           uint8_t &encodedNodeCount, uint8_t &index)
+{
+    if (childName.size() != poolName.size() + MULTINODE_MEMBER_SUFFIX_LENGTH ||
+        childName.compare(0, poolName.size(), poolName) != 0) {
+        return false;
+    }
+    return DecodeHexByte(childName, poolName.size(), encodedNodeCount) &&
+           DecodeHexByte(childName, poolName.size() + 2, index);
+}
+
+int UbseMemAdapter::AppendMultiNodeShmName(const std::string &name, uint8_t encodedNodeCount, uint8_t index,
+                                           uint16_t &nodeCount, std::vector<std::string> &indexedNames)
+{
+    const auto currentNodeCount = static_cast<uint16_t>(encodedNodeCount) + 1;
+    if (currentNodeCount < MIN_MULTINODE_MEMBER_COUNT || index == 0 || index >= currentNodeCount) {
+        DBG_LOGERROR("Invalid multi-node shared memory suffix, name=" << name);
+        return MXM_ERR_SHM_POOL_LAYOUT_CONFLICT;
+    }
+    if (nodeCount == 0) {
+        nodeCount = currentNodeCount;
+        indexedNames.resize(nodeCount);
+    }
+    if (nodeCount != currentNodeCount || !indexedNames[index].empty()) {
+        DBG_LOGERROR("Conflicting multi-node shared memory member, name=" << name << ", nodeCount=" << nodeCount
+                                                                          << ", currentNodeCount=" << currentNodeCount);
+        return MXM_ERR_SHM_POOL_LAYOUT_CONFLICT;
+    }
+    indexedNames[index] = name;
+    return MXM_OK;
+}
+
+int UbseMemAdapter::ReadMultiNodeShmMember(const std::string &poolName, const ubs_mem_shm_desc_t &desc,
+                                           uint32_t listIndex, MultiNodeShmMember &member, uint8_t &encodedNodeCount,
+                                           uint8_t &index)
+{
+    member = MultiNodeShmMember{};
+    encodedNodeCount = 0;
+    index = 0;
+    const auto length = strnlen(desc.name, sizeof(desc.name));
+    if (length == sizeof(desc.name)) {
+        DBG_LOGERROR("Invalid shared memory name returned by UBSE, poolName=" << poolName
+                                                                              << ", listIndex=" << listIndex);
+        return MXM_ERR_UBSE_INNER;
+    }
+    member.name.assign(desc.name, length);
+    if (member.name != poolName && !ParseMultiNodeShmName(poolName, member.name, encodedNodeCount, index)) {
+        DBG_LOGINFO("Skipping shared memory object with unmatched multi-node member name, poolName="
+                    << poolName << ", name=" << member.name << ", listIndex=" << listIndex);
+        member.name.clear();
+        return MXM_OK;
+    }
+    const auto ret = memcpy_s(&member.userInfo, sizeof(member.userInfo), desc.usr_info, sizeof(member.userInfo));
+    if (ret != EOK) {
+        DBG_LOGERROR("Copy multi-node shared memory user info failed, poolName="
+                     << poolName << ", name=" << member.name << ", listIndex=" << listIndex << ", ret=" << ret);
+        return MXM_ERR_UBSE_INNER;
+    }
+    if ((member.userInfo.flag & UBSM_INNER_FLAG_MULTINODE) == 0) {
+        DBG_LOGINFO("Skipping shared memory object without multi-node flag, poolName="
+                    << poolName << ", name=" << member.name << ", flag=" << member.userInfo.flag
+                    << ", listIndex=" << listIndex);
+        member.name.clear();
+        return MXM_OK;
+    }
+    member.size = desc.mem_size;
+    return MXM_OK;
+}
+
+int UbseMemAdapter::ValidateMultiNodeShmDeleteOwnership(const std::string &poolName,
+                                                        const std::vector<MultiNodeShmMember> &members,
+                                                        const ubsm::AppContext &appContext)
+{
+    for (const auto &member : members) {
+        const auto &owner = member.userInfo.udsInfo;
+        if (owner.uid != appContext.uid || owner.gid != appContext.gid) {
+            DBG_LOGERROR("No permission to delete multi-node shared memory member, poolName="
+                         << poolName << ", name=" << member.name << ", ownerUid=" << owner.uid << ", ownerGid="
+                         << owner.gid << ", requestUid=" << appContext.uid << ", requestGid=" << appContext.gid);
+            return MXM_ERR_SHM_PERMISSION_DENIED;
+        }
+    }
+    return MXM_OK;
+}
+
+int UbseMemAdapter::CollectMultiNodeShmNames(const std::string &poolName, const ubs_mem_shm_desc_t *descs,
+                                             uint32_t descCount, std::vector<MultiNodeShmMember> &members,
+                                             bool requireComplete)
+{
+    uint16_t nodeCount{};
+    std::vector<std::string> indexedNames;
+    bool hasBase = false;
+    std::unordered_map<std::string, MultiNodeShmMember> metadata;
+    for (uint32_t i = 0; i < descCount; ++i) {
+        MultiNodeShmMember member{};
+        uint8_t encodedNodeCount{};
+        uint8_t index{};
+        auto ret = ReadMultiNodeShmMember(poolName, descs[i], i, member, encodedNodeCount, index);
+        if (ret != MXM_OK) {
+            DBG_LOGERROR("Reading multi-node pool member failed, poolName=" << poolName << ", listIndex=" << i
+                                                                            << ", ret=" << ret);
+            return ret;
+        }
+        if (member.name.empty()) {
+            continue;
+        }
+        if (member.name == poolName) {
+            hasBase = true;
+        } else {
+            ret = AppendMultiNodeShmName(member.name, encodedNodeCount, index, nodeCount, indexedNames);
+        }
+        if (ret != MXM_OK) {
+            DBG_LOGERROR("Collecting multi-node shared memory member failed, poolName="
+                         << poolName << ", name=" << member.name << ", listIndex=" << i << ", memberIndex="
+                         << static_cast<uint32_t>(index) << ", nodeCount=" << nodeCount << ", ret=" << ret);
+            return ret;
+        }
+        metadata.emplace(member.name, member);
+    }
+    const auto ret = OrderMultiNodeShmMembers(poolName, hasBase, indexedNames, metadata, members, requireComplete);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Ordering collected multi-node pool members failed, name="
+                     << poolName << ", descCount=" << descCount << ", requireComplete=" << requireComplete
+                     << ", ret=" << ret);
+    }
+    return ret;
+}
+
+int UbseMemAdapter::OrderMultiNodeShmMembers(const std::string &poolName, bool hasBase,
+                                             std::vector<std::string> &indexedNames,
+                                             std::unordered_map<std::string, MultiNodeShmMember> &metadata,
+                                             std::vector<MultiNodeShmMember> &members, bool requireComplete)
+{
+    std::vector<std::string> names;
+    const auto ret = FinalizeMultiNodeShmNames(poolName, hasBase, indexedNames, names, requireComplete);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Finalizing multi-node pool member layout failed, name="
+                     << poolName << ", hasBase=" << hasBase << ", expectedCount=" << indexedNames.size()
+                     << ", requireComplete=" << requireComplete << ", ret=" << ret);
+        return ret;
+    }
+    std::vector<MultiNodeShmMember> collected;
+    collected.reserve(names.size());
+    for (const auto &name : names) {
+        collected.emplace_back(std::move(metadata.at(name)));
+    }
+    members = std::move(collected);
+    return MXM_OK;
+}
+
+int UbseMemAdapter::FinalizeMultiNodeShmNames(const std::string &poolName, bool hasBase,
+                                              std::vector<std::string> &indexedNames, std::vector<std::string> &names,
+                                              bool requireComplete)
+{
+    if (indexedNames.empty() && !hasBase) {
+        DBG_LOGERROR("No multi-node shared memory members found, name=" << poolName);
+        return MXM_ERR_SHM_NOT_EXIST;
+    }
+    bool incomplete = !hasBase || indexedNames.empty();
+    if (indexedNames.empty()) {
+        DBG_LOGWARN("Multi-node shared memory pool has only its base member, name=" << poolName);
+    } else {
+        indexedNames[0] = hasBase ? poolName : std::string{};
+        for (size_t index = 0; index < indexedNames.size(); ++index) {
+            if (indexedNames[index].empty()) {
+                incomplete = true;
+                DBG_LOGWARN("Missing multi-node shared memory member, name="
+                            << poolName << ", index=" << index << ", expectedCount=" << indexedNames.size());
+            }
+        }
+    }
+    if (requireComplete && incomplete) {
+        DBG_LOGERROR("Cannot map incomplete multi-node shared memory pool, name=" << poolName);
+        return MXM_ERR_SHM_POOL_INCOMPLETE;
+    }
+    std::vector<std::string> collected;
+    for (auto &name : indexedNames) {
+        if (!name.empty()) {
+            collected.emplace_back(std::move(name));
+        }
+    }
+    if (indexedNames.empty() && hasBase) {
+        collected.emplace_back(poolName);
+    }
+    names = std::move(collected);
+    return MXM_OK;
+}
+
+int UbseMemAdapter::GetMultiNodeShmNames(const std::string &poolName, std::vector<std::string> &names,
+                                         bool requireComplete)
+{
+    std::vector<MultiNodeShmMember> members;
+    const auto ret = GetMultiNodeShmMembers(poolName, members, requireComplete);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Resolving multi-node pool member names failed, name=" << poolName << ", requireComplete="
+                                                                            << requireComplete << ", ret=" << ret);
+        return ret;
+    }
+    std::vector<std::string> collected;
+    collected.reserve(members.size());
+    for (auto &member : members) {
+        collected.emplace_back(std::move(member.name));
+    }
+    names = std::move(collected);
+    return MXM_OK;
+}
+
+int UbseMemAdapter::GetMultiNodeShmMembers(const std::string &poolName, std::vector<MultiNodeShmMember> &members,
+                                           bool requireComplete)
+{
+    auto ret = Initialize();
+    if (ret != MXM_OK || pUbseMemShmListWithPrefix == nullptr) {
+        DBG_LOGERROR("Multi-node shared memory listing backend initialization failed, name="
+                     << poolName << ", ret=" << ret << ", listFuncNull=" << (pUbseMemShmListWithPrefix == nullptr));
+        return ret != MXM_OK ? ret : MXM_ERR_UBSE_INNER;
+    }
+    ubs_mem_shm_desc_t *descs = nullptr;
+    uint32_t descCount = 0;
+    ret = pUbseMemShmListWithPrefix(poolName.c_str(), &descs, &descCount);
+    if (ret != UBS_SUCCESS) {
+        DBG_LOGERROR("List multi-node shared memory failed, name=" << poolName << ", ret=" << ret);
+        if (ret == UBS_ENGINE_ERR_NOT_EXIST) {
+            return MXM_ERR_SHM_NOT_EXIST;
+        }
+        return ret == UBS_ERR_NOT_SUPPORTED ? MXM_ERR_UBSE_NOT_SUPPORTED : MXM_ERR_UBSE_INNER;
+    }
+    std::unique_ptr<ubs_mem_shm_desc_t, decltype(&free)> descOwner(descs, &free);
+    if ((descs == nullptr && descCount != 0) || descCount > UBS_MEM_MAX_DESC_LIST) {
+        DBG_LOGERROR("UBSE returned invalid shared memory list, name=" << poolName << ", count=" << descCount);
+        return MXM_ERR_UBSE_INNER;
+    }
+    ret = CollectMultiNodeShmNames(poolName, descs, descCount, members, requireComplete);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Collecting listed multi-node pool members failed, name="
+                     << poolName << ", descCount=" << descCount << ", requireComplete=" << requireComplete
+                     << ", ret=" << ret);
+    }
+    return ret;
+}
+
+int UbseMemAdapter::DeleteMultiNodeShmPool(const std::string &name, const ubsm::AppContext &appContext)
+{
+    if (name.empty() || name.size() + MULTINODE_MEMBER_SUFFIX_LENGTH > MAX_SHM_NAME_LENGTH) {
+        DBG_LOGERROR("Invalid multi-node shared memory pool name, name=" << name);
+        return MXM_ERR_PARAM_INVALID;
+    }
+    std::vector<MultiNodeShmMember> members;
+    auto ret = GetMultiNodeShmMembers(name, members);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Discovering multi-node shared memory pool members failed, name=" << name << ", ret=" << ret);
+        return ret;
+    }
+    ret = ValidateMultiNodeShmDeleteOwnership(name, members, appContext);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Validating multi-node pool deletion permissions failed, name=" << name << ", ret=" << ret);
+        return ret;
+    }
+    std::vector<std::string> childNames;
+    childNames.reserve(members.size());
+    for (const auto &member : members) {
+        childNames.emplace_back(member.name);
+    }
+    for (const auto &childName : childNames) {
+        if (UBSMemMonitor::GetInstance().GetDelayRemoveRecord(DelayRemovedKey{childName})) {
+            DBG_LOGERROR("Multi-node shared memory name is busy, name=" << childName);
+            return MXM_ERR_NAME_BUSY;
+        }
+    }
+    if (childNames.front() == name) {
+        std::rotate(childNames.begin(), childNames.begin() + 1, childNames.end());
+    }
+    for (size_t index = 0; index < childNames.size(); ++index) {
+        ret = ShmDelete(childNames[index], appContext);
+        if (ret != MXM_OK) {
+            DBG_LOGERROR("Delete multi-node shared memory member failed, poolName="
+                         << name << ", name=" << childNames[index] << ", index=" << index << ", deletedCount=" << index
+                         << ", totalCount=" << childNames.size() << ", ret=" << ret);
+            return ret;
+        }
+    }
+    DBG_LOGINFO("Deleted multi-node shared memory pool successfully, name=" << name
+                                                                            << ", nodeCount=" << childNames.size());
+    return MXM_OK;
+}
+
 int UbseMemAdapter::GetSlotIdFromHostName(const std::string &hostName, uint32_t *slotId)
 {
     auto ret = Initialize();
     if (ret != 0) {
-        DBG_LOGERROR("Failed to Initialize, host name=" << hostName << ", ret=" << ret);
+        DBG_LOGERROR("UBSE initialization failed while resolving provider host, hostName=" << hostName
+                                                                                           << ", ret=" << ret);
         return ret;
     }
     if (hostName.empty()) {
@@ -1311,22 +1942,24 @@ int UbseMemAdapter::GetSlotIdFromHostName(const std::string &hostName, uint32_t 
     ret = pUbseNodeList(&nodeList, &nodeCnt);
     TP_TRACE_END(TP_UBSM_GET_NODE_LIST, ret);
     if (ret != UBS_SUCCESS) {
-        DBG_LOGERROR("pUbseNodeList failed, ret=" << ret);
+        DBG_LOGERROR("Querying the UBSE node list failed, hostName=" << hostName << ", ret=" << ret);
         free(nodeList);
         return MXM_ERR_UBSE_INNER;
     }
-    DBG_LOGINFO("Ubse nodeList get success, nodeCnt=" << nodeCnt << ", hostName=" << hostName);
+    DBG_LOGINFO("Queried the UBSE node list, nodeCount=" << nodeCnt << ", hostName=" << hostName);
 
     if (nodeList == nullptr || nodeCnt == 0 || (nodeCnt > UBS_MEM_MAX_SLOT_NUM)) {
-        DBG_LOGERROR("pUbseNodeList return invalid, ret=" << ret << ", nodeCnt=" << nodeCnt);
+        DBG_LOGERROR("UBSE returned an invalid node list, hostName="
+                     << hostName << ", nodeListNull=" << (nodeList == nullptr) << ", nodeCount=" << nodeCnt
+                     << ", maxNodeCount=" << UBS_MEM_MAX_SLOT_NUM);
         free(nodeList);
         return MXM_ERR_UBSE_INNER;
     }
 
     std::unordered_map<std::string, uint32_t> hostToSlotId;
     for (uint32_t i = 0; i < nodeCnt; ++i) {
-        DBG_LOGINFO("Node list info: slot_id[" << i << "]=" << nodeList[i].slot_id
-                                               << ", hostname=" << nodeList[i].host_name);
+        DBG_LOGINFO("UBSE node list entry, index=" << i << ", slotId=" << nodeList[i].slot_id
+                                                   << ", hostName=" << nodeList[i].host_name);
         hostToSlotId[nodeList[i].host_name] = nodeList[i].slot_id;
     }
     free(nodeList);
@@ -1334,7 +1967,7 @@ int UbseMemAdapter::GetSlotIdFromHostName(const std::string &hostName, uint32_t 
 
     auto it = hostToSlotId.find(hostName);
     if (it == hostToSlotId.end()) {
-        DBG_LOGERROR("HostName= " << hostName << " not found from ubs engine cluster.");
+        DBG_LOGERROR("Provider host was not found in the UBSE node list, hostName=" << hostName);
         return MXM_ERR_SHM_NOT_FOUND;
     }
     *slotId = it->second;

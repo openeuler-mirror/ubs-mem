@@ -55,6 +55,7 @@ int32_t SHMManager::RecoverFromRefRecord()
         }
         for (const auto &user : ref.second) {
             namePos->second.pids.insert(user.first);
+            namePos->second.referenceIds.emplace(user.first, nextReferenceId_++);
             DBG_LOGINFO("[SHM RECOVER] name: " << ref.first << " pid: " << user.first
                                                << " refCount: " << namePos->second.pids.size());
         }
@@ -138,7 +139,9 @@ int32_t SHMManager::AddMemoryUserInfo(const std::string &name, pid_t userProcess
         DBG_LOGERROR("AddShmRefRecord fail. name: " << name << " pid: " << userProcessId);
         return MXM_ERR_SHM_NOT_FOUND;
     }
-    attachedShareMemory_[name].pids.insert(userProcessId);
+    if (attachedShareMemory_[name].pids.insert(userProcessId).second) {
+        attachedShareMemory_[name].referenceIds[userProcessId] = nextReferenceId_++;
+    }
     DBG_LOGINFO("AddMemoryUserInfo Successfully. name: " << name
                                                          << " refCount: " << attachedShareMemory_[name].pids.size());
     return UBSM_OK;
@@ -162,6 +165,7 @@ int32_t SHMManager::RemoveMemoryUserInfo(const std::string &name, pid_t userProc
         return MXM_ERR_SHM_NOT_FOUND;
     }
     memIter->second.pids.erase(userProcessId);
+    memIter->second.referenceIds.erase(userProcessId);
     DBG_LOGINFO("RemoveMemoryUserInfo Successfully. name: " << name
                                                             << " refCount: " << attachedShareMemory_[name].pids.size());
     return UBSM_OK;
@@ -217,7 +221,9 @@ int32_t SHMManager::AddFullShareMemoryInfo(const std::string &name, pid_t pid,
     }
     memIter->second.state = ubsm::RecordState::FINISH;
     memIter->second.result = result;
-    memIter->second.pids.insert(pid);
+    if (memIter->second.pids.insert(pid).second) {
+        memIter->second.referenceIds[pid] = nextReferenceId_++;
+    }
     return MXM_OK;
 }
 

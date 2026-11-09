@@ -11,6 +11,7 @@
  */
 
 #include "ShmMetaDataMgr.h"
+#include <algorithm>
 #include "ubs_mem_def.h"
 #include "log.h"
 #include "rack_mem_err.h"
@@ -227,15 +228,51 @@ bool ShmMetaDataMgr::IsMetaMappingRevoked(const std::string &name)
 
 uint32_t ShmMetaDataMgr::GetAllUsedMemoryNames(std::vector<std::string> &names)
 {
-    names.clear();
+    // Publish metadata before removing names of mappings in progress; snapshot in this order to avoid missing either state.
+    {
+        std::lock_guard<std::mutex> lock(mappingInProgressMutex_);
+        names = mappingInProgressNames_;
+    }
     for (size_t index = 0; index < SEGMENT_COUNT; ++index) {
-        mNameLock[index].DoLock();
+        Locker<Lock> locker(&mNameLock[index]);
         for (const auto &[fst, snd] : this->mAppShmInfoMap[index]) {
             names.push_back(fst);
+            constexpr char HEX_DIGITS[] = "0123456789abcdef";
+            const auto count = snd.groupMemIds.size();
+            if (count > MAX_MULTINODE_HOST_NUM) {
+                DBG_LOGERROR("Invalid multi-node metadata provider count, name=" << fst << ", count=" << count);
+                names.clear();
+                return MXM_ERR_SHM_POOL_LAYOUT_CONFLICT;
+            }
+            for (size_t member = 1; member < count; ++member) {
+                std::string suffix{HEX_DIGITS[(count - 1) >> 4], HEX_DIGITS[(count - 1) & 15], HEX_DIGITS[member >> 4],
+                                   HEX_DIGITS[member & 15]};
+                names.emplace_back(fst + suffix);
+            }
         }
-        mNameLock[index].UnLock();
     }
     return MXM_OK;
+}
+
+uint32_t ShmMetaDataMgr::AddMappingInProgressNames(const std::vector<std::string> &names)
+{
+    std::lock_guard<std::mutex> lock(mappingInProgressMutex_);
+    mappingInProgressNames_.insert(mappingInProgressNames_.end(), names.begin(), names.end());
+    return MXM_OK;
+}
+
+void ShmMetaDataMgr::RemoveMappingInProgressNames(const std::vector<std::string> &names)
+{
+    std::lock_guard<std::mutex> lock(mappingInProgressMutex_);
+    for (const auto &name : names) {
+        const auto it = std::find(mappingInProgressNames_.begin(), mappingInProgressNames_.end(), name);
+        if (it != mappingInProgressNames_.end()) {
+            // Remove one occurrence so another mapping of the same name remains visible.
+            mappingInProgressNames_.erase(it);
+        } else {
+            DBG_LOGWARN("Shared memory name for mapping in progress was not registered, name=" << name);
+        }
+    }
 }
 
 bool ShmMetaDataMgr::HasOverlapWithKnownVmas(uintptr_t start, uintptr_t end)
@@ -322,8 +359,8 @@ uint32_t ShmMetaDataMgr::RemoveMetaData(void *start, const std::string &name)
     }
     auto ret = RemoveMappedMemoryRange(start);
     if (ret != MXM_OK) {
-        DBG_LOGERROR("RemoveMappedMemoryRange failed: " << ret);
         mNameLock[key].UnLock();
+        DBG_LOGERROR("RemoveMappedMemoryRange failed; retaining mapping metadata for retry, ret=" << ret);
         return ret;
     }
     mAppShmInfoMap[key].erase(name);
@@ -342,27 +379,21 @@ uint32_t ShmMetaDataMgr::AddMetaData(const std::string &name, void *mAddr, ShmAp
         DBG_LOGERROR("Param mAddr is nullptr.");
         return MXM_ERR_NULLPTR;
     }
-    DBG_LOGDEBUG("Adding meta data, name=" << name);
     const auto key = StrToSegment(name);
     const auto pkey = PtrToSegment(mAddr);
-    {
-        Locker<Lock> nameLocker(&mNameLock[key]);
-        auto ret = AddMappedMemoryRange(mAddr, shmAppMetaData.mapSize);
-        if (ret != MXM_OK) {
-            DBG_LOGERROR("AddMappedMemoryRange failed: " << ret);
-            return ret;
-        }
-        const auto find = mAppShmInfoMap[key].find(name);
-        if (find == mAppShmInfoMap[key].end()) {
-            mAppShmInfoMap[key].emplace(name, shmAppMetaData);
-        } else {
-            DBG_LOGWARN("AddMetaDataAfterMap name exist! name:" << name);
-            find->second = shmAppMetaData;
-        }
+    Locker<Lock> nameLock(&mNameLock[key]);
+    Locker<Lock> addressLock(&mPtrLock[pkey]);
+    if (mAppShmInfoMap[key].count(name) != 0 || mAddr2NameMap[pkey].count(mAddr) != 0) {
+        DBG_LOGERROR("Shared memory mapping metadata already exists, name=" << name);
+        return MXM_ERR_SHM_ALREADY_EXIST;
     }
-
-    Locker<Lock> ptrLocker(&mPtrLock[pkey]);
-    mAddr2NameMap[pkey][mAddr] = name;
+    const auto ret = AddMappedMemoryRange(mAddr, shmAppMetaData.mapSize);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Adding shared memory address range failed, name=" << name << ", ret=" << ret);
+        return ret;
+    }
+    mAppShmInfoMap[key].emplace(name, shmAppMetaData);
+    mAddr2NameMap[pkey].emplace(mAddr, name);
     DBG_LOGDEBUG("Adding meta data successfully, name=" << name << ", data=" << shmAppMetaData);
     return UBSM_OK;
 }
@@ -391,6 +422,7 @@ void ShmMetaDataMgr::ForkChildResetNoLock()
         mAddr2NameMap[i].clear();
     }
     mMappedMemoryAddress.clear();
+    mappingInProgressNames_.clear();
 }
 
 } // namespace ock::mxmd

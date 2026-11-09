@@ -30,6 +30,8 @@ struct AttachedShareMemory {
     ubsm::RecordState state;
     std::unordered_set<pid_t> pids;
     ock::ubsm::ShareMemImportResult result;
+    // Runtime identity of each PID reference; never reused within this daemon instance.
+    std::unordered_map<pid_t, uint64_t> referenceIds;
 };
 
 class SHMManager {
@@ -94,6 +96,7 @@ private:
 
     std::mutex mapMutex_{};
     std::unordered_map<std::string, AttachedShareMemory> attachedShareMemory_{};
+    uint64_t nextReferenceId_{1};
 };
 } // namespace ock::share::service
 #endif // OCK_MEM_SHARE_MANAGER_H

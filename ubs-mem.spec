@@ -45,10 +45,11 @@ sh build.sh -t relwithdebinfo
 rm -rf %{buildroot}
 mkdir -p %{buildroot}%{_bindir} %{buildroot}%{_libdir} %{buildroot}%{_prefix}/lib/ubs_mem
 mkdir -p %{buildroot}%{_includedir}/ubs_mem %{buildroot}%{_sysconfdir}/ubs_mem
-install -m 440 %{_builddir}/%{name}-%{version}/build/relwithdebinfo/output/lib/libubsm_sdk.so.%{version} %{buildroot}%{_libdir}/
+# find-debuginfo requires executable ELF files; %%files restores library permissions to 440.
+install -m 550 %{_builddir}/%{name}-%{version}/build/relwithdebinfo/output/lib/libubsm_sdk.so.%{version} %{buildroot}%{_libdir}/
 ln -s libubsm_sdk.so.%{version} %{buildroot}%{_libdir}/libubsm_sdk.so.1
 ln -s libubsm_sdk.so.1 %{buildroot}%{_libdir}/libubsm_sdk.so
-install -m 440 %{_builddir}/%{name}-%{version}/build/relwithdebinfo/output/lib/libubsmd.so %{buildroot}%{_prefix}/lib/ubs_mem/
+install -m 550 %{_builddir}/%{name}-%{version}/build/relwithdebinfo/output/lib/libubsmd.so %{buildroot}%{_prefix}/lib/ubs_mem/
 install -m 550 %{_builddir}/%{name}-%{version}/build/relwithdebinfo/output/bin/ubsmd %{buildroot}%{_bindir}/
 install -m 640 %{_builddir}/%{name}-%{version}/build/relwithdebinfo/output/config/ubsmd.conf %{buildroot}%{_sysconfdir}/ubs_mem/
 install -m 644 %{_builddir}/%{name}-%{version}/build/relwithdebinfo/output/include/ubs_mem.h %{buildroot}%{_includedir}/ubs_mem/
