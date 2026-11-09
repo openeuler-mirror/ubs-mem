@@ -4,6 +4,7 @@
 #include <dlfcn.h>
 #include <gtest/gtest.h>
 #include <sys/mman.h>
+#include <cstring>
 #include <mockcpp/mockcpp.hpp>
 
 #define private public
@@ -97,11 +98,35 @@ TEST_F(UbsmemShmemAllocateTest, NameZeroLength)
 
 TEST_F(UbsmemShmemAllocateTest, NameTooLong)
 {
-    std::string longName = std::string(MAX_SHM_NAME_LENGTH, 'a');
+    std::string longName = std::string(MAX_SHM_NAME_LENGTH + 1, 'a');
     EXPECT_EQ(UBSM_ERR_PARAM_INVALID,
               ubsmem_shmem_allocate(valid_region_name.c_str(), longName.c_str(), valid_size, valid_mode, valid_flags));
     EXPECT_EQ(UBSM_ERR_PARAM_INVALID,
               ubsmem_shmem_allocate(longName.c_str(), valid_name.c_str(), valid_size, valid_mode, valid_flags));
+}
+
+TEST_F(UbsmemShmemAllocateTest, NameCapacity64ExcludesTerminator)
+{
+    MOCKER_CPP(&MxmComIpcClientSend, int (*)(uint16_t, MsgBase *, MsgBase *))
+        .stubs()
+        .will(invoke(MxmShmIpcClientSendStub));
+    MOCKER_CPP(&RackMemShm::UbsMemShmCreate,
+               uint32_t(*)(RackMemShm *, const std::string &, const std::string &, uint64_t, const std::string &,
+                           const SHMRegionDesc &, uint64_t, mode_t))
+        .stubs()
+        .will(returnValue(static_cast<uint32_t>(MXM_OK)));
+    for (const size_t length : {47UL, 48UL, 63UL, 64UL}) {
+        const std::string name(length, 'a');
+        EXPECT_EQ(ubsmem_shmem_allocate(valid_region_name.c_str(), name.c_str(), valid_size, valid_mode, valid_flags),
+                  UBSM_OK);
+    }
+    const std::string name(65, 'a');
+    EXPECT_EQ(ubsmem_shmem_allocate(valid_region_name.c_str(), name.c_str(), valid_size, valid_mode, valid_flags),
+              UBSM_ERR_PARAM_INVALID);
+    char unterminated[MAX_SHM_NAME_LENGTH + 1];
+    memset(unterminated, 'a', sizeof(unterminated));
+    EXPECT_EQ(ubsmem_shmem_allocate(valid_region_name.c_str(), unterminated, valid_size, valid_mode, valid_flags),
+              UBSM_ERR_PARAM_INVALID);
 }
 
 TEST_F(UbsmemShmemAllocateTest, FlagsInvalid)
@@ -146,7 +171,7 @@ TEST_F(UbsmemShmemDeallocateTest, NameZeroLength)
 
 TEST_F(UbsmemShmemDeallocateTest, NameTooLong)
 {
-    std::string longName = std::string(MAX_SHM_NAME_LENGTH, 'a');
+    std::string longName = std::string(MAX_SHM_NAME_LENGTH + 1, 'a');
     EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_deallocate(longName.c_str()));
 }
 
@@ -251,7 +276,7 @@ TEST_F(UbsmemShmemMapTest, NameTooLong)
     off_t valid_offset = 0;
     int valid_prot = PROT_READ | PROT_WRITE;
     int valid_flags = MAP_SHARED;
-    std::string too_long_name = std::string(MAX_SHM_NAME_LENGTH, 'a');
+    std::string too_long_name = std::string(MAX_SHM_NAME_LENGTH + 1, 'a');
 
     EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_map(nullptr, valid_length, valid_prot, valid_flags,
                                                        too_long_name.c_str(), valid_offset, &result_ptr));
@@ -384,7 +409,7 @@ TEST_F(UbsmemShmemSetOwnershipTest, NameZeroLength)
 TEST_F(UbsmemShmemSetOwnershipTest, NameTooLong)
 {
     size_t valid_length = PAGE_SIZE;
-    std::string too_long_name = std::string(MAX_SHM_NAME_LENGTH, 'a');
+    std::string too_long_name = std::string(MAX_SHM_NAME_LENGTH + 1, 'a');
     EXPECT_EQ(UBSM_ERR_PARAM_INVALID,
               ubsmem_shmem_set_ownership(too_long_name.c_str(), valid_ptr, valid_length, PROT_READ));
 }
@@ -687,7 +712,7 @@ protected:
 
         // 设置无效的测试数据
         empty_name = "";
-        long_name = std::string(MAX_SHM_NAME_LENGTH, 'a'); // 超过限制的名称
+        long_name = std::string(MAX_SHM_NAME_LENGTH + 1, 'a'); // 超过限制的名称
     }
 
     void TearDown() override
@@ -739,7 +764,7 @@ protected:
 
         // 设置无效的测试数据
         empty_name = "";
-        long_name = std::string(MAX_SHM_NAME_LENGTH, 'a'); // 超过限制的名称
+        long_name = std::string(MAX_SHM_NAME_LENGTH + 1, 'a'); // 超过限制的名称
     }
 
     void TearDown() override
@@ -791,7 +816,7 @@ protected:
 
         // 设置无效的测试数据
         empty_name = "";
-        long_name = std::string(MAX_SHM_NAME_LENGTH, 'a'); // 超过限制的名称
+        long_name = std::string(MAX_SHM_NAME_LENGTH + 1, 'a'); // 超过限制的名称
     }
 
     void TearDown() override

@@ -258,6 +258,72 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmCreateSuccess)
     UbseMemAdapter::Destroy();
 }
 
+TEST_F(UbseMemAdapterDlTest, Rejects65ByteNamesBeforeBackendInitialization)
+{
+    MOCKER(UbseMemAdapter::Initialize).expects(never());
+    const std::string name(65, 'a');
+    CreateShmParam shm{};
+    shm.name = name;
+    EXPECT_EQ(UbseMemAdapter::ShmCreate(shm), MXM_ERR_PARAM_INVALID);
+    CreateShmWithProviderParam provider("node2", 1, 1, UINT32_MAX);
+    provider.name = name;
+    EXPECT_EQ(UbseMemAdapter::ShmCreateWithProvider(provider), MXM_ERR_PARAM_INVALID);
+    LeaseMallocResult result{};
+    LeaseMallocParam lease{};
+    lease.name = name;
+    EXPECT_EQ(UbseMemAdapter::LeaseMalloc(lease, result), MXM_ERR_PARAM_INVALID);
+    LeaseMallocWithLocParam locatedLease{};
+    locatedLease.name = name;
+    EXPECT_EQ(UbseMemAdapter::LeaseMallocWithLoc(locatedLease, result), MXM_ERR_PARAM_INVALID);
+    GlobalMockObject::verify();
+    GlobalMockObject::reset();
+}
+
+TEST_F(UbseMemAdapterDlTest, Preserves64ByteLeaseNames)
+{
+    LeaseMallocWithLocParam param{};
+    param.name = std::string(64, 'l');
+    param.regionName = "default";
+    param.size = TEST_SHM_SIZE;
+    param.slotId = 1;
+    param.socketId = 1;
+    param.numaId = 0;
+    param.portId = 1;
+    for (const bool isNuma : {false, true}) {
+        param.isNuma = isNuma;
+        LeaseMallocResult result{};
+        ASSERT_EQ(UbseMemAdapter::LeaseMallocWithLoc(param, result), MXM_OK);
+        EXPECT_FALSE(result.memIds.empty());
+        EXPECT_EQ(UbseMemAdapter::LeaseFree(param.name, isNuma), MXM_OK);
+    }
+    UbseMemAdapter::Destroy();
+}
+
+TEST_F(UbseMemAdapterDlTest, PreservesLongSharedMemoryNames)
+{
+    CreateShmParam param{};
+    param.size = TEST_SHM_SIZE;
+    param.mode = TEST_SHM_MODE;
+    SHMRegions regions{};
+    ASSERT_EQ(UbseMemAdapter::LookupRegionList(regions), MXM_OK);
+    param.desc = regions.region[0];
+    for (const size_t length : {47UL, 48UL, 63UL, 64UL}) {
+        param.name = std::string(length, 'a');
+        ASSERT_EQ(UbseMemAdapter::ShmCreate(param), MXM_OK);
+        ubse_user_info_t userInfo{};
+        EXPECT_EQ(UbseMemAdapter::ShmGetUserData(param.name, userInfo), MXM_OK);
+        ubsmem_shmem_info_t info{};
+        EXPECT_EQ(UbseMemAdapter::ShmLookup(param.name, info), MXM_OK);
+        EXPECT_STREQ(info.name, param.name.c_str());
+        std::vector<ubsmem_shmem_desc_t> listed;
+        EXPECT_EQ(UbseMemAdapter::ShmListLookup(param.name, listed), MXM_OK);
+        ASSERT_EQ(listed.size(), 1);
+        EXPECT_STREQ(listed[0].name, param.name.c_str());
+        EXPECT_EQ(UbseMemAdapter::ShmDelete(param.name, param.appContext), MXM_OK);
+    }
+    UbseMemAdapter::Destroy();
+}
+
 TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmCreateWithAffinity)
 {
     ock::mxm::CreateShmParam createParam;

@@ -13,10 +13,12 @@
 #define SIMPLE_SAMPLES_RECORD_STORE_DEF_H
 
 #include <cstdint>
+#include "ubs_mem_def.h"
 #include "ubs_common_types.h"
 namespace ock {
 namespace ubsm {
-constexpr uint32_t RECORD_NAME_SIZE = 64;            ///< 各种记录名称的长度，包含'/0'共64
+constexpr uint32_t RECORD_NAME_SIZE = 64;                             ///< Region-record name capacity, including NUL.
+constexpr uint32_t RECORD_MEMORY_NAME_SIZE = MAX_SHM_NAME_LENGTH + 1; ///< Memory-record name capacity, including NUL.
 constexpr uint32_t REGION_NODE_BITMAP_COUNT = 1024U; ///< 用于表示region中节点的bitmap位数，可表示0~1023的nodeId
 constexpr uint32_t U64_BITS_COUNT = 64U;
 constexpr uint32_t REGION_NODE_BITMAP_U64SIZE = REGION_NODE_BITMAP_COUNT / U64_BITS_COUNT;
@@ -61,7 +63,7 @@ struct RegionRecord {
 };
 
 struct MemLeaseRecord {
-    char name[RECORD_NAME_SIZE];
+    char name[RECORD_MEMORY_NAME_SIZE];
     uint64_t size;
     uint32_t pid;
     uint32_t uid;
@@ -79,7 +81,7 @@ struct MemLeaseRecord {
 };
 
 struct MemShareImportRecord {
-    char name[RECORD_NAME_SIZE];
+    char name[RECORD_MEMORY_NAME_SIZE];
     uint64_t shmSize;
     uint32_t pid;
     uint32_t uid;

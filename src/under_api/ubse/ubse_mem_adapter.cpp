@@ -30,6 +30,17 @@ using namespace ock::common;
 using namespace ock::share::service;
 using namespace ock::ubsm;
 using namespace ock::ubsm::tracer;
+
+namespace {
+bool ValidateNewMemoryNameCapacity(const std::string &name)
+{
+    if (name.size() > MAX_SHM_NAME_LENGTH) {
+        DBG_LOGERROR("Memory name exceeds limit, name=" << name << ", limit=" << MAX_SHM_NAME_LENGTH);
+        return false;
+    }
+    return true;
+}
+} // namespace
 bool UbseMemAdapter::initialized_{false};
 std::mutex UbseMemAdapter::gMutex;
 std::atomic<uint32_t> UbseMemAdapter::nodeId_{UINT32_MAX};
@@ -450,6 +461,9 @@ int32_t UbseMemAdapter::MemFdCreateWithCandidate(const char *name, uint64_t size
 
 int UbseMemAdapter::LeaseMalloc(const ock::mxm::LeaseMallocParam &param, ock::ubsm::LeaseMallocResult &result)
 {
+    if (!ValidateNewMemoryNameCapacity(param.name)) {
+        return MXM_ERR_PARAM_INVALID;
+    }
     auto rt = Initialize();
     if (rt != 0) {
         DBG_LOGERROR("Initialize failed, name is " << param.name << ", ret: " << rt);
@@ -573,6 +587,9 @@ int32_t UbseMemAdapter::MemFdCreateWithLender(const char *name, const ubs_mem_fd
 
 int UbseMemAdapter::LeaseMallocWithLoc(const LeaseMallocWithLocParam &param, ock::ubsm::LeaseMallocResult &result)
 {
+    if (!ValidateNewMemoryNameCapacity(param.name)) {
+        return MXM_ERR_PARAM_INVALID;
+    }
     auto ret = Initialize();
     if (ret != 0) {
         DBG_LOGERROR("Initialize failed, name=" << param.name << ", ret=" << ret);
@@ -1186,6 +1203,9 @@ int PrepareUserInfoAndFlags(const ubse_user_info_t &ubsUserInfo, uint8_t *usrInf
 
 int UbseMemAdapter::ShmCreate(const CreateShmParam &param)
 {
+    if (!ValidateNewMemoryNameCapacity(param.name)) {
+        return MXM_ERR_PARAM_INVALID;
+    }
     auto ret = Initialize();
     if (ret != 0) {
         DBG_LOGERROR("Failed to Initialize, name=" << param.name << ", ret=" << ret);
@@ -1349,6 +1369,9 @@ int UbseMemAdapter::PrepareShmCreateWithProviderParams(const CreateShmWithProvid
 
 int UbseMemAdapter::ShmCreateWithProvider(const CreateShmWithProviderParam &param)
 {
+    if (!ValidateNewMemoryNameCapacity(param.name)) {
+        return MXM_ERR_PARAM_INVALID;
+    }
     auto ret = Initialize();
     if (ret != 0) {
         DBG_LOGERROR("Failed to Initialize, name=" << param.name << ", ret=" << ret);

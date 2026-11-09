@@ -336,7 +336,7 @@ int RecordStore::DelMemLeaseRecord(const std::string &name) noexcept
 
 int RecordStore::AddMemLeaseInput(const LeaseMallocInput &input) noexcept
 {
-    if (input.name.size() >= RECORD_NAME_SIZE) {
+    if (input.name.size() >= RECORD_MEMORY_NAME_SIZE) {
         DBG_LOGERROR("input lease memory name(" << input.name << ") too long.");
         return -1;
     }
@@ -349,7 +349,7 @@ int RecordStore::AddMemLeaseInput(const LeaseMallocInput &input) noexcept
         DBG_LOGERROR("allocate record for MemoryLease failed!");
         return -1;
     }
-    auto sRet = strcpy_s(record->name, RECORD_NAME_SIZE, input.name.c_str());
+    auto sRet = strcpy_s(record->name, RECORD_MEMORY_NAME_SIZE, input.name.c_str());
     if (sRet != EOK) {
         memLeaseAllocator_->Release(record);
         DBG_LOGERROR("copy memory lease name(" << input.name << ") failed: " << sRet);
@@ -508,7 +508,7 @@ int RecordStore::DelShmImportRecord(const std::string &name) noexcept
 
 int RecordStore::AddShmImportInput(const ShareMemImportInput &input) noexcept
 {
-    if (input.name.size() >= RECORD_NAME_SIZE) {
+    if (input.name.size() >= RECORD_MEMORY_NAME_SIZE) {
         DBG_LOGERROR("input share memory import name(" << input.name << ") too long.");
         return -1;
     }
@@ -522,7 +522,7 @@ int RecordStore::AddShmImportInput(const ShareMemImportInput &input) noexcept
         DBG_LOGERROR("allocate record for share memory import failed!");
         return -1;
     }
-    auto sRet = strcpy_s(record->name, RECORD_NAME_SIZE, input.name.c_str());
+    auto sRet = strcpy_s(record->name, RECORD_MEMORY_NAME_SIZE, input.name.c_str());
     if (sRet != EOK) {
         shmImportAllocator_->Release(record);
         DBG_LOGERROR("copy share memory import name(" << input.name << ") failed: " << sRet);
@@ -555,7 +555,7 @@ int RecordStore::AddShmImportInput(const ShareMemImportInput &input) noexcept
 
 int RecordStore::AddShmImportResult(const std::string &name, const ShareMemImportResult &result) noexcept
 {
-    if (name.size() >= RECORD_NAME_SIZE) {
+    if (name.size() >= RECORD_MEMORY_NAME_SIZE) {
         DBG_LOGERROR("input share memory import name(" << name << ") too long.");
         return -1;
     }
@@ -632,7 +632,7 @@ std::vector<ShareMemImportInfo> RecordStore::ListShmImportRecord() const noexcep
 
 int RecordStore::AddShmRefRecord(pid_t pid, const std::string &name) noexcept
 {
-    if (pid == 0 || name.empty() || name.size() >= RECORD_NAME_SIZE) {
+    if (pid == 0 || name.empty() || name.size() >= RECORD_MEMORY_NAME_SIZE) {
         DBG_LOGERROR("input pid: " << pid << ", name: " << name << " invalid.");
         return -1;
     }
@@ -669,7 +669,7 @@ int RecordStore::AddShmRefRecord(pid_t pid, const std::string &name) noexcept
 
 int RecordStore::DelShmRefRecord(pid_t pid, const std::string &name) noexcept
 {
-    if (pid == 0 || name.empty() || name.size() >= RECORD_NAME_SIZE) {
+    if (pid == 0 || name.empty() || name.size() >= RECORD_MEMORY_NAME_SIZE) {
         DBG_LOGERROR("input pid: " << pid << ", name: " << name << " invalid.");
         return -1;
     }

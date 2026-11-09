@@ -288,6 +288,18 @@ TEST_F(MxmMessageTest, TestSerialize_ShmemAllocateRequest_Success)
     EXPECT_EQ(req.size_, 4096);
 }
 
+TEST_F(MxmMessageTest, SharedMemoryRequestPreserves64ByteName)
+{
+    const std::string name(64, 's');
+    ShmemAllocateRequest request("default", name, 4UL * 1024 * 1024, 0600, 0);
+    NetMsgPacker packer;
+    ASSERT_EQ(request.Serialize(packer), UBSM_OK);
+    NetMsgUnpacker unpacker(packer.String());
+    ShmemAllocateRequest restored;
+    ASSERT_EQ(restored.Deserialize(unpacker), UBSM_OK);
+    EXPECT_EQ(restored.shmName_, name);
+}
+
 TEST_F(MxmMessageTest, TestSerialize_AppMallocMemoryWithLocRequest_Success)
 {
     auto ret = TestSerializeDeserialize<AppMallocMemoryWithLocRequest>();

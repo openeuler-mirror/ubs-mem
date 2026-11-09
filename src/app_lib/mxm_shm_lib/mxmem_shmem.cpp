@@ -294,8 +294,8 @@ uint32_t ubsmem_shmem_allocate_impl(const char *region_name, const char *name, s
         DBG_LOGERROR("Region name length(" << length << ") is 0 or over limit(" << MAX_REGION_NAME_DESC_LENGTH << ").");
         return MXM_ERR_PARAM_INVALID;
     }
-    length = strnlen(name, MAX_SHM_NAME_LENGTH);
-    if (length == 0 || length >= MAX_SHM_NAME_LENGTH) {
+    length = strnlen(name, MAX_SHM_NAME_LENGTH + 1);
+    if (length == 0 || length > MAX_SHM_NAME_LENGTH) {
         DBG_LOGERROR("Name length(" << length << ") is 0 or over limit (" << MAX_SHM_NAME_LENGTH << ").");
         return MXM_ERR_PARAM_INVALID;
     }
@@ -360,8 +360,8 @@ uint32_t ubsmem_shmem_allocate_with_provider_impl(const ubs_mem_provider_t *src_
         DBG_LOGERROR("Memory name or src loc is empty.");
         return MXM_ERR_PARAM_INVALID;
     }
-    auto length = strnlen(name, MAX_SHM_NAME_LENGTH);
-    if (length == 0 || length >= MAX_SHM_NAME_LENGTH) {
+    auto length = strnlen(name, MAX_SHM_NAME_LENGTH + 1);
+    if (length == 0 || length > MAX_SHM_NAME_LENGTH) {
         DBG_LOGERROR("Name length(" << length << ") is 0 or over limit (" << MAX_SHM_NAME_LENGTH << ").");
         return MXM_ERR_PARAM_INVALID;
     }
@@ -417,10 +417,9 @@ uint32_t ubsmem_shmem_deallocate_impl(const char *name)
         DBG_LOGERROR("name is nullptr.");
         return MXM_ERR_PARAM_INVALID;
     }
-    auto length = strnlen(name, MAX_SHM_NAME_LENGTH);
-    if (length == 0 || length >= MAX_SHM_NAME_LENGTH) {
-        DBG_LOGERROR("name(" << name << ") length(" << length << ") is 0 or over limit (" << MAX_SHM_NAME_LENGTH
-                             << ").");
+    auto length = strnlen(name, MAX_SHM_NAME_LENGTH + 1);
+    if (length == 0 || length > MAX_SHM_NAME_LENGTH) {
+        DBG_LOGERROR("Name length(" << length << ") is 0 or exceeds limit (" << MAX_SHM_NAME_LENGTH << ").");
         return MXM_ERR_PARAM_INVALID;
     }
     DBG_LOGDEBUG("Start to delete shm, name=" << name);
@@ -461,8 +460,8 @@ uint32_t ubsmem_shmem_map_impl(void *addr, size_t length, int prot, int flags, c
         DBG_LOGERROR("The length is invalid.");
         return MXM_ERR_PARAM_INVALID;
     }
-    auto len = strnlen(name, MAX_SHM_NAME_LENGTH);
-    if (len == 0 || len >= MAX_SHM_NAME_LENGTH) {
+    auto len = strnlen(name, MAX_SHM_NAME_LENGTH + 1);
+    if (len == 0 || len > MAX_SHM_NAME_LENGTH) {
         DBG_LOGERROR("name length(" << len << ") is 0 or over limit (" << MAX_SHM_NAME_LENGTH << ").");
         return MXM_ERR_PARAM_INVALID;
     }
@@ -543,8 +542,8 @@ uint32_t ubsmem_shmem_set_ownership_impl(const char *name, void *start, size_t l
         DBG_LOGERROR("name is nullptr.");
         return MXM_ERR_PARAM_INVALID;
     }
-    auto len = strnlen(name, MAX_SHM_NAME_LENGTH);
-    if (len == 0 || len >= MAX_SHM_NAME_LENGTH) {
+    auto len = strnlen(name, MAX_SHM_NAME_LENGTH + 1);
+    if (len == 0 || len > MAX_SHM_NAME_LENGTH) {
         DBG_LOGERROR("name length(" << len << ") is 0 or over limit (" << MAX_SHM_NAME_LENGTH << ").");
         return MXM_ERR_PARAM_INVALID;
     }
@@ -814,8 +813,8 @@ uint32_t ubsmem_shmem_write_lock_impl(const char *name)
         DBG_LOGERROR(" desc name is nullptr.");
         return MXM_ERR_PARAM_INVALID;
     }
-    auto len = strnlen(name, MAX_SHM_NAME_LENGTH);
-    if (len == 0 || len >= MAX_SHM_NAME_LENGTH) {
+    auto len = strnlen(name, MAX_SHM_NAME_LENGTH + 1);
+    if (len == 0 || len > MAX_SHM_NAME_LENGTH) {
         DBG_LOGERROR("name length(" << len << ") is 0 or over limit (" << MAX_SHM_NAME_LENGTH << ").");
         return MXM_ERR_PARAM_INVALID;
     }
@@ -844,8 +843,8 @@ uint32_t ubsmem_shmem_read_lock_impl(const char *name)
         DBG_LOGERROR(" desc name is nullptr.");
         return MXM_ERR_PARAM_INVALID;
     }
-    auto len = strnlen(name, MAX_SHM_NAME_LENGTH);
-    if (len == 0 || len >= MAX_SHM_NAME_LENGTH) {
+    auto len = strnlen(name, MAX_SHM_NAME_LENGTH + 1);
+    if (len == 0 || len > MAX_SHM_NAME_LENGTH) {
         DBG_LOGERROR("name length(" << len << ") is 0 or over limit (" << MAX_SHM_NAME_LENGTH << ").");
         return MXM_ERR_PARAM_INVALID;
     }
@@ -873,8 +872,8 @@ uint32_t ubsmem_shmem_unlock_impl(const char *name)
         DBG_LOGERROR(" desc name is nullptr.");
         return MXM_ERR_PARAM_INVALID;
     }
-    auto len = strnlen(name, MAX_SHM_NAME_LENGTH);
-    if (len == 0 || len >= MAX_SHM_NAME_LENGTH) {
+    auto len = strnlen(name, MAX_SHM_NAME_LENGTH + 1);
+    if (len == 0 || len > MAX_SHM_NAME_LENGTH) {
         DBG_LOGERROR("name length(" << len << ") is 0 or over limit (" << MAX_SHM_NAME_LENGTH << ").");
         return MXM_ERR_PARAM_INVALID;
     }
