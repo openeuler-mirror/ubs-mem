@@ -144,7 +144,7 @@ stages:
 
       build_aarch64:
         name: build-aarch64
-        runs-on: [self-hosted, openeuler, arm, cpu=8]
+        runs-on: [self-hosted, ubse, arm, cpu=8]
         timeout-minutes: 90
         container:
           image: swr.cn-north-4.myhuaweicloud.com/hw-ascend/openeuler-24.03-lts-sp3_ci_build:V1
@@ -248,7 +248,7 @@ stages:
 
       dt:
         name: DT
-        runs-on: [self-hosted, openeuler, arm, cpu=8]
+        runs-on: [self-hosted, ubse, arm, cpu=8]
         timeout-minutes: 120
         container:
           image: swr.cn-north-4.myhuaweicloud.com/ubscore/openeuler-24.03-lts-sp3_ci_build:latest
