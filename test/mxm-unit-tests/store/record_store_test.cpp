@@ -235,11 +235,61 @@ TEST_F(RecordStoreTest, TestUpdateMemLeaseRecord_Success)
     EXPECT_EQ(ret, 0);
 }
 
+TEST_F(RecordStoreTest, SharedMemoryRecordPreserves64ByteName)
+{
+    auto input = TEST_SHM_IMPORT_RECORD;
+    input.name = std::string(64, 's');
+    ASSERT_EQ(AddTestImportRecord(input), 0);
+    const auto records = RecordStore::GetInstance().ListShmImportRecord();
+    const auto found = std::find_if(records.begin(), records.end(),
+                                    [&input](const ShareMemImportInfo &record) { return record.name == input.name; });
+    EXPECT_NE(found, records.end());
+    if (found != records.end()) {
+        EXPECT_EQ(found->name.size(), 64);
+        EXPECT_EQ(found->memIds, input.memIds);
+    }
+    EXPECT_EQ(RecordStore::GetInstance().AddShmRefRecord(getpid(), input.name), 0);
+    EXPECT_EQ(RecordStore::GetInstance().ListShmRefRecordNameF()[input.name][getpid()], 1);
+    EXPECT_EQ(RecordStore::GetInstance().DelShmRefRecord(getpid(), input.name), 0);
+    EXPECT_EQ(RecordStore::GetInstance().DelShmImportRecord(input.name), 0);
+}
+
+TEST_F(RecordStoreTest, LeaseRecordPreserves64ByteName)
+{
+    auto input = TEST_LEASE_RECORD.first;
+    input.name = std::string(64, 'l');
+    ASSERT_EQ(RecordStore::GetInstance().AddMemLeaseInput(input), 0);
+    EXPECT_EQ(RecordStore::GetInstance().AddMemLeaseResult(input.name, TEST_LEASE_RECORD.second), 0);
+    const auto records = RecordStore::GetInstance().ListMemLeaseRecord();
+    const auto found = std::find_if(records.begin(), records.end(),
+                                    [&input](const MemLeaseInfo &record) { return record.first.name == input.name; });
+    EXPECT_NE(found, records.end());
+    if (found != records.end()) {
+        EXPECT_EQ(found->first.name.size(), 64);
+        EXPECT_EQ(found->second.memIds, TEST_LEASE_RECORD.second.memIds);
+    }
+    EXPECT_EQ(RecordStore::GetInstance().DelMemLeaseRecord(input.name), 0);
+}
+
+TEST_F(RecordStoreTest, MemoryRecordsReject65ByteNames)
+{
+    auto lease = TEST_LEASE_RECORD.first;
+    lease.name = std::string(65, 'l');
+    EXPECT_EQ(RecordStore::GetInstance().AddMemLeaseInput(lease), -1);
+
+    ShareMemImportInput input{};
+    input.name = std::string(65, 's');
+    EXPECT_EQ(RecordStore::GetInstance().AddShmImportInput(input), -1);
+    EXPECT_EQ(RecordStore::GetInstance().AddShmImportResult(input.name, {}), -1);
+    EXPECT_EQ(RecordStore::GetInstance().AddShmRefRecord(getpid(), input.name), -1);
+    EXPECT_EQ(RecordStore::GetInstance().DelShmRefRecord(getpid(), input.name), -1);
+}
+
 // AddShmImportInput
 TEST_F(RecordStoreTest, TestAddShmImportInput_FailWhenNameLengthOverLimit)
 {
     ShareMemImportInput input{};
-    input.name = std::string(NO_64, 'x');
+    input.name = std::string(MAX_SHM_NAME_LENGTH + 1, 'x');
     auto ret = RecordStore::GetInstance().AddShmImportInput(input);
     EXPECT_EQ(ret, -1);
 }
@@ -294,7 +344,7 @@ TEST_F(RecordStoreTest, TestAddShmRefRecord_FailWhenPidInvalid)
 
 TEST_F(RecordStoreTest, TestAddShmRefRecord_FailWhenNameLengthOverLimit)
 {
-    auto ret = RecordStore::GetInstance().AddShmRefRecord(NO_60000, std::string(NO_64, 'x'));
+    auto ret = RecordStore::GetInstance().AddShmRefRecord(NO_60000, std::string(MAX_SHM_NAME_LENGTH + 1, 'x'));
     EXPECT_EQ(ret, -1);
 }
 
@@ -332,7 +382,7 @@ TEST_F(RecordStoreTest, TestDelShmRefRecord_FailWhenParameterInvalid)
 {
     auto ret = RecordStore::GetInstance().DelShmRefRecord(0, TEST_SHM_NAME);
     EXPECT_EQ(ret, -1);
-    ret = RecordStore::GetInstance().DelShmRefRecord(NO_60000, std::string(NO_64, 'x'));
+    ret = RecordStore::GetInstance().DelShmRefRecord(NO_60000, std::string(MAX_SHM_NAME_LENGTH + 1, 'x'));
     EXPECT_EQ(ret, -1);
     ret = RecordStore::GetInstance().DelShmRefRecord(NO_60000, "");
     EXPECT_EQ(ret, -1);

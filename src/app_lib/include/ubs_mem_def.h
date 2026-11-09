@@ -34,8 +34,8 @@ extern "C" {
 
 /** Host-name buffer size, including the terminating null character. */
 #define MAX_HOST_NAME_DESC_LENGTH 64
-/** Shared-memory name length limit used by the public APIs. */
-#define MAX_SHM_NAME_LENGTH 48
+/** Maximum memory-object name length in bytes, excluding the terminating NUL. */
+#define MAX_SHM_NAME_LENGTH 64
 /** Region-name buffer size, including the terminating null character. */
 #define MAX_REGION_NAME_DESC_LENGTH 48
 /** Maximum number of hosts in one region. */

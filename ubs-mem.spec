@@ -1,11 +1,11 @@
 # -*- rpm-spec -*-
 Summary:        UBS-MEM Package
 Name:           ubs-mem
-Version:        1.1.0
+Version:        1.1.1
 Release:        1%{?dist}
 License:        MulanPSL-2.0
 Group:          System Environment/Daemons
-# generate tarball: git archive -o ubs-mem-1.1.0.tar.gz --format=tar.gz --prefix=ubs-mem-1.1.0/ HEAD
+# generate tarball: git archive -o ubs-mem-1.1.1.tar.gz --format=tar.gz --prefix=ubs-mem-1.1.1/ HEAD
 Source:        ubs-mem-%{version}.tar.gz
 BuildRequires:  rpm-build, make, cmake, gcc, gcc-c++, ninja-build
 BuildRequires:  libboundscheck, ubs-comm-devel, numactl-devel, systemd-devel

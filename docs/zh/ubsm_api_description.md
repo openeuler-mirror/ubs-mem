@@ -346,7 +346,7 @@ int ubsmem_shmem_allocate(const char *region_name, const char *name, size_t size
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
 |region_name|const char *|入参|内存域名称（默认域为“default”，包含与当前节点全互联的节点）。|
-|name|const char *|入参|共享内存名称。全局唯一标识，最大有效长度为47字符（不包括“\0”），仅允许使用大小写字母、数字、“.”、“:”、“-”和“_”。|
+|name|const char *|入参|共享内存名称。全局唯一标识，最大有效长度为64字节（不包括“\0”），仅允许使用大小写字母、数字、“.”、“:”、“-”和“_”。|
 |size|size_t|入参|共享内存size，最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse_configuration_instructions.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
 |mode|mode_t|入参|访问权限，Unix文件权限位的 *rwx* 权限控制（ *x* 权限暂不支持，请忽略）。用于控制不同用户对该共享内存的访问权限，若无权限则映射失败。建议值：`S_IRUSR \| S_IWUSR`（即仅创建该共享内存的用户可以访问该共享内存）。|
 |flags|uint64_t|入参|创建共享内存的标志信息。flag有效比特位含义请参见[表1 共享内存的flags](#table005)，各有效比特位组合关系参见[表2 共享内存的flags可组合关系](#table006)。|
@@ -397,7 +397,7 @@ int ubsmem_shmem_allocate_with_provider(const ubs_mem_provider_t *src_loc, const
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
 |src_loc|const ubs_mem_provider_t *|入参|指定内存创建的节点信息，包括：<ul><li>host_name：节点名称，必填。</li><li>socket_id：指定内存导出的socket id，选填（UINT32_MAX）。</li><li>numa_id：指定内存导出的numa id，选填（UINT32_MAX）。</li><li>port_id：指定内存导出的port id，选填（UINT32_MAX）。</li></ul>|
-|name|const char *|入参|共享内存名称。全局唯一标识，最大有效长度为47字符（不包括“\0”），仅允许使用大小写字母、数字、“.”、“:”、“-”和“_”。|
+|name|const char *|入参|共享内存名称。全局唯一标识，最大有效长度为64字节（不包括“\0”），仅允许使用大小写字母、数字、“.”、“:”、“-”和“_”。|
 |size|size_t|入参|共享内存size，最小4MB，需为4MB整数倍，单位为字节。<br>该参数的最小值与南向依赖UBSE中的配置项 [obmm.memory.block.size](https://atomgit.com/openeuler/ubs-engine/blob/master/docs/zh/ubse_configuration_instructions.md) 有关。共享内存以FD的形式进行管理，每个FD管理 `obmm.memory.block.size` 大小的内存。共享内存在导出导入时会以该配置项向上取整对齐。<br>例如：该配置项为128MB，创建共享内存时传入size是4MB，实际上会创建出128MB的共享内存。|
 |mode|mode_t|入参|访问权限，Unix文件权限位的 *rwx* 权限控制（ *x* 权限暂不支持，忽略）。|
 |flags|uint64_t|入参|创建共享内存的标志信息。flag有效比特位含义请参见[表1 共享内存的flags](#table005)，各有效比特位组合关系参见[表2 共享内存的flags可组合关系](#table006)。|
@@ -425,7 +425,7 @@ int ubsmem_shmem_deallocate(const char *name);
 
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
-|name|const char *|入参|共享内存名称。全局唯一标识，最大有效长度为47字符（不包括“\0”）。|
+|name|const char *|入参|共享内存名称。全局唯一标识，最大有效长度为64字节（不包括“\0”）。|
 
 **返回值**
 
@@ -695,8 +695,8 @@ int ubsmem_shmem_lookup(const char *name, ubsmem_shmem_info_t *shm_info);
 
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
-|name|const char*|入参|查询的共享名。最大有效长度为47字符（不包括“\0”），仅允许使用大小写字母、数字、“-”和“_”。|
-|shm_info|ubsmem_shmem_info_t *|出参|对应共享的信息。相关结构体和常量定义如下：<pre class="screen">#define MAX_SHM_NAME_LENGTH 48<br>#define MAX_MEMID_NUM 2048<br><br>typedef struct {<br>    char name[MAX_SHM_NAME_LENGTH + 1];<br>    size_t size;<br>    uint32_t mem_num;<br>    uint64_t mem_unit_size;<br>    uint64_t mem_id_list[MAX_MEMID_NUM];<br>} ubsmem_shmem_info_t;</pre>|
+|name|const char*|入参|查询的共享名。最大有效长度为64字节（不包括“\0”），仅允许使用大小写字母、数字、“-”和“_”。|
+|shm_info|ubsmem_shmem_info_t *|出参|对应共享的信息。相关结构体和常量定义如下：<pre class="screen">#define MAX_SHM_NAME_LENGTH 64<br>#define MAX_MEMID_NUM 2048<br><br>typedef struct {<br>    char name[MAX_SHM_NAME_LENGTH + 1];<br>    size_t size;<br>    uint32_t mem_num;<br>    uint64_t mem_unit_size;<br>    uint64_t mem_id_list[MAX_MEMID_NUM];<br>} ubsmem_shmem_info_t;</pre>|
 
 **返回值**
 
@@ -721,8 +721,8 @@ int ubsmem_shmem_list_lookup(const char *prefix, ubsmem_shmem_desc_t shm_list[],
 
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
-|prefix|const char *|入参|查询的共享前缀名。|
-|shm_list|ubsmem_shmem_desc_t []|出参|查到的共享信息，调用方需提前准备一个ubsmem_shmem_desc_t类型的数组。相关结构体和常量定义如下：<pre class="screen">#define MAX_SHM_NAME_LENGTH 48<br><br>typedef struct {<br>char name[MAX_SHM_NAME_LENGTH + 1];<br>size_t size;<br>} ubsmem_shmem_desc_t;</pre>|
+|prefix|const char *|入参|查询的共享前缀名，最大有效长度为64字节，不包括结尾NUL。|
+|shm_list|ubsmem_shmem_desc_t []|出参|查到的共享信息，调用方需提前准备一个ubsmem_shmem_desc_t类型的数组。相关结构体和常量定义如下：<pre class="screen">#define MAX_SHM_NAME_LENGTH 64<br><br>typedef struct {<br>char name[MAX_SHM_NAME_LENGTH + 1];<br>size_t size;<br>} ubsmem_shmem_desc_t;</pre>|
 |shm_cnt|uint32_t *|出/入参|<ul><li>作为入参，表示shm_list数组的大小。</li><li>作为出参，表示查到的共享内存个数。</li></ul>|
 
 **返回值**

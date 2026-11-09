@@ -122,7 +122,7 @@ SHMEM_API int ubsmem_destroy_region(const char *region_name);
  * To use the lock APIs, set flags to UBSM_FLAG_WITH_LOCK without additional modifiers.
  *
  * @param region_name [in] Resource region name, or "default" for the default region.
- * @param name [in] Globally unique, non-empty object name of at most MAX_SHM_NAME_LENGTH - 1 characters.
+ * @param name [in] Globally unique, non-empty object name of at most MAX_SHM_NAME_LENGTH bytes.
  * @param size [in] Requested size in bytes. It must be positive and aligned to 4 MB.
  * @param mode [in] Unix read/write permission bits used to control access to the object.
  * @param flags [in] A valid combination of UBSM_FLAG_* shared-memory creation flags from ubs_mem_def.h.
@@ -138,7 +138,7 @@ SHMEM_API int ubsmem_shmem_allocate(const char *region_name, const char *name, s
  * mapping flags. Set an unspecified socket_id, numa_id, or port_id field explicitly to UINT32_MAX.
  *
  * @param src_loc [in] Provider location. host_name is required and the other fields select optional topology IDs.
- * @param name [in] Globally unique, non-empty object name of at most MAX_SHM_NAME_LENGTH - 1 characters.
+ * @param name [in] Globally unique, non-empty object name of at most MAX_SHM_NAME_LENGTH bytes.
  * @param size [in] Requested size in bytes. It must be positive and aligned to 4 MB.
  * @param mode [in] Unix read/write permission bits used to control access to the object.
  * @param flags [in] A valid combination of UBSM_FLAG_* shared-memory creation flags from ubs_mem_def.h.
@@ -152,7 +152,7 @@ SHMEM_API int ubsmem_shmem_allocate_with_provider(const ubs_mem_provider_t *src_
  *
  * Deletion fails while the object is still in use.
  *
- * @param name [in] Non-empty shared-memory object name of at most MAX_SHM_NAME_LENGTH - 1 characters.
+ * @param name [in] Non-empty shared-memory object name of at most MAX_SHM_NAME_LENGTH bytes.
  * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
 SHMEM_API int ubsmem_shmem_deallocate(const char *name);
@@ -239,7 +239,7 @@ SHMEM_API int ubsmem_shmem_unlock(const char *name);
 /**
  * @brief Query shared-memory objects whose names begin with a prefix.
  *
- * @param prefix [in] Non-empty name prefix of at most MAX_SHM_NAME_LENGTH characters.
+ * @param prefix [in] Non-empty name prefix of at most MAX_SHM_NAME_LENGTH bytes.
  * @param shm_list [out] Caller-provided array that receives object names and sizes.
  * @param shm_cnt [in,out] On input, capacity of shm_list; on success, number of entries written. If the capacity is
  * insufficient, it is updated to the required count and UBSM_ERR_PARAM_INVALID is returned.
