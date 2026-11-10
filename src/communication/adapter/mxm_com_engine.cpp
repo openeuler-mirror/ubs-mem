@@ -772,13 +772,22 @@ static int GetCapiCa(const char *name, char **caPath, char **crlPath, ubs_hcom_p
     if (caPath == nullptr || crlPath == nullptr || verifyType == nullptr || verify == nullptr) {
         return -1;
     }
+    *caPath = nullptr;
+    *crlPath = nullptr;
+    *verifyType = C_VERIFY_BY_DEFAULT;
+    *verify = nullptr;
     try {
         auto &config = UbsCommonConfig::GetInstance();
-        *caPath = const_cast<char *>(config.GetCaPath().c_str());
-        *crlPath = config.GetCrlPath().empty() ? nullptr : const_cast<char *>(config.GetCrlPath().c_str());
-        *verifyType = C_VERIFY_BY_DEFAULT;
-        *verify = nullptr;
+        auto caPathValue = config.GetCaPath();
+        auto crlPathValue = config.GetCrlPath();
         DBG_LOGINFO("TLS get ca path finished, peer name: " << (name == nullptr ? "" : name));
+        // HCOM copies these paths after this callback returns.
+        thread_local std::string caPathStorage;
+        thread_local std::string crlPathStorage;
+        caPathStorage.swap(caPathValue);
+        crlPathStorage.swap(crlPathValue);
+        *caPath = const_cast<char *>(caPathStorage.c_str());
+        *crlPath = crlPathStorage.empty() ? nullptr : const_cast<char *>(crlPathStorage.c_str());
         return 0;
     } catch (...) {
         return -1;
@@ -790,9 +799,13 @@ static int GetCapiCert(const char *name, char **certPath)
     if (certPath == nullptr) {
         return -1;
     }
+    *certPath = nullptr;
     try {
-        *certPath = const_cast<char *>(UbsCommonConfig::GetInstance().GetCertPath().c_str());
+        auto certPathValue = UbsCommonConfig::GetInstance().GetCertPath();
         DBG_LOGINFO("TLS get cert path finished, peer name: " << (name == nullptr ? "" : name));
+        thread_local std::string certPathStorage;
+        certPathStorage.swap(certPathValue);
+        *certPath = const_cast<char *>(certPathStorage.c_str());
         return 0;
     } catch (...) {
         return -1;
@@ -810,17 +823,20 @@ static int GetCapiPrivateKey(const char *name, char **path, char **pw, int *leng
     *erase = nullptr;
     try {
         auto &config = UbsCommonConfig::GetInstance();
+        auto keyPathValue = config.GetKeyPath();
         std::pair<char *, int> pwPair;
         auto ret = UbsCryptorHandler::GetInstance().Decrypt(0, config.GetKeypassPath(), pwPair);
         if (ret != 0) {
             DBG_LOGERROR("Decrypt failed, ret: " << ret << ", peer name: " << (name == nullptr ? "" : name));
             return ret;
         }
-        *path = const_cast<char *>(config.GetKeyPath().c_str());
+        DBG_LOGINFO("TLS get private key path finished, peer name: " << (name == nullptr ? "" : name));
+        thread_local std::string keyPathStorage;
+        keyPathStorage.swap(keyPathValue);
+        *path = const_cast<char *>(keyPathStorage.c_str());
         *pw = pwPair.first;
         *length = pwPair.second;
         *erase = EraseCapiKeypass;
-        DBG_LOGINFO("TLS get private key path finished, peer name: " << (name == nullptr ? "" : name));
         return 0;
     } catch (...) {
         return -1;
