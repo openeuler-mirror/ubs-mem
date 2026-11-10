@@ -36,7 +36,7 @@ int MxmComCallbackSlots::Acquire(void *engine, Handler handler)
         }
     }
     for (size_t i = 0; i < SLOT_COUNT; ++i) {
-        if (slots_[i].state == State::FREE) {
+        if (slots_[i].state == State::FREE && slots_[i].activeCallbacks == 0) {
             slots_[i] = {State::PREPARING, engine, handler, 0};
             return static_cast<int>(i);
         }
@@ -101,6 +101,9 @@ void MxmComCallbackSlots::ReleaseAfterServiceStopped(int slot)
 void MxmComCallbackSlots::LeaveCallback(size_t index)
 {
     std::lock_guard<std::mutex> guard(mutex_);
+    if (slots_[index].activeCallbacks == 0) {
+        return;
+    }
     if (--slots_[index].activeCallbacks == 0) {
         callbacksDone_.notify_all();
     }

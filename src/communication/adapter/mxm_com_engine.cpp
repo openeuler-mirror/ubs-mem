@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <cstring>
+#include <set>
 #include "crc/dg_crc.h"
 #include "log.h"
 #include "mxm_com_callback_slots.h"
@@ -271,6 +272,7 @@ void MxmComLinkManager::RemoveAllChannel()
 
 std::map<std::string, MxmComEngine *> MxmComEngineManager::G_ENGINE_MAP;
 std::mutex MxmComEngineManager::G_MUTEX;
+static std::set<std::string> G_STOPPING_ENGINES;
 
 static void HandlerWorkDefault(void (*handler)(MxmComMessageCtx &messageCtx), MxmComMessageCtx &messageCtx)
 {
@@ -382,6 +384,34 @@ static int16_t GetIPCTimeOutFromEnv()
 
 HRESULT MxmComEngine::CreateChannel(MxmComChannelConnectInfo &info, MxmChannelType chType)
 {
+    {
+        std::lock_guard<std::mutex> guard(connectMutex);
+        if (deleted.load()) {
+            return MXM_COM_ERROR_ENGINE_NOT_INIT;
+        }
+        ++activeConnects;
+    }
+    struct ConnectScope {
+        std::mutex &mutex;
+        std::condition_variable &done;
+        size_t &active;
+        bool engaged{true};
+        void Release()
+        {
+            if (!engaged) {
+                return;
+            }
+            std::lock_guard<std::mutex> guard(mutex);
+            --active;
+            engaged = false;
+            done.notify_all();
+        }
+        ~ConnectScope()
+        {
+            Release();
+        }
+    } connectScope{connectMutex, connectDone, activeConnects};
+
     DBG_LOGDEBUG("Start to create channel, remote node id=" << info.GetRemoteNodeId());
     ubs_hcom_service_connect_options options{};
     options.linkCount = info.GetLinkNum();
@@ -439,7 +469,14 @@ HRESULT MxmComEngine::CreateChannel(MxmComChannelConnectInfo &info, MxmChannelTy
         chInfo.SetUDSInfo({uds.pid, uds.uid, uds.gid});
     }
     linkManager.InsertChannel(chInfo);
-    linkStateNotify(engineInfo, remoteNodeId, channelId, MxmLinkState::LINK_UP);
+    auto notify = linkStateNotify;
+    auto notifyInfo = engineInfo;
+    auto notifyRemoteNodeId = remoteNodeId;
+    bool shouldNotify = !deleted.load();
+    connectScope.Release();
+    if (shouldNotify) {
+        notify(notifyInfo, notifyRemoteNodeId, channelId, MxmLinkState::LINK_UP);
+    }
     return HOK;
 }
 
@@ -638,6 +675,10 @@ HRESULT MxmComEngine::Stop()
         if (callbackSlot != MxmComCallbackSlots::INVALID_SLOT) {
             MxmComCallbackSlots::Instance().BeginClose(callbackSlot);
             MxmComCallbackSlots::Instance().WaitCallbacks(callbackSlot);
+        }
+        {
+            std::unique_lock<std::mutex> connectGuard(connectMutex);
+            connectDone.wait(connectGuard, [this] { return activeConnects == 0; });
         }
         linkManager.RemoveAllChannel();
 
@@ -1088,12 +1129,20 @@ void MxmComEngine::DoReconnect(const MxmComChannelInfo &channelInfo)
 HRESULT MxmComEngineManager::CreateEngine(const MxmComEngineInfo &engineInfo, const MxmComLinkStateNotify &notify,
                                           const EngineHandlerWorker &handlerWorker)
 {
-    std::lock_guard<std::mutex> locker(G_MUTEX);
+    std::unique_lock<std::mutex> locker(G_MUTEX);
     const auto &engineName = engineInfo.GetName();
     auto iter = G_ENGINE_MAP.find(engineName);
     if (iter != G_ENGINE_MAP.end()) {
+        if (iter->second->IsStopped()) {
+            DBG_LOGERROR("Engine " << engineName << " is stopped and pending cleanup");
+            return MXM_COM_ERROR_ENGINE_START_FAIL;
+        }
         DBG_LOGINFO("Engine " << engineName << " has already been created");
         return HOK;
+    }
+    if (G_STOPPING_ENGINES.count(engineName) != 0) {
+        DBG_LOGERROR("Engine " << engineName << " is pending cleanup");
+        return MXM_COM_ERROR_ENGINE_START_FAIL;
     }
     ubs_hcom_set_log_handler(engineInfo.GetLogFunc());
     MxmProtocol hcomProtocol = engineInfo.GetProtocol();
@@ -1128,11 +1177,16 @@ HRESULT MxmComEngineManager::CreateEngine(const MxmComEngineInfo &engineInfo, co
     auto ret = engine->Start();
     if (ret != 0) {
         DBG_LOGERROR("Failed to start engine, ret=" << ret);
+        G_STOPPING_ENGINES.insert(engineName);
+        locker.unlock();
         auto stopRet = engine->Stop();
+        locker.lock();
+        G_STOPPING_ENGINES.erase(engineName);
         if (stopRet != HOK) {
             G_ENGINE_MAP.emplace(engineName, engine);
             return ret;
         }
+        locker.unlock();
         delete engine;
         return ret;
     }
@@ -1189,8 +1243,8 @@ MxmComEngine *MxmComEngineManager::GetEngine(const std::string &name)
 {
     std::lock_guard<std::mutex> locker(G_MUTEX);
     auto iter = G_ENGINE_MAP.find(name);
-    if (iter == G_ENGINE_MAP.end()) {
-        DBG_LOGERROR("Engine " << name << "has not been created");
+    if (iter == G_ENGINE_MAP.end() || iter->second->IsStopped()) {
+        DBG_LOGERROR("Engine " << name << " is unavailable");
         return nullptr;
     }
     return iter->second;
@@ -1405,17 +1459,20 @@ void MxmCommunication::MxmComMsgReply(MxmComMessageCtx &message, const MxmComDat
     auto channel = channelInfo.GetChannel() == nullptr ? MxmComChannelState::Reference{} :
                                                          channelInfo.GetChannel()->Acquire();
     if (!channel) {
-        DBG_LOGERROR("Channel is nullptr, nodeId: " << nodeId;
-                     usrCb.cb(usrCb.cbCtx, nullptr, 0, MXM_COM_ERROR_CHANNEL_NULL));
+        DBG_LOGERROR("Channel is nullptr, nodeId: " << nodeId);
+        if (usrCb.cb != nullptr) {
+            usrCb.cb(usrCb.cbCtx, nullptr, 0, MXM_COM_ERROR_CHANNEL_NULL);
+        }
+        return;
+    }
+    if (usrCb.cb == nullptr) {
+        DBG_LOGERROR("User callback is nullptr.");
         return;
     }
     auto replyHook = message.GetReplyFuncHook();
     if (replyHook != nullptr) {
         res = replyHook(data, usrCb);
     } else {
-        if (usrCb.cb == nullptr) {
-            return;
-        }
         std::shared_ptr<PendingReply> pending;
         uintptr_t token = 0;
         bool atCapacity = false;

@@ -39,6 +39,53 @@ TEST_F(MxmComTestSuite, TestMessageHandlerLookupDoesNotMutateMapAndReturnsCopy)
     EXPECT_EQ(engine.GetMessageHandler(1, 1).handler, SecondMessageHandler);
 }
 
+TEST_F(MxmComTestSuite, TestStoppedEngineCannotBeReusedOrQueried)
+{
+    MxmComEngineInfo info;
+    info.SetName("stopped_engine_test");
+    MxmComLinkStateNotify notify = [](const MxmComEngineInfo &, const std::string &, uint64_t, MxmLinkState) {
+    };
+    auto *engine = new MxmComEngine(info, 0, notify);
+    ASSERT_EQ(engine->Stop(), HOK);
+    MxmComEngineManager::G_ENGINE_MAP.emplace(info.GetName(), engine);
+
+    EXPECT_EQ(MxmComEngineManager::CreateEngine(info, notify, nullptr), MXM_COM_ERROR_ENGINE_START_FAIL);
+    EXPECT_EQ(MxmComEngineManager::GetEngine(info.GetName()), nullptr);
+    EXPECT_EQ(MxmComEngineManager::DeleteEngine(info.GetName()), HOK);
+}
+
+TEST_F(MxmComTestSuite, TestReplyWithClosedChannelNotifiesCaller)
+{
+    MxmComEngineInfo info;
+    info.SetName("reply_unavailable_channel_test");
+    MxmComLinkStateNotify notify = [](const MxmComEngineInfo &, const std::string &, uint64_t, MxmLinkState) {
+    };
+    auto *engine = new MxmComEngine(info, 0, notify);
+    MxmComChannelInfo channelInfo;
+    channelInfo.SetChannel(std::make_shared<MxmComChannelState>(0, 0));
+    engine->linkManager.channelIdMap.emplace(42, channelInfo);
+    MxmComEngineManager::G_ENGINE_MAP.emplace(info.GetName(), engine);
+
+    MxmComMessageCtx message;
+    message.SetEngineName(info.GetName());
+    message.SetChannelId(42);
+    message.SetDstId("remote");
+    int callbackCount = 0;
+    MxmComCallback callback(
+        [&](void *, void *data, uint32_t size, int32_t result) {
+            ++callbackCount;
+            EXPECT_EQ(data, nullptr);
+            EXPECT_EQ(size, 0);
+            EXPECT_EQ(result, MXM_COM_ERROR_CHANNEL_NULL);
+        },
+        nullptr);
+    MxmCommunication::MxmComMsgReply(message, {}, callback);
+    EXPECT_EQ(callbackCount, 1);
+    MxmCommunication::MxmComMsgReply(message, {}, MxmComCallback(nullptr, nullptr));
+
+    EXPECT_EQ(MxmComEngineManager::DeleteEngine(info.GetName()), HOK);
+}
+
 TEST_F(MxmComTestSuite, TestRemoveChannelByChannelIdRemovesBothIndexes)
 {
     MxmComLinkManager manager;

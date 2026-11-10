@@ -12,6 +12,7 @@
 #ifndef MXM_COM_ENGINE_H
 #define MXM_COM_ENGINE_H
 
+#include <condition_variable>
 #include <thread>
 #include <vector>
 #include "hcom_service_c.h"
@@ -179,6 +180,11 @@ public:
    */
     HRESULT Stop();
 
+    bool IsStopped() const
+    {
+        return deleted.load();
+    }
+
     int SetMxmComPostReconnectHandler(MxmComPostReconnectHandler handler)
     {
         this->postReconnectHandler = std::move(handler);
@@ -273,6 +279,9 @@ protected:
     ubs_hcom_memory_region mr{0};
     std::mutex reconnectMutex;
     std::vector<std::thread> reconnectTasks;
+    std::mutex connectMutex;
+    std::condition_variable connectDone;
+    size_t activeConnects{0};
     std::mutex stopMutex;
     bool stopPrepared{false};
 };
