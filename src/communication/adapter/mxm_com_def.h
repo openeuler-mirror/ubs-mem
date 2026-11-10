@@ -15,14 +15,14 @@
 
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <string>
 #include <utility>
 
 #include <securec.h>
 #include "common_def.h"
-#include "hcom_service.h"
-#include "hcom_service_channel.h"
-#include "hcom_service_context.h"
+#include "hcom_service_c.h"
+#include "mxm_com_channel_state.h"
 #include "mxm_com_error.h"
 #include "mxm_msg.h"
 #include "mxm_msg_base.h"
@@ -34,11 +34,12 @@
 #include "util/defines.h"
 
 namespace ock::com {
-using namespace ock::hcom;
 using namespace ock::mxmd;
 using namespace ock::rpc;
-// 消息回复钩子函数
-using ReplyFuncHook = std::function<HRESULT(const UBSHcomRequest &msg, const Callback *done)>;
+struct MxmComDataDesc;
+struct MxmComCallback;
+// 消息回复钩子函数；异步完成时需自行复制 callback。
+using ReplyFuncHook = std::function<HRESULT(const MxmComDataDesc &data, const MxmComCallback &callback)>;
 
 enum class MxmEngineType { CLIENT = 0, SERVER };
 
@@ -142,9 +143,9 @@ public:
 
     void SetEnableTls(const bool &isEnable);
 
-    const UBSHcomNetCipherSuite &GetCipherSuite() const;
+    const ubs_hcom_service_cipher_suite &GetCipherSuite() const;
 
-    void SetCipherSuite(const UBSHcomNetCipherSuite &suite);
+    void SetCipherSuite(const ubs_hcom_service_cipher_suite &suite);
 
     uint32_t GetMaxHcomConnectNum() const;
 
@@ -165,8 +166,8 @@ private:
         // 大数据场景下，单次最大发送数据量大小，单位MB
     bool enableTls = false; // 是否采用tls认证
     uint32_t sendReceiveSegCount = DEFAULT_SEND_RECEIVE_SEG_COUNT;
-    UBSHcomNetCipherSuite cipherSuite = AES_GCM_128; // 加密套算法
-    uint32_t maxHcomConnectNum{CONNECT_NUM};         // 默认256
+    ubs_hcom_service_cipher_suite cipherSuite = C_SERVICE_AES_GCM_128; // 加密套算法
+    uint32_t maxHcomConnectNum{CONNECT_NUM};                           // 默认256
 };
 
 class MxmComChannelConnectInfo {
@@ -213,11 +214,17 @@ private:
     uint16_t linkNum{1};      // 通道的链路数
 };
 
+struct MxmUdsIdInfo {
+    uint32_t pid = 0; // process id
+    uint32_t uid = 0; // user id
+    uint32_t gid = 0; // group id
+};
+
 class MxmComChannelInfo {
 public:
     MxmComChannelInfo() = default;
 
-    MxmComChannelInfo(bool isServer, MxmChannelType channelType, std::string engineName, UBSHcomChannelPtr channel,
+    MxmComChannelInfo(bool isServer, MxmChannelType channelType, std::string engineName, MxmComChannelStatePtr channel,
                       MxmComChannelConnectInfo connectInfo)
         : isServer(isServer),
           channelType(channelType),
@@ -225,18 +232,15 @@ public:
           channel(std::move(channel)),
           connectInfo(std::move(connectInfo)) {};
 
-    ~MxmComChannelInfo()
-    {
-        channel = nullptr;
-    }
-
     bool IsServerSide() const;
 
     void SetIsServer(bool isServerSide);
 
-    const UBSHcomChannelPtr &GetChannel() const;
+    const MxmComChannelStatePtr &GetChannel() const;
 
-    void SetChannel(const UBSHcomChannelPtr &channel);
+    uint64_t GetChannelId() const;
+
+    void SetChannel(const MxmComChannelStatePtr &channel);
 
     const MxmComChannelConnectInfo &GetConnectInfo() const;
 
@@ -246,9 +250,9 @@ public:
 
     void SetChannelType(MxmChannelType chType);
 
-    void SetUDSInfo(UBSHcomNetUdsIdInfo &uds);
+    void SetUDSInfo(const MxmUdsIdInfo &uds);
 
-    UBSHcomNetUdsIdInfo GetUDSInfo() const;
+    MxmUdsIdInfo GetUDSInfo() const;
 
     const std::string &GetEngineName() const;
 
@@ -260,8 +264,8 @@ private:
     bool isServer{true};                                // 是否是server端
     MxmChannelType channelType{MxmChannelType::NORMAL}; // 通道类型
     std::string engineName;                             // 引擎名
-    UBSHcomChannelPtr channel = nullptr;                // channel指针
-    UBSHcomNetUdsIdInfo uds;
+    MxmComChannelStatePtr channel;                      // 两个索引和查询副本共享同一份 Channel 引用
+    MxmUdsIdInfo uds;
     MxmComChannelConnectInfo connectInfo; // 连接信息
 };
 
@@ -323,12 +327,6 @@ public:
 private:
     MxmComMessageHead head; // 消息头
     uint8_t body[0];        // 消息体
-};
-
-struct MxmUdsIdInfo {
-    uint32_t pid = 0; // process id
-    uint32_t uid = 0; // user id
-    uint32_t gid = 0; // group id
 };
 
 class MxmComMessageCtx {
@@ -421,20 +419,6 @@ struct MxmComMsgHandler {
 MxmComMessagePtr TransRequestMsg(const NetMsgPacker &packer, uint16_t opCode, uint16_t moduleCode);
 
 std::pair<std::string, MxmChannelType> SplitPayload(const std::string &payload);
-
-bool GetIpPortByChannel(const UBSHcomChannelPtr &ch, std::string &ip, uint16_t &port);
-
-MxmComMessage *GetMessageFromNetServiceContext(const UBSHcomServiceContext &context);
-
-MxmComMessage *GetMessageFromNetServiceMessage(UBSHcomRequest &msg);
-
-void GetUdsInfoFromNetServiceContext(const UBSHcomServiceContext &context, MxmUdsIdInfo &udsIdInfo);
-
-bool CheckMessageBodyLen(UBSHcomServiceContext &context, MxmComMessage &msg);
-
-bool CheckMessageBodyLen(UBSHcomRequest &netServiceMessage, MxmComMessage &msg);
-
-uint64_t GetChannelIdFromNetServiceContext(const UBSHcomServiceContext &context);
 
 MxmChannelType StringToChannelType(const std::string &type);
 

@@ -38,33 +38,33 @@ TEST_F(UbsCommonConfigTestSuite, TestSetGetSwitch)
 
 TEST_F(UbsCommonConfigTestSuite, TestSetCipherSuit)
 {
-    ock::hcom::UBSHcomNetCipherSuite originalSuite = UbsCommonConfig::GetInstance().GetCipherSuit();
+    ubs_hcom_service_cipher_suite originalSuite = UbsCommonConfig::GetInstance().GetCipherSuit();
     std::string originalChiper;
-    if (originalSuite == ock::hcom::UBSHcomNetCipherSuite::AES_GCM_128) {
+    if (originalSuite == C_SERVICE_AES_GCM_128) {
         originalChiper = CIPHER_STR_AES_GCM_128;
-    } else if (originalSuite == ock::hcom::UBSHcomNetCipherSuite::AES_GCM_256) {
+    } else if (originalSuite == C_SERVICE_AES_GCM_256) {
         originalChiper = CIPHER_STR_AES_GCM_256;
-    } else if (originalSuite == ock::hcom::UBSHcomNetCipherSuite::AES_CCM_128) {
+    } else if (originalSuite == C_SERVICE_AES_CCM_128) {
         originalChiper = CIPHER_STR_AES_CCM_128;
-    } else if (originalSuite == ock::hcom::UBSHcomNetCipherSuite::CHACHA20_POLY1305) {
+    } else if (originalSuite == C_SERVICE_CHACHA20_POLY1305) {
         originalChiper = CIPHER_STR_CHACHA20_POLY1305;
     } else {
         originalChiper = "";
     }
     UbsCommonConfig::GetInstance().SetCipherSuit(CIPHER_STR_AES_GCM_128);
-    ASSERT_EQ(UbsCommonConfig::GetInstance().GetCipherSuit(), ock::hcom::UBSHcomNetCipherSuite::AES_GCM_128);
+    ASSERT_EQ(UbsCommonConfig::GetInstance().GetCipherSuit(), C_SERVICE_AES_GCM_128);
 
     UbsCommonConfig::GetInstance().SetCipherSuit(CIPHER_STR_AES_GCM_256);
-    ASSERT_EQ(UbsCommonConfig::GetInstance().GetCipherSuit(), ock::hcom::UBSHcomNetCipherSuite::AES_GCM_256);
+    ASSERT_EQ(UbsCommonConfig::GetInstance().GetCipherSuit(), C_SERVICE_AES_GCM_256);
 
     UbsCommonConfig::GetInstance().SetCipherSuit(CIPHER_STR_AES_CCM_128);
-    ASSERT_EQ(UbsCommonConfig::GetInstance().GetCipherSuit(), ock::hcom::UBSHcomNetCipherSuite::AES_CCM_128);
+    ASSERT_EQ(UbsCommonConfig::GetInstance().GetCipherSuit(), C_SERVICE_AES_CCM_128);
 
     UbsCommonConfig::GetInstance().SetCipherSuit(CIPHER_STR_CHACHA20_POLY1305);
-    ASSERT_EQ(UbsCommonConfig::GetInstance().GetCipherSuit(), ock::hcom::UBSHcomNetCipherSuite::CHACHA20_POLY1305);
+    ASSERT_EQ(UbsCommonConfig::GetInstance().GetCipherSuit(), C_SERVICE_CHACHA20_POLY1305);
 
     UbsCommonConfig::GetInstance().SetCipherSuit("");
-    ASSERT_EQ(UbsCommonConfig::GetInstance().GetCipherSuit(), ock::hcom::UBSHcomNetCipherSuite::AES_GCM_128);
+    ASSERT_EQ(UbsCommonConfig::GetInstance().GetCipherSuit(), C_SERVICE_AES_GCM_128);
 
     UbsCommonConfig::GetInstance().SetCipherSuit(originalChiper);
 }

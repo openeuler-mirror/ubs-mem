@@ -173,12 +173,12 @@ void MxmComEngineInfo::SetEnableTls(const bool &isEnable)
     enableTls = isEnable;
 }
 
-const UBSHcomNetCipherSuite &MxmComEngineInfo::GetCipherSuite() const
+const ubs_hcom_service_cipher_suite &MxmComEngineInfo::GetCipherSuite() const
 {
     return cipherSuite;
 }
 
-void MxmComEngineInfo::SetCipherSuite(const UBSHcomNetCipherSuite &suite)
+void MxmComEngineInfo::SetCipherSuite(const ubs_hcom_service_cipher_suite &suite)
 {
     cipherSuite = suite;
 }
@@ -253,23 +253,28 @@ void MxmComChannelInfo::SetIsServer(bool isServerSide)
     MxmComChannelInfo::isServer = isServerSide;
 }
 
-const UBSHcomChannelPtr &MxmComChannelInfo::GetChannel() const
+const MxmComChannelStatePtr &MxmComChannelInfo::GetChannel() const
 {
     return channel;
 }
 
-void MxmComChannelInfo::SetUDSInfo(UBSHcomNetUdsIdInfo &uds)
+uint64_t MxmComChannelInfo::GetChannelId() const
+{
+    return channel == nullptr ? 0 : channel->GetId();
+}
+
+void MxmComChannelInfo::SetUDSInfo(const MxmUdsIdInfo &uds)
 {
     MxmComChannelInfo::uds = uds;
 }
-UBSHcomNetUdsIdInfo MxmComChannelInfo::GetUDSInfo() const
+MxmUdsIdInfo MxmComChannelInfo::GetUDSInfo() const
 {
     return uds;
 }
 
-void MxmComChannelInfo::SetChannel(const UBSHcomChannelPtr &ch)
+void MxmComChannelInfo::SetChannel(const MxmComChannelStatePtr &ch)
 {
-    MxmComChannelInfo::channel = ch;
+    channel = ch;
 }
 
 const MxmComChannelConnectInfo &MxmComChannelInfo::GetConnectInfo() const
@@ -306,7 +311,8 @@ std::string MxmComChannelInfo::ConvertMxmComChannelInfoToString()
     std::string infoStr = "engine Name: " + engineName + "; ";
     infoStr = infoStr + "channel type: " + std::to_string(static_cast<int>(channelType)) + "; ";
     infoStr = infoStr +
-              "channel id: " + (channel == nullptr ? std::string("invalid") : std::to_string(channel->GetId())) + "; ";
+              "channel id: " + (GetChannel() == nullptr ? std::string("invalid") : std::to_string(GetChannelId())) +
+              "; ";
     infoStr = infoStr + "cur node id: " + connectInfo.GetCurNodeId() + "; ";
     infoStr = infoStr + "remote node id: " + connectInfo.GetRemoteNodeId() + "; ";
     return infoStr;
@@ -604,40 +610,4 @@ std::pair<std::string, MxmChannelType> SplitPayload(const std::string &payload)
     return std::make_pair(payloadPair[0], StringToChannelType(payloadPair[1]));
 }
 
-MxmComMessage *GetMessageFromNetServiceContext(const UBSHcomServiceContext &context)
-{
-    return static_cast<MxmComMessage *>(context.MessageData());
-}
-
-MxmComMessage *GetMessageFromNetServiceMessage(UBSHcomRequest &msg)
-{
-    return static_cast<MxmComMessage *>(msg.address);
-}
-
-bool CheckMessageBodyLen(UBSHcomServiceContext &context, MxmComMessage &msg)
-{
-    return context.MessageDataLen() == (sizeof(MxmComMessage) + msg.GetMessageBodyLen());
-}
-
-bool CheckMessageBodyLen(UBSHcomRequest &netServiceMessage, MxmComMessage &msg)
-{
-    return netServiceMessage.size == (sizeof(MxmComMessage) + msg.GetMessageBodyLen());
-}
-
-uint64_t GetChannelIdFromNetServiceContext(const UBSHcomServiceContext &context)
-{
-    return context.Channel()->GetId();
-}
-
-void GetUdsInfoFromNetServiceContext(const UBSHcomServiceContext &context, MxmUdsIdInfo &udsIdInfo)
-{
-    UBSHcomNetUdsIdInfo uds;
-    auto ret = context.Channel()->GetRemoteUdsIdInfo(uds);
-    if (ret == 0) {
-        DBG_LOGDEBUG("Uds info is " << uds.pid << "," << uds.uid << "," << uds.gid);
-        udsIdInfo.pid = uds.pid;
-        udsIdInfo.uid = uds.uid;
-        udsIdInfo.gid = uds.gid;
-    }
-}
 } // namespace ock::com

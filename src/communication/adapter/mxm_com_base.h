@@ -35,7 +35,6 @@
 #include "util/functions.h"
 
 namespace ock::com {
-using namespace ock::hcom;
 using namespace ock::mxmd;
 
 enum class MxmModuleCode {
