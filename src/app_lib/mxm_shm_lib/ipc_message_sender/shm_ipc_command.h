@@ -18,6 +18,7 @@
 #include "rack_mem_err.h"
 
 namespace ock::mxmd {
+struct MultiNodeShmMapResponse;
 class ShmIpcCommand {
 public:
     ShmIpcCommand() = delete;
@@ -31,6 +32,13 @@ public:
     static uint32_t IpcCallShmCreateWithProvider(const std::string &hostName, uint32_t socketId, uint32_t numaId,
                                                  uint32_t portId, const std::string &name, uint64_t size,
                                                  uint64_t flags, mode_t mode);
+    static uint32_t IpcCallShmCreateMultiNodePool(const std::string &name, uint64_t size, mode_t mode, uint64_t flags,
+                                                  uint32_t socketId, const std::vector<std::string> &hostNames,
+                                                  const std::vector<uint64_t> &hostSizes);
+    static uint32_t IpcCallShmDeleteMultiNodePool(const std::string &name);
+    static uint32_t IpcCallShmMapMultiNodePool(const std::string &name, uint64_t size, int prot,
+                                               MultiNodeShmMapResponse &response);
+    static uint32_t IpcCallShmUnmapMultiNodePool(const std::string &name);
     static uint32_t IpcCallShmDelete(const std::string &name);
     static uint32_t IpcCallShmLookRegionList(const std::string &baseNid, ShmRegionType type, SHMRegions &list);
     static uint32_t IpcCallShmUnMap(const std::string &name);

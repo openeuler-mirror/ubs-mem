@@ -148,6 +148,85 @@ SHMEM_API int ubsmem_shmem_allocate_with_provider(const ubs_mem_provider_t *src_
                                                   mode_t mode, uint64_t flags);
 
 /**
+ * @brief Create a shared-memory pool backed by multiple provider nodes.
+ *
+ * By default, size is divided equally among all providers. When UBSM_FLAG_MULTINODE_CUSTOM_SIZE is set, each
+ * provider uses the corresponding host_sizes entry instead. In that mode, every active host_sizes entry must be
+ * positive and 4 MiB aligned, and their sum must equal size.
+ *
+ * The pool members are named by appending four hexadecimal digits to name. The first two digits encode
+ * host_count - 1 and the last two encode the zero-based provider index. For example, a 16-provider pool named
+ * "name" contains member "name" at index 0 and members "name0f01" through "name0f0f" at indices 1 through 15.
+ *
+ * @param name [in] Globally unique, non-empty pool name. It must leave room for the four-character member suffix.
+ * @param size [in] Total pool size in bytes. Without custom sizes, it must be evenly divisible by host_count and
+ * each provider's share must be 4 MiB aligned.
+ * @param mode [in] Unix read/write permission bits used to control access to every pool member.
+ * @param flags [in] A valid combination of UBSM_FLAG_* shared-memory creation flags, excluding UBSM_FLAG_WITH_LOCK. Set
+ * UBSM_FLAG_MULTINODE_CUSTOM_SIZE to use providers->host_sizes.
+ * @param providers [in] Provider list. host_count must be in [2, MAX_MULTINODE_HOST_NUM], and every active
+ * host_names entry must be a non-empty, null-terminated host name.
+ * providers->socket_id must explicitly select a socket plane on every provider; UINT32_MAX is not allowed.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
+ */
+SHMEM_API int ubsmem_shmem_allocate_with_multi_provider(const char *name, size_t size, mode_t mode, uint64_t flags,
+                                                        const ubs_mem_providers_t *providers);
+
+/**
+ * @brief Delete every member of a named multi-node shared-memory pool.
+ *
+ * Deletion fails if any member is still in use. The caller supplies the original pool name, not a generated member
+ * name.
+ *
+ * @param name [in] Non-empty pool name passed to ubsmem_shmem_allocate_with_multi_provider().
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
+ */
+SHMEM_API int ubsmem_shmem_deallocate_with_multi_provider(const char *name);
+
+/**
+ * @brief Map a multi-node shared-memory pool into the current process without interleaving its members.
+ *
+ * Only whole-pool mappings are supported. Members are placed consecutively in the host_names order used at creation,
+ * using each host's actual allocation size. Release the mapping with ubsmem_shmem_unmap().
+ *
+ * @note flags accepts mmap-style MAP_* flags, not UBSM_FLAG_* creation flags.
+ *
+ * @param addr [in] Requested mapping address, or NULL to let the system choose one.
+ * @param length [in] Total size of the pool in bytes. Partial mappings are not supported.
+ * @param prot [in] Protection: PROT_NONE, PROT_READ, PROT_WRITE, or PROT_READ | PROT_WRITE.
+ * @param flags [in] mmap-style MAP_* mapping flags.
+ * @param name [in] Name of an existing multi-node shared-memory pool.
+ * @param offset [in] Mapping offset. Partial mappings are not supported, so this must be 0.
+ * @param local_ptr [out] Mapping base address. Must not be NULL.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
+ */
+SHMEM_API int ubsmem_shmem_map_with_multi_provider(void *addr, size_t length, int prot, int flags, const char *name,
+                                                   off_t offset, void **local_ptr);
+
+/**
+ * @brief Map a multi-node shared-memory pool with provider memory interleaved in fixed-size chunks.
+ *
+ * Only whole-pool mappings are supported. interleave_size must evenly divide each provider's backing size. For an
+ * evenly divided pool, this is equivalent to (length / host_count) % interleave_size == 0.
+ * Chunks are placed in creation-time host_names order; exhausted providers are skipped when sizes differ.
+ * Chunks may span multiple backing memory IDs. interleave_size must be page aligned (huge-page aligned when enabled).
+ * Release the mapping with ubsmem_shmem_unmap().
+ *
+ * @note flags accepts mmap-style MAP_* flags, not UBSM_FLAG_* creation flags.
+ *
+ * @param addr [in] Requested mapping address, or NULL to let the system choose one.
+ * @param length [in] Total size of the pool in bytes. Partial mappings are not supported.
+ * @param prot [in] Protection: PROT_NONE, PROT_READ, PROT_WRITE, or PROT_READ | PROT_WRITE.
+ * @param flags [in] mmap-style MAP_* mapping flags.
+ * @param name [in] Name of an existing multi-node shared-memory pool.
+ * @param interleave_size [in] Positive interleave chunk size in bytes; it must evenly divide every provider size.
+ * @param local_ptr [out] Mapping base address. Must not be NULL.
+ * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
+ */
+SHMEM_API int ubsmem_shmem_map_interleaved(void *addr, size_t length, int prot, int flags, const char *name,
+                                           size_t interleave_size, void **local_ptr);
+
+/**
  * @brief Delete a named shared-memory object.
  *
  * Deletion fails while the object is still in use.
@@ -184,8 +263,10 @@ SHMEM_API int ubsmem_shmem_map(void *addr, size_t length, int prot, int flags, c
  * @brief Unmap a shared-memory object from the current process.
  *
  * Partial unmapping is not supported. A locked object must be unlocked before it can be unmapped.
+ * Supports ordinary, multi-provider consecutive, and interleaved mappings. If cleanup fails after local access is
+ * revoked, the mapping must not be accessed; retry with the same base address and length to finish cleanup.
  *
- * @param local_ptr [in] Exact base address returned by ubsmem_shmem_map().
+ * @param local_ptr [in] Exact base address returned by a shared-memory mapping API.
  * @param length [in] Full mapped object size in bytes.
  * @return UBSM_OK on success; otherwise, an error code defined by ubsmshmem_ret_t.
  */
@@ -194,7 +275,9 @@ SHMEM_API int ubsmem_shmem_unmap(void *local_ptr, size_t length);
 /**
  * @brief Change local access permissions and maintain cache consistency for a mapped shared-memory range.
  *
- * This operation is not supported for UBSM_FLAG_NONCACHE or UBSM_FLAG_ONLY_IMPORT_NONCACHE objects.
+ * For multi-provider pools, the original creation flags determine whether ownership maintenance is needed.
+ * A valid range returns success without invoking ownership maintenance when UBSM_FLAG_NONCACHE or
+ * UBSM_FLAG_ONLY_IMPORT_NONCACHE is set. Other mappings are processed by their actual address segments.
  *
  * @param name [in] Name of the mapped shared-memory object.
  * @param start [in] Start address within the mapping, aligned to PAGE_SIZE.

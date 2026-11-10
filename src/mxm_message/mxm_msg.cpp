@@ -133,6 +133,22 @@ static std::unordered_map<int16_t, MsgBaseFunc> requestMap = {
      []() {
          return new (std::nothrow) IpcResumeRequest();
      }},
+    {IPC_REQUEST_CREATE_MULTINODE_SHM,
+     []() {
+         return new (std::nothrow) MultiNodeShmCreateRequest();
+     }},
+    {IPC_REQUEST_DELETE_MULTINODE_SHM,
+     []() {
+         return new (std::nothrow) MultiNodeShmDeleteRequest();
+     }},
+    {IPC_REQUEST_MAP_MULTINODE_SHM,
+     []() {
+         return new (std::nothrow) MultiNodeShmMapRequest();
+     }},
+    {IPC_REQUEST_UNMAP_MULTINODE_SHM,
+     []() {
+         return new (std::nothrow) MultiNodeShmUnmapRequest();
+     }},
 };
 static std::unordered_map<int16_t, MsgBaseFunc> responseMap = {
     {MXM_MSG_SHM_ALLOCATE,
@@ -248,6 +264,22 @@ static std::unordered_map<int16_t, MsgBaseFunc> responseMap = {
          return new (std::nothrow) CommonResponse();
      }},
     {IPC_RESUME_CLIENT,
+     []() {
+         return new (std::nothrow) CommonResponse();
+     }},
+    {IPC_REQUEST_CREATE_MULTINODE_SHM,
+     []() {
+         return new (std::nothrow) CommonResponse();
+     }},
+    {IPC_REQUEST_DELETE_MULTINODE_SHM,
+     []() {
+         return new (std::nothrow) CommonResponse();
+     }},
+    {IPC_REQUEST_MAP_MULTINODE_SHM,
+     []() {
+         return new (std::nothrow) MultiNodeShmMapResponse();
+     }},
+    {IPC_REQUEST_UNMAP_MULTINODE_SHM,
      []() {
          return new (std::nothrow) CommonResponse();
      }},

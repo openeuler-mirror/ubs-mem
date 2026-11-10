@@ -286,6 +286,39 @@ TEST_F(RecordStoreTest, MemoryRecordsReject65ByteNames)
 }
 
 // AddShmImportInput
+TEST_F(RecordStoreTest, SharedMemoryRecordPreserves63ByteName)
+{
+    auto input = TEST_SHM_IMPORT_RECORD;
+    input.name = std::string(63, 's');
+    ASSERT_EQ(AddTestImportRecord(input), 0);
+    const auto records = RecordStore::GetInstance().ListShmImportRecord();
+    const auto found = std::find_if(records.begin(), records.end(),
+                                    [&input](const ShareMemImportInfo &record) { return record.name == input.name; });
+    EXPECT_NE(found, records.end());
+    if (found != records.end()) {
+        EXPECT_EQ(found->name.size(), 63);
+        EXPECT_EQ(found->memIds, input.memIds);
+    }
+    EXPECT_EQ(RecordStore::GetInstance().DelShmImportRecord(input.name), 0);
+}
+
+TEST_F(RecordStoreTest, LeaseRecordPreserves63ByteName)
+{
+    auto input = TEST_LEASE_RECORD.first;
+    input.name = std::string(63, 'l');
+    ASSERT_EQ(RecordStore::GetInstance().AddMemLeaseInput(input), 0);
+    EXPECT_EQ(RecordStore::GetInstance().AddMemLeaseResult(input.name, TEST_LEASE_RECORD.second), 0);
+    const auto records = RecordStore::GetInstance().ListMemLeaseRecord();
+    const auto found = std::find_if(records.begin(), records.end(),
+                                    [&input](const MemLeaseInfo &record) { return record.first.name == input.name; });
+    EXPECT_NE(found, records.end());
+    if (found != records.end()) {
+        EXPECT_EQ(found->first.name.size(), 63);
+        EXPECT_EQ(found->second.memIds, TEST_LEASE_RECORD.second.memIds);
+    }
+    EXPECT_EQ(RecordStore::GetInstance().DelMemLeaseRecord(input.name), 0);
+}
+
 TEST_F(RecordStoreTest, TestAddShmImportInput_FailWhenNameLengthOverLimit)
 {
     ShareMemImportInput input{};

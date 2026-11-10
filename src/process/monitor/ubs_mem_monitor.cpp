@@ -10,12 +10,14 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "ubs_mem_monitor.h"
+#include <algorithm>
 #include <iosfwd>
 #include <iostream>
 #include "defines.h"
 #include "log.h"
 #include "mls_manager.h"
 #include "mxm_ipc_server_interface.h"
+#include "mxm_shm/ipc_handler.h"
 #include "record_store.h"
 #include "ubs_mem_leak_cleaner.h"
 #include "ubse_mem_adapter.h"
@@ -23,6 +25,7 @@
 namespace ock {
 namespace ubsm {
 using namespace lease::service;
+using namespace share::service;
 DelayRemovedKey::DelayRemovedKey(std::string nm, uint64_t delay, bool isLease, const AppContext &appCtx, bool changed,
                                  bool isNumaLease, bool isTimeOutScene) noexcept
     : isLease(isLease),
@@ -44,7 +47,10 @@ bool DelayKeyComparator::operator()(const DelayRemovedKey &k1, const DelayRemove
         return k1.expiresTime < k2.expiresTime;
     }
 
-    return k1.name < k2.name;
+    if (k1.name != k2.name) {
+        return k1.name < k2.name;
+    }
+    return k1.shmRollbackReferenceId < k2.shmRollbackReferenceId;
 }
 
 bool DelayKeyIsBusyComparator::operator()(const DelayRemovedKey &k1, const DelayRemovedKey &k2) const noexcept
@@ -238,14 +244,20 @@ void UBSMemMonitor::RemoveDelayBorrows() noexcept
     }
     mutex.unlock();
 
-    std::list<DelayRemovedKey> failedRetryKeys;
     for (auto &removedKey : expiresRemovedKeys) {
         removedKey.retryTimes++;
         HRESULT ret = HOK;
         DBG_LOGINFO("RemoveDelayBorrows for name(" << removedKey.name << ") retry(" << removedKey.retryTimes
                                                    << "), expires time(" << removedKey.expiresTime << "), nowtime("
                                                    << nowTime << ")");
-        if (removedKey.isLease) {
+        if (removedKey.shmRollbackReferenceId != 0) {
+            MxmComUdsInfo info{};
+            info.pid = removedKey.appCtx.pid;
+            info.uid = removedKey.appCtx.uid;
+            info.gid = removedKey.appCtx.gid;
+            ret = MxmServerMsgHandle::RollbackMultiNodeShmMember(removedKey.name, info,
+                                                                 removedKey.shmRollbackReferenceId);
+        } else if (removedKey.isLease) {
             ret = UBSMemLeakCleaner::GetInstance().CleanLeaseMemoryLeakInner(
                 removedKey.name, removedKey.appCtx, removedKey.changed, removedKey.timeOutScene,
                 removedKey.isNumaLease);
@@ -256,30 +268,32 @@ void UBSMemMonitor::RemoveDelayBorrows() noexcept
         }
 
         mutex.lock();
-        auto waitToErase = delayedRemoveKeysByName.find(removedKey);
-        if (waitToErase != delayedRemoveKeysByName.end()) {
-            delayedRemoveKeysByName.erase(waitToErase);
-        }
         delayedRemoveKeys.erase(removedKey);
-        mutex.unlock();
-
         if (ret != 0) {
             removedKey.expiresTime = LinearDelayMs(removedKey.retryTimes, ONE_MINUTE_MS, MAX_DELAY_TIME_MS);
-            DBG_LOGWARN("RemoveDelayBorrows for name(" << removedKey.name << ") retry(" << removedKey.retryTimes
-                                                       << "), expires time(" << removedKey.expiresTime << "), nowtime("
-                                                       << nowTime << "), failed: errCode=" << ret);
-            failedRetryKeys.push_back(std::move(removedKey));
+            DBG_LOGWARN("Delayed memory cleanup failed; scheduling retry, name="
+                        << removedKey.name << ", pid=" << removedKey.appCtx.pid << ", referenceId="
+                        << removedKey.shmRollbackReferenceId << ", retry=" << removedKey.retryTimes << ", ret=" << ret);
+            delayedRemoveKeys.insert(removedKey);
         }
-    }
-
-    for (auto &failedKey : failedRetryKeys) {
-        AddDelayRemoveRecord(failedKey);
+        const auto sameName = std::find_if(delayedRemoveKeys.begin(), delayedRemoveKeys.end(),
+                                           [&](const DelayRemovedKey &key) { return key.name == removedKey.name; });
+        if (sameName == delayedRemoveKeys.end()) {
+            delayedRemoveKeysByName.erase(removedKey);
+        }
+        mutex.unlock();
     }
 }
 
 void UBSMemMonitor::AddDelayRemoveRecord(const DelayRemovedKey &key)
 {
     std::unique_lock<std::recursive_mutex> lock{mutex};
+    if (key.shmRollbackReferenceId != 0 &&
+        std::any_of(delayedRemoveKeys.begin(), delayedRemoveKeys.end(), [&](const DelayRemovedKey &pending) {
+            return pending.name == key.name && pending.shmRollbackReferenceId == key.shmRollbackReferenceId;
+        })) {
+        return;
+    }
     delayedRemoveKeys.insert(key);
     delayedRemoveKeysByName.insert(key);
     lock.unlock();

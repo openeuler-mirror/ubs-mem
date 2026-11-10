@@ -225,6 +225,8 @@ static const std::unordered_map<uint32_t, int> errorMapping = {
     {MXM_ERR_SHM_PERMISSION_DENIED, UBSM_ERR_NOPERM},
     {MXM_ERR_SHM_IN_USING, UBSM_ERR_IN_USING},
     {MXM_ERR_SHM_NOT_EXIST, UBSM_ERR_NOT_FOUND},
+    {MXM_ERR_SHM_POOL_INCOMPLETE, UBSM_ERR_SHM_POOL_INCOMPLETE},
+    {MXM_ERR_SHM_POOL_LAYOUT_CONFLICT, UBSM_ERR_SHM_POOL_LAYOUT_CONFLICT},
     // lease obj
     {MXM_ERR_LEASE_NOT_FOUND, UBSM_ERR_NOT_FOUND},
     {MXM_ERR_LEASE_NOT_EXIST, UBSM_ERR_NOT_FOUND},
@@ -269,18 +271,20 @@ static const std::unordered_map<uint32_t, std::string> errorStrMapping = {
                     ERROR_STRING_ENTRY(MXM_ERR_IPC_CRC_CHECK_ERROR) ERROR_STRING_ENTRY(
                         MXM_ERR_IPC_SERIALIZE_DESERIALIZE_ERROR) ERROR_STRING_ENTRY(MXM_ERR_REGISTER_OP_CODE)
                         ERROR_STRING_ENTRY(MXM_ERR_REGISTER_HANDLER_NULL) ERROR_STRING_ENTRY(MXM_ERR_RPC_QUERY_ERROR)
-                            ERROR_STRING_ENTRY(MXM_ERR_LOCK_NOT_READY) ERROR_STRING_ENTRY(MXM_ERR_LOCK_ALREADY_LOCKED)
-                                ERROR_STRING_ENTRY(MXM_ERR_LOCK_NOT_FOUND) ERROR_STRING_ENTRY(MXM_ERR_DLOCK_LIB)
-                                    ERROR_STRING_ENTRY(MXM_ERR_DLOCK_INNER) ERROR_STRING_ENTRY(MXM_ERR_RECORD_DELETE)
-                                        ERROR_STRING_ENTRY(MXM_ERR_RECORD_ADD) ERROR_STRING_ENTRY(
-                                            MXM_ERR_RECORD_CHANGE_STATE) ERROR_STRING_ENTRY(MXM_ERR_REGION_NOT_FOUND)
-                                            ERROR_STRING_ENTRY(MXM_ERR_REGION_PARAM_INVALID) ERROR_STRING_ENTRY(
-                                                MXM_ERR_REGION_EXIST) ERROR_STRING_ENTRY(MXM_ERR_REGION_NOT_EXIST)
-                                                ERROR_STRING_ENTRY(MXM_ERR_REGION_NO_NEEDED) ERROR_STRING_ENTRY(
-                                                    MXM_ERR_SHM_NOT_FOUND) ERROR_STRING_ENTRY(MXM_ERR_SHM_ALREADY_EXIST)
-                                                    ERROR_STRING_ENTRY(MXM_ERR_SHM_PERMISSION_DENIED)
-                                                        ERROR_STRING_ENTRY(MXM_ERR_SHM_IN_USING) ERROR_STRING_ENTRY(
-                                                            MXM_ERR_SHM_NOT_EXIST)
+                            ERROR_STRING_ENTRY(MXM_ERR_LOCK_NOT_READY) ERROR_STRING_ENTRY(
+                                MXM_ERR_LOCK_ALREADY_LOCKED) ERROR_STRING_ENTRY(MXM_ERR_LOCK_NOT_FOUND)
+                                ERROR_STRING_ENTRY(MXM_ERR_DLOCK_LIB) ERROR_STRING_ENTRY(
+                                    MXM_ERR_DLOCK_INNER) ERROR_STRING_ENTRY(MXM_ERR_RECORD_DELETE)
+                                    ERROR_STRING_ENTRY(MXM_ERR_RECORD_ADD) ERROR_STRING_ENTRY(
+                                        MXM_ERR_RECORD_CHANGE_STATE) ERROR_STRING_ENTRY(MXM_ERR_REGION_NOT_FOUND)
+                                        ERROR_STRING_ENTRY(MXM_ERR_REGION_PARAM_INVALID) ERROR_STRING_ENTRY(
+                                            MXM_ERR_REGION_EXIST) ERROR_STRING_ENTRY(MXM_ERR_REGION_NOT_EXIST)
+                                            ERROR_STRING_ENTRY(MXM_ERR_REGION_NO_NEEDED) ERROR_STRING_ENTRY(
+                                                MXM_ERR_SHM_NOT_FOUND) ERROR_STRING_ENTRY(MXM_ERR_SHM_ALREADY_EXIST)
+                                                ERROR_STRING_ENTRY(MXM_ERR_SHM_PERMISSION_DENIED) ERROR_STRING_ENTRY(
+                                                    MXM_ERR_SHM_IN_USING) ERROR_STRING_ENTRY(MXM_ERR_SHM_NOT_EXIST)
+                                                    ERROR_STRING_ENTRY(MXM_ERR_SHM_POOL_INCOMPLETE)
+                                                        ERROR_STRING_ENTRY(MXM_ERR_SHM_POOL_LAYOUT_CONFLICT)
                                                             ERROR_STRING_ENTRY(MXM_ERR_LEASE_NOT_FOUND)
                                                                 ERROR_STRING_ENTRY(MXM_ERR_LEASE_NOT_EXIST)
                                                                     ERROR_STRING_ENTRY(MXM_ERR_UBSE_INNER)

@@ -783,6 +783,146 @@ struct ShmUnmapRequest : MsgBase {
     }
 };
 
+struct MultiNodeShmCreateRequest : MsgBase {
+    std::string name_;
+    uint64_t size_{};
+    mode_t mode_{};
+    uint64_t flags_{};
+    uint32_t socketId_{};
+    std::vector<std::string> hostNames_;
+    std::vector<uint64_t> hostSizes_;
+
+    MultiNodeShmCreateRequest() : MsgBase{0, IPC_REQUEST_CREATE_MULTINODE_SHM, 0} {};
+    MultiNodeShmCreateRequest(const std::string &name, uint64_t size, mode_t mode, uint64_t flags, uint32_t socketId,
+                              const std::vector<std::string> &hostNames, const std::vector<uint64_t> &hostSizes)
+        : MsgBase{0, IPC_REQUEST_CREATE_MULTINODE_SHM, 0},
+          name_(name),
+          size_(size),
+          mode_(mode),
+          flags_(flags),
+          socketId_(socketId),
+          hostNames_(hostNames),
+          hostSizes_(hostSizes) {};
+
+    int32_t Serialize(NetMsgPacker &packer) const override
+    {
+        packer.Serialize(msgVer);
+        packer.Serialize(opCode);
+        packer.Serialize(destRankId);
+        packer.Serialize(name_);
+        packer.Serialize(size_);
+        packer.Serialize(mode_);
+        packer.Serialize(flags_);
+        packer.Serialize(socketId_);
+        packer.Serialize(hostNames_);
+        packer.Serialize(hostSizes_);
+        return UBSM_OK;
+    }
+
+    int32_t Deserialize(NetMsgUnpacker &unpacker) override
+    {
+        unpacker.Deserialize(msgVer);
+        unpacker.Deserialize(opCode);
+        unpacker.Deserialize(destRankId);
+        unpacker.Deserialize(name_);
+        unpacker.Deserialize(size_);
+        unpacker.Deserialize(mode_);
+        unpacker.Deserialize(flags_);
+        unpacker.Deserialize(socketId_);
+        unpacker.Deserialize(hostNames_);
+        unpacker.Deserialize(hostSizes_);
+        return DeserializeResult(unpacker);
+    }
+};
+
+struct MultiNodeShmDeleteRequest : MsgBase {
+    std::string name_;
+
+    MultiNodeShmDeleteRequest() : MsgBase{0, IPC_REQUEST_DELETE_MULTINODE_SHM, 0} {};
+    explicit MultiNodeShmDeleteRequest(const std::string &name)
+        : MsgBase{0, IPC_REQUEST_DELETE_MULTINODE_SHM, 0},
+          name_(name) {};
+
+    int32_t Serialize(NetMsgPacker &packer) const override
+    {
+        packer.Serialize(msgVer);
+        packer.Serialize(opCode);
+        packer.Serialize(destRankId);
+        packer.Serialize(name_);
+        return UBSM_OK;
+    }
+
+    int32_t Deserialize(NetMsgUnpacker &unpacker) override
+    {
+        unpacker.Deserialize(msgVer);
+        unpacker.Deserialize(opCode);
+        unpacker.Deserialize(destRankId);
+        unpacker.Deserialize(name_);
+        return DeserializeResult(unpacker);
+    }
+};
+
+struct MultiNodeShmMapRequest : MsgBase {
+    std::string name_;
+    uint64_t size_{};
+    int32_t prot_{};
+    MultiNodeShmMapRequest() : MsgBase{0, IPC_REQUEST_MAP_MULTINODE_SHM, 0} {};
+    MultiNodeShmMapRequest(const std::string &name, uint64_t size, int32_t prot)
+        : MsgBase{0, IPC_REQUEST_MAP_MULTINODE_SHM, 0},
+          name_(name),
+          size_(size),
+          prot_(prot) {};
+
+    int32_t Serialize(NetMsgPacker &packer) const override
+    {
+        packer.Serialize(msgVer);
+        packer.Serialize(opCode);
+        packer.Serialize(destRankId);
+        packer.Serialize(name_);
+        packer.Serialize(size_);
+        packer.Serialize(prot_);
+        return UBSM_OK;
+    }
+
+    int32_t Deserialize(NetMsgUnpacker &unpacker) override
+    {
+        unpacker.Deserialize(msgVer);
+        unpacker.Deserialize(opCode);
+        unpacker.Deserialize(destRankId);
+        unpacker.Deserialize(name_);
+        unpacker.Deserialize(size_);
+        unpacker.Deserialize(prot_);
+        return DeserializeResult(unpacker);
+    }
+};
+
+struct MultiNodeShmUnmapRequest : MsgBase {
+    std::string name_;
+
+    MultiNodeShmUnmapRequest() : MsgBase{0, IPC_REQUEST_UNMAP_MULTINODE_SHM, 0} {};
+    explicit MultiNodeShmUnmapRequest(const std::string &name)
+        : MsgBase{0, IPC_REQUEST_UNMAP_MULTINODE_SHM, 0},
+          name_(name) {};
+
+    int32_t Serialize(NetMsgPacker &packer) const override
+    {
+        packer.Serialize(msgVer);
+        packer.Serialize(opCode);
+        packer.Serialize(destRankId);
+        packer.Serialize(name_);
+        return UBSM_OK;
+    }
+
+    int32_t Deserialize(NetMsgUnpacker &unpacker) override
+    {
+        unpacker.Deserialize(msgVer);
+        unpacker.Deserialize(opCode);
+        unpacker.Deserialize(destRankId);
+        unpacker.Deserialize(name_);
+        return DeserializeResult(unpacker);
+    }
+};
+
 struct ShmQueryMemFaultStatusRequest : MsgBase {
     std::string name_;
 
@@ -1116,6 +1256,65 @@ struct ShmMapResponse : MsgBase {
         unpacker.Deserialize(unitSize_);
         unpacker.Deserialize(flag_);
         unpacker.Deserialize(oflag_);
+        return DeserializeResult(unpacker);
+    }
+};
+
+struct MultiNodeShmMapResponse : MsgBase {
+    int32_t errCode_{UBSM_ERR_UNIMPL};
+    std::vector<std::vector<uint64_t>> memIds_{};
+    // Actual member sizes in bytes, one entry for each memIds_ group in member-index order.
+    std::vector<uint64_t> groupSizes_{};
+    std::vector<uint64_t> groupFlags_{};
+    uint64_t unitSize_{};
+    uint64_t createdSize_{};
+    // Original creation flags; groupFlags_ contains the effective flags returned by each attach.
+    uint64_t flag_{};
+    int32_t oflag_{};
+
+    MultiNodeShmMapResponse() : MsgBase{0, MXM_MSG_BUTT, 0} {};
+    MultiNodeShmMapResponse(int32_t errCode, const std::vector<std::vector<uint64_t>> &memIds, uint64_t unitSize,
+                            uint64_t createdSize, uint64_t flag, int32_t oflag,
+                            const std::vector<uint64_t> &groupSizes = {}, const std::vector<uint64_t> &groupFlags = {})
+        : MsgBase{0, MXM_MSG_BUTT, 0},
+          errCode_(errCode),
+          memIds_(memIds),
+          groupSizes_(groupSizes),
+          groupFlags_(groupFlags.empty() ? std::vector<uint64_t>(memIds.size(), flag) : groupFlags),
+          unitSize_(unitSize),
+          createdSize_(createdSize),
+          flag_(flag),
+          oflag_(oflag) {};
+
+    int32_t Serialize(NetMsgPacker &packer) const override
+    {
+        packer.Serialize(msgVer);
+        packer.Serialize(opCode);
+        packer.Serialize(destRankId);
+        packer.Serialize(errCode_);
+        packer.Serialize(memIds_);
+        packer.Serialize(unitSize_);
+        packer.Serialize(createdSize_);
+        packer.Serialize(flag_);
+        packer.Serialize(oflag_);
+        packer.Serialize(groupSizes_);
+        packer.Serialize(groupFlags_);
+        return UBSM_OK;
+    }
+
+    int32_t Deserialize(NetMsgUnpacker &unpacker) override
+    {
+        unpacker.Deserialize(msgVer);
+        unpacker.Deserialize(opCode);
+        unpacker.Deserialize(destRankId);
+        unpacker.Deserialize(errCode_);
+        unpacker.Deserialize(memIds_);
+        unpacker.Deserialize(unitSize_);
+        unpacker.Deserialize(createdSize_);
+        unpacker.Deserialize(flag_);
+        unpacker.Deserialize(oflag_);
+        unpacker.Deserialize(groupSizes_);
+        unpacker.Deserialize(groupFlags_);
         return DeserializeResult(unpacker);
     }
 };

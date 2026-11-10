@@ -6,6 +6,7 @@
 #include <sys/mman.h>
 #include <cstring>
 #include <mockcpp/mockcpp.hpp>
+#include "securec.h"
 
 #define private public
 #include "UbseMemExecutor.h"
@@ -136,6 +137,140 @@ TEST_F(UbsmemShmemAllocateTest, FlagsInvalid)
                                                             valid_mode, invalid_flags));
 }
 
+static ubs_mem_providers_t BuildMultiNodeProviders()
+{
+    ubs_mem_providers_t providers{};
+    providers.host_count = 2;
+    EXPECT_EQ(strcpy_s(providers.host_names[0], sizeof(providers.host_names[0]), "host1"), EOK);
+    EXPECT_EQ(strcpy_s(providers.host_names[1], sizeof(providers.host_names[1]), "host2"), EOK);
+    return providers;
+}
+
+TEST_F(UbsmemShmemAllocateTest, MultiNodeBaseNameAccepts60BytesAndRejects61)
+{
+    auto providers = BuildMultiNodeProviders();
+    MOCKER_CPP(&RackMemShm::UbsMemShmCreateMultiNodePool,
+               uint32_t(*)(const std::string &, uint64_t, mode_t, uint64_t, uint32_t, const std::vector<std::string> &,
+                           const std::vector<uint64_t> &))
+        .expects(once())
+        .will(returnValue(static_cast<uint32_t>(MXM_OK)));
+    const std::string accepted(MAX_SHM_NAME_LENGTH - 4, 'a');
+    const std::string rejected(MAX_SHM_NAME_LENGTH - 3, 'a');
+    EXPECT_EQ(ubsmem_shmem_allocate_with_multi_provider(accepted.c_str(), 8UL * 1024 * 1024, valid_mode, 0, &providers),
+              UBSM_OK);
+    EXPECT_EQ(ubsmem_shmem_allocate_with_multi_provider(rejected.c_str(), 8UL * 1024 * 1024, valid_mode, 0, &providers),
+              UBSM_ERR_PARAM_INVALID);
+}
+
+TEST_F(UbsmemShmemAllocateTest, MultiNodeRejectsDuplicateHostsBeforeIpc)
+{
+    auto providers = BuildMultiNodeProviders();
+    ASSERT_EQ(strcpy_s(providers.host_names[1], sizeof(providers.host_names[1]), providers.host_names[0]), EOK);
+    MOCKER_CPP(&RackMemShm::UbsMemShmCreateMultiNodePool,
+               uint32_t(*)(const std::string &, uint64_t, mode_t, uint64_t, uint32_t, const std::vector<std::string> &,
+                           const std::vector<uint64_t> &))
+        .expects(never());
+    EXPECT_EQ(ubsmem_shmem_allocate_with_multi_provider("duplicate_pool", 8UL * 1024 * 1024, valid_mode, 0, &providers),
+              UBSM_ERR_PARAM_INVALID);
+}
+
+TEST_F(UbsmemShmemAllocateTest, MultiNodeAcceptsProviderCountsThrough256)
+{
+    for (const uint32_t count : {17u, 256u, 257u}) {
+        ubs_mem_providers_t providers{};
+        providers.host_count = count;
+        for (uint32_t index = 0; index < std::min(count, uint32_t{MAX_MULTINODE_HOST_NUM}); ++index) {
+            const auto host = "host" + std::to_string(index);
+            ASSERT_EQ(strcpy_s(providers.host_names[index], sizeof(providers.host_names[index]), host.c_str()), EOK);
+        }
+        MOCKER_CPP(&RackMemShm::UbsMemShmCreateMultiNodePool,
+                   uint32_t(*)(const std::string &, uint64_t, mode_t, uint64_t, uint32_t,
+                               const std::vector<std::string> &, const std::vector<uint64_t> &))
+            .expects(count > MAX_MULTINODE_HOST_NUM ? never() : once())
+            .will(returnValue(static_cast<uint32_t>(MXM_OK)));
+        EXPECT_EQ(ubsmem_shmem_allocate_with_multi_provider("large_pool", count * 4UL * 1024 * 1024, valid_mode, 0,
+                                                            &providers),
+                  count > MAX_MULTINODE_HOST_NUM ? UBSM_ERR_PARAM_INVALID : UBSM_OK);
+        GlobalMockObject::verify();
+        GlobalMockObject::reset();
+    }
+}
+
+TEST_F(UbsmemShmemAllocateTest, MultiNodeRejectsLockModeBeforeIpc)
+{
+    auto providers = BuildMultiNodeProviders();
+    MOCKER_CPP(&RackMemShm::UbsMemShmCreateMultiNodePool,
+               uint32_t(*)(const std::string &, uint64_t, mode_t, uint64_t, uint32_t, const std::vector<std::string> &,
+                           const std::vector<uint64_t> &))
+        .expects(never());
+    EXPECT_EQ(ubsmem_shmem_allocate_with_multi_provider("lock_pool", 8UL * 1024 * 1024, valid_mode, UBSM_FLAG_WITH_LOCK,
+                                                        &providers),
+              UBSM_ERR_PARAM_INVALID);
+    GlobalMockObject::verify();
+}
+
+TEST_F(UbsmemShmemAllocateTest, MultiNodeRejectsUnspecifiedPlaneBeforeIpc)
+{
+    auto providers = BuildMultiNodeProviders();
+    providers.socket_id = UINT32_MAX;
+    MOCKER_CPP(&RackMemShm::UbsMemShmCreateMultiNodePool,
+               uint32_t(*)(RackMemShm *, const std::string &, uint64_t, mode_t, uint64_t, uint32_t,
+                           const std::vector<std::string> &, const std::vector<uint64_t> &))
+        .expects(never());
+    EXPECT_EQ(ubsmem_shmem_allocate_with_multi_provider("plane_pool", 8UL * 1024 * 1024, valid_mode, 0, &providers),
+              UBSM_ERR_PARAM_INVALID);
+    GlobalMockObject::verify();
+}
+
+TEST_F(UbsmemShmemAllocateTest, MultiNodeForwardsExplicitPlane)
+{
+    auto providers = BuildMultiNodeProviders();
+    for (const uint32_t socketId : {0u, 1u}) {
+        providers.socket_id = socketId;
+        MOCKER_CPP(&RackMemShm::UbsMemShmCreateMultiNodePool,
+                   uint32_t(*)(RackMemShm *, const std::string &, uint64_t, mode_t, uint64_t, uint32_t,
+                               const std::vector<std::string> &, const std::vector<uint64_t> &))
+            .expects(once())
+            .with(any(), any(), any(), any(), any(), eq(socketId), any(), any())
+            .will(returnValue(static_cast<uint32_t>(UBSM_OK)));
+        EXPECT_EQ(ubsmem_shmem_allocate_with_multi_provider("plane_pool", 8UL * 1024 * 1024, valid_mode, 0, &providers),
+                  UBSM_OK);
+        GlobalMockObject::verify();
+        GlobalMockObject::reset();
+    }
+}
+
+TEST_F(UbsmemShmemAllocateTest, MultiNodeCustomHostSizesSuccess)
+{
+    auto providers = BuildMultiNodeProviders();
+    providers.host_sizes[0] = 4UL * 1024 * 1024;
+    providers.host_sizes[1] = 8UL * 1024 * 1024;
+    MOCKER_CPP(&RackMemShm::UbsMemShmCreateMultiNodePool,
+               uint32_t(*)(const std::string &, uint64_t, mode_t, uint64_t, uint32_t, const std::vector<std::string> &,
+                           const std::vector<uint64_t> &))
+        .stubs()
+        .will(returnValue(static_cast<uint32_t>(UBSM_OK)));
+
+    EXPECT_EQ(ubsmem_shmem_allocate_with_multi_provider("pool", 12UL * 1024 * 1024, valid_mode,
+                                                        UBSM_FLAG_MULTINODE_CUSTOM_SIZE, &providers),
+              UBSM_OK);
+}
+
+TEST_F(UbsmemShmemAllocateTest, MultiNodeCustomHostSizesInvalid)
+{
+    auto providers = BuildMultiNodeProviders();
+    providers.host_sizes[0] = 4UL * 1024 * 1024;
+    providers.host_sizes[1] = 4UL * 1024 * 1024;
+    EXPECT_EQ(ubsmem_shmem_allocate_with_multi_provider("pool", 12UL * 1024 * 1024, valid_mode,
+                                                        UBSM_FLAG_MULTINODE_CUSTOM_SIZE, &providers),
+              UBSM_ERR_PARAM_INVALID);
+
+    providers.host_sizes[1] = 6UL * 1024 * 1024;
+    EXPECT_EQ(ubsmem_shmem_allocate_with_multi_provider("pool", 10UL * 1024 * 1024, valid_mode,
+                                                        UBSM_FLAG_MULTINODE_CUSTOM_SIZE, &providers),
+              UBSM_ERR_PARAM_INVALID);
+}
+
 class UbsmemShmemDeallocateTest : public ::testing::Test {
 protected:
     void SetUp() override {}
@@ -183,6 +318,30 @@ TEST_F(UbsmemShmemDeallocateTest, DeleteFailed)
         .stubs()
         .will(returnValue(static_cast<int>(MXM_ERR_MALLOC_FAIL)));
     EXPECT_EQ(UBSM_ERR_MALLOC_FAIL, ubsmem_shmem_deallocate(validName.c_str())); // 6022 是预期的返回值
+}
+
+TEST_F(UbsmemShmemDeallocateTest, MultiNodeNormalCase)
+{
+    MOCKER_CPP(&RackMemShm::UbsMemShmDeleteMultiNodePool, uint32_t(*)(const std::string &name))
+        .stubs()
+        .will(returnValue(static_cast<uint32_t>(UBSM_OK)));
+    EXPECT_EQ(UBSM_OK, ubsmem_shmem_deallocate_with_multi_provider(validName.c_str()));
+}
+
+TEST_F(UbsmemShmemDeallocateTest, MultiNodeNameInvalid)
+{
+    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_deallocate_with_multi_provider(nullptr));
+    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_deallocate_with_multi_provider(""));
+    const std::string longName(MAX_SHM_NAME_LENGTH + 1, 'a');
+    EXPECT_EQ(UBSM_ERR_PARAM_INVALID, ubsmem_shmem_deallocate_with_multi_provider(longName.c_str()));
+}
+
+TEST_F(UbsmemShmemDeallocateTest, MultiNodeDeleteFailed)
+{
+    MOCKER_CPP(&RackMemShm::UbsMemShmDeleteMultiNodePool, uint32_t(*)(const std::string &name))
+        .stubs()
+        .will(returnValue(static_cast<uint32_t>(MXM_ERR_MALLOC_FAIL)));
+    EXPECT_EQ(UBSM_ERR_MALLOC_FAIL, ubsmem_shmem_deallocate_with_multi_provider(validName.c_str()));
 }
 
 class UbsmemShmemMapTest : public ::testing::Test {
@@ -297,6 +456,100 @@ TEST_F(UbsmemShmemMapTest, MapFailed)
                                                    valid_offset, &result_ptr));
 }
 
+TEST_F(UbsmemShmemMapTest, MultiProviderMapValidatesParameters)
+{
+    void *address = nullptr;
+    const size_t size = 8UL * 1024 * 1024;
+    EXPECT_EQ(ubsmem_shmem_map_with_multi_provider(nullptr, size, PROT_READ, MAP_SHARED, nullptr, 0, &address),
+              UBSM_ERR_PARAM_INVALID);
+    EXPECT_EQ(ubsmem_shmem_map_with_multi_provider(nullptr, size, PROT_READ, MAP_SHARED, "pool", 0, nullptr),
+              UBSM_ERR_PARAM_INVALID);
+    EXPECT_EQ(ubsmem_shmem_map_with_multi_provider(nullptr, size, PROT_READ, MAP_SHARED, "pool", 4096, &address),
+              UBSM_ERR_PARAM_INVALID);
+    EXPECT_EQ(ubsmem_shmem_map_with_multi_provider(nullptr, size, PROT_READ, MAP_PRIVATE, "pool", 0, &address),
+              UBSM_ERR_PARAM_INVALID);
+}
+
+TEST_F(UbsmemShmemMapTest, MultiProviderMapPropagatesFailure)
+{
+    MOCKER_CPP(&RackMemShm::UbsMemShmMapMultiNodePool,
+               int (*)(void *, size_t, int, int, const std::string &, off_t, void **, size_t))
+        .expects(once())
+        .will(returnValue(static_cast<int>(MXM_ERR_SHM_NOT_EXIST)));
+    void *address = nullptr;
+    EXPECT_EQ(
+        ubsmem_shmem_map_with_multi_provider(nullptr, 8UL * 1024 * 1024, PROT_READ, MAP_SHARED, "pool", 0, &address),
+        UBSM_ERR_NOT_FOUND);
+    EXPECT_EQ(address, nullptr);
+}
+
+TEST_F(UbsmemShmemMapTest, BothMultiProviderLayoutsExposePoolErrors)
+{
+    constexpr size_t size = 8UL * 1024 * 1024;
+    const int internalErrors[] = {MXM_ERR_SHM_POOL_INCOMPLETE, MXM_ERR_SHM_POOL_LAYOUT_CONFLICT};
+    const int publicErrors[] = {UBSM_ERR_SHM_POOL_INCOMPLETE, UBSM_ERR_SHM_POOL_LAYOUT_CONFLICT};
+    for (size_t index = 0; index < 2; ++index) {
+        for (const bool interleaved : {false, true}) {
+            MOCKER_CPP(&RackMemShm::UbsMemShmMapMultiNodePool,
+                       int (*)(RackMemShm *, void *, size_t, int, int, const std::string &, off_t, void **, size_t))
+                .expects(once())
+                .will(returnValue(internalErrors[index]));
+            void *address = nullptr;
+            const auto ret =
+                interleaved ?
+                    ubsmem_shmem_map_interleaved(nullptr, size, PROT_READ, MAP_SHARED, "pool", size / 2, &address) :
+                    ubsmem_shmem_map_with_multi_provider(nullptr, size, PROT_READ, MAP_SHARED, "pool", 0, &address);
+            EXPECT_EQ(ret, publicErrors[index]);
+            EXPECT_EQ(address, nullptr);
+            GlobalMockObject::verify();
+            GlobalMockObject::reset();
+        }
+    }
+}
+
+static int CaptureInterleavedMap(RackMemShm *, void *, size_t size, int, int, const std::string &name, off_t offset,
+                                 void **result, size_t interleaveSize)
+{
+    EXPECT_EQ(size, 8UL * 1024 * 1024);
+    EXPECT_EQ(name, "pool");
+    EXPECT_EQ(offset, 0);
+    EXPECT_EQ(interleaveSize, 4UL * 1024 * 1024);
+    *result = reinterpret_cast<void *>(0x10000000);
+    return MXM_OK;
+}
+
+TEST_F(UbsmemShmemMapTest, InterleavedMapForwardsChunkSize)
+{
+    MOCKER_CPP(&RackMemShm::UbsMemShmMapMultiNodePool,
+               int (*)(RackMemShm *, void *, size_t, int, int, const std::string &, off_t, void **, size_t))
+        .expects(once())
+        .will(invoke(CaptureInterleavedMap));
+    void *address = nullptr;
+    EXPECT_EQ(ubsmem_shmem_map_interleaved(nullptr, 8UL * 1024 * 1024, PROT_READ, MAP_SHARED, "pool", 4UL * 1024 * 1024,
+                                           &address),
+              UBSM_OK);
+    EXPECT_EQ(address, reinterpret_cast<void *>(0x10000000));
+    GlobalMockObject::verify();
+}
+
+TEST_F(UbsmemShmemMapTest, InterleavedMapRejectsInvalidChunkSizes)
+{
+    MOCKER_CPP(&RackMemShm::UbsMemShmMapMultiNodePool,
+               int (*)(void *, size_t, int, int, const std::string &, off_t, void **, size_t))
+        .expects(never());
+    void *address = nullptr;
+    for (const size_t chunk : {0UL, 1UL, 3UL * 1024 * 1024}) {
+        EXPECT_EQ(
+            ubsmem_shmem_map_interleaved(nullptr, 8UL * 1024 * 1024, PROT_READ, MAP_SHARED, "pool", chunk, &address),
+            UBSM_ERR_PARAM_INVALID);
+    }
+    EXPECT_EQ(ubsmem_shmem_map_interleaved(nullptr, 8UL * 1024 * 1024, PROT_READ, MAP_SHARED, nullptr,
+                                           4UL * 1024 * 1024, &address),
+              UBSM_ERR_PARAM_INVALID);
+    EXPECT_EQ(address, nullptr);
+    GlobalMockObject::verify();
+}
+
 class UbsmemShmemUnmapTest : public ::testing::Test {
 protected:
     void SetUp() override
@@ -390,6 +643,16 @@ TEST_F(UbsmemShmemSetOwnershipTest, NormalCaseProtNone)
         .stubs()
         .will(returnValue(0));
     EXPECT_EQ(UBSM_OK, ubsmem_shmem_set_ownership(valid_name.c_str(), valid_ptr, valid_length, PROT_NONE));
+}
+
+TEST_F(UbsmemShmemSetOwnershipTest, ExposesPoolLayoutConflict)
+{
+    MOCKER_CPP(&RackMemShm::UbsMemShmSetOwnerShip,
+               int32_t(*)(RackMemShm *, const std::string &, void *, size_t, ShmOwnStatus))
+        .expects(once())
+        .will(returnValue(static_cast<int32_t>(MXM_ERR_SHM_POOL_LAYOUT_CONFLICT)));
+    EXPECT_EQ(ubsmem_shmem_set_ownership(valid_name.c_str(), valid_ptr, PAGE_SIZE, PROT_READ),
+              UBSM_ERR_SHM_POOL_LAYOUT_CONFLICT);
 }
 
 TEST_F(UbsmemShmemSetOwnershipTest, NameNullptr)

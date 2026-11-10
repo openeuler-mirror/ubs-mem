@@ -24,23 +24,26 @@ class RackMemShm {
 public:
     int32_t UbsMemShmSetOwnerShip(const std::string &name, void *start, size_t length, ShmOwnStatus status);
 
-    int32_t UbsMemShmSetOwnerShipOpt(ShmAppMetaData &meta, void *start, size_t length, ShmOwnStatus status,
-                                     uint64_t usedFirst, std::vector<int> &indices);
+    int32_t UbsMemShmSetOwnerShipOpt(ShmAppMetaData &meta, void *start, size_t length, ShmOwnStatus status);
 
     uint32_t UbsMemShmCreate(const std::string &regionName, const std::string &name, uint64_t size,
                              const std::string &baseNid, const SHMRegionDesc &shmRegion, uint64_t flags, mode_t mode);
 
     uint32_t UbsMemShmCreateWithProvider(const ubs_mem_provider_t *srcLoc, const std::string &name, uint64_t size,
                                          uint64_t flags, mode_t mode);
+    uint32_t UbsMemShmCreateMultiNodePool(const std::string &name, uint64_t size, mode_t mode, uint64_t flags,
+                                          uint32_t socketId, const std::vector<std::string> &hostNames,
+                                          const std::vector<uint64_t> &hostSizes);
+    uint32_t UbsMemShmDeleteMultiNodePool(const std::string &name);
 
     static uint32_t CheckRegionPar(const std::string &baseNid, const SHMRegionDesc &shmRegion);
 
     int UbsMemShmMmap(void *start, size_t mapSize, int prot, int flags, const std::string &name, off_t off,
                       void **local_ptr);
+    int UbsMemShmMapMultiNodePool(void *start, size_t mapSize, int prot, int flags, const std::string &name, off_t off,
+                                  void **localPtr, size_t interleaveSize = 0);
 
     uint32_t UbsMemShmUnmmap(void *start, size_t size);
-
-    void RollBackUnmapFail(ShmAppMetaData &metaData, void *start);
 
     uint32_t UbsMemShmDelete(const std::string &name);
 
@@ -81,10 +84,10 @@ public:
         static RackMemShm instance;
         return instance;
     }
-    RackMemShm(const RackMemShm &other) = default;
-    RackMemShm(RackMemShm &&other) = default;
-    RackMemShm &operator=(const RackMemShm &other) = default;
-    RackMemShm &operator=(RackMemShm &&other) noexcept = default;
+    RackMemShm(const RackMemShm &other) = delete;
+    RackMemShm(RackMemShm &&other) = delete;
+    RackMemShm &operator=(const RackMemShm &other) = delete;
+    RackMemShm &operator=(RackMemShm &&other) noexcept = delete;
 
 private:
     RackMemShm() = default;

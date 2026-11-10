@@ -12,11 +12,13 @@
 
 #include "RackMemShm.h"
 #include <sys/mman.h>
+#include <mutex>
 #include "ubs_mem_def.h"
 #include "ubs_mem.h"
 #include "ShmMetaDataMgr.h"
 #include "fork_resources.h"
 #include "log.h"
+#include "mxm_msg.h"
 #include "obmm.h"
 #include "rack_mem_fd_map.h"
 #include "rack_mem_functions.h"
@@ -29,6 +31,25 @@
 namespace ock::mxmd {
 using namespace ock::common;
 using namespace ock::ubsm;
+static std::mutex multiNodeMapTransactionMutex;
+
+static uint32_t RegisterMappingNames(const std::string &name, size_t memberCount, std::vector<std::string> &names)
+{
+    if (memberCount == 0 || memberCount > MAX_MULTINODE_HOST_NUM) {
+        DBG_LOGERROR("Invalid shared memory member count for mapping in progress, name=" << name
+                                                                                         << ", count=" << memberCount);
+        return MXM_ERR_SHM_POOL_LAYOUT_CONFLICT;
+    }
+    names.reserve(memberCount);
+    names.push_back(name);
+    constexpr char hex[] = "0123456789abcdef";
+    for (size_t index = 1; index < memberCount; ++index) {
+        const auto count = memberCount - 1;
+        const char suffix[] = {hex[count >> 4], hex[count & 15], hex[index >> 4], hex[index & 15], '\0'};
+        names.emplace_back(name + suffix);
+    }
+    return ShmMetaDataMgr::GetInstance().AddMappingInProgressNames(names);
+}
 uint32_t RackMemShm::UbsMemShmCreate(const std::string &regionName, const std::string &name, uint64_t size,
                                      const std::string &baseNid, const SHMRegionDesc &shmRegion, uint64_t flags,
                                      mode_t mode)
@@ -64,6 +85,34 @@ uint32_t RackMemShm::UbsMemShmCreateWithProvider(const ubs_mem_provider_t *srcLo
         return ret;
     }
     DBG_LOGDEBUG("Create share memory with provider successfully, name=" << name);
+    return UBSM_OK;
+}
+
+uint32_t RackMemShm::UbsMemShmCreateMultiNodePool(const std::string &name, uint64_t size, mode_t mode, uint64_t flags,
+                                                  uint32_t socketId, const std::vector<std::string> &hostNames,
+                                                  const std::vector<uint64_t> &hostSizes)
+{
+    DBG_LOGDEBUG("Start to create multi-node shared memory, name=" << name << ", size=" << size << ", flags=" << flags
+                                                                   << ", mode=" << mode << ", socketId=" << socketId
+                                                                   << ", hostCount=" << hostNames.size());
+    const auto ret =
+        ShmIpcCommand::IpcCallShmCreateMultiNodePool(name, size, mode, flags, socketId, hostNames, hostSizes);
+    if (ret != UBSM_OK) {
+        DBG_LOGERROR("IPC call to create multi-node shared memory failed, name=" << name << ", ret=" << ret);
+        return ret;
+    }
+    DBG_LOGDEBUG("Create multi-node shared memory successfully, name=" << name);
+    return UBSM_OK;
+}
+
+uint32_t RackMemShm::UbsMemShmDeleteMultiNodePool(const std::string &name)
+{
+    const auto ret = ShmIpcCommand::IpcCallShmDeleteMultiNodePool(name);
+    if (ret != UBSM_OK) {
+        DBG_LOGERROR("IPC call to delete multi-node shared memory failed, name=" << name << ", ret=" << ret);
+        return ret;
+    }
+    DBG_LOGDEBUG("Delete multi-node shared memory successfully, name=" << name);
     return UBSM_OK;
 }
 
@@ -137,6 +186,9 @@ uint32_t RackMemShmMmapByMemID(void *mmapAddr, size_t unitSize, uint64_t mmapCou
     }
     shmAppMetaData.addrs.clear();
     shmAppMetaData.slices.clear();
+    // Allocate before opening devices so allocation failures cannot strand an unrecorded fd.
+    shmAppMetaData.slices.reserve(mmapCount);
+    shmAppMetaData.addrs.reserve(mmapCount);
     uint32_t ret;
     off_t offset = 0;
     if ((open_flag & UBSM_FLAG_MMAP_HUGETLB_PMD) == UBSM_FLAG_MMAP_HUGETLB_PMD) {
@@ -321,11 +373,22 @@ int RackMemShm::UbsMemShmMmap(void *start, size_t mapSize, int prot, int flags, 
         return ret;
     }
 
+    std::vector<std::string> mappingNames;
+    ret = RegisterMappingNames(name, 1, mappingNames);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Recording attached shared memory name failed, name=" << name << ", ret=" << ret);
+        const auto detachRet = ShmIpcCommand::IpcCallShmUnMap(name);
+        if (detachRet != MXM_OK) {
+            DBG_LOGERROR("Rolling back unrecorded shared memory attach failed, name=" << name << ", ret=" << detachRet);
+        }
+        return ret;
+    }
     constexpr uint64_t supportedFlags = UBSM_FLAG_WITH_LOCK | UBSM_FLAG_NONCACHE | UBSM_FLAG_WR_DELAY_COMP |
                                         UBSM_FLAG_ONLY_IMPORT_NONCACHE | UBSM_FLAG_MEM_ANONYMOUS |
                                         UBSM_FLAG_MMAP_HUGETLB_PMD;
     if ((createFlags & ~supportedFlags) != 0) {
         ShmIpcCommand::IpcCallShmUnMap(name);
+        ShmMetaDataMgr::GetInstance().RemoveMappingInProgressNames(mappingNames);
         DBG_LOGERROR("Unsupported shared-memory creation flags, name=" << name << ", createFlags=" << createFlags
                                                                        << ", supportedFlags=" << supportedFlags);
         return MXM_ERR_UBSE_NOT_SUPPORTED;
@@ -334,17 +397,21 @@ int RackMemShm::UbsMemShmMmap(void *start, size_t mapSize, int prot, int flags, 
     if (returnShmSize == 0 || mapSize != returnShmSize) {
         DBG_LOGERROR("Size error, mapSize=" << mapSize << ", ShmSize=" << returnShmSize);
         ShmIpcCommand::IpcCallShmUnMap(name);
+        ShmMetaDataMgr::GetInstance().RemoveMappingInProgressNames(mappingNames);
         return MXM_ERR_PARAM_INVALID;
     }
     if (unitSize == 0) {
         DBG_LOGERROR("Unit size is zero, name=" << name);
         ShmIpcCommand::IpcCallShmUnMap(name);
+        ShmMetaDataMgr::GetInstance().RemoveMappingInProgressNames(mappingNames);
         return MXM_ERR_CHECK_RESOURCE;
     }
     static uint64_t alignment = GetHugeTlbPmdSize();
-    if ((createFlags & UBSM_FLAG_MMAP_HUGETLB_PMD) == UBSM_FLAG_MMAP_HUGETLB_PMD && mapSize % alignment != 0) {
+    if ((createFlags & UBSM_FLAG_MMAP_HUGETLB_PMD) == UBSM_FLAG_MMAP_HUGETLB_PMD &&
+        (alignment == 0 || mapSize % alignment != 0)) {
         DBG_LOGERROR("The mapSize is not aligned to " << alignment << ", mapSize=" << mapSize);
         ShmIpcCommand::IpcCallShmUnMap(name);
+        ShmMetaDataMgr::GetInstance().RemoveMappingInProgressNames(mappingNames);
         return MXM_ERR_PARAM_INVALID;
     }
 
@@ -359,6 +426,7 @@ int RackMemShm::UbsMemShmMmap(void *start, size_t mapSize, int prot, int flags, 
     if (BresultFail(ret)) {
         DBG_LOGERROR("GetPreAllocateAddress failed, name=" << name);
         ShmIpcCommand::IpcCallShmUnMap(name);
+        ShmMetaDataMgr::GetInstance().RemoveMappingInProgressNames(mappingNames);
         return ret;
     }
     if (!MapWithFixedFlags(flags)) {
@@ -374,8 +442,8 @@ int RackMemShm::UbsMemShmMmap(void *start, size_t mapSize, int prot, int flags, 
     TP_TRACE_END(TP_UBSM_SHM_BIND_ADDR, ret);
     if (BresultFail(ret)) {
         DBG_LOGERROR("RackMemShmMmapByMemID failed, name=" << name);
-        SystemAdapter::MemoryUnMap(mmapAddr, mapSize);
-        ShmIpcCommand::IpcCallShmUnMap(name);
+        UnMapWhenError(mmapAddr, mapSize, name, shmAppMetaData);
+        ShmMetaDataMgr::GetInstance().RemoveMappingInProgressNames(mappingNames);
         return ret;
     }
 
@@ -383,21 +451,395 @@ int RackMemShm::UbsMemShmMmap(void *start, size_t mapSize, int prot, int flags, 
     if (BresultFail(addResult)) {
         DBG_LOGERROR("AddMetaData error " << addResult);
         UnMapWhenError(mmapAddr, mapSize, name, shmAppMetaData);
+        ShmMetaDataMgr::GetInstance().RemoveMappingInProgressNames(mappingNames);
         return addResult;
     }
+    ShmMetaDataMgr::GetInstance().RemoveMappingInProgressNames(mappingNames);
     *local_ptr = mmapAddr;
     return UBSM_OK;
 }
 
+static uint32_t ValidateMultiNodeMapResponse(const MultiNodeShmMapResponse &response, size_t mapSize)
+{
+    if (response.memIds_.size() < 2 || response.memIds_.size() > MAX_MULTINODE_HOST_NUM ||
+        response.memIds_.size() != response.groupSizes_.size() ||
+        response.memIds_.size() != response.groupFlags_.size() || response.unitSize_ == 0 ||
+        response.unitSize_ > std::numeric_limits<size_t>::max() || response.createdSize_ != mapSize ||
+        (response.oflag_ != O_RDONLY && response.oflag_ != O_RDWR)) {
+        DBG_LOGERROR("Invalid multi-node mapping response, groupCount="
+                     << response.memIds_.size() << ", sizeCount=" << response.groupSizes_.size()
+                     << ", flagCount=" << response.groupFlags_.size() << ", unitSize=" << response.unitSize_
+                     << ", createdSize=" << response.createdSize_ << ", mapSize=" << mapSize
+                     << ", oflag=" << response.oflag_);
+        return MXM_ERR_SHM_POOL_LAYOUT_CONFLICT;
+    }
+    uint64_t total{};
+    for (size_t index = 0; index < response.groupSizes_.size(); ++index) {
+        const auto size = response.groupSizes_[index];
+        const auto count = size / response.unitSize_ + (size % response.unitSize_ != 0);
+        if ((response.groupFlags_[index] & ~UBSM_FLAG_ONLY_IMPORT_NONCACHE) !=
+                (response.flag_ & ~UBSM_FLAG_ONLY_IMPORT_NONCACHE) ||
+            size == 0 || size > mapSize - total || size % RACK_MEM_PAGE_SIZE != 0 ||
+            count != response.memIds_[index].size()) {
+            DBG_LOGERROR("Invalid multi-node mapping group, index="
+                         << index << ", size=" << size << ", memIdCount=" << response.memIds_[index].size()
+                         << ", flag=" << response.groupFlags_[index] << ", poolFlag=" << response.flag_
+                         << ", expectedCount=" << count);
+            return MXM_ERR_SHM_POOL_LAYOUT_CONFLICT;
+        }
+        total += size;
+    }
+    if (total != mapSize) {
+        DBG_LOGERROR("Multi-node mapping group size sum mismatch, sum=" << total << ", mapSize=" << mapSize);
+        return MXM_ERR_SHM_POOL_LAYOUT_CONFLICT;
+    }
+    return MXM_OK;
+}
+
+static uint32_t MapMultiNodeGroups(ShmAppMetaData &metadata, int prot, int flags)
+{
+    metadata.slices.reserve(metadata.slices.size() + metadata.memIds.size());
+    metadata.addrs.reserve(metadata.addrs.size() + metadata.memIds.size());
+    size_t offset{};
+    for (size_t index = 0; index < metadata.groupMemIds.size(); ++index) {
+        auto address = reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(metadata.addr) + offset);
+        ShmAppMetaData group{
+            metadata.name,       metadata.groupMemIds[index], address, static_cast<size_t>(metadata.groupSizes[index]),
+            metadata.ownStatuss, metadata.groupFlags[index]};
+        DBG_LOGINFO("Mapping multi-node shared memory group, name="
+                    << metadata.name << ", index=" << index << ", offset=" << offset << ", size=" << group.mapSize
+                    << ", memIdCount=" << group.memIds.size());
+        const auto ret = RackMemShmMmapByMemID(address, metadata.unitSize, group.memIds.size(), group.memIds, group,
+                                               group.flag, metadata.oflag, prot, flags);
+        metadata.slices.insert(metadata.slices.end(), group.slices.begin(), group.slices.end());
+        metadata.addrs.insert(metadata.addrs.end(), group.addrs.begin(), group.addrs.end());
+        if (ret != MXM_OK) {
+            DBG_LOGERROR("Mapping multi-node shared memory group failed, name=" << metadata.name << ", index=" << index
+                                                                                << ", ret=" << ret);
+            return ret;
+        }
+        offset += group.mapSize;
+    }
+    return MXM_OK;
+}
+
+static int ValidateInterleaveSize(const MultiNodeShmMapResponse &response, size_t interleaveSize)
+{
+    if (interleaveSize == 0) {
+        return MXM_OK;
+    }
+    const auto pageSize = sysconf(_SC_PAGESIZE);
+    const auto alignment = (response.flag_ & UBSM_FLAG_MMAP_HUGETLB_PMD) != 0 ? GetHugeTlbPmdSize() : pageSize;
+    if (pageSize <= 0 || alignment == 0 || interleaveSize % alignment != 0 || response.unitSize_ % alignment != 0) {
+        DBG_LOGERROR("Interleaved mapping is not aligned, interleaveSize="
+                     << interleaveSize << ", unitSize=" << response.unitSize_ << ", alignment=" << alignment);
+        return MXM_ERR_PARAM_INVALID;
+    }
+    for (size_t index = 0; index < response.groupSizes_.size(); ++index) {
+        if (response.groupSizes_[index] % interleaveSize != 0) {
+            DBG_LOGERROR("Interleave size does not divide provider size, index="
+                         << index << ", groupSize=" << response.groupSizes_[index]
+                         << ", interleaveSize=" << interleaveSize);
+            return MXM_ERR_PARAM_INVALID;
+        }
+    }
+    return MXM_OK;
+}
+
+// At most one current device per provider; release it after its final segment.
+struct TemporaryMultiNodeDevices {
+    std::vector<int> fds;
+    explicit TemporaryMultiNodeDevices(size_t count) : fds(count, -1) {}
+    void Close(size_t index)
+    {
+        if (fds[index] >= 0) {
+            SystemAdapter::Close(fds[index]);
+            fds[index] = -1;
+            temporaryObmmFds.fetch_sub(1);
+        }
+    }
+    ~TemporaryMultiNodeDevices()
+    {
+        for (size_t index = 0; index < fds.size(); ++index) {
+            Close(index);
+        }
+    }
+    TemporaryMultiNodeDevices(const TemporaryMultiNodeDevices &) = delete;
+    TemporaryMultiNodeDevices &operator=(const TemporaryMultiNodeDevices &) = delete;
+};
+
+static int MapInterleaveChunk(ShmAppMetaData &metadata, TemporaryMultiNodeDevices &devices, size_t providerOffset,
+                              size_t targetOffset, size_t group, int prot, int flags)
+{
+    size_t remaining = metadata.interleaveSize;
+    while (remaining != 0) {
+        const auto fdIndex = providerOffset / metadata.unitSize;
+        const auto offset = providerOffset % metadata.unitSize;
+        const auto size = std::min(remaining, metadata.unitSize - offset);
+        if (fdIndex >= metadata.groupMemIds[group].size() ||
+            offset > static_cast<uint64_t>(std::numeric_limits<off_t>::max())) {
+            DBG_LOGERROR("Invalid interleaved mapping fd offset, name=" << metadata.name << ", fdIndex=" << fdIndex
+                                                                        << ", offset=" << offset);
+            return MXM_ERR_SHM_POOL_LAYOUT_CONFLICT;
+        }
+        if (devices.fds[group] < 0) {
+            const auto id = metadata.groupMemIds[group][fdIndex];
+            const auto fd = ObmmOpenInternal(id, metadata.groupFlags[group], metadata.oflag);
+            if (fd < 0) {
+                DBG_LOGERROR("Opening interleaved device failed, name=" << metadata.name << ", group=" << group
+                                                                        << ", memId=" << id << ", fd=" << fd);
+                return MXM_ERR_SHM_OBMM_OPEN;
+            }
+            devices.fds[group] = fd;
+            temporaryObmmFds.fetch_add(1);
+        }
+        off_t mapOffset = static_cast<off_t>(offset);
+        if ((metadata.flag & UBSM_FLAG_MMAP_HUGETLB_PMD) != 0) {
+            mapOffset |= OBMM_MMAP_FLAG_HUGETLB_PMD;
+        }
+        auto address = reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(metadata.addr) + targetOffset);
+        const auto ret =
+            RackMemFdMap::GetInstance().MapForEachFd(address, size, devices.fds[group], prot, flags, mapOffset);
+        if (ret != MXM_OK) {
+            DBG_LOGERROR("Mapping interleaved segment failed, name="
+                         << metadata.name << ", fdIndex=" << fdIndex << ", providerOffset=" << providerOffset
+                         << ", targetOffset=" << targetOffset << ", size=" << size << ", ret=" << ret);
+            return ret;
+        }
+        if (offset + size == metadata.unitSize || providerOffset + size == metadata.groupSizes[group]) {
+            devices.Close(group);
+        }
+        providerOffset += size;
+        targetOffset += size;
+        remaining -= size;
+    }
+    return MXM_OK;
+}
+
+static int MapMultiNodeInterleaved(ShmAppMetaData &metadata, int prot, int flags)
+{
+    DBG_LOGINFO("Mapping multi-node shared memory with interleaving, name="
+                << metadata.name << ", providerCount=" << metadata.groupSizes.size() << ", mapSize=" << metadata.mapSize
+                << ", interleaveSize=" << metadata.interleaveSize);
+    TemporaryMultiNodeDevices devices(metadata.groupSizes.size());
+    std::vector<size_t> providerOffsets(metadata.groupSizes.size(), 0);
+    size_t targetOffset{};
+    while (targetOffset < metadata.mapSize) {
+        for (size_t index = 0; index < metadata.groupSizes.size(); ++index) {
+            if (providerOffsets[index] < metadata.groupSizes[index]) {
+                const auto ret =
+                    MapInterleaveChunk(metadata, devices, providerOffsets[index], targetOffset, index, prot, flags);
+                if (ret != MXM_OK) {
+                    DBG_LOGERROR("Mapping interleaved provider chunk failed, name="
+                                 << metadata.name << ", providerIndex=" << index << ", ret=" << ret);
+                    return ret;
+                }
+                providerOffsets[index] += metadata.interleaveSize;
+                targetOffset += metadata.interleaveSize;
+            }
+        }
+    }
+    return MXM_OK;
+}
+
+static void RollbackMultiNodeMap(void *address, size_t size, const std::string &name, ShmAppMetaData &metadata)
+{
+    if (address != nullptr && SystemAdapter::MemoryUnMap(address, size) == -1) {
+        DBG_LOGERROR("Rolling back multi-node mapping address failed, name=" << name << ", size=" << size
+                                                                             << ", errno=" << errno);
+    }
+    const auto ret = ShmIpcCommand::IpcCallShmUnmapMultiNodePool(name);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Rolling back multi-node pool attach failed, name=" << name << ", ret=" << ret);
+    }
+}
+
+static int MapAndSaveMultiNodePool(void *address, size_t mapSize, int prot, int flags, const std::string &name,
+                                   const MultiNodeShmMapResponse &response, size_t interleaveSize = 0)
+{
+    ShmAppMetaData metadata{name, {}, address, mapSize, GetOwnStatus(prot), response.flag_};
+    metadata.SetUnitSize(response.unitSize_);
+    metadata.SetOflag(response.oflag_);
+    metadata.groupMemIds = response.memIds_;
+    metadata.groupSizes = response.groupSizes_;
+    metadata.groupFlags = response.groupFlags_;
+    metadata.interleaveSize = interleaveSize;
+    for (const auto &group : response.memIds_) {
+        metadata.memIds.insert(metadata.memIds.end(), group.begin(), group.end());
+    }
+    auto ret = interleaveSize == 0 ? MapMultiNodeGroups(metadata, prot, flags) :
+                                     MapMultiNodeInterleaved(metadata, prot, flags);
+    if (ret == MXM_OK) {
+        ret = ShmMetaDataMgr::GetInstance().AddMetaData(name, address, metadata);
+        if (ret != MXM_OK) {
+            DBG_LOGERROR("Saving multi-node mapping metadata failed, name=" << name << ", ret=" << ret);
+        }
+    }
+    if (ret != MXM_OK) {
+        RollbackMultiNodeMap(address, mapSize, name, metadata);
+    }
+    return ret;
+}
+
+static int PrepareMultiNodeMappingAddress(RackMemShm &shm, void *start, size_t mapSize, int flags,
+                                          const MultiNodeShmMapResponse &response, void *&address)
+{
+    const bool hugePages = (response.flag_ & UBSM_FLAG_MMAP_HUGETLB_PMD) != 0;
+    const auto alignment = hugePages ? GetHugeTlbPmdSize() : 1;
+    if (hugePages) {
+        for (const auto size : response.groupSizes_) {
+            if (alignment == 0 || size % alignment != 0 || response.unitSize_ % alignment != 0) {
+                DBG_LOGERROR("Multi-node group is not huge-page aligned, size="
+                             << size << ", unitSize=" << response.unitSize_ << ", alignment=" << alignment);
+                return MXM_ERR_PARAM_INVALID;
+            }
+        }
+    }
+    if (MapWithFixedFlags(flags)) {
+        if (reinterpret_cast<uintptr_t>(start) % alignment != 0) {
+            DBG_LOGERROR("Multi-node fixed mapping address is not aligned, alignment=" << alignment);
+            return MXM_ERR_PARAM_INVALID;
+        }
+        const int reserveFlags = MAP_PRIVATE | MAP_ANONYMOUS | (flags & (MAP_FIXED | MAP_FIXED_NOREPLACE));
+        auto reserved = SystemAdapter::MemoryMap(start, mapSize, PROT_NONE, reserveFlags, -1, 0);
+        if (reserved == MAP_FAILED) {
+            DBG_LOGERROR("Reserving multi-node fixed mapping address failed, size=" << mapSize << ", errno=" << errno);
+            return MXM_ERR_MMAP_VA_FAILED;
+        }
+        address = reserved;
+        if (reserved != start) {
+            DBG_LOGERROR("Multi-node fixed mapping reservation returned an unexpected address");
+            return MXM_ERR_MMAP_VA_FAILED;
+        }
+        return MXM_OK;
+    }
+    return hugePages ? shm.GetPreAllocateAddressAligned(start, mapSize, flags, address, alignment) :
+                       shm.GetPreAllocateAddress(start, mapSize, flags, address);
+}
+
+int RackMemShm::UbsMemShmMapMultiNodePool(void *start, size_t mapSize, int prot, int flags, const std::string &name,
+                                          off_t off, void **localPtr, size_t interleaveSize)
+{
+    std::lock_guard<std::mutex> transactionLock(multiNodeMapTransactionMutex);
+    if (localPtr == nullptr) {
+        DBG_LOGERROR("Multi-node mapping output pointer is null, name=" << name);
+        return MXM_ERR_PARAM_INVALID;
+    }
+    auto ret = RackMemShmMmapParameterCheck(start, mapSize, prot, flags, name, off);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Invalid multi-node mapping parameters, name=" << name << ", ret=" << ret);
+        return ret;
+    }
+    MultiNodeShmMapResponse response;
+    ret = ShmIpcCommand::IpcCallShmMapMultiNodePool(name, mapSize, prot, response);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Preparing multi-node pool attach transaction failed, name=" << name << ", ret=" << ret);
+        return ret;
+    }
+    std::vector<std::string> mappingNames;
+    ret = RegisterMappingNames(name, response.memIds_.size(), mappingNames);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Recording attached multi-node members failed, name=" << name << ", ret=" << ret);
+        ShmAppMetaData empty;
+        RollbackMultiNodeMap(nullptr, 0, name, empty);
+        return ret;
+    }
+    void *address = nullptr;
+    bool mappingStarted = false;
+    do {
+        ret = ValidateMultiNodeMapResponse(response, mapSize);
+        if (ret != MXM_OK) {
+            break;
+        }
+        ret = ValidateInterleaveSize(response, interleaveSize);
+        if (ret != MXM_OK) {
+            break;
+        }
+        ret = PrepareMultiNodeMappingAddress(*this, start, mapSize, flags, response, address);
+        if (ret != MXM_OK) {
+            break;
+        }
+        // Once mapping starts, MapAndSaveMultiNodePool owns failure rollback.
+        mappingStarted = true;
+        ret = MapAndSaveMultiNodePool(address, mapSize, prot, (flags & ~MAP_FIXED_NOREPLACE) | MAP_FIXED, name,
+                                      response, interleaveSize);
+    } while (false);
+    if (ret == MXM_OK) {
+        *localPtr = address;
+    } else if (!mappingStarted) {
+        DBG_LOGERROR("Preparing multi-node mapping failed, name=" << name << ", ret=" << ret);
+        ShmAppMetaData empty;
+        RollbackMultiNodeMap(address, mapSize, name, empty);
+    }
+    ShmMetaDataMgr::GetInstance().RemoveMappingInProgressNames(mappingNames);
+    return ret;
+}
+
+static uint32_t RevokeLocalShmMapping(void *start, ShmAppMetaData &metadata)
+{
+    if (!metadata.IsMappingRevoked()) {
+        auto address = SystemAdapter::MemoryMap(start, metadata.mapSize, PROT_NONE,
+                                                MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0L);
+        if (address == MAP_FAILED) {
+            DBG_LOGERROR("Revoking shared memory mapping failed, name=" << metadata.name << ", errno=" << errno);
+            return MXM_ERR_MMAP_VA_FAILED;
+        }
+        if (!DontForkMapping(address, metadata.mapSize)) {
+            return MXM_ERR_MMAP_VA_FAILED;
+        }
+        metadata.SetMappingRevoked(true);
+    }
+    const auto ret = ShmMetaDataMgr::GetInstance().UpdateMetaData(metadata.name, metadata);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Saving revoked shared memory mapping state failed, name=" << metadata.name << ", ret=" << ret);
+    }
+    return ret;
+}
+
+static uint32_t ReleaseShmServerReferences(ShmAppMetaData &metadata)
+{
+    if (!metadata.detachCompleted) {
+        const auto ret = metadata.groupMemIds.empty() ? ShmIpcCommand::IpcCallShmUnMap(metadata.name) :
+                                                        ShmIpcCommand::IpcCallShmUnmapMultiNodePool(metadata.name);
+        if (ret != MXM_OK) {
+            DBG_LOGERROR("Releasing shared memory server references failed; retry unmap, name=" << metadata.name
+                                                                                                << ", ret=" << ret);
+            return ret;
+        }
+        metadata.detachCompleted = true;
+    }
+    const auto ret = ShmMetaDataMgr::GetInstance().UpdateMetaData(metadata.name, metadata);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Saving shared memory detach state failed, name=" << metadata.name << ", ret=" << ret);
+    }
+    return ret;
+}
+
+static uint32_t ReleaseShmMappingAddress(void *start, ShmAppMetaData &metadata)
+{
+    if (!metadata.addressReleased) {
+        if (SystemAdapter::MemoryUnMap(start, metadata.mapSize) == -1) {
+            DBG_LOGERROR("Releasing shared memory address failed; retry unmap, name="
+                         << metadata.name << ", size=" << metadata.mapSize << ", errno=" << errno);
+            return MXM_ERR_MMAP_VA_FAILED;
+        }
+        metadata.addressReleased = true;
+    }
+    const auto ret = ShmMetaDataMgr::GetInstance().UpdateMetaData(metadata.name, metadata);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Saving released shared memory address state failed, name=" << metadata.name << ", ret=" << ret);
+    }
+    return ret;
+}
+
 uint32_t RackMemShm::UbsMemShmUnmmap(void *start, size_t size)
 {
-    uint32_t ret = UBSM_OK;
     if (start == nullptr) {
-        DBG_LOGERROR("Param start is nullptr.");
+        DBG_LOGERROR("Shared memory unmap address is null");
         return MXM_ERR_PARAM_INVALID;
     }
     std::string name;
-    ret = ShmMetaDataMgr::GetInstance().GetNameByAddr(start, name);
+    auto ret = ShmMetaDataMgr::GetInstance().GetNameByAddr(start, name);
     if (ret != UBSM_OK) {
         DBG_LOGERROR("GetNameByAddr error, ret=" << ret);
         return ret;
@@ -405,57 +847,41 @@ uint32_t RackMemShm::UbsMemShmUnmmap(void *start, size_t size)
 
     auto metaLockGuard = ShmMetaDataMgr::GetInstance().LockMeta(name);
     // The first lookup only selects the operation lock. Revalidate after waiting for it.
-    ShmAppMetaData metaData;
-    ret = ShmMetaDataMgr::GetInstance().GetShmMetaFromName(name, metaData);
+    ShmAppMetaData metadata;
+    ret = ShmMetaDataMgr::GetInstance().GetShmMetaFromName(name, metadata);
     if (ret != UBSM_OK) {
         DBG_LOGERROR("GetShmMetaFromName failed during unmap, name=" << name << ", ret=" << ret);
         return ret;
     }
-    if (metaData.addr != start) {
+    if (metadata.addr != start) {
         DBG_LOGERROR("Mapping changed while waiting for unmap lock, name=" << name);
         return MXM_ERR_SHM_NOT_FOUND;
     }
-    if (metaData.mapSize != size) {
-        DBG_LOGERROR("Map size not match, name=" << name << ", size=" << size << ", mapSize=" << metaData.mapSize);
+    if (metadata.mapSize != size) {
+        DBG_LOGERROR("Map size not match, name=" << name << ", size=" << size << ", mapSize=" << metadata.mapSize);
         return MXM_ERR_PARAM_INVALID;
     }
-
-    DBG_LOGINFO("Unmmapping shared memory, name=" << metaData.name << ", memIds=" << MemToStr(metaData.memIds));
-    if (metaData.isLocked) {
-        DBG_LOGERROR("name=" << metaData.name << " isLocked=" << metaData.isLocked);
+    if (metadata.isLocked) {
+        DBG_LOGERROR("Shared memory mapping is locked, name=" << metadata.name);
         return MXM_ERR_LOCK_ALREADY_LOCKED;
     }
-
-    TP_TRACE_BEGIN(TP_UBSM_UNMAP_ADDR);
-    auto address =
-        SystemAdapter::MemoryMap(start, metaData.mapSize, PROT_NONE, MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0L);
-    if (UNLIKELY(address == MAP_FAILED)) {
-        DBG_LOGERROR("Failed to mmap memory with MAP_FIXED, " << strerror(errno));
-        return MXM_ERR_MMAP_VA_FAILED;
-    }
-    if (!DontForkMapping(address, metaData.mapSize)) {
-        return MXM_ERR_MMAP_VA_FAILED;
-    }
-    TP_TRACE_END(TP_UBSM_UNMAP_ADDR, 0UL);
-
-    TP_TRACE_BEGIN(TP_UBSM_CLOSE_FD);
-    TP_TRACE_END(TP_UBSM_CLOSE_FD, 0UL);
-    ShmMetaDataMgr::GetInstance().UpdateMetaData(metaData.name, metaData);
-
-    TP_TRACE_BEGIN(TP_UBSM_SHM_UNMAP_IPC_UNMMAP);
-    ret = ShmIpcCommand::IpcCallShmUnMap(metaData.name);
-    TP_TRACE_END(TP_UBSM_SHM_UNMAP_IPC_UNMMAP, ret);
-    if (ret != UBSM_OK) {
-        DBG_LOGERROR("ShmIpcCommand::IpcCallShmUnMap Unmmap, ret=" << ret);
+    ret = RevokeLocalShmMapping(start, metadata);
+    if (ret != MXM_OK) {
         return ret;
     }
-    ret = ShmMetaDataMgr::GetInstance().RemoveMetaData(start, metaData.name);
-    if (ret != UBSM_OK) {
-        DBG_LOGERROR("RemoveMetaDataAfterUnMap error. name " << metaData.name << " code " << ret);
+    ret = ReleaseShmServerReferences(metadata);
+    if (ret != MXM_OK) {
         return ret;
     }
-    SystemAdapter::MemoryUnMap(start, metaData.mapSize);
-
+    ret = ReleaseShmMappingAddress(start, metadata);
+    if (ret != MXM_OK) {
+        return ret;
+    }
+    ret = ShmMetaDataMgr::GetInstance().RemoveMetaData(start, metadata.name);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Removing released shared memory metadata failed; retry unmap, name=" << metadata.name
+                                                                                           << ", ret=" << ret);
+    }
     return ret;
 }
 
@@ -505,9 +931,221 @@ uint32_t RackMemShm::CheckRegionPar(const std::string &baseNid, const SHMRegionD
     return UBSM_OK;
 }
 
-int32_t RackMemShm::UbsMemShmSetOwnerShipOpt(ShmAppMetaData &meta, void *start, size_t length, ShmOwnStatus status,
-                                             uint64_t usedFirst, std::vector<int> &indices)
+static int ValidateInterleavedOwnershipLayout(const ShmAppMetaData &meta)
 {
+    if (meta.unitSize == 0 || meta.unitSize % FOUR_KB != 0 || meta.interleaveSize % FOUR_KB != 0 ||
+        meta.groupSizes.size() < 2 || meta.groupSizes.size() > MAX_MULTINODE_HOST_NUM ||
+        meta.groupSizes.size() != meta.groupMemIds.size() || meta.groupSizes.size() != meta.groupFlags.size() ||
+        !meta.addrs.empty()) {
+        DBG_LOGERROR("Invalid interleaved ownership layout, name=" << meta.name);
+        return MXM_ERR_SHM_POOL_LAYOUT_CONFLICT;
+    }
+    size_t total{};
+    size_t fdCount{};
+    for (size_t index = 0; index < meta.groupSizes.size(); ++index) {
+        const auto size = meta.groupSizes[index];
+        const auto count = size / meta.unitSize + (size % meta.unitSize != 0);
+        if (size == 0 || size > meta.mapSize - total || size % meta.interleaveSize != 0 ||
+            count != meta.groupMemIds[index].size() || count > meta.memIds.size() - fdCount) {
+            DBG_LOGERROR("Invalid interleaved ownership group, name=" << meta.name << ", group=" << index
+                                                                      << ", size=" << size << ", fdCount=" << count);
+            return MXM_ERR_SHM_POOL_LAYOUT_CONFLICT;
+        }
+        total += static_cast<size_t>(size);
+        fdCount += static_cast<size_t>(count);
+    }
+    if (total != meta.mapSize || fdCount != meta.memIds.size()) {
+        DBG_LOGERROR("Incomplete interleaved ownership metadata, name=" << meta.name << ", size=" << total
+                                                                        << ", fdCount=" << fdCount);
+        return MXM_ERR_SHM_POOL_LAYOUT_CONFLICT;
+    }
+    return MXM_OK;
+}
+
+static int ValidateOwnershipMapping(const ShmAppMetaData &meta, void *start, size_t length)
+{
+    const auto begin = reinterpret_cast<uintptr_t>(start);
+    const auto base = reinterpret_cast<uintptr_t>(meta.addr);
+    if (start == nullptr || meta.addr == nullptr || length == 0 || begin < base || length > meta.mapSize ||
+        begin - base > meta.mapSize - length || meta.mapSize > UINTPTR_MAX - base || (begin - base) % FOUR_KB != 0 ||
+        length % FOUR_KB != 0) {
+        DBG_LOGERROR("Invalid shared memory ownership range, name=" << meta.name << ", length=" << length);
+        return MXM_ERR_PARAM_INVALID;
+    }
+    if (meta.IsMappingRevoked() || meta.addressReleased || meta.detachCompleted) {
+        DBG_LOGERROR("Shared memory mapping is being released, name=" << meta.name);
+        return MXM_ERR_SHM_NOT_FOUND;
+    }
+    if (meta.interleaveSize != 0) {
+        return ValidateInterleavedOwnershipLayout(meta);
+    }
+    if (meta.addrs.empty() || meta.addrs.size() != meta.slices.size()) {
+        DBG_LOGERROR("Invalid shared memory ownership segment layout, name=" << meta.name);
+        return MXM_ERR_SHM_POOL_LAYOUT_CONFLICT;
+    }
+    size_t covered{};
+    for (size_t index = 0; index < meta.addrs.size(); ++index) {
+        const auto &[address, size] = meta.addrs[index];
+        if (reinterpret_cast<uintptr_t>(address) != base + covered || size == 0 || size > meta.mapSize - covered ||
+            meta.slices[index].address != address || meta.slices[index].length != size) {
+            DBG_LOGERROR("Invalid shared memory ownership segment, name=" << meta.name << ", index=" << index
+                                                                          << ", size=" << size);
+            return MXM_ERR_SHM_POOL_LAYOUT_CONFLICT;
+        }
+        covered += size;
+    }
+    if (covered != meta.mapSize) {
+        DBG_LOGERROR("Incomplete shared memory ownership layout, name=" << meta.name << ", covered=" << covered);
+        return MXM_ERR_SHM_POOL_LAYOUT_CONFLICT;
+    }
+    return MXM_OK;
+}
+
+static int SwitchOwnershipRange(const ShmAppMetaData &meta, size_t fdIndex, uintptr_t from, uintptr_t to, int prot)
+{
+    mem_id id{};
+    uint64_t openFlags = meta.flag;
+    int accessFlags = static_cast<int>(meta.oflag);
+    if (meta.interleaveSize == 0) {
+        const auto &slice = meta.slices[fdIndex];
+        id = slice.memId;
+        openFlags = slice.openFlags;
+        accessFlags = slice.accessFlags;
+    } else {
+        id = meta.memIds[fdIndex];
+        size_t base{};
+        for (size_t group = 0; group < meta.groupMemIds.size(); ++group) {
+            if (fdIndex - base < meta.groupMemIds[group].size()) {
+                openFlags = meta.groupFlags[group];
+                break;
+            }
+            base += meta.groupMemIds[group].size();
+        }
+    }
+    const int fd = ObmmOpenInternal(id, openFlags, accessFlags);
+    if (fd < 0) {
+        DBG_LOGERROR("Opening ownership device failed, name=" << meta.name << ", memId=" << id << ", openFlags="
+                                                              << openFlags << ", accessFlags=" << accessFlags);
+        return MXM_ERR_SHM_OBMM_OPEN;
+    }
+    TemporaryObmmFd fdGuard(fd);
+    TP_TRACE_BEGIN(TP_USBM_OBMM_SET_OWERSHIP);
+    const auto ret = RmLibObmmExecutor::GetInstance().obmmOwnershipSwitch(fd, reinterpret_cast<void *>(from),
+                                                                          reinterpret_cast<void *>(to), prot);
+    TP_TRACE_END(TP_USBM_OBMM_SET_OWERSHIP, ret);
+    if (ret != 0) {
+        DBG_LOGERROR("Switching shared memory segment ownership failed, name=" << meta.name << ", fdIndex=" << fdIndex
+                                                                               << ", fd=" << fd << ", begin=" << from
+                                                                               << ", end=" << to << ", ret=" << ret);
+        return MXM_ERR_OBMM_INNER;
+    }
+    return MXM_OK;
+}
+
+static size_t InterleavedRoundOffset(const ShmAppMetaData &meta, size_t round)
+{
+    size_t offset{};
+    for (const auto size : meta.groupSizes) {
+        offset += static_cast<size_t>(std::min<uint64_t>(size, round * meta.interleaveSize));
+    }
+    return offset;
+}
+
+static size_t FindInterleavedRound(const ShmAppMetaData &meta, size_t offset)
+{
+    size_t low{};
+    size_t high = *std::max_element(meta.groupSizes.begin(), meta.groupSizes.end()) / meta.interleaveSize;
+    // Locate the requested range without walking all preceding chunks of a potentially very large pool.
+    while (high - low > 1) {
+        const auto middle = low + (high - low) / 2;
+        if (InterleavedRoundOffset(meta, middle) <= offset) {
+            low = middle;
+        } else {
+            high = middle;
+        }
+    }
+    return low;
+}
+
+static int SwitchInterleavedChunkOwnership(const ShmAppMetaData &meta, size_t providerOffset, size_t fdBase,
+                                           size_t target, size_t begin, size_t end, int prot)
+{
+    auto from = std::max(begin, target);
+    const auto to = std::min(end, target + meta.interleaveSize);
+    if (from >= to) {
+        return MXM_OK;
+    }
+    providerOffset += from - target;
+    const auto base = reinterpret_cast<uintptr_t>(meta.addr);
+    while (from < to) {
+        const auto fdIndex = fdBase + providerOffset / meta.unitSize;
+        const auto size = std::min(to - from, meta.unitSize - providerOffset % meta.unitSize);
+        const auto ret = SwitchOwnershipRange(meta, fdIndex, base + from, base + from + size, prot);
+        if (ret != MXM_OK) {
+            return ret;
+        }
+        from += size;
+        providerOffset += size;
+    }
+    return MXM_OK;
+}
+
+static int SwitchInterleavedOwnership(const ShmAppMetaData &meta, void *start, size_t length, int prot)
+{
+    const auto begin = reinterpret_cast<uintptr_t>(start) - reinterpret_cast<uintptr_t>(meta.addr);
+    const auto end = begin + length;
+    auto round = FindInterleavedRound(meta, begin);
+    auto target = InterleavedRoundOffset(meta, round);
+    while (target < end) {
+        const auto providerOffset = round * meta.interleaveSize;
+        size_t fdBase{};
+        for (size_t index = 0; index < meta.groupSizes.size() && target < end; ++index) {
+            if (providerOffset < meta.groupSizes[index]) {
+                const auto ret =
+                    SwitchInterleavedChunkOwnership(meta, providerOffset, fdBase, target, begin, end, prot);
+                if (ret != MXM_OK) {
+                    DBG_LOGERROR("Switching interleaved ownership failed, name="
+                                 << meta.name << ", group=" << index << ", round=" << round << ", ret=" << ret);
+                    return ret;
+                }
+                target += meta.interleaveSize;
+            }
+            fdBase += meta.groupMemIds[index].size();
+        }
+        ++round;
+    }
+    return MXM_OK;
+}
+
+static int SwitchSegmentOwnership(const ShmAppMetaData &meta, void *start, size_t length, int prot)
+{
+    if (meta.interleaveSize != 0) {
+        return SwitchInterleavedOwnership(meta, start, length, prot);
+    }
+    const auto begin = reinterpret_cast<uintptr_t>(start);
+    const auto end = begin + length;
+    for (size_t index = 0; index < meta.addrs.size(); ++index) {
+        const auto segment = reinterpret_cast<uintptr_t>(meta.addrs[index].first);
+        const auto from = std::max(begin, segment);
+        const auto to = std::min(end, segment + meta.addrs[index].second);
+        if (from >= to) {
+            continue;
+        }
+        const auto ret = SwitchOwnershipRange(meta, index, from, to, prot);
+        if (ret != MXM_OK) {
+            return ret;
+        }
+    }
+    return MXM_OK;
+}
+
+int32_t RackMemShm::UbsMemShmSetOwnerShipOpt(ShmAppMetaData &meta, void *start, size_t length, ShmOwnStatus status)
+{
+    const auto ret = ValidateOwnershipMapping(meta, start, length);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Validating shared memory ownership mapping failed, name=" << meta.name << ", ret=" << ret);
+        return ret;
+    }
     int prot = PROT_NONE;
     switch (status) {
         case RackMemShmOwnStatus::UNACCESS:
@@ -527,47 +1165,16 @@ int32_t RackMemShm::UbsMemShmSetOwnerShipOpt(ShmAppMetaData &meta, void *start, 
             prot = PROT_WRITE;
             break;
         default:
-            break;
-    }
-    auto fun = RmLibObmmExecutor::GetInstance().obmmOwnershipSwitch;
-
-    for (int i = 0; i < indices.size(); ++i) {
-        auto offset = (i == 0) ? 0 : static_cast<size_t>(indices[i]) - static_cast<size_t>(indices[0]) - 1;
-
-        if ((meta.unitSize == 0) || (offset > std::numeric_limits<size_t>::max() / meta.unitSize)) {
-            DBG_LOGERROR("Overflow in offset * meta.unitSize, unitSize=" << meta.unitSize << ", offset=" << offset
-                                                                         << "indices[i]=" << indices[i]
-                                                                         << "indices[0]=" << indices[0]);
+            DBG_LOGERROR("Invalid shared memory ownership status, name=" << meta.name << ", status=" << status);
             return MXM_ERR_PARAM_INVALID;
-        }
-        size_t totalOffset = offset * meta.unitSize;
-
-        if (usedFirst > length || totalOffset > length || totalOffset + usedFirst > length) {
-            DBG_LOGERROR("Invalid parameters: usedFirst or totalOffset exceeds length");
-            return MXM_ERR_PARAM_INVALID;
-        }
-        auto curLen = (i == 0) ? usedFirst : std::min((length - totalOffset - usedFirst), meta.unitSize);
-        void *startAddr = (i == 0) ? start : meta.addrs[indices[i]].first;
-        void *endAddr = static_cast<uint8_t *>(startAddr) + curLen;
-        const auto &slice = meta.slices[indices[i]];
-        const int localFd = ObmmOpenInternal(slice.memId, slice.openFlags, slice.accessFlags);
-        if (localFd < 0) {
-            DBG_LOGERROR("Failed to open OBMM device for ownership change, name="
-                         << meta.name << ", memId=" << slice.memId << ", openFlags=" << slice.openFlags
-                         << ", accessFlags=" << slice.accessFlags);
-            return MXM_ERR_SHM_OBMM_OPEN;
-        }
-        TemporaryObmmFd fdGuard(localFd);
-        TP_TRACE_BEGIN(TP_USBM_OBMM_SET_OWERSHIP);
-        auto ret = fun(localFd, startAddr, endAddr, prot);
-        TP_TRACE_END(TP_USBM_OBMM_SET_OWERSHIP, ret);
-        DBG_LOGDEBUG("Access state change fd=" << localFd << ", prot=" << prot << ", ret=" << ret);
-        if (ret != 0) {
-            DBG_LOGERROR("obmmOwnershipSwitch error, code is " << ret);
-            return MXM_ERR_OBMM_INNER;
-        }
     }
-    return UBSM_OK;
+    constexpr uint64_t NONCACHE_OWNERSHIP_FLAGS = UBSM_FLAG_ONLY_IMPORT_NONCACHE | UBSM_FLAG_NONCACHE;
+    if ((meta.flag & NONCACHE_OWNERSHIP_FLAGS) != 0) {
+        DBG_LOGERROR("Ownership switching is not supported for noncache shared memory, name=" << meta.name << ", flags="
+                                                                                              << meta.flag);
+        return MXM_ERR_PARAM_INVALID;
+    }
+    return SwitchSegmentOwnership(meta, start, length, prot);
 }
 
 int32_t RackMemShm::UbsMemShmSetOwnerShip(const std::string &name, void *start, size_t length, ShmOwnStatus status)
@@ -584,24 +1191,14 @@ int32_t RackMemShm::UbsMemShmSetOwnerShip(const std::string &name, void *start, 
         DBG_LOGERROR("Param length is invalid.");
         return MXM_ERR_PARAM_INVALID;
     }
+    auto metaLockGuard = ShmMetaDataMgr::GetInstance().LockMeta(name);
     ShmAppMetaData meta;
-    uint64_t usedFirst;
-    std::vector<int> indices{};
-    auto result = ShmMetaDataMgr::GetInstance().CheckAddr(name, start, length, meta, usedFirst, indices);
-    if (BresultFail(result) || indices.size() <= 0) {
-        DBG_LOGERROR("Find shm by addr failed, ret: " << result << ", length is " << length << ", size is "
-                                                      << indices.size());
+    auto result = ShmMetaDataMgr::GetInstance().GetShmMetaFromName(name, meta);
+    if (BresultFail(result)) {
+        DBG_LOGERROR("Looking up shared memory ownership metadata failed, name=" << name << ", ret=" << result);
         return result;
     }
-    if (meta.addrs.size() != meta.slices.size()) {
-        return MXM_ERR_SHM_NOT_FOUND;
-    }
-
-    if ((meta.flag & UBSM_FLAG_ONLY_IMPORT_NONCACHE) != 0 || (meta.flag & UBSM_FLAG_NONCACHE) != 0) {
-        DBG_LOGERROR("shm name( " << name << ") allocate flag is invalid, flag: " << meta.flag);
-        return MXM_ERR_PARAM_INVALID;
-    }
-    auto ret = UbsMemShmSetOwnerShipOpt(meta, start, length, status, usedFirst, indices);
+    auto ret = UbsMemShmSetOwnerShipOpt(meta, start, length, status);
     if (ret != 0) {
         DBG_LOGERROR("UbsMemShmSetOwnerShipOpt failed, ret: " << ret);
         return ret;
@@ -677,14 +1274,8 @@ int32_t RackMemShm::UbsMemShmWriteLock(const std::string &name)
         DBG_LOGERROR("IpcShmemWriteLock failed, ret is:" << ret);
         return ret;
     }
-    std::vector<int> indexs{};
-    for (int i = 0; i < meta.addrs.size(); ++i) {
-        indexs.push_back(i);
-    }
-
     TP_TRACE_BEGIN(TP_UBSM_WRITE_LOCK_SET_OWERSHIP);
-    ret = RackMemShm::GetInstance().UbsMemShmSetOwnerShipOpt(meta, meta.addr, meta.mapSize, READWRITE, meta.unitSize,
-                                                             indexs);
+    ret = RackMemShm::GetInstance().UbsMemShmSetOwnerShipOpt(meta, meta.addr, meta.mapSize, READWRITE);
     TP_TRACE_END(TP_UBSM_WRITE_LOCK_SET_OWERSHIP, ret);
     if (ret != 0) {
         DBG_LOGERROR("UbsMemShmSetOwnerShipOpt failed, ret:" << ret);
@@ -698,7 +1289,7 @@ int32_t RackMemShm::UbsMemShmWriteLock(const std::string &name)
     result = ShmMetaDataMgr::GetInstance().UpdateMetaData(name, meta);
     if (BresultFail(result)) {
         DBG_LOGERROR("Update shm meta by name failed, ret: " << result);
-        auto ownershipRet = UbsMemShmSetOwnerShipOpt(meta, meta.addr, meta.mapSize, UNACCESS, meta.unitSize, indexs);
+        auto ownershipRet = UbsMemShmSetOwnerShipOpt(meta, meta.addr, meta.mapSize, UNACCESS);
         if (BresultFail(ownershipRet)) {
             DBG_LOGERROR("Rollback write ownership failed, ret: " << ownershipRet);
         }
@@ -741,13 +1332,8 @@ int32_t RackMemShm::UbsMemShmReadLock(const std::string &name)
         DBG_LOGERROR("IpcShmemReadLock failed, ret is:" << ret);
         return ret;
     }
-    std::vector<int> indexs{};
-    for (int i = 0; i < meta.addrs.size(); ++i) {
-        indexs.push_back(i);
-    }
     TP_TRACE_BEGIN(TP_UBSM_READ_LOCK_SET_OWNERSHIP);
-    ret =
-        RackMemShm::GetInstance().UbsMemShmSetOwnerShipOpt(meta, meta.addr, meta.mapSize, READ, meta.unitSize, indexs);
+    ret = RackMemShm::GetInstance().UbsMemShmSetOwnerShipOpt(meta, meta.addr, meta.mapSize, READ);
     TP_TRACE_END(TP_UBSM_READ_LOCK_SET_OWNERSHIP, ret);
     if (ret != 0) {
         DBG_LOGERROR("UbsMemShmSetOwnerShipOpt failed, ret:" << ret);
@@ -760,7 +1346,7 @@ int32_t RackMemShm::UbsMemShmReadLock(const std::string &name)
     result = ShmMetaDataMgr::GetInstance().UpdateMetaData(name, meta);
     if (BresultFail(result)) {
         DBG_LOGERROR("Update shm meta by name failed, ret: " << result);
-        auto ownershipRet = UbsMemShmSetOwnerShipOpt(meta, meta.addr, meta.mapSize, UNACCESS, meta.unitSize, indexs);
+        auto ownershipRet = UbsMemShmSetOwnerShipOpt(meta, meta.addr, meta.mapSize, UNACCESS);
         if (BresultFail(ownershipRet)) {
             DBG_LOGERROR("Rollback read ownership failed, ret: " << ownershipRet);
         }
@@ -804,14 +1390,8 @@ int32_t RackMemShm::UbsMemShmUnLock(const std::string &name)
     }
     const auto previousLockStatus = meta.lockedStatus;
 
-    std::vector<int> indexs{};
-    for (int i = 0; i < meta.addrs.size(); ++i) {
-        indexs.push_back(i);
-    }
-
     TP_TRACE_BEGIN(TP_UBSM_UNLOCK_SET_OWNERSHIP);
-    auto ret = RackMemShm::GetInstance().UbsMemShmSetOwnerShipOpt(meta, meta.addr, meta.mapSize, UNACCESS,
-                                                                  meta.unitSize, indexs);
+    auto ret = RackMemShm::GetInstance().UbsMemShmSetOwnerShipOpt(meta, meta.addr, meta.mapSize, UNACCESS);
     TP_TRACE_END(TP_UBSM_UNLOCK_SET_OWNERSHIP, ret);
     if (ret != 0) {
         DBG_LOGERROR("UbsMemShmSetOwnerShipOpt failed, ret:" << ret);
@@ -823,8 +1403,7 @@ int32_t RackMemShm::UbsMemShmUnLock(const std::string &name)
     TP_TRACE_END(TP_UBSM_UNLOCK_IPC_REQUEST, ret);
     if (ret != UBSM_OK) {
         DBG_LOGERROR("IpcShmemUnLock failed, ret is:" << ret);
-        auto ownershipRet =
-            UbsMemShmSetOwnerShipOpt(meta, meta.addr, meta.mapSize, previousLockStatus, meta.unitSize, indexs);
+        auto ownershipRet = UbsMemShmSetOwnerShipOpt(meta, meta.addr, meta.mapSize, previousLockStatus);
         if (BresultFail(ownershipRet)) {
             DBG_LOGERROR("Rollback unlock ownership failed, ret: " << ownershipRet);
         }

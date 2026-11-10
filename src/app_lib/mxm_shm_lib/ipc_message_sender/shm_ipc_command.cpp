@@ -86,6 +86,120 @@ uint32_t ShmIpcCommand::IpcCallShmCreateWithProvider(const std::string &hostName
     return UBSM_OK;
 }
 
+uint32_t ShmIpcCommand::IpcCallShmCreateMultiNodePool(const std::string &name, uint64_t size, mode_t mode,
+                                                      uint64_t flags, uint32_t socketId,
+                                                      const std::vector<std::string> &hostNames,
+                                                      const std::vector<uint64_t> &hostSizes)
+{
+    DBG_LOGINFO("Create multi-node shared memory start to construct the IPC message, name=" << name);
+    std::shared_ptr<MultiNodeShmCreateRequest> request;
+    std::shared_ptr<CommonResponse> response;
+    try {
+        request = std::make_shared<MultiNodeShmCreateRequest>(name, size, mode, flags, socketId, hostNames, hostSizes);
+        response = std::make_shared<CommonResponse>();
+    } catch (const std::exception &e) {
+        DBG_LOGERROR("Allocate multi-node create IPC message failed, name=" << name << ", reason=" << e.what());
+        return MXM_ERR_MALLOC_FAIL;
+    } catch (...) {
+        DBG_LOGERROR("Allocate multi-node create IPC message failed with unknown exception, name=" << name);
+        return MXM_ERR_MALLOC_FAIL;
+    }
+    auto ret = IpcProxy::GetInstance().Ipc(request.get(), response.get(), IPC_REQUEST_CREATE_MULTINODE_SHM);
+    if (ret != UBSM_OK) {
+        DBG_LOGERROR("Multi-node shared memory pool create IPC transport failed, name=" << name << ", ret=" << ret);
+        return ret;
+    }
+    if (BresultFail(response->errCode_)) {
+        DBG_LOGERROR("Multi-node shared memory pool create request was rejected, name=" << name << ", ret="
+                                                                                        << response->errCode_);
+        return response->errCode_;
+    }
+    DBG_LOGDEBUG("Create multi-node shared memory successfully, name=" << name);
+    return UBSM_OK;
+}
+
+uint32_t ShmIpcCommand::IpcCallShmDeleteMultiNodePool(const std::string &name)
+{
+    DBG_LOGINFO("Delete multi-node shared memory start to construct the IPC message, name=" << name);
+    std::shared_ptr<MultiNodeShmDeleteRequest> request;
+    std::shared_ptr<CommonResponse> response;
+    try {
+        request = std::make_shared<MultiNodeShmDeleteRequest>(name);
+        response = std::make_shared<CommonResponse>();
+    } catch (const std::exception &e) {
+        DBG_LOGERROR("Allocate multi-node delete IPC message failed, name=" << name << ", reason=" << e.what());
+        return MXM_ERR_MALLOC_FAIL;
+    } catch (...) {
+        DBG_LOGERROR("Allocate multi-node delete IPC message failed with unknown exception, name=" << name);
+        return MXM_ERR_MALLOC_FAIL;
+    }
+    auto ret = IpcProxy::GetInstance().Ipc(request.get(), response.get(), IPC_REQUEST_DELETE_MULTINODE_SHM);
+    if (ret != UBSM_OK) {
+        DBG_LOGERROR("Multi-node shared memory pool delete IPC transport failed, name=" << name << ", ret=" << ret);
+        return ret;
+    }
+    if (BresultFail(response->errCode_)) {
+        DBG_LOGERROR("Multi-node shared memory pool delete request was rejected, name=" << name << ", ret="
+                                                                                        << response->errCode_);
+        return response->errCode_;
+    }
+    DBG_LOGDEBUG("Delete multi-node shared memory successfully, name=" << name);
+    return UBSM_OK;
+}
+
+uint32_t ShmIpcCommand::IpcCallShmMapMultiNodePool(const std::string &name, uint64_t size, int prot,
+                                                   MultiNodeShmMapResponse &response)
+{
+    std::shared_ptr<MultiNodeShmMapRequest> request;
+    try {
+        request = std::make_shared<MultiNodeShmMapRequest>(name, size, prot);
+    } catch (const std::exception &e) {
+        DBG_LOGERROR("Allocate multi-node map IPC message failed, name=" << name << ", reason=" << e.what());
+        return MXM_ERR_MALLOC_FAIL;
+    } catch (...) {
+        DBG_LOGERROR("Allocate multi-node map IPC message failed with unknown exception, name=" << name);
+        return MXM_ERR_MALLOC_FAIL;
+    }
+    const auto ret = IpcProxy::GetInstance().Ipc(request.get(), &response, IPC_REQUEST_MAP_MULTINODE_SHM);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Multi-node shared memory pool map IPC transport failed, name=" << name << ", ret=" << ret);
+        return ret;
+    }
+    if (BresultFail(response.errCode_)) {
+        DBG_LOGERROR("Multi-node shared memory pool map request was rejected, name=" << name
+                                                                                     << ", ret=" << response.errCode_);
+        return response.errCode_;
+    }
+    return MXM_OK;
+}
+
+uint32_t ShmIpcCommand::IpcCallShmUnmapMultiNodePool(const std::string &name)
+{
+    std::shared_ptr<MultiNodeShmUnmapRequest> request;
+    std::shared_ptr<CommonResponse> response;
+    try {
+        request = std::make_shared<MultiNodeShmUnmapRequest>(name);
+        response = std::make_shared<CommonResponse>();
+    } catch (const std::exception &e) {
+        DBG_LOGERROR("Allocate multi-node unmap IPC message failed, name=" << name << ", reason=" << e.what());
+        return MXM_ERR_MALLOC_FAIL;
+    } catch (...) {
+        DBG_LOGERROR("Allocate multi-node unmap IPC message failed with unknown exception, name=" << name);
+        return MXM_ERR_MALLOC_FAIL;
+    }
+    const auto ret = IpcProxy::GetInstance().Ipc(request.get(), response.get(), IPC_REQUEST_UNMAP_MULTINODE_SHM);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Multi-node shared memory pool unmap IPC transport failed, name=" << name << ", ret=" << ret);
+        return ret;
+    }
+    if (BresultFail(response->errCode_)) {
+        DBG_LOGERROR("Multi-node shared memory pool unmap request was rejected, name=" << name << ", ret="
+                                                                                       << response->errCode_);
+        return response->errCode_;
+    }
+    return MXM_OK;
+}
+
 uint32_t ShmIpcCommand::IpcCallShmDelete(const std::string &name)
 {
     auto request = std::make_shared<ShmDeleteRequest>("default", name);
@@ -167,15 +281,17 @@ uint32_t ShmIpcCommand::IpcCallShmMap(const std::string &name, uint64_t mapSize,
                                       size_t &shmSize, size_t &unitSize, uint64_t &flag, int &oflag, mode_t mode,
                                       int prot)
 {
-    auto request = std::make_shared<ShmMapRequest>("default", name, mapSize, mode, prot);
-    if (request == nullptr) {
-        DBG_LOGERROR("request is nullptr.");
+    std::shared_ptr<ShmMapRequest> request;
+    std::shared_ptr<ShmMapResponse> response;
+    try {
+        request = std::make_shared<ShmMapRequest>("default", name, mapSize, mode, prot);
+        response = std::make_shared<ShmMapResponse>();
+    } catch (const std::exception &e) {
+        DBG_LOGERROR("Allocating shared memory map IPC message failed, name=" << name << ", reason=" << e.what());
         return MXM_ERR_MALLOC_FAIL;
-    }
-    auto response = std::make_shared<ShmMapResponse>();
-    if (response == nullptr) {
-        DBG_LOGERROR("response is nullptr.");
-        return MXM_ERR_MALLOC_FAIL;
+    } catch (...) {
+        DBG_LOGERROR("Allocating shared memory map IPC message failed with unknown exception, name=" << name);
+        return MXM_ERR_UNKNOWN;
     }
     uint32_t hr = IpcProxy::GetInstance().Ipc(request.get(), response.get(), IPC_RACKMEMSHM_MMAP);
     if (BresultFail(hr)) {
@@ -200,7 +316,7 @@ uint32_t ShmIpcCommand::IpcCallShmMap(const std::string &name, uint64_t mapSize,
         DBG_LOGERROR("UnitSize error " << response->unitSize_);
         return MXM_ERR_CHECK_RESOURCE;
     }
-    memIds.assign(response->memIds_.begin(), response->memIds_.end());
+    memIds = std::move(response->memIds_);
     shmSize = response->shmSize_;
     unitSize = response->unitSize_;
     flag = response->flag_;
@@ -214,15 +330,17 @@ uint32_t ShmIpcCommand::IpcCallShmMap(const std::string &name, uint64_t mapSize,
 
 uint32_t ShmIpcCommand::IpcCallShmUnMap(const std::string &name)
 {
-    auto request = std::make_shared<ShmUnmapRequest>("default", name);
-    if (request == nullptr) {
-        DBG_LOGERROR("Request is nullptr.");
+    std::shared_ptr<ShmUnmapRequest> request;
+    std::shared_ptr<CommonResponse> response;
+    try {
+        request = std::make_shared<ShmUnmapRequest>("default", name);
+        response = std::make_shared<CommonResponse>();
+    } catch (const std::exception &e) {
+        DBG_LOGERROR("Allocating shared memory unmap IPC message failed, name=" << name << ", reason=" << e.what());
         return MXM_ERR_MALLOC_FAIL;
-    }
-    auto response = std::make_shared<CommonResponse>();
-    if (response == nullptr) {
-        DBG_LOGERROR("Response is nullptr.");
-        return MXM_ERR_MALLOC_FAIL;
+    } catch (...) {
+        DBG_LOGERROR("Allocating shared memory unmap IPC message failed with unknown exception, name=" << name);
+        return MXM_ERR_UNKNOWN;
     }
 
     uint32_t hr = IpcProxy::GetInstance().Ipc(request.get(), response.get(), IPC_RACKMEMSHM_UNMMAP);
@@ -699,22 +817,22 @@ uint32_t ShmIpcCommand::IpcQueryDlockStatus(bool &isReady)
 uint32_t ShmIpcCommand::AppCheckShareMemoryResource()
 {
     std::vector<std::string> names;
-    auto ret = ShmMetaDataMgr::GetInstance().GetAllUsedMemoryNames(names);
+    const auto ret = ShmMetaDataMgr::GetInstance().GetAllUsedMemoryNames(names);
     if (ret != MXM_OK) {
-        DBG_LOGERROR("GetAllUsedMemoryNames returned error : " << ret);
-        return MXM_ERR_MALLOC_FAIL;
+        DBG_LOGERROR("Collecting shared memory names for resource check failed, ret=" << ret);
+        return ret;
     }
     std::shared_ptr<CheckShareMemoryMapRequest> request;
     std::shared_ptr<CommonResponse> response;
     try {
         request = std::make_shared<CheckShareMemoryMapRequest>(names);
         response = std::make_shared<CommonResponse>();
-    } catch (std::exception &e) {
-        DBG_LOGERROR("CheckMemoryLeaseRequest exception : " << e.what());
+    } catch (const std::exception &e) {
+        DBG_LOGERROR("Allocating shared memory resource-check IPC message failed, reason=" << e.what());
         return MXM_ERR_MALLOC_FAIL;
     } catch (...) {
-        DBG_LOGERROR("CheckMemoryLeaseRequest unknown exception.");
-        return MXM_ERR_MALLOC_FAIL;
+        DBG_LOGERROR("Allocating shared memory resource-check IPC message failed with unknown exception.");
+        return MXM_ERR_UNKNOWN;
     }
 
     uint32_t hr = IpcProxy::GetInstance().Ipc(request.get(), response.get(), IPC_CHECK_SHARE_MEMORY);

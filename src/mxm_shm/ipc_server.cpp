@@ -131,6 +131,24 @@ const std::unordered_map<int, HcomServiceHandle> &IpcServer::GetIpcCallbackTable
     callBackMap[IPC_RESUME_CLIENT] = {[](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
         GetInstance().MsgHandle(udsInfo, IPC_RESUME_CLIENT, req, rsp, execMap.at(IPC_RESUME_CLIENT));
     }};
+    callBackMap[IPC_REQUEST_CREATE_MULTINODE_SHM] = {
+        [](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
+            GetInstance().MsgHandle(udsInfo, IPC_REQUEST_CREATE_MULTINODE_SHM, req, rsp,
+                                    execMap.at(IPC_REQUEST_CREATE_MULTINODE_SHM));
+        }};
+    callBackMap[IPC_REQUEST_DELETE_MULTINODE_SHM] = {
+        [](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
+            GetInstance().MsgHandle(udsInfo, IPC_REQUEST_DELETE_MULTINODE_SHM, req, rsp,
+                                    execMap.at(IPC_REQUEST_DELETE_MULTINODE_SHM));
+        }};
+    callBackMap[IPC_REQUEST_MAP_MULTINODE_SHM] = {[](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
+        GetInstance().MsgHandle(udsInfo, IPC_REQUEST_MAP_MULTINODE_SHM, req, rsp,
+                                execMap.at(IPC_REQUEST_MAP_MULTINODE_SHM));
+    }};
+    callBackMap[IPC_REQUEST_UNMAP_MULTINODE_SHM] = {[](const MxmComUdsInfo &udsInfo, const MsgBase *req, MsgBase *rsp) {
+        GetInstance().MsgHandle(udsInfo, IPC_REQUEST_UNMAP_MULTINODE_SHM, req, rsp,
+                                execMap.at(IPC_REQUEST_UNMAP_MULTINODE_SHM));
+    }};
     GetIpcCallbackTablePartition();
     return callBackMap;
 }
@@ -178,6 +196,10 @@ uint32_t IpcServer::InitExecMap()
     execMap.emplace(IPC_RACKMEMSHM_QUERY_SLOT_ID, MxmServerMsgHandle::LookupLocalSlotId);
     execMap.emplace(IPC_SUSPEND_CLIENT, MxmServerMsgHandle::IpcSuspend);
     execMap.emplace(IPC_RESUME_CLIENT, MxmServerMsgHandle::IpcResume);
+    execMap.emplace(IPC_REQUEST_CREATE_MULTINODE_SHM, MxmServerMsgHandle::ShmCreateMultiNodePool);
+    execMap.emplace(IPC_REQUEST_DELETE_MULTINODE_SHM, MxmServerMsgHandle::ShmDeleteMultiNodePool);
+    execMap.emplace(IPC_REQUEST_MAP_MULTINODE_SHM, MxmServerMsgHandle::ShmMapMultiNodePool);
+    execMap.emplace(IPC_REQUEST_UNMAP_MULTINODE_SHM, MxmServerMsgHandle::ShmUnmapMultiNodePool);
     for (auto &iter : execMap) {
         if (iter.second == nullptr) {
             DBG_LOGERROR("RPC init exe map error, no func");

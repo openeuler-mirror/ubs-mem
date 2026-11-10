@@ -61,6 +61,12 @@ public:
 
     static int IpcSuspend(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo);
     static int IpcResume(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo);
+    static int ShmCreateMultiNodePool(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo);
+    static int ShmDeleteMultiNodePool(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo);
+    static int ShmMapMultiNodePool(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo);
+    static int ShmUnmapMultiNodePool(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo);
+    static int RollbackMultiNodeShmMember(const std::string &name, const MxmComUdsInfo &udsInfo,
+                                          uint64_t referenceId = 0);
 
 private:
     static std::mutex &GetMutexByName(const std::string &name) noexcept;

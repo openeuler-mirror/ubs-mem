@@ -14,7 +14,9 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <algorithm>
 #include <functional>
+#include <limits>
 #include "dlock_utils/ubsm_lock.h"
 #include "record_store.h"
 #include "region_manager.h"
@@ -274,7 +276,7 @@ int MxmServerMsgHandle::ShmCreateWithProvider(const MsgBase *req, MsgBase *rsp, 
     return 0;
 }
 
-static int ShmPermissionCheck(const std::string &name, const MxmComUdsInfo &udsInfo) noexcept
+static int ValidateOrdinaryShmDelete(const std::string &name, const MxmComUdsInfo &udsInfo) noexcept
 {
     mxm::ubse_user_info_t ubsUserInfo{};
     auto ret = mxm::UbseMemAdapter::ShmGetUserData(name, ubsUserInfo);
@@ -289,9 +291,15 @@ static int ShmPermissionCheck(const std::string &name, const MxmComUdsInfo &udsI
                                                 << " owner gid: " << ubsUserInfo.udsInfo.gid);
         return MXM_ERR_SHM_PERMISSION_DENIED;
     }
-    DBG_LOGINFO("ShmPermissionCheck success, user.uid=" << udsInfo.uid << " user.gid=" << udsInfo.gid
-                                                        << " owner.uid=" << ubsUserInfo.udsInfo.uid
-                                                        << " owner.gid=" << ubsUserInfo.udsInfo.gid);
+    if ((ubsUserInfo.flag & UBSM_INNER_FLAG_MULTINODE) != 0) {
+        DBG_LOGERROR("Ordinary deletion of multi-node pool members is not supported, name="
+                     << name << ", flag=" << ubsUserInfo.flag
+                     << "; use ubsmem_shmem_deallocate_with_multi_provider to delete the pool");
+        return MXM_ERR_UBSE_NOT_SUPPORTED;
+    }
+    DBG_LOGINFO("Shared memory deletion validation passed, user.uid=" << udsInfo.uid << " user.gid=" << udsInfo.gid
+                                                                      << " owner.uid=" << ubsUserInfo.udsInfo.uid
+                                                                      << " owner.gid=" << ubsUserInfo.udsInfo.gid);
     return UBSM_OK;
 }
 
@@ -322,12 +330,12 @@ int MxmServerMsgHandle::ShmDelete(const MsgBase *req, MsgBase *rsp, const MxmCom
         return MXM_ERR_NAME_BUSY;
     }
 
-    int res = ShmPermissionCheck(request->name_, udsInfo);
+    int res = ValidateOrdinaryShmDelete(request->name_, udsInfo);
     if (res != 0) {
-        DBG_LOGERROR("Failed to check shm Permission, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
-                                                            << ", ret=" << res);
-        DBG_AUDITINFO("user info of ShmDelete, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid="
-                                                     << udsInfo.pid << ", ret=" << ConvertErrorToString(res));
+        DBG_LOGERROR("Shared memory deletion validation failed, name=" << request->name_ << ", ret=" << res);
+        DBG_AUDITINFO("user info of ShmDelete, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
+                                                     << ", pid=" << udsInfo.pid << ", name=" << request->name_
+                                                     << ", ret=" << ConvertErrorToString(res));
         response->errCode_ = res;
         return res;
     }
@@ -490,15 +498,10 @@ static void RollBackAttachShareMemory(const std::string &name)
     }
 }
 
-static int ShmMmapInner(const mxm::ImportShmParam &importParam, mxm::AttachShmResult &result)
+static int ShmMmapWithUserInfo(const mxm::ImportShmParam &importParam, mxm::AttachShmResult &result,
+                               mxm::ubse_user_info_t ubsUserInfo)
 {
     mxm::ImportShmParam importOwnerParam = importParam;
-    mxm::ubse_user_info_t ubsUserInfo{};
-    int rt = mxm::UbseMemAdapter::ShmGetUserData(importParam.name, ubsUserInfo);
-    if (rt != 0) {
-        DBG_LOGERROR("ShmGetUserData fail. ret: " << rt << " name: " << importParam.name);
-        return rt;
-    }
     DBG_LOGINFO("importParam prot is " << importParam.prot);
 
     int oflag{};
@@ -545,9 +548,39 @@ static int ShmMmapInner(const mxm::ImportShmParam &importParam, mxm::AttachShmRe
     return UBSM_OK;
 }
 
+static int ShmMmapInner(const mxm::ImportShmParam &importParam, mxm::AttachShmResult &result)
+{
+    mxm::ubse_user_info_t userInfo{};
+    const auto ret = mxm::UbseMemAdapter::ShmGetUserData(importParam.name, userInfo);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Query shared memory metadata failed, name=" << importParam.name << ", ret=" << ret);
+        return ret;
+    }
+    if ((userInfo.flag & UBSM_INNER_FLAG_MULTINODE) != 0) {
+        DBG_LOGERROR("Ordinary shared memory mapping cannot attach a multi-node pool member, name="
+                     << importParam.name << ", flag=" << userInfo.flag);
+        return MXM_ERR_PARAM_INVALID;
+    }
+    const auto mapRet = ShmMmapWithUserInfo(importParam, result, userInfo);
+    if (mapRet != MXM_OK) {
+        DBG_LOGERROR("Mapping shared memory with queried metadata failed, name="
+                     << importParam.name << ", pid=" << importParam.appContext.pid << ", ret=" << mapRet);
+    }
+    return mapRet;
+}
+
 int HandleExistingShm(const ShmMapRequest *request, ShmMapResponse *response, const MxmComUdsInfo &udsInfo,
                       const AttachedShareMemory &memory)
 {
+    if ((memory.result.createFlags & UBSM_INNER_FLAG_MULTINODE) != 0) {
+        DBG_LOGERROR("Ordinary shared memory mapping cannot reuse a multi-node pool member, name="
+                     << request->name_ << ", flag=" << memory.result.createFlags);
+        response->errCode_ = MXM_ERR_PARAM_INVALID;
+        DBG_AUDITERROR("operation=ShmMap, result=failure, name="
+                       << request->name_ << ", uid=" << udsInfo.uid << ", gid=" << udsInfo.gid
+                       << ", pid=" << udsInfo.pid << ", reason=multi_node_pool_member, ret=" << MXM_ERR_PARAM_INVALID);
+        return MXM_ERR_PARAM_INVALID;
+    }
     if (memory.pids.find(udsInfo.pid) != memory.pids.end()) {
         DBG_LOGERROR("Share memory is already in use by process: " << udsInfo.pid);
         DBG_AUDITINFO("user info of ShmMap, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
@@ -683,6 +716,73 @@ static int ShmUnMapInner(const std::string &name, const MxmComUdsInfo &usrInfo)
     return MXM_OK;
 }
 
+static int ReleaseMultiNodeRollbackReference(const AttachedShareMemory &memory, pid_t pid)
+{
+    auto &manager = SHMManager::GetInstance();
+    if (memory.state == RecordState::DELETED) {
+        return manager.RemoveMemoryInfo(memory.name, true);
+    }
+    if (memory.pids.size() > 1) {
+        return manager.RemoveMemoryUserInfo(memory.name, pid);
+    }
+    auto ret = manager.UpdateShareMemoryRecordState(memory.name, RecordState::PRE_DEL);
+    if (ret != MXM_OK) {
+        return ret;
+    }
+    ret = mxm::UbseMemAdapter::ShmDetach(memory.name);
+    if (ret != MXM_OK && ret != MXM_ERR_UBSE_NOT_ATTACH) {
+        const auto restoreRet = manager.UpdateShareMemoryRecordState(memory.name, RecordState::FINISH);
+        if (restoreRet != MXM_OK) {
+            DBG_LOGERROR("Restoring failed rollback record state failed, name=" << memory.name
+                                                                                << ", ret=" << restoreRet);
+        }
+        return ret;
+    }
+    ret = manager.UpdateShareMemoryRecordState(memory.name, RecordState::DELETED);
+    return ret == MXM_OK ? manager.RemoveMemoryInfo(memory.name, true) : ret;
+}
+
+int MxmServerMsgHandle::RollbackMultiNodeShmMember(const std::string &name, const MxmComUdsInfo &info,
+                                                   uint64_t referenceId)
+{
+    std::lock_guard<std::mutex> lock(GetMutexByName(name));
+    AttachedShareMemory memory{};
+    auto ret = SHMManager::GetInstance().GetShareMemoryInfo(name, memory);
+    if (ret == MXM_ERR_SHM_NOT_FOUND) {
+        return MXM_OK;
+    }
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Reading multi-node rollback record failed, name=" << name << ", ret=" << ret);
+        return ret;
+    }
+    const auto reference = memory.referenceIds.find(info.pid);
+    if ((memory.pids.count(info.pid) == 0 && memory.state != RecordState::DELETED) ||
+        (referenceId != 0 && (reference == memory.referenceIds.end() || reference->second != referenceId))) {
+        DBG_LOGINFO("Skipping released or replaced multi-node rollback reference, name="
+                    << name << ", pid=" << info.pid << ", referenceId=" << referenceId);
+        return MXM_OK;
+    }
+    if (reference == memory.referenceIds.end() || reference->second == 0 ||
+        (memory.result.createFlags & UBSM_INNER_FLAG_MULTINODE) == 0) {
+        DBG_LOGERROR("Invalid multi-node rollback reference, name=" << name << ", pid=" << info.pid);
+        return MXM_ERR_PARAM_INVALID;
+    }
+    ret = ReleaseMultiNodeRollbackReference(memory, info.pid);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Rolling back multi-node member reference failed, name="
+                     << name << ", pid=" << info.pid << ", referenceId=" << reference->second << ", ret=" << ret);
+        if (referenceId == 0) {
+            DelayRemovedKey key{name,  ONE_MINUTE_MS, false, AppContext{info.pid, info.uid, info.gid},
+                                false, false,         false};
+            key.shmRollbackReferenceId = reference->second;
+            UBSMemMonitor::GetInstance().AddDelayRemoveRecord(key);
+            DBG_LOGWARN("Queued failed multi-node rollback for delayed cleanup, name="
+                        << name << ", pid=" << info.pid << ", referenceId=" << key.shmRollbackReferenceId);
+        }
+    }
+    return ret;
+}
+
 int MxmServerMsgHandle::ShmUnmap(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo)
 {
     if (req == nullptr || rsp == nullptr) {
@@ -704,6 +804,11 @@ int MxmServerMsgHandle::ShmUnmap(const MsgBase *req, MsgBase *rsp, const MxmComU
     std::unique_lock<std::mutex> uniqueLock{GetMutexByName(request->name_)};
     auto ret = SHMManager::GetInstance().GetShareMemoryInfo(request->name_, memory);
     if (ret != UBSM_OK) {
+        if (ret == MXM_ERR_SHM_NOT_FOUND) {
+            DBG_LOGINFO("Shared memory reference is already released, name=" << request->name_);
+            response->errCode_ = MXM_OK;
+            return MXM_OK;
+        }
         DBG_LOGERROR("GetShareMemoryInfo fail. name=" << request->name_);
         DBG_AUDITINFO("user info of ShmUnmap, uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
                                                     << ", name=" << request->name_
@@ -718,6 +823,11 @@ int MxmServerMsgHandle::ShmUnmap(const MsgBase *req, MsgBase *rsp, const MxmComU
             response->errCode_ = ret;
             return ret;
         }
+        response->errCode_ = MXM_OK;
+        return MXM_OK;
+    }
+    if (memory.pids.count(udsInfo.pid) == 0) {
+        DBG_LOGINFO("Shared memory reference is already released for the requesting process, name=" << request->name_);
         response->errCode_ = MXM_OK;
         return MXM_OK;
     }
@@ -1459,5 +1569,436 @@ int MxmServerMsgHandle::IpcResume(const MsgBase *req, MsgBase *rsp, const MxmCom
     response->errCode_ = UBSM_OK;
     DBG_LOGINFO("IpcResume success, pid=" << udsInfo.pid);
     return UBSM_OK;
+}
+
+namespace {
+// Keep member discovery and updates serialized across all multi-node pool operations in this daemon.
+std::mutex multiNodeMappingMutex;
+} // namespace
+
+static int ProcessMultiNodeShmCreateRequest(const MultiNodeShmCreateRequest &request, CommonResponse &response,
+                                            const MxmComUdsInfo &udsInfo)
+{
+    if (request.socketId_ == UINT32_MAX) {
+        DBG_LOGERROR("Multi-node shared memory requires an explicit socket plane, name="
+                     << request.name_ << ", socketId=" << request.socketId_);
+        response.errCode_ = MXM_ERR_PARAM_INVALID;
+        return MXM_ERR_PARAM_INVALID;
+    }
+    DelayRemovedKey queryBusyKey{request.name_};
+    if (UBSMemMonitor::GetInstance().GetDelayRemoveRecord(queryBusyKey)) {
+        DBG_LOGERROR("Multi-node shared memory pool name is busy, name=" << request.name_);
+        response.errCode_ = MXM_ERR_NAME_BUSY;
+        return MXM_ERR_NAME_BUSY;
+    }
+    mxm::MultiNodeShmCreateParam param{};
+    param.name = request.name_;
+    param.size = request.size_;
+    param.mode = request.mode_;
+    param.flags = request.flags_;
+    param.socketId = request.socketId_;
+    param.hostNames = request.hostNames_;
+    param.hostSizes = request.hostSizes_;
+    param.appContext.uid = udsInfo.uid;
+    param.appContext.gid = udsInfo.gid;
+    param.appContext.pid = udsInfo.pid;
+
+    auto ret = mxm::UbseMemAdapter::CreateMultiNodeShmPool(param);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Multi-node shared memory pool creation failed in the memory adapter, name=" << request.name_
+                                                                                                  << ", ret=" << ret);
+        response.errCode_ = ret;
+        return ret;
+    }
+    response.errCode_ = UBSM_OK;
+    return MXM_OK;
+}
+
+int MxmServerMsgHandle::ShmCreateMultiNodePool(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo)
+{
+    if (req == nullptr || rsp == nullptr) {
+        DBG_LOGERROR("Invalid multi-node shared memory pool create message, reqNull="
+                     << (req == nullptr) << ", rspNull=" << (rsp == nullptr) << ", pid=" << udsInfo.pid);
+        DBG_AUDITERROR("operation=ShmCreateMultiNodePool, result=failure, uid="
+                       << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
+                       << ", reason=null_message, ret=" << MXM_ERR_PARAM_INVALID);
+        return MXM_ERR_PARAM_INVALID;
+    }
+    auto request = dynamic_cast<const MultiNodeShmCreateRequest *>(req);
+    auto response = dynamic_cast<CommonResponse *>(rsp);
+    if (request == nullptr || response == nullptr) {
+        DBG_LOGERROR("Invalid multi-node shared memory pool create message type, requestOpCode="
+                     << req->opCode << ", responseOpCode=" << rsp->opCode
+                     << ", requestTypeValid=" << (request != nullptr) << ", responseTypeValid=" << (response != nullptr)
+                     << ", pid=" << udsInfo.pid);
+        DBG_AUDITERROR("operation=ShmCreateMultiNodePool, result=failure, uid="
+                       << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
+                       << ", reason=invalid_message_type, ret=" << MXM_ERR_PARAM_INVALID);
+        return MXM_ERR_PARAM_INVALID;
+    }
+
+    DBG_AUDITINFO("operation=ShmCreateMultiNodePool, result=start, uid="
+                  << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid << ", name=" << request->name_);
+    std::lock_guard<std::mutex> lock(multiNodeMappingMutex);
+    auto ret = ProcessMultiNodeShmCreateRequest(*request, *response, udsInfo);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Create multi-node shared memory pool failed, name=" << request->name_ << ", ret=" << ret);
+        DBG_AUDITERROR("operation=ShmCreateMultiNodePool, result=failure, uid="
+                       << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
+                       << ", name=" << request->name_ << ", error=" << ConvertErrorToString(ret) << ", ret=" << ret);
+        return ret;
+    }
+
+    DBG_AUDITINFO("operation=ShmCreateMultiNodePool, result=success, uid="
+                  << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid << ", name=" << request->name_);
+    return ret;
+}
+
+static int ProcessMultiNodeShmDeleteRequest(const MultiNodeShmDeleteRequest &request, CommonResponse &response,
+                                            const MxmComUdsInfo &udsInfo)
+{
+    AppContext appContext{};
+    appContext.uid = udsInfo.uid;
+    appContext.gid = udsInfo.gid;
+    appContext.pid = udsInfo.pid;
+    const auto ret = mxm::UbseMemAdapter::DeleteMultiNodeShmPool(request.name_, appContext);
+    response.errCode_ = ret;
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Multi-node shared memory pool deletion failed in the memory adapter, name=" << request.name_
+                                                                                                  << ", ret=" << ret);
+    }
+    return ret;
+}
+
+int MxmServerMsgHandle::ShmDeleteMultiNodePool(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo)
+{
+    if (req == nullptr || rsp == nullptr) {
+        DBG_LOGERROR("Invalid multi-node shared memory pool delete message, reqNull="
+                     << (req == nullptr) << ", rspNull=" << (rsp == nullptr) << ", pid=" << udsInfo.pid);
+        DBG_AUDITERROR("operation=ShmDeleteMultiNodePool, result=failure, uid="
+                       << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
+                       << ", reason=null_message, ret=" << MXM_ERR_PARAM_INVALID);
+        return MXM_ERR_PARAM_INVALID;
+    }
+    auto request = dynamic_cast<const MultiNodeShmDeleteRequest *>(req);
+    auto response = dynamic_cast<CommonResponse *>(rsp);
+    if (request == nullptr || response == nullptr) {
+        DBG_LOGERROR("Invalid multi-node shared memory pool delete message type, requestOpCode="
+                     << req->opCode << ", responseOpCode=" << rsp->opCode
+                     << ", requestTypeValid=" << (request != nullptr) << ", responseTypeValid=" << (response != nullptr)
+                     << ", pid=" << udsInfo.pid);
+        DBG_AUDITERROR("operation=ShmDeleteMultiNodePool, result=failure, uid="
+                       << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
+                       << ", reason=invalid_message_type, ret=" << MXM_ERR_PARAM_INVALID);
+        return MXM_ERR_PARAM_INVALID;
+    }
+    DBG_AUDITINFO("operation=ShmDeleteMultiNodePool, result=start, uid="
+                  << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid << ", name=" << request->name_);
+    std::lock_guard<std::mutex> lock(multiNodeMappingMutex);
+    const auto ret = ProcessMultiNodeShmDeleteRequest(*request, *response, udsInfo);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Delete multi-node shared memory pool failed, name=" << request->name_ << ", ret=" << ret);
+        DBG_AUDITERROR("operation=ShmDeleteMultiNodePool, result=failure, uid="
+                       << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid
+                       << ", name=" << request->name_ << ", error=" << ConvertErrorToString(ret) << ", ret=" << ret);
+        return ret;
+    }
+    DBG_AUDITINFO("operation=ShmDeleteMultiNodePool, result=success, uid="
+                  << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid << ", name=" << request->name_);
+    return MXM_OK;
+}
+
+namespace {
+bool IsMultiNodePoolMember(const std::string &poolName, const AttachedShareMemory &memory)
+{
+    if ((memory.result.createFlags & UBSM_INNER_FLAG_MULTINODE) == 0) {
+        return false;
+    }
+    if (memory.name == poolName) {
+        return true;
+    }
+    if (memory.name.size() != poolName.size() + mxm::MULTINODE_MEMBER_SUFFIX_LENGTH ||
+        memory.name.compare(0, poolName.size(), poolName) != 0) {
+        return false;
+    }
+    unsigned int suffix{};
+    for (size_t index = poolName.size(); index < memory.name.size(); ++index) {
+        const char digit = memory.name[index];
+        if (!((digit >= '0' && digit <= '9') || (digit >= 'a' && digit <= 'f'))) {
+            return false;
+        }
+        suffix = suffix * 16U + (digit <= '9' ? digit - '0' : digit - 'a' + 10);
+    }
+    const auto count = (suffix >> 8U) + 1;
+    const auto index = suffix & 0xffU;
+    return count >= mxm::MIN_MULTINODE_MEMBER_COUNT && index > 0 && index < count;
+}
+
+void LogMultiNodeMappingResult(const char *operation, const std::string &name, const MxmComUdsInfo &info, int ret)
+{
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Multi-node shared memory mapping operation failed, name=" << name << ", pid=" << info.pid
+                                                                                << ", ret=" << ret);
+        DBG_AUDITERROR("operation=" << operation << ", result=failure, name=" << name << ", uid=" << info.uid
+                                    << ", gid=" << info.gid << ", pid=" << info.pid << ", ret=" << ret);
+        return;
+    }
+    DBG_LOGINFO("Multi-node shared memory mapping operation completed, name=" << name << ", pid=" << info.pid);
+    DBG_AUDITINFO("operation=" << operation << ", result=success, name=" << name << ", uid=" << info.uid
+                               << ", gid=" << info.gid << ", pid=" << info.pid);
+}
+
+int UnmapMultiNodeMembers(const std::vector<std::string> &names, const MxmComUdsInfo &info, bool rollback = false)
+{
+    int firstError = MXM_OK;
+    for (auto iter = names.rbegin(); iter != names.rend(); ++iter) {
+        ShmUnmapRequest request{"", *iter};
+        CommonResponse response;
+        const auto ret = rollback ? MxmServerMsgHandle::RollbackMultiNodeShmMember(*iter, info) :
+                                    MxmServerMsgHandle::ShmUnmap(&request, &response, info);
+        if (ret != MXM_OK) {
+            DBG_LOGERROR("Unmap multi-node shared memory member failed, name=" << *iter << ", pid=" << info.pid
+                                                                               << ", ret=" << ret);
+            if (firstError == MXM_OK) {
+                firstError = ret;
+            }
+        }
+    }
+    return firstError;
+}
+
+using MultiNodeMemberMapper = std::function<int(const mxm::MultiNodeShmMember &, mxm::AttachShmResult &)>;
+
+int MapMultiNodeMemberWithInfo(const mxm::MultiNodeShmMember &member, int prot, const MxmComUdsInfo &info,
+                               mxm::AttachShmResult &result)
+{
+    if (UBSMemMonitor::GetInstance().GetDelayRemoveRecord(DelayRemovedKey{member.name})) {
+        DBG_LOGERROR("Multi-node shared memory member is busy, name=" << member.name);
+        return MXM_ERR_NAME_BUSY;
+    }
+    auto ret = CheckPermission(info.uid, info.gid, member.userInfo, prot, result.oflag);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Checking multi-node member mapping permissions failed, name="
+                     << member.name << ", requestUid=" << info.uid << ", requestGid=" << info.gid << ", prot=" << prot
+                     << ", ret=" << ret);
+        return ret;
+    }
+    AttachedShareMemory memory{};
+    ret = SHMManager::GetInstance().GetShareMemoryInfo(member.name, memory);
+    if (ret == MXM_OK && memory.state == RecordState::FINISH) {
+        if (memory.pids.count(info.pid) != 0) {
+            DBG_LOGERROR("Shared memory member already mapped by process, name=" << member.name
+                                                                                 << ", pid=" << info.pid);
+            return MXM_ERR_SHM_ALREADY_EXIST;
+        }
+        if (memory.size != member.size || (memory.result.createFlags & ~UBSM_FLAG_ONLY_IMPORT_NONCACHE) !=
+                                              (member.userInfo.flag & ~UBSM_FLAG_ONLY_IMPORT_NONCACHE)) {
+            DBG_LOGERROR("Cached shared memory member metadata mismatch, name=" << member.name);
+            return MXM_ERR_SHM_POOL_LAYOUT_CONFLICT;
+        }
+        ret = SHMManager::GetInstance().AddMemoryUserInfo(member.name, info.pid);
+        if (ret != MXM_OK) {
+            DBG_LOGERROR("Adding shared memory member user failed, name=" << member.name << ", ret=" << ret);
+            return ret;
+        }
+        result.memIds = memory.result.memIds;
+        result.shmSize = memory.size;
+        result.unitSize = memory.result.unitSize;
+        result.flag = memory.result.createFlags;
+        return MXM_OK;
+    }
+    if (ret == MXM_OK && memory.state == RecordState::DELETED) {
+        ret = SHMManager::GetInstance().RemoveMemoryInfo(member.name, true);
+        if (ret != MXM_OK) {
+            DBG_LOGERROR("Removing deleted shared memory member record failed, name=" << member.name
+                                                                                      << ", ret=" << ret);
+            return ret;
+        }
+    }
+    mxm::ImportShmParam param{};
+    param.name = member.name;
+    param.length = member.size;
+    param.prot = prot;
+    param.appContext = AppContext{info.pid, info.uid, info.gid};
+    ret = ShmMmapWithUserInfo(param, result, member.userInfo);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Mapping multi-node member with listed metadata failed, name="
+                     << member.name << ", size=" << member.size << ", pid=" << info.pid << ", ret=" << ret);
+    }
+    return ret;
+}
+
+int ValidateMultiNodeMapMembers(const MultiNodeShmMapRequest &request,
+                                const std::vector<mxm::MultiNodeShmMember> &members, const MxmComUdsInfo &info)
+{
+    uint64_t totalSize{};
+    for (const auto &member : members) {
+        int oflag{};
+        const auto ret = CheckPermission(info.uid, info.gid, member.userInfo, request.prot_, oflag);
+        if (ret != MXM_OK) {
+            DBG_LOGERROR("Validate multi-node shared memory member failed, poolName="
+                         << request.name_ << ", name=" << member.name << ", ret=" << ret);
+            return ret;
+        }
+        if (member.size == 0 || member.size > std::numeric_limits<size_t>::max() ||
+            member.size > UINT64_MAX - totalSize || (member.userInfo.flag & UBSM_INNER_FLAG_MULTINODE) == 0 ||
+            member.userInfo.flag != members.front().userInfo.flag) {
+            DBG_LOGERROR("Invalid multi-node shared memory member metadata, name="
+                         << member.name << ", size=" << member.size << ", flag=" << member.userInfo.flag);
+            return MXM_ERR_SHM_POOL_LAYOUT_CONFLICT;
+        }
+        totalSize += member.size;
+    }
+    if (request.size_ > totalSize) {
+        DBG_LOGERROR("Requested multi-node mapping exceeds pool size, name="
+                     << request.name_ << ", size=" << request.size_ << ", poolSize=" << totalSize);
+        return MXM_ERR_PARAM_INVALID;
+    }
+    return MXM_OK;
+}
+
+int MapMultiNodeMembers(const MultiNodeShmMapRequest &request, const std::vector<mxm::MultiNodeShmMember> &members,
+                        const MxmComUdsInfo &info, MultiNodeShmMapResponse &response,
+                        const MultiNodeMemberMapper &mapMember)
+{
+    std::vector<std::string> mapped;
+    response.flag_ = members.front().userInfo.flag;
+    for (size_t index = 0; index < members.size(); ++index) {
+        const auto &member = members[index];
+        mxm::AttachShmResult result{};
+        auto ret = mapMember(member, result);
+        if (ret == MXM_OK) {
+            mapped.emplace_back(member.name);
+            if (result.shmSize != member.size || result.unitSize == 0 || result.memIds.empty() ||
+                (result.flag & UBSM_INNER_FLAG_MULTINODE) == 0 ||
+                (result.flag & ~UBSM_FLAG_ONLY_IMPORT_NONCACHE) != (response.flag_ & ~UBSM_FLAG_ONLY_IMPORT_NONCACHE) ||
+                (index != 0 && (result.unitSize != response.unitSize_ || result.oflag != response.oflag_))) {
+                ret = MXM_ERR_SHM_POOL_LAYOUT_CONFLICT;
+                DBG_LOGERROR("Inconsistent multi-node mapping metadata, name="
+                             << member.name << ", size=" << result.shmSize << ", expectedSize=" << member.size
+                             << ", unitSize=" << result.unitSize << ", flag=" << result.flag
+                             << ", oflag=" << result.oflag << ", memIdCount=" << result.memIds.size());
+            }
+        }
+        if (ret != MXM_OK) {
+            DBG_LOGERROR("Map multi-node shared memory member failed, poolName="
+                         << request.name_ << ", name=" << member.name << ", index=" << index << ", ret=" << ret);
+            const auto rollbackRet = UnmapMultiNodeMembers(mapped, info, true);
+            if (rollbackRet != MXM_OK) {
+                DBG_LOGERROR("Rollback multi-node mapping failed, name=" << request.name_ << ", ret=" << rollbackRet);
+            }
+            return ret;
+        }
+        response.memIds_.emplace_back(std::move(result.memIds));
+        response.groupSizes_.emplace_back(member.size);
+        response.groupFlags_.emplace_back(result.flag);
+        response.createdSize_ += member.size;
+        response.unitSize_ = result.unitSize;
+        response.oflag_ = result.oflag;
+    }
+    return MXM_OK;
+}
+
+int ProcessMultiNodeShmMapRequest(const MultiNodeShmMapRequest &request, MultiNodeShmMapResponse &response,
+                                  const MxmComUdsInfo &info, const MultiNodeMemberMapper &mapMember)
+{
+    if (request.name_.empty() || request.name_.size() + mxm::MULTINODE_MEMBER_SUFFIX_LENGTH > MAX_SHM_NAME_LENGTH ||
+        request.name_.find('\0') != std::string::npos || request.size_ == 0 ||
+        request.size_ > std::numeric_limits<size_t>::max() ||
+        (request.prot_ & ~(PROT_READ | PROT_WRITE | PROT_EXEC)) != 0) {
+        DBG_LOGERROR("Invalid multi-node shared memory map parameters, name="
+                     << request.name_ << ", size=" << request.size_ << ", prot=" << request.prot_);
+        return MXM_ERR_PARAM_INVALID;
+    }
+    std::vector<mxm::MultiNodeShmMember> members;
+    auto ret = mxm::UbseMemAdapter::GetMultiNodeShmMembers(request.name_, members, true);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Discovering multi-node pool members for mapping failed, name=" << request.name_ << ", pid="
+                                                                                     << info.pid << ", ret=" << ret);
+        return ret;
+    }
+    if (members.size() < mxm::MIN_MULTINODE_MEMBER_COUNT || members.size() > MAX_MULTINODE_HOST_NUM ||
+        members.front().name != request.name_) {
+        DBG_LOGERROR("Incomplete multi-node shared memory mapping layout, name=" << request.name_);
+        return members.size() < mxm::MIN_MULTINODE_MEMBER_COUNT ? MXM_ERR_SHM_POOL_INCOMPLETE :
+                                                                  MXM_ERR_SHM_POOL_LAYOUT_CONFLICT;
+    }
+    ret = ValidateMultiNodeMapMembers(request, members, info);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Validating multi-node pool mapping failed, name="
+                     << request.name_ << ", memberCount=" << members.size() << ", size=" << request.size_
+                     << ", prot=" << request.prot_ << ", pid=" << info.pid << ", ret=" << ret);
+        return ret;
+    }
+    ret = MapMultiNodeMembers(request, members, info, response, mapMember);
+    if (ret != MXM_OK) {
+        DBG_LOGERROR("Mapping multi-node pool members failed, name="
+                     << request.name_ << ", memberCount=" << members.size() << ", pid=" << info.pid << ", ret=" << ret);
+    }
+    return ret;
+}
+} // namespace
+
+int MxmServerMsgHandle::ShmMapMultiNodePool(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo)
+{
+    const auto request = dynamic_cast<const MultiNodeShmMapRequest *>(req);
+    auto response = dynamic_cast<MultiNodeShmMapResponse *>(rsp);
+    if (request == nullptr || response == nullptr) {
+        if (response != nullptr) {
+            response->errCode_ = MXM_ERR_PARAM_INVALID;
+        }
+        LogMultiNodeMappingResult("ShmMapMultiNodePool", "", udsInfo, MXM_ERR_PARAM_INVALID);
+        return MXM_ERR_PARAM_INVALID;
+    }
+    DBG_AUDITINFO("operation=ShmMapMultiNodePool, result=start, name="
+                  << request->name_ << ", uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid);
+    std::lock_guard<std::mutex> lock(multiNodeMappingMutex);
+    MultiNodeShmMapResponse result;
+    const auto mapMember = [&](const mxm::MultiNodeShmMember &member, mxm::AttachShmResult &memberResult) {
+        std::lock_guard<std::mutex> memberLock(GetMutexByName(member.name));
+        return MapMultiNodeMemberWithInfo(member, request->prot_, udsInfo, memberResult);
+    };
+    const auto ret = ProcessMultiNodeShmMapRequest(*request, result, udsInfo, mapMember);
+    if (ret == MXM_OK) {
+        response->memIds_ = std::move(result.memIds_);
+        response->groupSizes_ = std::move(result.groupSizes_);
+        response->groupFlags_ = std::move(result.groupFlags_);
+        response->unitSize_ = result.unitSize_;
+        response->createdSize_ = result.createdSize_;
+        response->flag_ = result.flag_;
+        response->oflag_ = result.oflag_;
+    }
+    response->errCode_ = ret;
+    LogMultiNodeMappingResult("ShmMapMultiNodePool", request->name_, udsInfo, ret);
+    return ret;
+}
+
+int MxmServerMsgHandle::ShmUnmapMultiNodePool(const MsgBase *req, MsgBase *rsp, const MxmComUdsInfo &udsInfo)
+{
+    const auto request = dynamic_cast<const MultiNodeShmUnmapRequest *>(req);
+    auto response = dynamic_cast<CommonResponse *>(rsp);
+    if (request == nullptr || response == nullptr) {
+        if (response != nullptr) {
+            response->errCode_ = MXM_ERR_PARAM_INVALID;
+        }
+        LogMultiNodeMappingResult("ShmUnmapMultiNodePool", "", udsInfo, MXM_ERR_PARAM_INVALID);
+        return MXM_ERR_PARAM_INVALID;
+    }
+    DBG_AUDITINFO("operation=ShmUnmapMultiNodePool, result=start, name="
+                  << request->name_ << ", uid=" << udsInfo.uid << ", gid=" << udsInfo.gid << ", pid=" << udsInfo.pid);
+    std::lock_guard<std::mutex> lock(multiNodeMappingMutex);
+    std::vector<std::string> names;
+    for (const auto &memory : SHMManager::GetInstance().GetMemoryUsersByPid(udsInfo.pid)) {
+        if (IsMultiNodePoolMember(request->name_, memory)) {
+            names.emplace_back(memory.name);
+        }
+    }
+    std::sort(names.begin(), names.end());
+    const auto ret = request->name_.empty() || request->name_.find('\0') != std::string::npos ?
+                         MXM_ERR_PARAM_INVALID :
+                         (names.empty() ? MXM_OK : UnmapMultiNodeMembers(names, udsInfo));
+    response->errCode_ = ret;
+    LogMultiNodeMappingResult("ShmUnmapMultiNodePool", request->name_, udsInfo, ret);
+    return ret;
 }
 } // namespace ock::share::service

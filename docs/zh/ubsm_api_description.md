@@ -409,6 +409,68 @@ int ubsmem_shmem_allocate_with_provider(const ubs_mem_provider_t *src_loc, const
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
+#### ubsmem\_shmem\_allocate\_with\_multi\_provider
+
+**接口功能**
+
+在指定的多个内存提供节点上创建共享内存池。池成员的顺序由`host_names`数组中的节点顺序确定。
+
+>[!NOTE]说明
+>
+>- 内存提供节点数量为2～256。实际可用节点数量受网络拓扑、可用资源及UBSE服务能力限制。
+>- 内存提供节点的主机名及其解析得到的节点标识均不得重复。
+>- 未设置`UBSM_FLAG_MULTINODE_CUSTOM_SIZE`时，请求总大小在各提供节点之间均匀分配，忽略`host_sizes`；设置该标志时，按照`host_sizes`指定的大小分别分配。
+>- 各提供节点的请求大小必须大于0，且为4 MiB的整数倍。实际分配大小由UBSE分配粒度决定，映射长度必须等于各成员实际分配大小之和。
+>- 下标为0的成员使用池基础名称，其余成员在基础名称后追加四位十六进制后缀。后缀前两位表示`host_count - 1`，后两位表示提供节点下标。例如，四节点共享内存池`pool`的成员名称分别为`pool`、`pool0301`、`pool0302`和`pool0303`。
+>- 共享内存池的映射和删除操作应使用对应的多提供节点接口，并传入池基础名称。
+
+**接口格式**
+
+```C++
+int ubsmem_shmem_allocate_with_multi_provider(const char *name, size_t size, mode_t mode, uint64_t flags,
+                                             const ubs_mem_providers_t *providers);
+```
+
+同一 ubsmd 内，多节点池 create/delete 与 map/unmap 共用服务端互斥锁，锁覆盖成员发现、创建/删除及失败补偿，避免删除正在创建中的池成员。该锁仅在当前 daemon 内生效，不保证跨 daemon 的分布式事务或整池操作的原子性。
+
+**参数说明**
+
+|参数名|数据类型|参数类型|描述|
+|--|--|--|--|
+|name|const char *|入参|非空且全局唯一的共享内存池基础名称，有效长度为1～60字节，不包括“\0”。字符规则与普通共享内存名称相同，须为成员后缀预留四字节。|
+|size|size_t|入参|共享内存池的请求总大小，单位为字节。均分模式下必须能被`host_count`整除，且每个节点的大小为4 MiB的整数倍；自定义模式下必须等于有效`host_sizes`项之和。|
+|mode|mode_t|入参|各池成员的Unix读写权限位，用于控制映射访问权限。|
+|flags|uint64_t|入参|共享内存创建标志，标志含义及组合规则参见[表1](#table005)和[表2](#table006)。不支持`UBSM_FLAG_WITH_LOCK`；支持设置`UBSM_FLAG_MULTINODE_CUSTOM_SIZE`，以指定各提供节点的分配大小。该自定义标志不适用于普通及单提供节点创建接口。|
+|providers|const ubs_mem_providers_t *|入参|非空的提供节点集合，定义及字段含义如下。|
+
+数据结构说明：
+
+```C++
+#define MAX_MULTINODE_HOST_NUM 256
+#define MAX_HOST_NAME_DESC_LENGTH 64
+
+typedef struct {
+    uint32_t socket_id;
+    uint32_t host_count;
+    char host_names[MAX_MULTINODE_HOST_NUM][MAX_HOST_NAME_DESC_LENGTH];
+    size_t host_sizes[MAX_MULTINODE_HOST_NUM];
+} ubs_mem_providers_t;
+```
+
+|字段名|描述|
+|--|--|
+|socket_id|所有提供节点共同使用的socket平面标识，必须显式指定。取值为`UINT32_MAX`时返回`UBSM_ERR_PARAM_INVALID`。不支持为各节点分别指定socket平面、NUMA节点或端口；NUMA节点和端口由UBSE选择。|
+|host_count|有效提供节点数量，取值范围为`[2, MAX_MULTINODE_HOST_NUM]`。|
+|host_names|按创建顺序填写的节点名称数组，仅使用下标`[0, host_count)`。每项必须非空，并在64字节容量内包含结尾NUL。|
+|host_sizes|每个节点的请求大小，单位为字节。仅在设置`UBSM_FLAG_MULTINODE_CUSTOM_SIZE`时使用；每项必须大于0且为4 MiB的整数倍，有效项之和必须等于`size`。|
+
+**返回值**
+
+|返回值|描述|
+|--|--|
+|0|操作成功。|
+|非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
+
 #### ubsmem\_shmem\_deallocate
 
 **接口功能**
@@ -426,6 +488,38 @@ int ubsmem_shmem_deallocate(const char *name);
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
 |name|const char *|入参|共享内存名称。全局唯一标识，最大有效长度为64字节（不包括“\0”）。|
+
+**返回值**
+
+|返回值|描述|
+|--|--|
+|0|操作成功。|
+|非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
+
+#### ubsmem\_shmem\_deallocate\_with\_multi\_provider
+
+**接口功能**
+
+删除多节点共享内存池的全部成员。
+
+>[!NOTE]说明
+>
+>- 调用方必须具有各池成员的删除权限。任一成员仍处于使用状态时，删除操作失败；各使用进程应先解除相关映射。
+>- 支持对成员缺失的共享内存池执行清理。检测到成员缺失时，服务端记录告警并继续删除剩余成员；成员布局冲突等其他错误将导致删除失败。
+>- 删除操作不具备原子性。操作失败时，部分成员可能已被删除；调用方应结合日志确认剩余成员状态，并重试清理操作。
+>- `ubsmem_shmem_deallocate()`不支持删除多节点共享内存池的任一成员，包括使用池基础名称的成员。
+
+**接口格式**
+
+```C++
+int ubsmem_shmem_deallocate_with_multi_provider(const char *name);
+```
+
+**参数说明**
+
+|参数名|数据类型|参数类型|描述|
+|--|--|--|--|
+|name|const char *|入参|创建共享内存池时指定的基础名称，有效长度为1～60字节，不包括“\0”。不支持传入自动生成的成员名称。|
 
 **返回值**
 
@@ -470,11 +564,118 @@ int ubsmem_shmem_map(void *addr, size_t length, int prot, int flags, const char 
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
+#### ubsmem\_shmem\_map\_with\_multi\_provider
+
+**接口功能**
+
+将多节点共享内存池连续映射到本进程地址空间，各节点内存按照创建时的`host_names`顺序依次排列。
+
+>[!NOTE]说明
+>
+>- 仅支持共享内存池的完整映射，不支持非零偏移或部分映射。映射前校验池成员的完整性及布局一致性；成员缺失或布局不一致时，映射失败。
+>- 映射访问权限受创建时指定的`mode`约束，`prot`指定的权限不得超出调用方的访问权限。
+>- `flags`使用系统mmap定义的`MAP_*`标志，必须包含`MAP_SHARED`，不支持`MAP_PRIVATE`及`UBSM_FLAG_*`创建标志。
+>- 映射成功后，应调用`ubsmem_shmem_unmap()`解除完整映射。`ubsmem_shmem_map()`不支持映射多节点共享内存池的任一成员。
+>- 调用`ubsmem_shmem_set_ownership()`调整本地访问权限时，应传入池基础名称。创建属性包含`UBSM_FLAG_NONCACHE`或`UBSM_FLAG_ONLY_IMPORT_NONCACHE`时，该接口返回`UBSM_ERR_PARAM_INVALID`。
+
+**接口格式**
+
+```C++
+int ubsmem_shmem_map_with_multi_provider(void *addr, size_t length, int prot, int flags, const char *name,
+                                        off_t offset, void **local_ptr);
+```
+
+**参数说明**
+
+|参数名|数据类型|参数类型|描述|
+|--|--|--|--|
+|addr|void *|入参|期望的映射地址；为NULL时由系统选择。非空地址须按系统页大小对齐，固定地址标志的含义遵循系统mmap约定。|
+|length|size_t|入参|共享内存池的实际总大小，单位为字节，必须等于所有成员实际创建大小之和。UBSE向上取整分配时，该值可能大于创建时请求的`size`。|
+|prot|int|入参|映射访问权限，支持`PROT_NONE`、`PROT_READ`、`PROT_WRITE`及`PROT_READ \| PROT_WRITE`。|
+|flags|int|入参|系统mmap映射标志，必须包含`MAP_SHARED`；可按需组合`MAP_FIXED`或`MAP_FIXED_NOREPLACE`。|
+|name|const char *|入参|创建共享内存池时指定的基础名称，有效长度为1～60字节，不包括“\0”。|
+|offset|off_t|入参|映射起始偏移，仅允许为0。|
+|local_ptr|void **|出参|用于接收映射起始地址的输出参数，不得为NULL。仅在映射成功时写入有效地址。|
+
+成员大小依次为`S0`、`S1`和`S2`时，连续映射的布局为：
+
+```text
+[host0: S0][host1: S1][host2: S2]
+```
+
+**返回值**
+
+|返回值|描述|
+|--|--|
+|0|操作成功。|
+|非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
+
+#### ubsmem\_shmem\_map\_interleaved
+
+**接口功能**
+
+将多节点共享内存池按照固定块大小交织映射到本进程地址空间。
+
+>[!NOTE]说明
+>
+>- 仅支持完整池映射，成员完整性、访问权限和映射标志的要求与多提供节点连续映射相同。
+>- 每轮按照创建时的`host_names`顺序，依次映射各提供节点的一个交织块。各节点大小不一致时，已完成全部内存映射的节点不再参与后续轮次。
+>- `interleave_size`须大于0、按系统页大小对齐，并能整除每个节点的实际创建大小。启用`UBSM_FLAG_MMAP_HUGETLB_PMD`时还须满足2 MiB大页对齐要求。单个交织块支持跨越同一提供节点的多个底层内存块（memId）。
+>- 当前实现通过分段mmap建立交织布局。较小的交织粒度会增加映射次数及进程的虚拟内存区域（VMA）数量；当VMA数量达到`vm.max_map_count`限制时，即使物理内存充足，映射仍可能返回`ENOMEM`（`Cannot allocate memory`）。
+>- 部署前应根据映射总大小和交织粒度评估VMA数量，并为进程已有映射及其他映射操作预留余量。映射次数过多时，应适当增大交织粒度，或由管理员调整`vm.max_map_count`。调高该参数仅放宽VMA数量限制，不减少映射操作和内核元数据开销，也不保证映射成功。
+>- 应调用`ubsmem_shmem_unmap()`解除完整映射。在创建属性允许的情况下，`ubsmem_shmem_set_ownership()`支持调整完整映射或局部地址区间的本地访问权限。
+
+不考虑跨memId边界的额外拆分时，交织段数为`length / interleave_size`。不同提供节点的相邻映射通常不能合并为同一VMA，应按分段数量估算所需容量；实际VMA数量取决于底层映射行为。例如，4 GiB内存采用4 KiB交织粒度时，交织段数为1,048,576。可在目标主机上查看配置，并按实际需求临时调整：
+
+```bash
+# 查看每个进程允许的最大VMA数量。
+cat /proc/sys/vm/max_map_count
+
+# 示例：为上述单次映射及进程其他映射预留余量，具体取值应根据实际负载确定。
+sudo sysctl -w vm.max_map_count=2097152
+```
+
+上述调整在系统重启后不保留。需要持久配置时，应按照部署环境的系统管理规范配置`sysctl`参数。
+
+**接口格式**
+
+```C++
+int ubsmem_shmem_map_interleaved(void *addr, size_t length, int prot, int flags, const char *name,
+                                size_t interleave_size, void **local_ptr);
+```
+
+多节点池映射失败时，客户端执行一次设备描述符关闭、地址解除映射和服务端引用释放操作，并记录清理失败日志，不保留回滚重试队列。attach 成功后，客户端临时登记正在建立映射的成员名称；正式映射元数据保存成功或失败回滚结束后移除临时记录。IPC 重连后的资源核对同时上报临时记录和正式映射元数据中的成员名称，由服务端清理未使用的记录。
+
+**参数说明**
+
+|参数名|数据类型|参数类型|描述|
+|--|--|--|--|
+|addr|void *|入参|期望的映射地址；为NULL时由系统选择。非空地址须按系统页大小对齐。|
+|length|size_t|入参|共享内存池的实际总大小，单位为字节，必须等于各成员实际创建大小之和，不支持部分映射。|
+|prot|int|入参|映射访问权限，支持`PROT_NONE`、`PROT_READ`、`PROT_WRITE`及`PROT_READ \| PROT_WRITE`。|
+|flags|int|入参|系统mmap映射标志，必须包含`MAP_SHARED`，不支持`MAP_PRIVATE`；可按需组合固定地址标志。|
+|name|const char *|入参|创建共享内存池时指定的基础名称，有效长度为1～60字节，不包括“\0”。|
+|interleave_size|size_t|入参|交织块大小，单位为字节。均分模式下须满足`(length / host_count) % interleave_size == 0`；不等长模式下须分别整除每个节点的实际创建大小。|
+|local_ptr|void **|出参|用于接收映射起始地址的输出参数，不得为NULL。仅在映射成功时写入有效地址。|
+
+例如，三个提供节点的实际分配大小分别为`2C`、`C`和`3C`，交织块大小为`C`。各节点的交织块从0开始编号，按虚拟地址递增顺序排列如下：
+
+```text
+[host0: 块0][host1: 块0][host2: 块0][host0: 块1][host2: 块1][host2: 块2]
+```
+
+**返回值**
+
+|返回值|描述|
+|--|--|
+|0|操作成功。|
+|非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
+
 #### ubsmem\_shmem\_unmap
 
 **接口功能**
 
-解除映射共享内存对象。
+解除映射共享内存对象，支持普通共享内存、多提供节点连续映射和交织映射。
 
 >[!NOTE]说明
 >
@@ -491,8 +692,8 @@ int ubsmem_shmem_unmap(void *local_ptr, size_t length);
 
 |参数名|数据类型|参数类型|描述|
 |--|--|--|--|
-|local_ptr|void *|入参|由 ubsmem_shmem_map 得到的地址。当前仅支持整个共享内存映射，不能增加偏移量，此值必须严格等于 ubsmem_shmem_map 得到的地址。|
-|length|size_t|入参|共享内存的大小。当前仅支持整个共享内存映射，不支持部分unmap。|
+|local_ptr|void *|入参|普通映射、多提供节点连续映射或交织映射返回的起始地址，必须与对应映射接口返回值严格一致，不能增加偏移量。|
+|length|size_t|入参|对应映射的完整长度。多节点池使用整个池的映射长度，不支持按成员或交织块分别unmap。|
 
 **返回值**
 
@@ -646,6 +847,68 @@ int ubsmem_local_nid_query(uint32_t* nid);
 |0|操作成功。|
 |非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
 
+#### ubsmem\_shmem\_ipc\_suspend
+
+**接口功能**
+
+暂停当前进程与ubsmd之间的IPC连接。服务端确认暂停请求后，SDK停止IPC客户端。
+
+>[!NOTE]说明
+>
+>- 调用前必须完成`ubsmem_initialize()`初始化。本接口作用于当前进程的IPC连接，不针对单个共享内存对象。
+>- 暂停成功后，已有内存映射保持有效，可继续通过已有地址访问内存。服务端不会因本次IPC连接断开而执行对应进程的内存泄漏清理。
+>- 暂停期间，依赖IPC通信的接口不可用，返回`UBSM_ERR_IPC_SUSPENDED`。应调用`ubsmem_shmem_ipc_resume()`并确认恢复成功后，再执行此类操作。
+>- 当前进程已处于暂停状态时，重复调用返回成功。暂停或恢复等状态切换尚未完成时，调用可能返回`UBSM_ERR_BUSY`。
+>- 调用方应协调各线程的接口调用顺序，避免暂停、恢复与资源管理操作并发执行。接口返回失败时，应结合返回值和日志确认状态，不应假定IPC连接仍处于正常运行状态。
+
+**接口格式**
+
+```C++
+int ubsmem_shmem_ipc_suspend(void);
+```
+
+**参数说明**
+
+无。
+
+**返回值**
+
+|返回值|描述|
+|--|--|
+|0|操作成功，当前进程的IPC连接已暂停。|
+|非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
+
+#### ubsmem\_shmem\_ipc\_resume
+
+**接口功能**
+
+恢复当前进程与ubsmd之间的IPC连接，并通知服务端解除该进程的暂停状态。
+
+>[!NOTE]说明
+>
+>- 调用前必须完成`ubsmem_initialize()`初始化。通常在`ubsmem_shmem_ipc_suspend()`之后调用本接口。
+>- 恢复过程根据当前状态启动IPC客户端、重新建立服务端连接并发送恢复请求。仅在返回成功后，方可继续调用依赖IPC通信的接口。
+>- 当前进程的IPC连接已处于正常运行状态时，重复调用返回成功。其他状态切换尚未完成时，调用可能返回`UBSM_ERR_BUSY`。
+>- 恢复失败不表示已有内存映射失效，但不能据此认定IPC通信已恢复。调用方应结合返回值和日志处理故障，并重试恢复操作。
+>- 本接口不重新创建共享内存对象，也不替代映射或解除映射操作。
+
+**接口格式**
+
+```C++
+int ubsmem_shmem_ipc_resume(void);
+```
+
+**参数说明**
+
+无。
+
+**返回值**
+
+|返回值|描述|
+|--|--|
+|0|操作成功，当前进程的IPC连接处于正常运行状态。|
+|非0|操作失败。具体错误码根据返回值不同参考[错误码](#错误码)。|
+
 #### ubsmem\_shmem\_set\_ownership
 
 **接口功能**
@@ -655,7 +918,7 @@ int ubsmem_local_nid_query(uint32_t* nid);
 >[!NOTE]说明
 >
 >- 只有已经映射到本地的共享内存才可以调用此接口。
->- 使用NonCache模式的时候，不支持调用修改内存权限接口。
+>- 创建属性包含`UBSM_FLAG_NONCACHE`或`UBSM_FLAG_ONLY_IMPORT_NONCACHE`时，接口返回`UBSM_ERR_PARAM_INVALID`，不执行底层权限切换。该约束适用于普通映射、连续跨节点映射和交织映射的完整或局部区间；即使局部区间对应本地CC成员，也不例外。
 
 **接口格式**
 
@@ -1179,12 +1442,15 @@ int ubs_mem_fork_demo()
 |6015|UBSM_ERR_MEMLIB|MEM LIB失败。|
 |6016|UBSM_ERR_NO_NEEDED|默认共享域，无需创建。|
 |6017|UBSM_ERR_BUSY|资源忙碌。|
+|6018|UBSM_ERR_IPC_SUSPENDED|当前进程的IPC连接已暂停，调用依赖IPC通信的接口前须先恢复连接。|
 |6020|UBSM_ERR_NOT_FOUND|资源不存在。|
 |6021|UBSM_ERR_ALREADY_EXIST|资源已存在。|
 |6022|UBSM_ERR_MALLOC_FAIL|申请内存失败。|
 |6023|UBSM_ERR_RECORD|资源记录失败。|
 |6024|UBSM_ERR_IN_USING|共享正在被使用，不能删除。|
 |6025|UBSM_ERR_NOT_SUPPORTED|操作不支持。|
+|6026|UBSM_ERR_SHM_POOL_INCOMPLETE|多节点共享内存池缺少必要成员，无法完整映射。|
+|6027|UBSM_ERR_SHM_POOL_LAYOUT_CONFLICT|多节点共享内存池的成员布局或映射元数据不一致，例如成员大小、数量、flags或memId数量冲突。|
 |6040|UBSM_ERR_NET|网络错误。|
 |6050|UBSM_ERR_UBSE|UBSE接口报错。|
 |6051|UBSM_ERR_OBMM|OBMM接口报错。|
@@ -1192,3 +1458,11 @@ int ubs_mem_fork_demo()
 |6061|UBSM_ERR_LOCK_ALREADY_LOCKED|锁已被锁定。|
 |6062|UBSM_ERR_DLOCK|dlock内部错误。|
 |6099|UBSM_ERR_BUFF|未知错误。|
+
+多节点池普通映射接口`ubsmem_shmem_map_with_multi_provider()`和交织映射接口`ubsmem_shmem_map_interleaved()`
+均可返回6026或6027；映射元数据校验失败时，`ubsmem_shmem_set_ownership()`也可返回6027。
+收到这些错误后，应结合ubsmd和SDK日志检查池成员是否缺失、成员大小及布局是否一致，不应盲目删除仍在使用的池。
+删除接口允许成员缺失，因此“池不完整”并不意味着无法清理残留成员。
+
+这两个公开错误码从1.1.1版本开始提供，分别对应内部`MXM_ERR_SHM_POOL_INCOMPLETE`和
+`MXM_ERR_SHM_POOL_LAYOUT_CONFLICT`；此前均归类为`UBSM_ERR_BUFF`（6099）。已有公开错误码数值保持不变。

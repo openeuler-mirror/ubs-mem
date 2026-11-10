@@ -19,3 +19,7 @@ target_link_libraries(01_cache_shmem PRIVATE ${UBSM_LIBRARY})
 add_executable(02_contiguous_shmem 02_contiguous_shmem.cpp)
 target_include_directories(02_contiguous_shmem PRIVATE ${UBSM_INCLUDE_DIR})
 target_link_libraries(02_contiguous_shmem PRIVATE ${UBSM_LIBRARY})
+
+add_executable(03_interleaved_shmem 03_interleaved_shmem.cpp)
+target_include_directories(03_interleaved_shmem PRIVATE ${UBSM_INCLUDE_DIR})
+target_link_libraries(03_interleaved_shmem PRIVATE ${UBSM_LIBRARY})

@@ -6,9 +6,11 @@ Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
 #include "numa_cpu_utils.h"
 #include "region_manager.h"
 #include "region_repository.h"
+#include "securec.h"
 #include "system_adapter.h"
 #include "ubs_common_types.h"
 #include "ubs_error.h"
+#include "ubs_mem_monitor.h"
 #include "ubse_mem_adapter.h"
 
 extern "C" {
@@ -52,7 +54,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapterLoadLibrary_WhenDlopenFail)
 
 TEST_F(UbseMemAdapterDlTest, UbseMemAdapterLoadLibrary_WhenDlsymFailed)
 {
-    int ubseFuncCount = 26;
+    int ubseFuncCount = 27;
     void *nullPtr = nullptr;
     void *notNullPtr = reinterpret_cast<void *>(1);
     for (int i = 0; i < ubseFuncCount; i++) {
@@ -299,6 +301,288 @@ TEST_F(UbseMemAdapterDlTest, Preserves64ByteLeaseNames)
     UbseMemAdapter::Destroy();
 }
 
+static std::vector<std::pair<std::string, uint64_t>> rollbackCreatedMembers;
+static std::vector<std::string> rollbackDeletedMembers;
+static std::vector<DelayRemovedKey> scheduledPoolCleanup;
+static uint32_t poolTopologyCount = 3;
+static bool poolTopologyAliases = false;
+static bool poolCreateFailure = true;
+static std::vector<uint32_t> poolCreatedNodeIds;
+
+static int32_t ListPoolTestNodes(ubs_topo_node_t **nodes, uint32_t *count)
+{
+    *count = poolTopologyCount;
+    *nodes = static_cast<ubs_topo_node_t *>(calloc(*count, sizeof(ubs_topo_node_t)));
+    if (*nodes == nullptr) {
+        return UBS_ERR_NOT_SUPPORTED;
+    }
+    for (uint32_t index = 0; index < *count; ++index) {
+        const auto name = "node" + std::to_string(index + 1);
+        if (strcpy_s((*nodes)[index].host_name, sizeof((*nodes)[index].host_name), name.c_str()) != EOK) {
+            free(*nodes);
+            *nodes = nullptr;
+            *count = 0;
+            return UBS_ERR_NOT_SUPPORTED;
+        }
+        (*nodes)[index].slot_id = poolTopologyAliases ? 1 : index + 1;
+    }
+    return UBS_SUCCESS;
+}
+
+static int32_t FailThirdPoolCreate(const char *name, uint8_t *userInfo, uint64_t, const ubs_mem_nodes_t *,
+                                   const ubs_mem_lender_t *lender)
+{
+    if (poolCreateFailure && rollbackCreatedMembers.size() == 2) {
+        return UBS_ERR_NOT_SUPPORTED;
+    }
+    ubse_user_info_t info{};
+    if (memcpy_s(&info, sizeof(info), userInfo, sizeof(info)) != EOK) {
+        return UBS_ERR_NOT_SUPPORTED;
+    }
+    rollbackCreatedMembers.emplace_back(name, info.seqNo);
+    poolCreatedNodeIds.emplace_back(lender->slot_id);
+    return UBS_SUCCESS;
+}
+
+static int32_t FailPoolMemberRollback(const char *name)
+{
+    rollbackDeletedMembers.emplace_back(name);
+    return rollbackDeletedMembers.size() == 1 ? UBS_ERR_TIMED_OUT : UBS_SUCCESS;
+}
+
+static void *PoolRollbackSymbols(void *handle, const char *name)
+{
+    if (strcmp(name, "ubs_topo_node_list") == 0) {
+        return reinterpret_cast<void *>(ListPoolTestNodes);
+    }
+    if (strcmp(name, "ubs_mem_shm_create_with_lender") == 0) {
+        return reinterpret_cast<void *>(FailThirdPoolCreate);
+    }
+    if (strcmp(name, "ubs_mem_shm_delete") == 0) {
+        return reinterpret_cast<void *>(FailPoolMemberRollback);
+    }
+    return dlsym(handle, name);
+}
+
+static void CapturePoolCleanup(UBSMemMonitor *, const DelayRemovedKey &key)
+{
+    scheduledPoolCleanup.push_back(key);
+}
+
+TEST_F(UbseMemAdapterDlTest, MultiNodeRollbackFailureSchedulesMatchingCreateGeneration)
+{
+    UbseMemAdapter::Destroy();
+    rollbackCreatedMembers.clear();
+    rollbackDeletedMembers.clear();
+    scheduledPoolCleanup.clear();
+    poolTopologyCount = 3;
+    poolTopologyAliases = false;
+    MOCKER(SystemAdapter::DlSym).stubs().will(invoke(PoolRollbackSymbols));
+    MOCKCPP_NS::mockAPI("AddDelayRemoveRecord", reinterpret_cast<void (*)(UBSMemMonitor *, const DelayRemovedKey &)>(
+                                                    &UBSMemMonitor::AddDelayRemoveRecord))
+        .expects(once())
+        .will(invoke(CapturePoolCleanup));
+    MultiNodeShmCreateParam param{};
+    param.name = "rollback_generation";
+    param.size = 12UL * 1024 * 1024;
+    param.mode = 0600;
+    param.hostNames = {"node1", "node2", "node3"};
+    param.appContext = AppContext{100, 200, 300};
+    EXPECT_EQ(UbseMemAdapter::CreateMultiNodeShmPool(param), MXM_ERR_UBSE_NOT_SUPPORTED);
+    ASSERT_EQ(rollbackCreatedMembers.size(), 2);
+    EXPECT_EQ(rollbackDeletedMembers, (std::vector<std::string>{"rollback_generation0201", "rollback_generation"}));
+    ASSERT_EQ(scheduledPoolCleanup.size(), 1);
+    EXPECT_EQ(scheduledPoolCleanup[0].name, rollbackCreatedMembers[1].first);
+    EXPECT_EQ(scheduledPoolCleanup[0].createSeqNo, rollbackCreatedMembers[1].second);
+    EXPECT_FALSE(scheduledPoolCleanup[0].isAttach);
+    EXPECT_TRUE(scheduledPoolCleanup[0].timeOutScene);
+    EXPECT_EQ(scheduledPoolCleanup[0].appCtx.pid, param.appContext.pid);
+    UbseMemAdapter::Destroy();
+}
+
+TEST_F(UbseMemAdapterDlTest, MultiNodeNameBoundaryPreservesFourByteSuffix)
+{
+    UbseMemAdapter::Destroy();
+    rollbackCreatedMembers.clear();
+    poolTopologyCount = 2;
+    poolTopologyAliases = false;
+    MOCKER(SystemAdapter::DlSym).stubs().will(invoke(PoolRollbackSymbols));
+    MultiNodeShmCreateParam param{};
+    param.name = std::string(MAX_SHM_NAME_LENGTH - 4, 'a');
+    param.size = 8UL * 1024 * 1024;
+    param.mode = 0600;
+    param.hostNames = {"node1", "node2"};
+    param.appContext = AppContext{100, 200, 300};
+    EXPECT_EQ(UbseMemAdapter::CreateMultiNodeShmPool(param), MXM_OK);
+    ASSERT_EQ(rollbackCreatedMembers.size(), 2);
+    EXPECT_EQ(rollbackCreatedMembers[0].first, param.name);
+    EXPECT_EQ(rollbackCreatedMembers[1].first, param.name + "0101");
+    EXPECT_EQ(rollbackCreatedMembers[1].first.size(), MAX_SHM_NAME_LENGTH);
+    param.name.push_back('a');
+    EXPECT_EQ(UbseMemAdapter::CreateMultiNodeShmPool(param), MXM_ERR_PARAM_INVALID);
+    EXPECT_EQ(rollbackCreatedMembers.size(), 2);
+    UbseMemAdapter::Destroy();
+}
+
+TEST_F(UbseMemAdapterDlTest, MultiNodeRejectsDuplicateHostsAndResolvedNodeIds)
+{
+    for (const bool aliases : {false, true}) {
+        UbseMemAdapter::Destroy();
+        poolTopologyCount = 2;
+        poolTopologyAliases = aliases;
+        rollbackCreatedMembers.clear();
+        MOCKER(SystemAdapter::DlSym).stubs().will(invoke(PoolRollbackSymbols));
+        MultiNodeShmCreateParam param{};
+        param.name = "duplicate_pool";
+        param.size = 8UL * 1024 * 1024;
+        param.hostNames = aliases ? std::vector<std::string>{"node1", "node2"} :
+                                    std::vector<std::string>{"node1", "node1"};
+        EXPECT_EQ(UbseMemAdapter::CreateMultiNodeShmPool(param), MXM_ERR_PARAM_INVALID);
+        EXPECT_TRUE(rollbackCreatedMembers.empty());
+        UbseMemAdapter::Destroy();
+        GlobalMockObject::verify();
+        GlobalMockObject::reset();
+    }
+    poolTopologyAliases = false;
+}
+
+TEST_F(UbseMemAdapterDlTest, MultiNodeAcceptsMoreThan16ProvidersThrough256)
+{
+    for (const uint32_t count : {17u, 256u, 257u}) {
+        UbseMemAdapter::Destroy();
+        poolTopologyCount = count;
+        poolTopologyAliases = false;
+        poolCreateFailure = false;
+        rollbackCreatedMembers.clear();
+        poolCreatedNodeIds.clear();
+        rollbackDeletedMembers.clear();
+        MOCKER(SystemAdapter::DlSym).stubs().will(invoke(PoolRollbackSymbols));
+        MultiNodeShmCreateParam param{};
+        param.name = "large_pool";
+        param.size = count * 4UL * 1024 * 1024;
+        for (uint32_t index = 0; index < count; ++index) {
+            param.hostNames.emplace_back("node" + std::to_string(index + 1));
+        }
+        EXPECT_EQ(UbseMemAdapter::CreateMultiNodeShmPool(param),
+                  count > MAX_MULTINODE_HOST_NUM ? MXM_ERR_PARAM_INVALID : MXM_OK);
+        EXPECT_EQ(rollbackCreatedMembers.size(), count > MAX_MULTINODE_HOST_NUM ? 0UL : count);
+        if (count <= MAX_MULTINODE_HOST_NUM) {
+            EXPECT_EQ(rollbackCreatedMembers.front().first, param.name);
+            EXPECT_EQ(rollbackCreatedMembers.back().first, count == 256 ? "large_poolffff" : "large_pool1010");
+            EXPECT_EQ(poolCreatedNodeIds.size(), count);
+            for (uint32_t index = 0; index < count; ++index) {
+                EXPECT_EQ(poolCreatedNodeIds[index], index + 1);
+            }
+        }
+        UbseMemAdapter::Destroy();
+        GlobalMockObject::verify();
+        GlobalMockObject::reset();
+    }
+    poolCreateFailure = true;
+}
+
+TEST_F(UbseMemAdapterDlTest, MultiNodeServerRejectsLockMode)
+{
+    MultiNodeShmCreateParam param{};
+    param.name = "lock_pool";
+    param.size = 8UL * 1024 * 1024;
+    param.hostNames = {"node1", "node2"};
+    param.flags = UBSM_FLAG_WITH_LOCK;
+    EXPECT_EQ(UbseMemAdapter::CreateMultiNodeShmPool(param), MXM_ERR_PARAM_INVALID);
+    UbseMemAdapter::Destroy();
+}
+
+TEST_F(UbseMemAdapterDlTest, MultiNodeRejectsUnspecifiedPlaneBeforeBackendInitialization)
+{
+    MultiNodeShmCreateParam param{};
+    param.name = "plane_pool";
+    param.size = 8UL * 1024 * 1024;
+    param.hostNames = {"node1", "node2"};
+    param.socketId = UINT32_MAX;
+    MOCKER(UbseMemAdapter::Initialize).expects(never());
+    EXPECT_EQ(UbseMemAdapter::CreateMultiNodeShmPool(param), MXM_ERR_PARAM_INVALID);
+    GlobalMockObject::verify();
+}
+
+TEST_F(UbseMemAdapterDlTest, MultiNodeRejectsEmptyProvidersBeforeBackendInitialization)
+{
+    MultiNodeShmCreateParam param{};
+    param.name = "empty_pool";
+    param.size = 8UL * 1024 * 1024;
+    param.socketId = 0;
+    MOCKER(UbseMemAdapter::Initialize).expects(never());
+    EXPECT_EQ(UbseMemAdapter::CreateMultiNodeShmPool(param), MXM_ERR_PARAM_INVALID);
+}
+
+TEST_F(UbseMemAdapterDlTest, MultiNodeRejectsInvalidEvenDistributionBeforeBackendInitialization)
+{
+    MultiNodeShmCreateParam param{};
+    param.name = "size_pool";
+    param.socketId = 0;
+    param.hostNames = {"node1", "node2"};
+    MOCKER(UbseMemAdapter::Initialize).expects(never());
+    for (const uint64_t size : {0UL, 1UL, 4UL * 1024 * 1024}) {
+        param.size = size;
+        EXPECT_EQ(UbseMemAdapter::CreateMultiNodeShmPool(param), MXM_ERR_PARAM_INVALID);
+    }
+}
+
+TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_DeleteMultiNodeShmPoolSuccess)
+{
+    CreateShmParam createParam;
+    createParam.size = TEST_SHM_SIZE;
+    createParam.appContext = AppContext{100, 200, 300};
+    createParam.flag = UBSM_FLAG_CACHE | UBSM_INNER_FLAG_MULTINODE;
+    createParam.mode = TEST_SHM_MODE;
+
+    SHMRegions regions;
+    ASSERT_EQ(UbseMemAdapter::LookupRegionList(regions), MXM_OK);
+    createParam.desc = regions.region[0];
+    createParam.name = "multi_delete";
+    ASSERT_EQ(UbseMemAdapter::ShmCreate(createParam), MXM_OK);
+    createParam.name = "multi_delete0101";
+    createParam.size = TEST_SHM_SIZE * 2;
+    ASSERT_EQ(UbseMemAdapter::ShmCreate(createParam), MXM_OK);
+
+    std::vector<std::string> names;
+    ASSERT_EQ(UbseMemAdapter::GetMultiNodeShmNames("multi_delete", names, true), MXM_OK);
+    EXPECT_EQ(names, (std::vector<std::string>{"multi_delete", "multi_delete0101"}));
+    std::vector<MultiNodeShmMember> members;
+    ASSERT_EQ(UbseMemAdapter::GetMultiNodeShmMembers("multi_delete", members, true), MXM_OK);
+    ASSERT_EQ(members.size(), 2);
+    EXPECT_EQ(members[0].name, "multi_delete");
+    EXPECT_EQ(members[0].size, TEST_SHM_SIZE);
+    EXPECT_EQ(members[1].name, "multi_delete0101");
+    EXPECT_EQ(members[1].size, TEST_SHM_SIZE * 2);
+    EXPECT_EQ(members[0].userInfo.udsInfo.uid, createParam.appContext.uid);
+    EXPECT_EQ(members[1].userInfo.flag, createParam.flag);
+    auto nonOwner = createParam.appContext;
+    ++nonOwner.uid;
+    EXPECT_EQ(UbseMemAdapter::DeleteMultiNodeShmPool("multi_delete", nonOwner), MXM_ERR_SHM_PERMISSION_DENIED);
+    EXPECT_EQ(UbseMemAdapter::GetMultiNodeShmMembers("multi_delete", members, true), MXM_OK);
+    EXPECT_EQ(members.size(), 2);
+    const auto ret = UbseMemAdapter::DeleteMultiNodeShmPool("multi_delete", createParam.appContext);
+    if (ret != MXM_OK) {
+        UbseMemAdapter::ShmDelete("multi_delete", createParam.appContext);
+        UbseMemAdapter::ShmDelete("multi_delete0101", createParam.appContext);
+    }
+    EXPECT_EQ(ret, MXM_OK);
+    ubse_user_info_t userInfo{};
+    EXPECT_EQ(UbseMemAdapter::ShmGetUserData("multi_delete", userInfo), MXM_ERR_SHM_NOT_EXIST);
+    EXPECT_EQ(UbseMemAdapter::ShmGetUserData("multi_delete0101", userInfo), MXM_ERR_SHM_NOT_EXIST);
+    UbseMemAdapter::Destroy();
+}
+
+TEST_F(UbseMemAdapterDlTest, RejectsNamesExceeding64ByteCapacity)
+{
+    CreateShmParam param{};
+    MultiNodeShmCreateParam pool{};
+    param.name = std::string(65, 'a');
+    EXPECT_EQ(UbseMemAdapter::ShmCreate(param), MXM_ERR_PARAM_INVALID);
+    pool.name = std::string(61, 'a');
+    EXPECT_EQ(UbseMemAdapter::CreateMultiNodeShmPool(pool), MXM_ERR_PARAM_INVALID);
+}
+
 TEST_F(UbseMemAdapterDlTest, PreservesLongSharedMemoryNames)
 {
     CreateShmParam param{};
@@ -321,6 +605,45 @@ TEST_F(UbseMemAdapterDlTest, PreservesLongSharedMemoryNames)
         EXPECT_STREQ(listed[0].name, param.name.c_str());
         EXPECT_EQ(UbseMemAdapter::ShmDelete(param.name, param.appContext), MXM_OK);
     }
+    MultiNodeShmCreateParam pool{};
+    pool.size = 8UL * 1024 * 1024;
+    pool.mode = TEST_SHM_MODE;
+    pool.hostNames = {"node1", "node2"};
+    for (const size_t length : {43UL, 44UL, 59UL, 60UL}) {
+        pool.name = std::string(length, 'p');
+        ASSERT_EQ(UbseMemAdapter::CreateMultiNodeShmPool(pool), MXM_OK);
+        std::vector<MultiNodeShmMember> members;
+        ASSERT_EQ(UbseMemAdapter::GetMultiNodeShmMembers(pool.name, members, true), MXM_OK);
+        ASSERT_EQ(members.size(), 2);
+        EXPECT_EQ(members[1].name, pool.name + "0101");
+        EXPECT_EQ(UbseMemAdapter::DeleteMultiNodeShmPool(pool.name, pool.appContext), MXM_OK);
+    }
+    UbseMemAdapter::Destroy();
+}
+
+TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_IncompleteMultiNodePool)
+{
+    CreateShmParam param{};
+    param.size = TEST_SHM_SIZE;
+    param.appContext = AppContext{100, 200, 300};
+    param.flag = UBSM_FLAG_CACHE | UBSM_INNER_FLAG_MULTINODE;
+    param.mode = TEST_SHM_MODE;
+    SHMRegions regions;
+    ASSERT_EQ(UbseMemAdapter::LookupRegionList(regions), MXM_OK);
+    param.desc = regions.region[0];
+    param.name = "multi_incomplete";
+    ASSERT_EQ(UbseMemAdapter::ShmCreate(param), MXM_OK);
+    std::vector<std::string> names;
+    EXPECT_EQ(UbseMemAdapter::GetMultiNodeShmNames(param.name, names, true), MXM_ERR_SHM_POOL_INCOMPLETE);
+    EXPECT_TRUE(names.empty());
+    EXPECT_EQ(UbseMemAdapter::GetMultiNodeShmNames(param.name, names), MXM_OK);
+    EXPECT_EQ(names, (std::vector<std::string>{param.name}));
+    EXPECT_EQ(UbseMemAdapter::DeleteMultiNodeShmPool(param.name, param.appContext), MXM_OK);
+    param.name = "multi_incomplete0202";
+    ASSERT_EQ(UbseMemAdapter::ShmCreate(param), MXM_OK);
+    names.clear();
+    EXPECT_EQ(UbseMemAdapter::GetMultiNodeShmNames("multi_incomplete", names, true), MXM_ERR_SHM_POOL_INCOMPLETE);
+    EXPECT_EQ(UbseMemAdapter::DeleteMultiNodeShmPool("multi_incomplete", param.appContext), MXM_OK);
     UbseMemAdapter::Destroy();
 }
 
@@ -535,7 +858,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_LeaseMalloc_NumaCreateNotSupported)
     EXPECT_EQ(ret, true);
 
     ock::mxm::LeaseMallocParam param;
-    param.name = "UbseMemAdapter_LeaseMalloc_NumaNotSupported_NOT_SUPPORTED";
+    param.name = "LeaseMalloc_NumaNotSupported_NOT_SUPPORTED";
     param.regionName = regionName;
     param.size = TEST_SHM_SIZE;
     param.isNuma = true;
@@ -569,7 +892,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_LeaseMalloc_FdCreateNotSupported)
     EXPECT_EQ(ret, true);
 
     ock::mxm::LeaseMallocParam param;
-    param.name = "UbseMemAdapter_LeaseMalloc_FdNotSupported_NOT_SUPPORTED";
+    param.name = "LeaseMalloc_FdNotSupported_NOT_SUPPORTED";
     param.regionName = regionName;
     param.size = TEST_SHM_SIZE;
     param.isNuma = false;
@@ -593,7 +916,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_LeaseMallocWithLoc_NumaNotSupported)
     EXPECT_EQ(ret, 0);
 
     ock::mxm::LeaseMallocWithLocParam param;
-    param.name = "UbseMemAdapter_LeaseMallocWithLoc_NumaNotSupported_NOT_SUPPORTED";
+    param.name = "LeaseLocNuma_NOT_SUPPORTED";
     param.regionName = "default";
     param.size = TEST_SHM_SIZE;
     param.isNuma = true;
@@ -618,7 +941,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_LeaseMallocWithLoc_FdNotSupported)
     EXPECT_EQ(ret, 0);
 
     ock::mxm::LeaseMallocWithLocParam param;
-    param.name = "UbseMemAdapter_LeaseMallocWithLoc_FdNotSupported_NOT_SUPPORTED";
+    param.name = "LeaseMallocWithLoc_FdNotSupported_NOT_SUPPORTED";
     param.regionName = "default";
     param.size = TEST_SHM_SIZE;
     param.isNuma = false;
@@ -642,7 +965,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmCreateNotSupported)
     ock::mxm::CreateShmParam createParam;
     createParam.privider.slot_ids[0] = 1;
     createParam.privider.node_cnt = 1;
-    createParam.name = "UbseMemAdapter_ShmCreateNotSupported_NOT_SUPPORTED";
+    createParam.name = "ShmCreateNotSupported_NOT_SUPPORTED";
     createParam.size = TEST_SHM_SIZE;
     createParam.appContext.uid = 0;
     createParam.appContext.gid = 0;
@@ -664,7 +987,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmCreateNotSupported)
 TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmCreateWithProviderNotSupported)
 {
     ock::mxm::CreateShmWithProviderParam createParam("node2", 1, 1, UINT32_MAX);
-    createParam.name = "UbseMemAdapter_ShmCreateWithProviderNotSupported_NOT_SUPPORTED";
+    createParam.name = "ShmCreateWithProviderNotSupported_NOT_SUPPORTED";
     createParam.size = TEST_SHM_SIZE;
     createParam.appContext.uid = 0;
     createParam.appContext.gid = 0;
@@ -705,7 +1028,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmDeleteNotSupported)
     appContext.gid = 0;
     appContext.pid = 0;
 
-    hr = ock::mxm::UbseMemAdapter::ShmDelete("UbseMemAdapter_ShmDeleteNotSupported_NOT_SUPPORTED", appContext);
+    hr = ock::mxm::UbseMemAdapter::ShmDelete("ShmDeleteNotSupported_NOT_SUPPORTED", appContext);
     EXPECT_EQ(hr, MXM_ERR_UBSE_NOT_SUPPORTED);
 
     hr = ock::mxm::UbseMemAdapter::ShmDelete(createParam.name, appContext);
@@ -748,7 +1071,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_ShmAttachNotSupported)
     EXPECT_EQ(hr, 0);
 
     ock::mxm::AttachShmResult result;
-    hr = ock::mxm::UbseMemAdapter::ShmAttach("UbseMemAdapter_ShmAttachNotSupported_NOT_SUPPORTED", ubsUserInfo, result);
+    hr = ock::mxm::UbseMemAdapter::ShmAttach("ShmAttachNotSupported_NOT_SUPPORTED", ubsUserInfo, result);
     EXPECT_EQ(hr, MXM_ERR_UBSE_NOT_SUPPORTED);
 
     hr = ock::mxm::UbseMemAdapter::ShmAttach(createParam.name, ubsUserInfo, result);
@@ -794,7 +1117,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_LeaseFree_FdDeleteNotSupported)
     auto hr = ock::mxm::UbseMemAdapter::LeaseMalloc(param, mallocResult);
     EXPECT_EQ(hr, 0);
 
-    hr = ock::mxm::UbseMemAdapter::LeaseFree("UbseMemAdapter_LeaseFree_FdNotSupported_NOT_SUPPORTED", false);
+    hr = ock::mxm::UbseMemAdapter::LeaseFree("LeaseFree_FdNotSupported_NOT_SUPPORTED", false);
     EXPECT_EQ(hr, MXM_ERR_UBSE_NOT_SUPPORTED);
 
     hr = ock::mxm::UbseMemAdapter::LeaseFree(param.name, param.isNuma);
@@ -821,7 +1144,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_LeaseFree_NumaDeleteNotSupported)
     EXPECT_EQ(ret, true);
 
     ock::mxm::LeaseMallocParam param;
-    param.name = "UbseMemAdapter_LeaseFree_NumaNotSupported_Normal";
+    param.name = "LeaseFree_NumaNotSupported_Normal";
     param.regionName = regionName;
     param.size = TEST_SHM_SIZE;
     param.isNuma = true;
@@ -834,7 +1157,7 @@ TEST_F(UbseMemAdapterDlTest, UbseMemAdapter_LeaseFree_NumaDeleteNotSupported)
     auto hr = ock::mxm::UbseMemAdapter::LeaseMalloc(param, mallocResult);
     EXPECT_EQ(hr, 0);
 
-    hr = ock::mxm::UbseMemAdapter::LeaseFree("UbseMemAdapter_LeaseFree_NumaNotSupported_NOT_SUPPORTED", true);
+    hr = ock::mxm::UbseMemAdapter::LeaseFree("LeaseFree_NumaNotSupported_NOT_SUPPORTED", true);
     EXPECT_EQ(hr, MXM_ERR_UBSE_NOT_SUPPORTED);
 
     hr = ock::mxm::UbseMemAdapter::LeaseFree(param.name, param.isNuma);
