@@ -10,6 +10,8 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "rack_mem_fd_map.h"
+#include <unistd.h>
+#include <limits>
 #include "ubs_mem_def.h"
 #include "fork_resources.h"
 #include "log.h"
@@ -104,6 +106,46 @@ int RackMemFdMap::MemoryMapAligned(size_t size, void *&result, size_t align)
         free(alignedMemory);
         return MXM_ERR_MMAP_VA_FAILED;
     }
+    return MXM_OK;
+}
+
+int RackMemFdMap::ReserveAlignedAddress(size_t size, void *&result, size_t align)
+{
+    const auto pageSize = static_cast<size_t>(getpagesize());
+    constexpr auto maxSize = std::numeric_limits<size_t>::max();
+    if (size == 0 || align == 0 || align < pageSize || (align & (align - 1)) != 0 || size > maxSize - (align - 1)) {
+        DBG_LOGERROR("Invalid aligned address reservation, size=" << size << ", align=" << align);
+        return MXM_ERR_PARAM_INVALID;
+    }
+
+    const size_t mappedSize = (size + (pageSize - 1)) / pageSize * pageSize;
+    // mmap already returns a page-aligned address, so at most align - pageSize bytes are needed.
+    const size_t reserveSize = mappedSize + (align - pageSize);
+    void *base = nullptr;
+    const auto ret = MapAnonymousMemory(nullptr, reserveSize, base);
+    if (ret != MXM_OK) {
+        return ret;
+    }
+
+    const size_t misalignment = reinterpret_cast<uintptr_t>(base) & (align - 1);
+    const size_t prefix = misalignment == 0 ? 0 : align - misalignment;
+    auto *aligned = static_cast<char *>(base) + prefix;
+    const size_t suffix = reserveSize - prefix - mappedSize;
+    if (prefix != 0 && ubsm::SystemAdapter::MemoryUnMap(base, prefix) != 0) {
+        DBG_LOGERROR("Failed to trim aligned reservation prefix, size=" << prefix << ", errno=" << errno);
+        if (ubsm::SystemAdapter::MemoryUnMap(base, reserveSize) != 0) {
+            DBG_LOGERROR("Failed to release aligned reservation, size=" << reserveSize << ", errno=" << errno);
+        }
+        return MXM_ERR_MMAP_VA_FAILED;
+    }
+    if (suffix != 0 && ubsm::SystemAdapter::MemoryUnMap(aligned + mappedSize, suffix) != 0) {
+        DBG_LOGERROR("Failed to trim aligned reservation suffix, size=" << suffix << ", errno=" << errno);
+        if (ubsm::SystemAdapter::MemoryUnMap(aligned, reserveSize - prefix) != 0) {
+            DBG_LOGERROR("Failed to release aligned reservation, size=" << reserveSize - prefix << ", errno=" << errno);
+        }
+        return MXM_ERR_MMAP_VA_FAILED;
+    }
+    result = aligned;
     return MXM_OK;
 }
 } // namespace ock::mxmd
