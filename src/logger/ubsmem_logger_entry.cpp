@@ -77,7 +77,9 @@ static void FormatTimestamp(std::ostringstream &oss, uint64_t timestamp)
     int offsetMinutes = (std::abs(offsetSeconds) % 3600) / 60; // 分钟
     // 初始化一个缓冲区存储时区偏移量字符串
     char tzBuffer[16] = {0};
-    std::snprintf(tzBuffer, sizeof(tzBuffer), "%+03d:%02d", offsetHours, offsetMinutes);
+    if (snprintf_s(tzBuffer, sizeof(tzBuffer), sizeof(tzBuffer) - 1, "%+03d:%02d", offsetHours, offsetMinutes) < 0) {
+        tzBuffer[0] = '\0';
+    }
     // 计算时间戳中的毫秒部分
     uint64_t milliseconds = (timestamp % microsecondsPerSecond) / microsecondsPerMillisecond;
     // 时间戳格式为：[YYYY-MM-DD HH:MM:SS.mmm +HH:MM]
