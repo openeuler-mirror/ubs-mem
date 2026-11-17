@@ -246,8 +246,8 @@ stages:
               name: ci-result-aarch64
               path: .ci-results/aarch64
 
-      dt:
-        name: DT
+      ut:
+        name: UT
         runs-on: [self-hosted, ubse, arm, cpu=8]
         timeout-minutes: 120
         container:
@@ -309,7 +309,7 @@ stages:
               test -f /usr/include/hcom/capi/hcom_service_c.h
               ldconfig -p | grep libhcom
 
-          - name: Prepare DT dependencies
+          - name: Prepare UT dependencies
             run: |
               set -euxo pipefail
 
@@ -317,7 +317,7 @@ stages:
                 https://gitcode.com/GitHub_Trending/sp/spdlog.git \
                 3rdparty/spdlog
 
-          - name: Run ubs-mem DT
+          - name: Run ubs-mem UT
             run: |
               set -euxo pipefail
 
@@ -326,7 +326,7 @@ stages:
 
               test -f build/gcover_report/test_detail.xml
 
-          - name: Upload DT reports
+          - name: Upload UT reports
             if: ${{ always() }}
             uses: upload-artifact
             with:
@@ -342,16 +342,16 @@ stages:
             run: |
               mkdir -p .ci-results
               if [[ "${CURRENT_JOB_STATUS}" == "success" ]]; then
-                echo "SUCCESS" > .ci-results/DT
+                echo "SUCCESS" > .ci-results/UT
               else
-                echo "FAILED" > .ci-results/DT
+                echo "FAILED" > .ci-results/UT
               fi
 
-              echo "DT: ${CURRENT_JOB_STATUS}" >> "${ATOMGIT_STEP_SUMMARY}"
+              echo "UT: ${CURRENT_JOB_STATUS}" >> "${ATOMGIT_STEP_SUMMARY}"
 
           - name: Upload result
             if: ${{ always() }}
             uses: upload-artifact
             with:
-              name: ci-result-dt
-              path: .ci-results/DT
+              name: ci-result-ut
+              path: .ci-results/UT
