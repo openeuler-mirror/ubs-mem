@@ -330,7 +330,7 @@ stages:
             if: ${{ always() }}
             uses: upload-artifact
             with:
-              name: ubs-mem-dt
+              name: ubs-mem-ut
               path: |
                 test/build/gcover_report/test_detail.xml
                 test/build/gcover_report/
