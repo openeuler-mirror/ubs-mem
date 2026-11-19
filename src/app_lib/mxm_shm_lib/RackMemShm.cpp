@@ -265,10 +265,10 @@ int RackMemShm::GetPreAllocateAddressAligned(void *start, size_t length, int fla
     void *mmapAddr = nullptr;
     if (start == nullptr) { // 未指定地址时，内部预先分配一段地址
         TP_TRACE_BEGIN(TP_UBSM_SHM_MMAP_ADDR);
-        auto ret = RackMemFdMap::MemoryMapAligned(length, mmapAddr, align);
+        auto ret = RackMemFdMap::ReserveAlignedAddress(length, mmapAddr, align);
         TP_TRACE_END(TP_UBSM_SHM_MMAP_ADDR, ret);
         if (BresultFail(ret)) {
-            DBG_LOGERROR("MemoryMapAligned failed, length is " << length);
+            DBG_LOGERROR("Aligned address reservation failed, length=" << length);
             return MXM_ERR_MMAP_VA_FAILED;
         }
         result = mmapAddr;
@@ -294,10 +294,10 @@ int RackMemShm::GetPreAllocateAddressAligned(void *start, size_t length, int fla
     if (reinterpret_cast<uintptr_t>(mmapAddr) % align != 0) {
         (void)SystemAdapter::MemoryUnMap(mmapAddr, length);
         TP_TRACE_BEGIN(TP_UBSM_SHM_MMAP_ADDR);
-        ret = RackMemFdMap::MemoryMapAligned(length, mmapAddr, align);
+        ret = RackMemFdMap::ReserveAlignedAddress(length, mmapAddr, align);
         TP_TRACE_END(TP_UBSM_SHM_MMAP_ADDR, ret);
         if (BresultFail(ret)) {
-            DBG_LOGERROR("MemoryMapAligned failed, length is " << length);
+            DBG_LOGERROR("Aligned address reservation failed, length=" << length);
             return MXM_ERR_MMAP_VA_FAILED;
         }
         result = mmapAddr;

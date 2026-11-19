@@ -38,6 +38,45 @@ protected:
     std::vector<uint64_t> memIds = {123, 456};
 };
 
+TEST_F(RackMemShmTest, AlignedReservationTrimsOnlyWholePages)
+{
+    const auto pageSize = static_cast<size_t>(getpagesize());
+    const auto align = 4 * pageSize;
+    auto *base = reinterpret_cast<void *>(align + 2 * pageSize);
+    auto *aligned = reinterpret_cast<void *>(2 * align);
+    auto *tail = reinterpret_cast<void *>(2 * align + 2 * pageSize);
+    MOCKER(SystemAdapter::MemoryMap)
+        .expects(once())
+        .with(eq(static_cast<void *>(nullptr)), eq(5 * pageSize), eq(PROT_NONE), eq(MAP_PRIVATE | MAP_ANONYMOUS),
+              eq(-1), eq(static_cast<off_t>(0)))
+        .will(returnValue(base));
+    MOCKER(SystemAdapter::MemoryUnMap).expects(once()).with(eq(base), eq(2 * pageSize)).will(returnValue(0));
+    MOCKER(SystemAdapter::MemoryUnMap).expects(once()).with(eq(tail), eq(pageSize)).will(returnValue(0));
+
+    void *address = nullptr;
+    EXPECT_EQ(RackMemFdMap::ReserveAlignedAddress(pageSize + 1, address, align), MXM_OK);
+    EXPECT_EQ(address, aligned);
+    GlobalMockObject::verify();
+}
+
+TEST_F(RackMemShmTest, AlignedReservationTrimFailureReleasesRemainingRange)
+{
+    const auto pageSize = static_cast<size_t>(getpagesize());
+    const auto align = 4 * pageSize;
+    auto *base = reinterpret_cast<void *>(align + 2 * pageSize);
+    auto *aligned = reinterpret_cast<void *>(2 * align);
+    auto *tail = reinterpret_cast<void *>(2 * align + pageSize);
+    MOCKER(SystemAdapter::MemoryMap).expects(once()).will(returnValue(base));
+    MOCKER(SystemAdapter::MemoryUnMap).expects(once()).with(eq(base), eq(2 * pageSize)).will(returnValue(0));
+    MOCKER(SystemAdapter::MemoryUnMap).expects(once()).with(eq(tail), eq(pageSize)).will(returnValue(-1));
+    MOCKER(SystemAdapter::MemoryUnMap).expects(once()).with(eq(aligned), eq(2 * pageSize)).will(returnValue(0));
+
+    void *address = nullptr;
+    EXPECT_EQ(RackMemFdMap::ReserveAlignedAddress(pageSize, address, align), MXM_ERR_MMAP_VA_FAILED);
+    EXPECT_EQ(address, nullptr);
+    GlobalMockObject::verify();
+}
+
 TEST_F(RackMemShmTest, MetaOperationLockSerializesSameName)
 {
     auto &mgr = ShmMetaDataMgr::GetInstance();
